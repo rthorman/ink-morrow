@@ -150,6 +150,10 @@ describe('AI character drafts', () => {
     const savedBody = JSON.parse(saveCall[1].body);
     expect(savedBody.name).toBe('Quist');
     expect(savedBody.world_id).toBe('w1');
+
+    // Character seed fields clear after the save
+    expect(document.getElementById('characterName').value).toBe('');
+    expect(document.getElementById('characterDescription').value).toBe('');
   });
 });
 describe('Scribe-voiced errors', () => {

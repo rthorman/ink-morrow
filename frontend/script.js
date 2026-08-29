@@ -1188,6 +1188,9 @@ async function saveAiDraft() {
   try {
     await apiCall(mode === 'world' ? '/worlds' : '/characters', 'POST', payload);
     showSuccess(mode === 'world' ? 'World created.' : 'Character created.');
+    // Clear the seed fields, like the manual create path does.
+    const form = document.getElementById(mode === 'world' ? 'worldForm' : 'characterForm');
+    if (form) form.reset();
     closeAiDraft();
     if (mode === 'world') await loadWorlds();
     else await loadCharacters();
