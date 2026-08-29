@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" role="img" aria-labelledby="title desc">
+  <title id="title">ScribeTribe</title>
+  <desc id="desc">ScribeTribe logo with quill, feline ears and open manuscript.</desc>
+  <g transform="translate(10 -7) scale(.86)">
+    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
+    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
+    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
+    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
+    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
+  </g>
+  <text x="225" y="125" fill="#F2E7D2" font-family="Cormorant Garamond, Georgia, serif" font-size="88" font-weight="700" letter-spacing="-2">Scribe<tspan fill="#DF6E9D">Tribe</tspan></text>
+  <text x="230" y="170" fill="#C7A35B" font-family="IBM Plex Mono, monospace" font-size="19" letter-spacing="4">WHERE STORIES GROW CLAWS</text>
+</svg>
+

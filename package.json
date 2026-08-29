@@ -1,0 +1,17 @@
+{
+  "name": "scribe-tribe",
+  "version": "2.0.0",
+  "description": "Interactive fiction writing tool with gothic frontend, world/character reuse, and full test suite",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "setup": "bash setup.sh",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:e2e": "cd e2e && npm test",
+    "test:e2e:headed": "cd e2e && npm run test:headed",
+    "test:coverage": "cd backend && npm run test:coverage && cd ../frontend && npm run test:coverage"
+  },
+  "license": "MIT",
+  "private": true
+}

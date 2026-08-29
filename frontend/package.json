@@ -1,0 +1,22 @@
+{
+  "name": "scribe-tribe-frontend",
+  "version": "2.0.0",
+  "description": "Frontend for ScribeTribe (served by the backend)",
+  "scripts": {
+    "test": "node node_modules/jest/bin/jest.js",
+    "test:watch": "node node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node node_modules/jest/bin/jest.js --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "keywords": ["fiction", "frontend", "gothic"],
+  "author": "ScribeTribe",
+  "license": "MIT",
+  "jest": {
+    "testEnvironment": "jsdom",
+    "testMatch": ["**/tests/**/*.test.js"],
+    "collectCoverageFrom": ["script.js"]
+  }
+}

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
+    <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
+    <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Literata:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <a class="skip-link" href="#mainContent">Skip to content</a>
+    <div class="container">
+        <div id="ageGate" class="age-gate" hidden>
+            <p>ScribeTribe is a fantasy-leaning fiction tool. Some stories may contain mature (18+) content depending on the tone chosen for them.
+                <button id="ageGateAccept" type="button">I am 18 or older — Enter</button>
+            </p>
+        </div>
+
+        <header class="main-header">
+            <div class="cat-scribe" aria-hidden="true">
+                <svg viewBox="0 0 256 256" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
+                    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
+                    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
+                    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
+                    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
+                </svg>
+            </div>
+            <div class="wordmark">
+                <h1>ScribeTribe</h1>
+                <p class="subtitle">Interactive tales, scribed by candlelight</p>
+            </div>
+            <p id="scribeStatus" class="scribe-status" aria-live="polite">The scribe waits, quill at the ready…</p>
+        </header>
+
+        <nav class="main-nav" aria-label="Primary">
+            <button id="worldsBtn" class="nav-btn active" type="button">Worlds</button>
+            <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
+            <button id="storiesBtn" class="nav-btn" type="button">Stories</button>
+            <button id="writeBtn" class="nav-btn" type="button">Write</button>
+            <button id="settingsBtn" class="nav-btn" type="button">Settings</button>
+        </nav>
+
+        <main class="main-content" id="mainContent">
+            <!-- Worlds Section (home / manuscript hall) -->
+            <section id="worldsSection" class="content-section active" aria-label="Worlds">
+                <div class="hero">
+                    <picture class="hero__picture" aria-hidden="true">
+                        <source
+                            media="(min-width: 1200px) and (pointer: fine)"
+                            srcset="brand/hero-scriptorium-desktop.webp"
+                            width="1672"
+                            height="941"
+                        >
+                        <source
+                            media="(min-width: 768px) and (orientation: portrait)"
+                            srcset="brand/hero-scriptorium-tablet-portrait.webp"
+                            width="941"
+                            height="1672"
+                        >
+                        <source
+                            media="(min-width: 768px)"
+                            srcset="brand/hero-scriptorium-tablet-landscape.webp"
+                            width="1448"
+                            height="1086"
+                        >
+                        <img
+                            src="brand/vesper-quill.webp"
+                            alt=""
+                            width="941"
+                            height="1672"
+                            decoding="async"
+                            fetchpriority="high"
+                        >
+                    </picture>
+                    <div class="hero__copy">
+                        <p class="hero__kicker">The manuscript hall</p>
+                        <h2 class="hero__line">Where stories grow claws.</h2>
+                        <p class="hero__support">Build worlds, cast your characters, and let the scribes write with you.</p>
+                        <div class="hero__actions">
+                            <button id="heroStartBtn" class="btn btn-primary" type="button">Start something dangerous</button>
+                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
+                        </div>
+                    </div>
+                </div>
+
+                <h2>Worlds &amp; Settings</h2>
+                <div class="create-form">
+                    <h3>Create New World</h3>
+                    <form id="worldForm">
+                        <label for="worldName">Name</label>
+                        <input type="text" id="worldName" placeholder="e.g. The Ashen Marches" maxlength="200" required>
+                        <label for="worldDescription">Description</label>
+                        <textarea id="worldDescription" placeholder="What rules this place? What does it fear?" rows="3" maxlength="10000"></textarea>
+                        <label for="worldGenre">Genre</label>
+                        <input type="text" id="worldGenre" placeholder="e.g. Fantasy, Gothic, Sci-Fi" maxlength="100">
+                        <label for="worldSetting">Setting</label>
+                        <input type="text" id="worldSetting" placeholder="e.g. Medieval, Modern, Futuristic" maxlength="200">
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create World</button>
+                            <button id="worldAiBtn" class="btn btn-secondary" type="button">Flesh out with AI</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="list-container">
+                    <h3>Existing Worlds</h3>
+                    <div id="worldsList" class="items-grid"></div>
+                </div>
+            </section>
+
+            <!-- Characters Section -->
+            <section id="charactersSection" class="content-section" aria-label="Characters">
+                <h2>Characters</h2>
+                <div class="create-form">
+                    <h3>Create New Character</h3>
+                    <form id="characterForm">
+                        <label for="characterName">Name</label>
+                        <input type="text" id="characterName" placeholder="Every story needs a name to haunt" maxlength="200" required>
+                        <label for="characterDescription">Description</label>
+                        <textarea id="characterDescription" placeholder="Who are they when the candles gutter?" rows="3" maxlength="10000"></textarea>
+                        <label for="characterPersonality">Personality</label>
+                        <textarea id="characterPersonality" placeholder="Temper, habits, appetites" rows="2" maxlength="10000"></textarea>
+                        <label for="characterAppearance">Appearance</label>
+                        <textarea id="characterAppearance" placeholder="The details the reader will not forget" rows="2" maxlength="10000"></textarea>
+                        <label for="characterBackground">Background</label>
+                        <textarea id="characterBackground" placeholder="Scars, debts, secrets" rows="2" maxlength="10000"></textarea>
+                        <label for="characterWorld">World</label>
+                        <select id="characterWorld">
+                            <option value="">No world (free-roaming character)</option>
+                        </select>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create Character</button>
+                            <button id="characterAiBtn" class="btn btn-secondary" type="button">Flesh out with AI</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="list-container">
+                    <h3>Existing Characters</h3>
+                    <div id="charactersList" class="items-grid"></div>
+                </div>
+            </section>
+
+            <!-- Stories Section -->
+            <section id="storiesSection" class="content-section" aria-label="Stories">
+                <h2>Stories</h2>
+                <div class="create-form">
+                    <h3>Create New Story</h3>
+                    <form id="storyForm">
+                        <label for="storyTitle">Title</label>
+                        <input type="text" id="storyTitle" placeholder="Give the manuscript a name" maxlength="300" required>
+                        <label for="storyWorld">World</label>
+                        <select id="storyWorld">
+                            <option value="">No world</option>
+                        </select>
+                        <label for="storyTone">Tone</label>
+                        <select id="storyTone">
+                            <option value="fade-to-black">Tone: Tasteful (fades to black)</option>
+                            <option value="romantic">Tone: Romantic / sensual</option>
+                            <option value="explicit">Tone: Explicit (18+)</option>
+                        </select>
+                        <div class="character-selection">
+                            <p class="character-selection__label">Cast — one MC to follow, supporting cast close to them, background figures kept loose (shown first: characters from the chosen world):</p>
+                            <div id="characterCheckboxes" class="checkbox-group"></div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create Story</button>
+                    </form>
+                </div>
+                <div class="list-container">
+                    <h3>Existing Stories</h3>
+                    <div id="storiesList" class="items-grid"></div>
+                </div>
+            </section>
+
+            <!-- Write Section -->
+            <section id="writeSection" class="content-section" aria-label="Write">
+                <h2>Interactive Writing</h2>
+                <div class="write-container">
+                    <div class="story-selector">
+                        <label class="sr-only" for="currentStory">Select or create a story</label>
+                        <select id="currentStory">
+                            <option value="">Select or Create a Story</option>
+                        </select>
+                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
+                    </div>
+
+                    <div class="story-reader">
+                        <div class="page-navigation">
+                            <button id="prevPageBtn" type="button">← Previous</button>
+                            <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
+                            <button id="nextPageBtn" type="button">Next →</button>
+                        </div>
+
+                        <div id="storyContent" class="story-content">
+                            <p class="placeholder">Select a story to begin reading and writing…</p>
+                        </div>
+
+                        <div id="pastPageBar" class="past-page-bar" hidden>
+                            <p>You are reading an earlier page. Old pages cannot be changed.</p>
+                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Delete everything after this page</button>
+                        </div>
+
+                        <div class="writing-interface">
+                            <label for="userInput">Direction for the next page</label>
+                            <textarea id="userInput" placeholder="Enter your direction for the next page… (or leave empty to just continue)"></textarea>
+                            <div class="action-buttons">
+                                <button id="generateBtn" class="btn btn-primary" type="button">Generate Page</button>
+                                <button id="retryBtn" type="button" title="Regenerate the current (last) page with the same direction">Retry Page</button>
+                                <button id="exportBtn" type="button">Export .epub</button>
+                                <button id="deletePageBtn" class="btn-danger" type="button" title="Delete the page you are viewing">Delete Page</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settingsSection" class="content-section" aria-label="Settings">
+                <h2>Settings</h2>
+                <div class="create-form">
+                    <h3>OpenRouter Model</h3>
+                    <p id="currentModel" class="current-model">Using the server default model</p>
+                    <label for="modelSearch">Search models</label>
+                    <input type="text" id="modelSearch" placeholder="Search by name or id… (e.g. claude, glm, gemini)" autocomplete="off">
+                    <div id="modelList" class="model-list" aria-label="Available models"></div>
+                    <button id="modelResetBtn" type="button" class="btn btn-secondary">Use the server default model</button>
+                </div>
+                <div class="create-form">
+                    <h3>Story Typeface</h3>
+                    <p class="current-model">Typeface for the story reading &amp; writing window</p>
+                    <div id="fontList" class="font-list" aria-label="Story typeface"></div>
+                </div>
+                <div class="create-form">
+                    <h3>Page Length</h3>
+                    <label for="wordsPerPageInput">Target words per generated page (approximate)</label>
+                    <input type="number" id="wordsPerPageInput" min="50" max="2000" step="50" value="400" inputmode="numeric">
+                    <p class="setting-hint">Shorter pages generate faster. The scribe treats this as a suggestion, not a contract.</p>
+                </div>
+                <div class="create-form">
+                    <h3>Writing Desk</h3>
+                    <label class="toggle-row" for="scriptoriumBgToggle">
+                        <input type="checkbox" id="scriptoriumBgToggle">
+                        <span>Toned-down scriptorium artwork behind the writing page</span>
+                    </label>
+                    <label class="toggle-row" for="costTickerToggle">
+                        <input type="checkbox" id="costTickerToggle" checked>
+                        <span>Session &amp; story cost ticker on the writing page</span>
+                    </label>
+                </div>
+            </section>
+        </main>
+
+        <footer class="main-footer">            <img class="ornament" src="brand/ornament-divider.svg" alt="" width="320" height="32" decoding="async">
+            <p>Ink remembers.</p>
+        </footer>
+    </div>
+
+    <div id="burnModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="burnTitle" aria-describedby="burnBody">
+            <h2 id="burnTitle">Burn the following pages?</h2>
+            <p id="burnBody" class="burn-modal__body"></p>
+            <div class="burn-slider">
+                <label class="sr-only" for="burnSlider">Slide all the way right to confirm burning</label>
+                <input type="range" id="burnSlider" min="0" max="100" step="1" value="0" autocomplete="off">
+                <span class="burn-slider__hint" aria-hidden="true">slide to burn →</span>
+            </div>
+            <div class="burn-modal__actions">
+                <button id="burnCancelBtn" type="button" class="btn btn-secondary">Keep them</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="aiDraftModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel" role="dialog" aria-modal="true" aria-labelledby="aiDraftTitle">
+            <h2 id="aiDraftTitle">The scribe offers a draft</h2>
+            <div id="aiDraftBody"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

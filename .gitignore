@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+
+# Runtime data
+database/*.db
+database/*.db-journal
+database/*.db-shm
+database/*.db-wal
+
+# Environment variables (the example file IS committed)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Coverage
+coverage/
+lcov.info
+.nyc_output/
+
+# Build outputs
+dist/
+build/
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+._*
+Thumbs.db

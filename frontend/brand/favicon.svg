@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="ScribeTribe">
+  <rect width="64" height="64" rx="14" fill="#100A16"/>
+  <path fill="#6E1834" stroke="#E0C584" stroke-width="3" stroke-linejoin="round" d="M10 31 16 10l13 13h6l13-13 6 21-4 20H14z"/>
+  <path fill="#C7A35B" d="m32 20 8 13-8 18-8-18z"/>
+  <path fill="#100A16" d="m32 25 2 8-2 12-2-12z"/>
+  <circle cx="32" cy="33" r="1.8" fill="#69D9CB"/>
+</svg>
+

@@ -1,0 +1,73 @@
+{
+  "brand": "ScribeTribe",
+  "version": "1.1.0",
+  "coordinateSystem": "Normalized coordinates from the top-left corner",
+  "assets": [
+    {
+      "id": "hero-desktop",
+      "master": "assets/brand/hero-scriptorium-desktop.png",
+      "production": "assets/brand/hero-scriptorium-desktop.webp",
+      "dimensions": { "width": 1672, "height": 941 },
+      "media": "(min-width: 1200px) and (pointer: fine)",
+      "decorative": true,
+      "focalPoint": { "x": 0.76, "y": 0.49 },
+      "textSafeRegion": { "xMin": 0.03, "xMax": 0.36, "yMin": 0.13, "yMax": 0.82 },
+      "notes": "Lead character and manuscript sit on the right. Keep real HTML copy inside the calmer left region."
+    },
+    {
+      "id": "hero-tablet-portrait",
+      "master": "assets/brand/hero-scriptorium-tablet-portrait.png",
+      "production": "assets/brand/hero-scriptorium-tablet-portrait.webp",
+      "dimensions": { "width": 941, "height": 1672 },
+      "media": "(min-width: 768px) and (orientation: portrait)",
+      "decorative": true,
+      "focalPoint": { "x": 0.50, "y": 0.48 },
+      "textSafeRegion": { "xMin": 0.06, "xMax": 0.94, "yMin": 0.82, "yMax": 0.97 },
+      "notes": "Primary tablet composition for tall portrait screens, including approximately 9:16 and 10:16. Use the full vertical composition; do not replace it with a crop of the landscape or desktop hero. Keep real copy in the dark lower fade or in a separate block."
+    },
+    {
+      "id": "hero-tablet-landscape",
+      "master": "assets/brand/hero-scriptorium-tablet-landscape.png",
+      "production": "assets/brand/hero-scriptorium-tablet-landscape.webp",
+      "dimensions": { "width": 1448, "height": 1086 },
+      "media": "(min-width: 768px) and (max-width: 1199px) and (orientation: landscape), (min-width: 1200px) and (pointer: coarse) and (orientation: landscape)",
+      "decorative": true,
+      "focalPoint": { "x": 0.62, "y": 0.48 },
+      "textSafeRegion": { "xMin": 0.025, "xMax": 0.31, "yMin": 0.05, "yMax": 0.28 },
+      "notes": "Independent 4:3 tablet-landscape composition. Use a compact real-text panel in the upper-left shadow and keep faces, the quill and manuscript unobstructed."
+    },
+    {
+      "id": "vesper-quill",
+      "master": "assets/brand/vesper-quill.png",
+      "production": "assets/brand/vesper-quill.webp",
+      "dimensions": { "width": 941, "height": 1672 },
+      "alpha": true,
+      "decorativeByDefault": true,
+      "focalPoint": { "x": 0.50, "y": 0.42 },
+      "notes": "True transparent foreground asset. Suitable for onboarding, empty states and the simplified phone treatment. Never overlay active prose."
+    },
+    {
+      "id": "brand-mark",
+      "production": "assets/brand/scribetribe-mark.svg",
+      "dimensions": { "width": 256, "height": 256 },
+      "notes": "Quill nib, feline ears and open manuscript."
+    },
+    {
+      "id": "brand-lockup",
+      "production": "assets/brand/scribetribe-lockup.svg",
+      "dimensions": { "width": 760, "height": 220 },
+      "notes": "Horizontal lockup for headers and onboarding. Live-text construction is preferred when exact font rendering matters."
+    },
+    {
+      "id": "favicon",
+      "production": "assets/brand/favicon.svg",
+      "dimensions": { "width": 64, "height": 64 }
+    },
+    {
+      "id": "ornament-divider",
+      "production": "assets/brand/ornament-divider.svg",
+      "dimensions": { "width": 640, "height": 64 },
+      "decorative": true
+    }
+  ]
+}
