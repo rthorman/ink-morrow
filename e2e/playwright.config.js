@@ -1,13 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
+import { existsSync } from 'fs';
 
-// Termux: Playwright cannot download browsers on android; use the native
-// Termux chromium package instead.
-const termuxChromium = {
-  launchOptions: {
-    executablePath: '/data/data/com.termux/files/usr/bin/chromium-browser',
-    args: ['--no-sandbox', '--disable-dev-shm-usage'],
-  },
-};
+// Termux: Playwright cannot download browsers on Android; use the native
+// Termux chromium package instead. Everywhere else, Playwright's own
+// browsers are used and these launchOptions are skipped.
+const termuxChromiumPath = '/data/data/com.termux/files/usr/bin/chromium-browser';
+const termuxChromium = existsSync(termuxChromiumPath)
+  ? {
+      launchOptions: {
+        executablePath: termuxChromiumPath,
+        args: ['--no-sandbox', '--disable-dev-shm-usage'],
+      },
+    }
+  : {};
 
 export default defineConfig({
   testDir: './tests',
