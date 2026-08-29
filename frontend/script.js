@@ -152,10 +152,62 @@ function addCost(costUsd) {
   updateCostTicker();
 }
 
-// Non-story AI usage (world/character drafts) still counts toward the session.
+// ---------------------------------------------------------------------------
+// Speculative next-page preparation
+// ---------------------------------------------------------------------------
+
+// When the writer sits on the last page with no direction, the scribe
+// prepares the next page in advance; an empty Generate commits it instantly.
+// Costs are booked at preparation time (the tokens are spent either way).
+let speculative = null; // { storyId, ready: bool }
+
+function updatePreviewNote() {
+  const note = document.getElementById('previewNote');
+  if (!note) return;
+  const input = document.getElementById('userInput');
+  const inputEmpty = !input || !input.value.trim();
+  const usable = speculative && speculative.ready && currentStory && speculative.storyId === currentStory.id;
+  note.hidden = !(usable && inputEmpty);
+}
+
+async function maybeStartSpeculative() {
+  if (!currentStory || generating) return;
+  if (storyPages.length === 0 || currentPage !== storyPages.length) return;
+  const input = document.getElementById('userInput');
+  if (input && input.value.trim()) return;
+  if (speculative && speculative.storyId === currentStory.id) return; // already in flight or ready
+
+  const storyId = currentStory.id;
+  speculative = { storyId, ready: false };
+  try {
+    const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
+      words: settings.wordsPerPage,
+      ...(settings.model ? { model: settings.model } : {}),
+    });
+    if (!speculative || speculative.storyId !== storyId) return; // story changed mid-flight
+    speculative = { storyId, ready: true };
+    addSessionCost(res.preview?.cost_usd); // honest: the tokens are spent now
+  } catch {
+    if (speculative && speculative.storyId === storyId) speculative = null;
+  }
+  updatePreviewNote();
+}
+
+function discardSpeculative() {
+  speculative = null;
+  updatePreviewNote();
+}
 function addSessionCost(costUsd) {
   if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
   sessionCost += costUsd;
+  updateCostTicker();
+}
+
+// Story cost only (session already counted it - e.g. a speculatively
+// pre-generated page whose preview cost was booked when it was prepared).
+function addStoryCost(costUsd) {
+  if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
+  storyCostExtra += costUsd;
   updateCostTicker();
 }
 
@@ -289,6 +341,10 @@ function initApp() {
   const wordsInput = document.getElementById('wordsPerPageInput');
   if (wordsInput) {
     wordsInput.addEventListener('change', () => setSetting('wordsPerPage', wordsInput.value));
+  }
+  const userInputEl = document.getElementById('userInput');
+  if (userInputEl) {
+    userInputEl.addEventListener('input', updatePreviewNote);
   }
 
   applySettings();
@@ -860,6 +916,7 @@ async function loadStoryPages() {
     currentPage = Math.max(1, storyPages.length);
     displayCurrentPage();
     resetStoryCost();
+    maybeStartSpeculative();
   } catch (error) {
     showError(error.message);
     storyPages = [];
@@ -991,10 +1048,51 @@ async function generateNextPage() {
   }
 
   const userInput = document.getElementById('userInput').value.trim();
+
+  // No direction given and the scribe already prepared the next page: commit it.
+  if (
+    !userInput &&
+    speculative &&
+    speculative.ready &&
+    speculative.storyId === currentStory.id
+  ) {
+    setGenerating(true);
+    let committed = false;
+    try {
+      const data = await apiCall(`/stories/${currentStory.id}/pages/commit-preview`, 'POST', {});
+      storyPages.push(data.page);
+      currentPage = storyPages.length;
+      addStoryCost(data.page?.cost_usd); // session cost was booked at preview time
+      discardSpeculative();
+      document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+      displayCurrentPage();
+      committed = true;
+    } catch {
+      // Stale or discarded (the story moved on) - fall back to a live call.
+      discardSpeculative();
+    } finally {
+      setGenerating(false);
+    }
+    if (committed) {
+      maybeStartSpeculative(); // prepare the next one
+      return;
+    }
+  }
+
+  await generateNextPageLive(userInput);
+}
+
+async function generateNextPageLive(userInput) {
+  if (generating) return;
+  const direction =
+    userInput === undefined || userInput === null
+      ? document.getElementById('userInput').value.trim()
+      : userInput;
+
   setGenerating(true);
   try {
     const data = await apiCall(`/stories/${currentStory.id}/pages/generate`, 'POST', {
-      user_input: userInput || null,
+      user_input: direction || null,
       words: settings.wordsPerPage,
       ...(settings.model ? { model: settings.model } : {}),
     });
@@ -1010,6 +1108,7 @@ async function generateNextPage() {
   } finally {
     setGenerating(false);
   }
+  maybeStartSpeculative(); // prepare the next one (generating has cleared)
 }
 
 async function retryLastPage() {
@@ -1031,6 +1130,7 @@ async function retryLastPage() {
     const newCost = typeof data.page?.cost_usd === 'number' ? data.page.cost_usd : 0;
     addCost(newCost - oldCost);
     document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+    discardSpeculative(); // the server dropped the old preview on regenerate
     displayCurrentPage();
   } catch (error) {
     showError(error.message);
@@ -1038,6 +1138,7 @@ async function retryLastPage() {
   } finally {
     setGenerating(false);
   }
+  maybeStartSpeculative(); // prepare the next one (generating has cleared)
 }
 
 async function deleteCurrentPage() {
@@ -1047,6 +1148,7 @@ async function deleteCurrentPage() {
   if (!confirm(`Delete page ${currentPage}? This cannot be undone.`)) return;
   try {
     await apiCall(`/stories/${currentStory.id}/pages/${page.page_number}`, 'DELETE');
+    discardSpeculative();
     await loadStoryPages();
     await loadStories();
     resetStoryCost();
@@ -1359,6 +1461,7 @@ async function burnAfterCurrentPage() {
   const after = currentPage;
   try {
     const result = await apiCall(`/stories/${currentStory.id}/pages?after=${after}`, 'DELETE');
+    discardSpeculative();
     await loadStoryPages();
     showSuccess(result.deleted === 1 ? '1 page burned.' : `${result.deleted} pages burned.`);
   } catch (error) {
@@ -1457,6 +1560,8 @@ if (typeof module !== 'undefined' && module.exports) {
     renderAiDraft,
     showError,
     scribeErrorMessage,
+    maybeStartSpeculative,
+    discardSpeculative,
     // Settings + cost ticker
     loadSettings,
     setSetting,

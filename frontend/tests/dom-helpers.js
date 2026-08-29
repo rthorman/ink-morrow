@@ -74,6 +74,7 @@ function buildDom() {
         <button id="nextPageBtn">Next →</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
+        <div id="previewNote" class="preview-note" hidden></div>
         <textarea id="userInput"></textarea>
         <button id="generateBtn">Generate Page</button>
         <button id="retryBtn">Retry Page</button>

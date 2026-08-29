@@ -241,3 +241,49 @@ test.describe('Reading old pages and burning the rest', () => {
     await expect(page.locator('#userInput')).toBeEnabled(); // page 1 is the last page again
   });
 });
+
+test.describe('Speculative next-page preparation', () => {
+  test('an empty-direction Generate commits the prepared page instantly', async ({ page }) => {
+    await page.route('**/api/stories/*/pages/generate', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          page: { id: 'p1', page_number: 1, content: 'The opening page settled like dust.', user_input: null, cost_usd: 0.001 },
+        }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/preview', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ preview: { expected_page: 2, model: 'mock', cost_usd: 0.001 } }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/commit-preview', async (route) => {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          page: { id: 'p2', page_number: 2, content: 'The prepared continuation, ready before you asked.', user_input: null, cost_usd: 0.001 },
+        }),
+      });
+    });
+
+    await createStoryViaUi(page, 'Instant Test');
+
+    // First page via the normal flow
+    await page.locator('#generateBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
+
+    // The scribe prepares the next page on her own; the note appears
+    await expect(page.locator('#previewNote')).toBeVisible({ timeout: 5000 });
+
+    // Empty direction -> instant commit of the prepared page
+    await page.locator('#generateBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
+    await expect(page.locator('#storyContent')).toContainText('The prepared continuation');
+    // The scribe immediately prepares the next page (chained speculation)
+    await expect(page.locator('#previewNote')).toBeVisible({ timeout: 5000 });
+  });
+});

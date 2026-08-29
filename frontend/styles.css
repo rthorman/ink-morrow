@@ -1163,6 +1163,22 @@ button:disabled {
   }
 }
 
+.preview-note {
+  margin: 0 0 14px 0;
+  padding: 10px 14px;
+  background: rgb(105 217 203 / 0.08);
+  border: 1px solid rgb(105 217 203 / 0.35);
+  border-left: 3px solid var(--st-witchlight-400);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+  color: var(--st-witchlight-400);
+}
+
+.preview-note[hidden] {
+  display: none;
+}
+
 /* ------------------------------------------------------------------ past-page bar + read-only */
 
 .past-page-bar {

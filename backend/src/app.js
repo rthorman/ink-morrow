@@ -326,6 +326,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     if (!story) return notFound(res, 'Story not found');
     db.prepare('DELETE FROM story_pages WHERE story_id = ?').run(story.id);
     db.prepare('DELETE FROM stories WHERE id = ?').run(story.id);
+    invalidatePreview(story.id);
     res.status(204).end();
   });
 
@@ -351,6 +352,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       id, story.id, page_number, content, user_input
     );
     db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
+    invalidatePreview(story.id);
     res.status(201).json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id) });
   });
 
@@ -361,6 +363,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number = ?')
       .run(story.id, parseInt(req.params.number, 10));
     if (result.changes === 0) return notFound(res, 'Page not found');
+    invalidatePreview(story.id);
     res.status(204).end();
   });
 
@@ -478,10 +481,10 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       const wordTarget = parseWordTarget(req.body.words);
 
       const ctx = loadContext(story);
-      const result = await chatCompletion([
-        { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
-        { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput, wordTarget }) },
-      ], { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) });
+      const result = await chatCompletion(
+        generationMessages(story, ctx, userInput, wordTarget),
+        { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+      );
       const prose = consumeStoryText(story, result.content);
 
       const id = uuidv4();
@@ -494,6 +497,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
         result.model, result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, result.cost_usd
       );
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
+      invalidatePreview(story.id);
       res.status(201).json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id) });
     } catch (error) {
       next(error);
@@ -511,10 +515,10 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
 
       const ctx = loadContext(story, { excludeLast: true });
       const wordTarget = parseWordTarget(req.body.words);
-      const result = await chatCompletion([
-        { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
-        { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput: last.user_input || 'Continue the story.', wordTarget }) },
-      ], { model: modelOverrideOf(req.body.model) || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) });
+      const result = await chatCompletion(
+        generationMessages(story, ctx, last.user_input || 'Continue the story.', wordTarget),
+        { model: modelOverrideOf(req.body.model) || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+      );
       const prose = consumeStoryText(story, result.content);
 
       db.prepare(
@@ -524,6 +528,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
         result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, result.cost_usd,
         last.id
       );
+      invalidatePreview(story.id);
       res.json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(last.id) });
     } catch (error) {
       next(error);
@@ -707,6 +712,80 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     }
   });
 
+  // -- speculative next-page preview ----------------------------------------
+
+  // Holds one prepared-but-unsaved next page per story. The client asks for a
+  // preview whenever the writer sits on the last page with no direction; a
+  // later commit must be stale-checked against the page count.
+  const previews = new Map(); // storyId -> { expectedPage, rawContent, model, promptTokens, completionTokens, costUsd }
+
+  function invalidatePreview(storyId) {
+    previews.delete(storyId);
+  }
+
+  function generationMessages(story, ctx, userInput, wordTarget) {
+    return [
+      { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
+      { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput, wordTarget }) },
+    ];
+  }
+
+  app.post('/api/stories/:id/pages/preview', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const wordTarget = parseWordTarget(req.body.words);
+
+      const ctx = loadContext(story);
+      const result = await chatCompletion(
+        generationMessages(story, ctx, 'Continue the story.', wordTarget),
+        { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+      );
+
+      const expectedPage = storyPages(story.id).length + 1;
+      previews.set(story.id, {
+        expectedPage,
+        rawContent: result.content,
+        model: result.model,
+        promptTokens: result.usage?.prompt_tokens ?? null,
+        completionTokens: result.usage?.completion_tokens ?? null,
+        costUsd: result.cost_usd,
+      });
+      res.json({ preview: { expected_page: expectedPage, model: result.model, cost_usd: result.cost_usd } });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.post('/api/stories/:id/pages/commit-preview', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const preview = previews.get(story.id);
+      if (!preview) return notFound(res, 'No prepared page for this story. Generate normally.');
+      if (storyPages(story.id).length + 1 !== preview.expectedPage) {
+        invalidatePreview(story.id);
+        return res.status(409).json({ error: 'The prepared page has gone stale - the story moved on without it.' });
+      }
+
+      const prose = consumeStoryText(story, preview.rawContent); // applies character-state updates
+      const id = uuidv4();
+      db.prepare(
+        'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        id, story.id, preview.expectedPage, prose, null,
+        preview.model, preview.promptTokens, preview.completionTokens, preview.costUsd
+      );
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
+      invalidatePreview(story.id);
+      res.status(201).json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // -- truncation ----------------------------------------------------------
 
   // Delete every page AFTER the given page number, making it the last page.
@@ -718,6 +797,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     const result = db
       .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?')
       .run(story.id, after);
+    invalidatePreview(story.id);
     res.json({ deleted: result.changes, remaining: storyPages(story.id).length });
   });
 

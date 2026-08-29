@@ -531,3 +531,96 @@ describe('Mutable per-story character state', () => {
     expect(prompt).toContain('Openly hostile since the betrayal; the friendship is ash (as the story has reshaped it; it began as: childhood friends)');
   });
 });
+
+// ---------------------------------------------------------------------------
+
+describe('Speculative next-page preview', () => {
+  it('previews without saving, then commits instantly', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Preview Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Previewer' });
+    const story = await createStory(app, world.id, [{ id: mc.id, role: 'mc', relation: null, state: null }]);
+    mockAi('The first page.');
+    await generatePage(story.id, 'begin');
+
+    // Preview: generated, NOT saved
+    axios.post.mockResolvedValue({
+      data: { choices: [{ message: { content: 'The prepared continuation.' } }], usage: { prompt_tokens: 100, completion_tokens: 50 } },
+    });
+    const res = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    expect(res.body.preview.expected_page).toBe(2);
+    const pagesAfterPreview = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(pagesAfterPreview.body.pages).toHaveLength(1); // still just the first page
+
+    // Commit: saved instantly, page 2 with accounting
+    const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+    expect(commit.body.page.page_number).toBe(2);
+    expect(commit.body.page.content).toBe('The prepared continuation.');
+    expect(commit.body.page.user_input).toBeNull();
+    expect(commit.body.page.prompt_tokens).toBe(100);
+
+    // Second commit without a fresh preview
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+  });
+
+  it('a normal generate discards the prepared preview', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Stale Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Impatient' });
+    const story = await createStory(app, world.id, [{ id: mc.id, role: 'mc', relation: null, state: null }]);
+
+    mockAi('The prepared page.');
+    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+    // The writer generates normally in the meantime -> the preview is discarded
+    mockAi('The real page.');
+    await generatePage(story.id, 'a real direction');
+
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+
+    // And nothing was duplicated
+    const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(pages.body.pages).toHaveLength(1);
+    expect(pages.body.pages[0].content).toBe('The real page.');
+  });
+
+  it('preview honors model and word target, and its state block applies on commit', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Stateful Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Evolving' });
+    const story = await createStory(app, world.id, [{ id: mc.id, role: 'mc', relation: null, state: null }]);
+
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{
+          message: {
+            content: 'She changed.\n\n<<<CHARACTER_STATE>>>\n' + JSON.stringify({ [mc.id]: { personality: 'Colder now' } }),
+          },
+        }],
+      },
+    });
+    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({ model: 'vendor/x', words: 800 }).expect(200);
+    expect(axios.post.mock.calls[0][1].model).toBe('vendor/x');
+    expect(axios.post.mock.calls[0][1].max_tokens).toBe(800 * 2 + 250);
+
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+    const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
+    expect(meta.body.story.characters[0].state.personality).toBe('Colder now');
+  });
+
+  it('truncating invalidates a preview', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Burn Realm' });
+    const story = await createStory(app, world.id);
+    mockAi('First.');
+    await generatePage(story.id, 'go');
+    mockAi('Second.');
+    await generatePage(story.id, 'more');
+
+    mockAi('Prepared.');
+    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+    await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
+    const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+  });
+});
