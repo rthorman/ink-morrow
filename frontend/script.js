@@ -161,13 +161,17 @@ function addCost(costUsd) {
 // Costs are booked at preparation time (the tokens are spent either way).
 let speculative = null; // { storyId, ready: bool }
 
-function updatePreviewNote() {
-  const note = document.getElementById('previewNote');
-  if (!note) return;
+// The ready signal IS the button: with a prepared page and no direction,
+// Generate Page becomes a green Next Page button of identical dimensions.
+function updateSpeculativeUi() {
+  const btn = document.getElementById('generateBtn');
+  if (!btn) return;
   const input = document.getElementById('userInput');
   const inputEmpty = !input || !input.value.trim();
-  const usable = speculative && speculative.ready && currentStory && speculative.storyId === currentStory.id;
-  note.hidden = !(usable && inputEmpty);
+  const previewUsable =
+    !generating && speculative && speculative.ready && currentStory && speculative.storyId === currentStory.id && inputEmpty;
+  btn.textContent = generating ? 'The scribe is writing…' : previewUsable ? 'Next Page' : 'Generate Page';
+  btn.classList.toggle('next-page', previewUsable);
 }
 
 async function maybeStartSpeculative() {
@@ -190,12 +194,12 @@ async function maybeStartSpeculative() {
   } catch {
     if (speculative && speculative.storyId === storyId) speculative = null;
   }
-  updatePreviewNote();
+  updateSpeculativeUi();
 }
 
 function discardSpeculative() {
   speculative = null;
-  updatePreviewNote();
+  updateSpeculativeUi();
 }
 function addSessionCost(costUsd) {
   if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
@@ -344,7 +348,7 @@ function initApp() {
   }
   const userInputEl = document.getElementById('userInput');
   if (userInputEl) {
-    userInputEl.addEventListener('input', updatePreviewNote);
+    userInputEl.addEventListener('input', updateSpeculativeUi);
   }
 
   applySettings();
@@ -1018,8 +1022,8 @@ function setGenerating(active) {
     document.getElementById(id).disabled = active;
   }
   const generateBtn = document.getElementById('generateBtn');
-  generateBtn.textContent = active ? 'The scribe is writing…' : 'Generate Page';
   generateBtn.classList.toggle('busy', active);
+  updateSpeculativeUi();
 
   const status = document.getElementById('scribeStatus');
   if (active) {

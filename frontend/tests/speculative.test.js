@@ -55,8 +55,9 @@ describe('Speculative next-page preparation', () => {
     expect(previewCall).toBeTruthy();
     expect(JSON.parse(previewCall[1].body).words).toBe(400);
 
-    // The ready-note shows; the preview cost hits the session ticker
-    expect(document.getElementById('previewNote').hidden).toBe(false);
+    // The button becomes a green Next Page; the preview cost hits the session ticker
+    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
+    expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
     expect(fw.state().costs.session).toBeCloseTo(0.001, 8);
     expect(fw.state().costs.story).toBeCloseTo(0, 8); // story total untouched until commit
   });
@@ -66,16 +67,18 @@ describe('Speculative next-page preparation', () => {
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
     await tick();
-    expect(document.getElementById('previewNote').hidden).toBe(false);
+    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
 
     const input = document.getElementById('userInput');
     input.value = 'she opens the door';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('previewNote').hidden).toBe(true);
+    expect(document.getElementById('generateBtn').textContent).toBe('Generate Page');
+    expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(false);
 
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('previewNote').hidden).toBe(false);
+    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
+    expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
   });
 
   it('commits the prepared page instantly on an empty Generate', async () => {
@@ -154,7 +157,7 @@ describe('Speculative next-page preparation', () => {
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(true);
     expect(fw.state().storyPages).toHaveLength(2);
     expect(fw.state().storyPages[1].content).toBe('The live page.');
-    expect(document.getElementById('previewNote').hidden).toBe(true);
+    expect(document.getElementById('generateBtn').textContent).toBe('Generate Page');
   });
 
   it('does not prepare a page while viewing an old page', async () => {

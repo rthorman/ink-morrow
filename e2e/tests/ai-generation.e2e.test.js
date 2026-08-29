@@ -276,14 +276,19 @@ test.describe('Speculative next-page preparation', () => {
     await page.locator('#generateBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
 
-    // The scribe prepares the next page on her own; the note appears
-    await expect(page.locator('#previewNote')).toBeVisible({ timeout: 5000 });
+    // The scribe prepares the next page on her own; Generate turns into a green Next Page
+    await expect(page.locator('#generateBtn')).toHaveText('Next Page', { timeout: 5000 });
+
+    // Typing a direction turns it back into Generate
+    await page.fill('#userInput', 'a sudden storm');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate Page');
+    await page.fill('#userInput', '');
 
     // Empty direction -> instant commit of the prepared page
     await page.locator('#generateBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(page.locator('#storyContent')).toContainText('The prepared continuation');
     // The scribe immediately prepares the next page (chained speculation)
-    await expect(page.locator('#previewNote')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#generateBtn')).toHaveText('Next Page', { timeout: 5000 });
   });
 });
