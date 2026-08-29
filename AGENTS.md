@@ -26,4 +26,4 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
 - Per-page AI accounting: model, prompt/completion tokens, cost_usd on story_pages; stories expose total_cost_usd; frontend settings (localStorage st-settings): model picker (GET /api/models proxy), words per page (50–2000, scales max_tokens), story font, scriptorium writing background, cost ticker (default on)
 - AI drafts: POST /api/ai/world + /api/ai/character (seeds → short/medium/long JSON drafts, variant counter for regenerate)
 - Old pages are read-only; writing happens on the last page; "delete everything after this page" truncates via DELETE /api/stories/:id/pages?after=N with a slider-confirm modal
-- Export is EPUB (dependency-free zip writer in backend/src/epub.js)
+- Export is EPUB (dependency-free zip writer in backend/src/epub.js)- SCRIBETRIBE-STREAMING-TTS-IMPLEMENTATION.md (repo root): normative contract for streaming page narration (OpenRouter speech API) — loaded via opencode.json instructions; not yet implemented; its §2 requires Plan-mode recon before any TTS edits
