@@ -1,13 +1,10 @@
 # Dependencies
 node_modules/
 
-# Runtime data
-database/*.db
-database/*.db-journal
-database/*.db-shm
-database/*.db-wal
-# Generated reference/scene images are user data, never repo content
-database/images/
+# Runtime data - the whole directory is generated at runtime and NEVER
+# belongs in the repo: the SQLite database (plus wal/shm/journal side files),
+# generated reference portraits and world scenes, any future exports.
+database/
 
 # Environment variables (the example file IS committed)
 .env
@@ -18,6 +15,7 @@ database/images/
 logs/
 *.log
 npm-debug.log*
+nohup.out
 
 # Coverage
 coverage/
@@ -34,12 +32,18 @@ playwright-report/
 blob-report/
 playwright/.cache/
 
-# IDE files
-.vscode/
-.idea/
+# Patch/merge/editor droppings
+*.orig
+*.rej
+*.bak
 *.swp
 *.swo
 *~
+.history/
+
+# IDE files
+.vscode/
+.idea/
 
 # OS generated files
 .DS_Store
