@@ -9,11 +9,17 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
+- **Three-tier casts** — every story follows one Main Character, with supporting cast (each carrying a free-text relation to them) and loose background figures
+- **Living characters** — per-story mutable state: personality, appearance, and relationships evolve book-paced as pages deal injuries, revelations and betrayals; the base character sheets stay untouched
+- **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Per-story tone setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+)
+- **Word-target page length** — ask for short or long pages; the token budget scales with it
+- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
-- **Markdown export** — download any story as a `.md` file
+- **EPUB export** — download the full story as a valid EPUB e-book
+- **Read-only history** — earlier pages can't be edited; "delete everything after this page" trims the tale with a slide-to-confirm burn
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 60 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 118 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -125,7 +131,7 @@ scribe-tribe/
 | GET/POST/DELETE | `/api/stories/:id/pages[/:n]` | List / add / delete pages |
 | POST | `/api/stories/:id/pages/generate` | AI-generate the next page (saves it) |
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
-| GET | `/api/stories/:id/export` | Download the story as markdown |
+| GET | `/api/stories/:id/export` | Download the full story as an EPUB |
 
 All validation errors return `400` with a helpful message; unknown ids return `404`.
 
