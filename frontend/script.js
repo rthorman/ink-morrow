@@ -247,7 +247,11 @@ function initApp() {
   document.getElementById('worldForm').addEventListener('submit', handleWorldSubmit);
   document.getElementById('characterForm').addEventListener('submit', handleCharacterSubmit);
   document.getElementById('storyForm').addEventListener('submit', handleStorySubmit);
-  document.getElementById('storyWorld').addEventListener('change', updateCharacterCheckboxes);
+  document.getElementById('storyWorld').addEventListener('change', renderCastBuilder);
+  const mcSelect = document.getElementById('mcSelect');
+  if (mcSelect) mcSelect.addEventListener('change', () => { if (mcSelect.value) chooseMainCharacter(); });
+  const castAddBtn = document.getElementById('castAddBtn');
+  if (castAddBtn) castAddBtn.addEventListener('click', addCastMember);
 
   document.getElementById('currentStory').addEventListener('change', handleStorySelection);
   document.getElementById('generateBtn').addEventListener('click', () => generateNextPage());
@@ -367,11 +371,36 @@ function showMessage(message, kind = 'error') {
   div.className = kind === 'error' ? 'error-message' : 'success-message';
   div.textContent = message;
   active.insertBefore(div, active.firstChild);
-  setTimeout(() => div.remove(), 5000);
+  // Errors carry recovery information: keep them up longer.
+  setTimeout(() => div.remove(), kind === 'error' ? 8000 : 5000);
+}
+
+// Wrap raw failures in the scribe's voice without ever hiding the reason.
+function scribeErrorMessage(raw) {
+  const msg = String(raw || 'something went wrong');
+  if (msg.includes('Cannot reach the server')) {
+    return 'The scriptorium has gone dark — the server cannot be reached. Is it still running?';
+  }
+  if (msg.includes('API key not configured')) {
+    return 'The scribe has no key to the library. Set OPENROUTER_API_KEY in backend/.env, then restart the server.';
+  }
+  if (msg.includes('illegible')) {
+    return 'The ink has gone feral — the scribe produced something illegible. Ask again; she will be clearer.';
+  }
+  if (msg.includes('referenced by')) {
+    return `The scribe refuses to cut a thread that still holds weight — ${msg}`;
+  }
+  if (msg.includes('world_id') || msg.includes('unknown id')) {
+    return `The scribe cannot find that in the archives — ${msg}`;
+  }
+  if (msg.includes('Request failed')) {
+    return `The scribe frowns at a sealed envelope — ${msg}. The how of it is unclear; try again.`;
+  }
+  return `The scribe looks up, troubled — ${msg}`;
 }
 
 function showError(message) {
-  showMessage(message, 'error');
+  showMessage(scribeErrorMessage(message), 'error');
 }
 
 function showSuccess(message) {
@@ -484,7 +513,7 @@ async function loadCharacters() {
     const data = await apiCall('/characters');
     characters = data.characters || [];
     renderCharacters();
-    updateCharacterCheckboxes();
+    renderCastBuilder();
   } catch (error) {
     showError(error.message);
   }
@@ -627,94 +656,133 @@ function renderStories() {
   });
 }
 
-// Only show characters from the chosen world first, but keep others selectable
-// (cross-world casting is allowed). Each cast row carries a tier:
-// 'mc' (the one protagonist), 'supporting', or 'background'.
-let castRoles = new Map(); // character id -> role (persisted across re-renders)
+// Story cast builder: one Main Character, then supporting/background members
+// added one at a time, each with an optional free-text relation to the MC.
+// The relation seeds the story; later pages may evolve it server-side.
+let storyCast = []; // [{id, role, relation}]
 
-const CAST_ROLE_OPTIONS = [
-  { value: 'supporting', label: 'Supporting' },
-  { value: 'mc', label: 'MC' },
-  { value: 'background', label: 'Background' },
-];
-
-function updateCharacterCheckboxes() {
-  const container = document.getElementById('characterCheckboxes');
-  if (!container) return;
+function castOrderedCharacters() {
   const storyWorld = document.getElementById('storyWorld')?.value || '';
-  const previouslyChecked = new Set(
-    [...container.querySelectorAll('input:checked')].map((input) => input.value)
-  );
-
-  container.textContent = '';
-  const ordered = [
+  return [
     ...characters.filter((c) => c.world_id === storyWorld),
     ...characters.filter((c) => c.world_id !== storyWorld),
   ];
+}
 
-  if (ordered.length === 0) {
-    const empty = document.createElement('p');
-    empty.className = 'placeholder';
-    empty.textContent = 'No characters exist yet.';
-    container.appendChild(empty);
-    return;
+function castCharacterById(id) {
+  return characters.find((c) => c.id === id) || null;
+}
+
+function populateSelectOptions(select, options, { placeholder = null } = {}) {
+  select.textContent = '';
+  if (placeholder !== null) {
+    const option = document.createElement('option');
+    option.value = '';
+    option.textContent = placeholder;
+    select.appendChild(option);
   }
-
-  ordered.forEach((character, index) => {
-    const row = document.createElement('div');
-    row.className = 'cast-row';
-
-    const label = document.createElement('label');
-    const checkbox = document.createElement('input');
-    checkbox.type = 'checkbox';
-    checkbox.value = character.id;
-    checkbox.checked = previouslyChecked.has(character.id);
-    if (character.world_id === storyWorld && storyWorld && index < ordered.filter((c) => c.world_id === storyWorld).length) {
-      checkbox.classList.add('in-world');
-    }
-    const name = document.createElement('span');
-    const otherWorld = Boolean(character.world_id) && character.world_id !== storyWorld;
-    name.textContent = character.name + (otherWorld ? ' (other world)' : '');
-    label.append(checkbox, name);
-
-    const role = document.createElement('select');
-    role.className = 'cast-role';
-    role.dataset.characterId = character.id;
-    role.setAttribute('aria-label', `Role of ${character.name} in this story`);
-    role.disabled = !checkbox.checked;
-    CAST_ROLE_OPTIONS.forEach((opt) => {
-      const option = document.createElement('option');
-      option.value = opt.value;
-      option.textContent = opt.label;
-      role.appendChild(option);
-    });
-    role.value = castRoles.get(character.id) || 'supporting';
-    role.addEventListener('change', () => {
-      if (role.value === 'mc') {
-        // One MC per story: demote any other protagonist.
-        castRoles.forEach((r, id) => {
-          if (r === 'mc' && id !== character.id) castRoles.set(id, 'supporting');
-        });
-      }
-      castRoles.set(character.id, role.value);
-      refreshCastRoleSelects(container);
-    });
-    checkbox.addEventListener('change', () => {
-      role.disabled = !checkbox.checked;
-      if (checkbox.checked && !castRoles.has(character.id)) castRoles.set(character.id, 'supporting');
-    });
-
-    row.append(label, role);
-    container.appendChild(row);
+  const storyWorld = document.getElementById('storyWorld')?.value || '';
+  options.forEach((character) => {
+    const option = document.createElement('option');
+    option.value = character.id;
+    const otherWorld = Boolean(storyWorld) && Boolean(character.world_id) && character.world_id !== storyWorld;
+    option.textContent = character.name + (otherWorld ? ' (other world)' : '');
+    select.appendChild(option);
   });
 }
 
-function refreshCastRoleSelects(container) {
-  const scope = container || document.getElementById('characterCheckboxes');
-  if (!scope) return;
-  scope.querySelectorAll('.cast-role').forEach((select) => {
-    select.value = castRoles.get(select.dataset.characterId) || 'supporting';
+function renderCastBuilder() {
+  const mcSelect = document.getElementById('mcSelect');
+  const charSelect = document.getElementById('castCharSelect');
+  const list = document.getElementById('castList');
+  if (!mcSelect || !charSelect || !list) return;
+
+  const chosenIds = new Set(storyCast.map((entry) => entry.id));
+  const available = castOrderedCharacters().filter((c) => !chosenIds.has(c.id));
+  const currentMc = storyCast.find((entry) => entry.role === 'mc');
+
+  // MC picker: offers everyone not yet cast; locks once a MC is chosen.
+  const mcOptions = currentMc ? [] : available;
+  populateSelectOptions(mcSelect, mcOptions, {
+    placeholder: available.length > 0 ? '— Choose the character the story follows —' : '— No characters available —',
   });
+  mcSelect.disabled = Boolean(currentMc) || available.length === 0;
+
+  // Member picker: everyone not yet cast (MC included in the pool).
+  populateSelectOptions(charSelect, available, {
+    placeholder: available.length > 0 ? '— Choose a character —' : '— Everyone is already cast —',
+  });
+  charSelect.disabled = available.length === 0;
+
+  const relationInput = document.getElementById('castRelation');
+  const tierSelect = document.getElementById('castTierSelect');
+  const addBtn = document.getElementById('castAddBtn');
+  if (addBtn) addBtn.disabled = available.length === 0;
+  if (relationInput) relationInput.value = '';
+  if (tierSelect) tierSelect.value = 'supporting';
+
+  // Cast list: rows with editable relation + removal.
+  list.textContent = '';
+  if (storyCast.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'placeholder';
+    empty.textContent = 'No cast yet. A story cannot begin without a Main Character.';
+    list.appendChild(empty);
+    return;
+  }
+  storyCast.forEach((entry) => {
+    const character = castCharacterById(entry.id);
+    const row = document.createElement('div');
+    row.className = 'cast-list__row' + (entry.role === 'mc' ? ' cast-list__row--mc' : '');
+
+    const name = document.createElement('span');
+    name.className = 'cast-list__name';
+    name.textContent = (character ? character.name : entry.id) + (entry.role === 'mc' ? ' — Main Character' : '');
+
+    if (entry.role !== 'mc') {
+      const relation = document.createElement('input');
+      relation.type = 'text';
+      relation.className = 'cast-list__relation';
+      relation.maxLength = 2000;
+      relation.value = entry.relation || '';
+      relation.setAttribute('aria-label', `Relation of ${character ? character.name : entry.id} to the Main Character`);
+      relation.placeholder = 'relation to the Main Character…';
+      relation.addEventListener('input', () => {
+        entry.relation = relation.value.trim() || null;
+      });
+      row.appendChild(relation);
+    }
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'cast-list__remove';
+    remove.textContent = entry.role === 'mc' ? '✕ Replace MC' : '✕ Remove';
+    remove.setAttribute('aria-label', `Remove ${character ? character.name : entry.id} from the cast`);
+    remove.addEventListener('click', () => {
+      storyCast = storyCast.filter((e) => e.id !== entry.id);
+      renderCastBuilder();
+    });
+    row.append(name, remove);
+    list.appendChild(row);
+  });
+}
+
+function addCastMember() {
+  const charSelect = document.getElementById('castCharSelect');
+  if (!charSelect || !charSelect.value) return;
+  const tierSelect = document.getElementById('castTierSelect');
+  const relationInput = document.getElementById('castRelation');
+  const role = tierSelect && tierSelect.value === 'background' ? 'background' : 'supporting';
+  const relation = relationInput && relationInput.value.trim() ? relationInput.value.trim() : null;
+  storyCast.push({ id: charSelect.value, role, relation });
+  renderCastBuilder();
+}
+
+function chooseMainCharacter() {
+  const mcSelect = document.getElementById('mcSelect');
+  if (!mcSelect || !mcSelect.value) return;
+  storyCast = [{ id: mcSelect.value, role: 'mc', relation: null }, ...storyCast.filter((e) => e.role !== 'mc' && e.id !== mcSelect.value)];
+  renderCastBuilder();
 }
 
 function updateStorySelect() {
@@ -738,10 +806,11 @@ function updateStorySelect() {
 async function handleStorySubmit(event) {
   event.preventDefault();
   const form = event.target;
-  const cast = [...document.querySelectorAll('#characterCheckboxes input:checked')].map((i) => ({
-    id: i.value,
-    role: castRoles.get(i.value) || 'supporting',
-  }));
+  if (!storyCast.some((entry) => entry.role === 'mc')) {
+    showError('A story must have a Main Character before the scribe can begin.');
+    return;
+  }
+  const cast = storyCast.map((entry) => ({ ...entry, state: null }));
   try {
     const data = await apiCall('/stories', 'POST', {
       title: document.getElementById('storyTitle').value,
@@ -750,6 +819,8 @@ async function handleStorySubmit(event) {
       characters: cast,
     });
     form.reset();
+    storyCast = [];
+    renderCastBuilder();
     document.getElementById('storyTone').value = 'fade-to-black';
     await loadStories();
     openStory(data.story.id);
@@ -889,7 +960,9 @@ function setGenerating(active) {
   for (const id of ['generateBtn', 'retryBtn']) {
     document.getElementById(id).disabled = active;
   }
-  document.getElementById('generateBtn').textContent = active ? 'The scribe is writing…' : 'Generate Page';
+  const generateBtn = document.getElementById('generateBtn');
+  generateBtn.textContent = active ? 'The scribe is writing…' : 'Generate Page';
+  generateBtn.classList.toggle('busy', active);
 
   const status = document.getElementById('scribeStatus');
   if (active) {
@@ -1069,6 +1142,7 @@ function closeAiDraft() {
 async function generateAiDraft() {
   if (!aiDraft || aiDraft.generating) return;
   aiDraft.generating = true;
+  aiDraft.error = null;
   renderAiDraft();
   try {
     const seed = draftSeedFor(aiDraft.mode);
@@ -1079,9 +1153,10 @@ async function generateAiDraft() {
       ...(settings.model ? { model: settings.model } : {}),
     });
     aiDraft.data = res[aiDraft.mode] || null;
+    if (!aiDraft.data) aiDraft.error = 'The scribe offered nothing. Try again.';
     addSessionCost(res.cost_usd);
   } catch (error) {
-    showError(error.message);
+    aiDraft.error = scribeErrorMessage(error.message);
   } finally {
     aiDraft.generating = false;
     renderAiDraft();
@@ -1103,7 +1178,8 @@ async function saveAiDraft() {
     payload[field.key] = String(aiDraft.data[field.key] ?? '').trim();
   }
   if (!payload.name) {
-    showError('A name is required before saving.');
+    aiDraft.error = 'The scribe will not file an anonymous page — give it a name first.';
+    renderAiDraft();
     return;
   }
   if (mode === 'character') {
@@ -1116,7 +1192,8 @@ async function saveAiDraft() {
     if (mode === 'world') await loadWorlds();
     else await loadCharacters();
   } catch (error) {
-    showError(error.message);
+    aiDraft.error = scribeErrorMessage(error.message);
+    renderAiDraft();
   }
 }
 
@@ -1153,8 +1230,16 @@ function renderAiDraft() {
 
   const hint = document.createElement('p');
   hint.className = 'draft-hint';
-  hint.textContent = 'The scribe builds outward from your form fields as seeds. Edit the result below, regenerate for a different take — or close this and save your own words as-is.';
+  hint.textContent = 'The scribe builds outward from your form fields as seeds — empty fields mean she invents freely. Edit the result, regenerate for a different take, or close this and save your own words as-is.';
   body.appendChild(hint);
+
+  // In-modal failures are never hidden behind the overlay.
+  if (aiDraft.error) {
+    const errorLine = document.createElement('p');
+    errorLine.className = 'draft-error';
+    errorLine.textContent = aiDraft.error;
+    body.appendChild(errorLine);
+  }
 
   // Editable fields (present once a draft exists)
   if (aiDraft.data) {
@@ -1340,7 +1425,10 @@ if (typeof module !== 'undefined' && module.exports) {
     renderCharacters,
     renderStories,
     updateWorldSelects,
-    updateCharacterCheckboxes,
+    renderCastBuilder,
+    addCastMember,
+    chooseMainCharacter,
+    storyCast: () => storyCast.map((e) => ({ ...e })),
     updateStorySelect,
     handleWorldSubmit,
     handleCharacterSubmit,
@@ -1364,6 +1452,8 @@ if (typeof module !== 'undefined' && module.exports) {
     regenerateAiDraft,
     saveAiDraft,
     renderAiDraft,
+    showError,
+    scribeErrorMessage,
     // Settings + cost ticker
     loadSettings,
     setSetting,

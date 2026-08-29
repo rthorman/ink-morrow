@@ -783,50 +783,6 @@ button:disabled {
   50% { opacity: 1; }
 }
 
-/* ------------------------------------------------------------------ casting */
-
-.character-selection {
-  margin-bottom: 16px;
-}
-
-.checkbox-group {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-
-.checkbox-group label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: var(--st-touch-min);
-  padding: 8px 12px;
-  margin-bottom: 0;
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: var(--st-vellum-200);
-  background: var(--st-surface-3);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
-  cursor: pointer;
-  transition: border-color var(--st-duration-fast) ease;
-}
-
-.checkbox-group label:hover {
-  border-color: var(--st-border-bright);
-}
-
-.checkbox-group input[type="checkbox"] {
-  width: 1.15em;
-  height: 1.15em;
-  margin: 0;
-  accent-color: var(--st-oxblood-500);
-}
-
-.checkbox-group input.in-world {
-  accent-color: var(--st-violet-500);
-}
 
 /* ------------------------------------------------------------------ age gate */
 
@@ -881,56 +837,111 @@ button:disabled {
   letter-spacing: 0.12em;
 }
 
-.cast-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+/* ------------------------------------------------------------------ cast builder */
+
+.cast-mc {
+  margin-bottom: 16px;
 }
 
-.cast-row label {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.cast-mc select,
+.cast-add select {
+  width: 100%;
   min-height: var(--st-touch-min);
-  padding: 8px 12px;
-  margin-bottom: 0;
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: var(--st-vellum-200);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+}
+
+.cast-mc select:focus,
+.cast-add select:focus,
+.cast-list__relation:focus {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 2px;
+  border-color: var(--st-gold-500);
+}
+
+.cast-add input[type='text'] {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 1rem;
+}
+
+.cast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cast-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
   background: var(--st-surface-3);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-sm);
-  cursor: pointer;
-  transition: border-color var(--st-duration-fast) ease;
 }
 
-.cast-row label:hover {
-  border-color: var(--st-border-bright);
+.cast-list__row--mc {
+  border-color: var(--st-gold-500);
+  background: rgb(110 24 52 / 0.18);
 }
 
-.cast-row .cast-role {
-  flex: 0 0 auto;
+.cast-list__name {
+  flex: 0 1 auto;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--st-vellum-100);
+}
+
+.cast-list__row--mc .cast-list__name {
+  color: var(--st-gold-300);
+}
+
+.cast-list__relation {
+  flex: 1 1 240px;
   min-height: var(--st-touch-min);
-  padding: 8px 10px;
+  padding: 8px 12px;
   background: var(--st-surface-2);
   color: var(--st-vellum-200);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-mono);
-  font-size: 0.8rem;
+  font-family: var(--st-font-reading);
+  font-size: 0.9rem;
+}
+
+.cast-list__remove {
+  flex: 0 0 auto;
+  min-height: var(--st-touch-min);
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--st-danger-500);
+  border: 1px solid rgb(214 75 88 / 0.45);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.85rem;
   cursor: pointer;
 }
 
-.cast-row .cast-role:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.cast-row .cast-role[value='mc'],
-.cast-row .cast-role option[value='mc'] {
-  color: var(--st-gold-300);
+.cast-list__remove:hover {
+  background: rgb(214 75 88 / 0.16);
+  border-color: var(--st-danger-500);
+  color: #edaab1;
 }
 
 /* ------------------------------------------------------------------ settings */
@@ -1379,6 +1390,18 @@ button:disabled {
   font-size: 0.88rem;
   font-style: italic;
   color: var(--st-text-muted);
+}
+
+.draft-error {
+  margin: 0 0 18px 0;
+  padding: 12px 16px;
+  background: rgb(214 75 88 / 0.12);
+  border: 1px solid rgb(214 75 88 / 0.55);
+  border-left: 4px solid var(--st-danger-500);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 0.95rem;
+  color: #edaab1;
 }
 
 .draft-fields label {

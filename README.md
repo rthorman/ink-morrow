@@ -30,18 +30,18 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 60 Jest tests (backend + frontend) pass on-device under Termux
+- All 118 Jest tests (69 backend + 49 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
 
-The Playwright e2e suite needs desktop browsers and is the one part **not** exercised on Termux; run it on a PC.
+The Playwright e2e suite also runs on Termux — both projects (desktop and mobile viewports) — using the native Termux Chromium package, since Playwright's browser downloader does not support Android. `AGENTS.md` documents the one-line patch and setup; on a PC it works out of the box.
 
 ### Installing on Termux
 
 ```bash
 pkg update && pkg install nodejs git   # Termux's node is recent; check: node --version
-git clone https://github.com/your-username/scribe-tribe.git
+git clone https://github.com/rthorman/scribe-tribe.git
 cd scribe-tribe
 bash setup.sh
 $EDITOR backend/.env                   # set OPENROUTER_API_KEY
@@ -50,12 +50,12 @@ $EDITOR backend/.env                   # set OPENROUTER_API_KEY
 
 Then open `http://localhost:3000` in your tablet's browser. To write from another device on the same network, use `http://<tablet-ip>:3000` (the frontend uses relative API URLs, so this works out of the box).
 
-This project was built inside [opencode-termux-native](https://github.com/Thr45hx/opencode-termux-native) — a repo for running AI coding CLIs natively on Termux (no proot, no root), which is also where further Termux-native tooling and notes live.
+The project was built as an experiment in running AI coding tools natively on Termux — no proot, no root, just the standard on-screen keyboard.
 
 ## Quick Start
 
 ```bash
-git clone https://github.com/your-username/scribe-tribe.git
+git clone https://github.com/rthorman/scribe-tribe.git
 cd scribe-tribe
 
 bash setup.sh        # installs deps, creates backend/.env, makes start.sh executable
@@ -81,8 +81,11 @@ npm start               # http://localhost:3000
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible endpoint |
 | `OPENROUTER_MODEL` | `z-ai/glm-5.1` | Model used for pages |
 | `PORT` | `3000` | Server port (app + API together) |
+| `HOST` | `0.0.0.0` | Bind address; set `127.0.0.1` to expose localhost only |
+| `DB_PATH` | `../database/scribe-tribe.db` | SQLite file; `:memory:` for ephemeral runs |
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |
+| `AI_TIMEOUT_MS` | `120000` | Per-request AI timeout
 | `CONTEXT_WINDOW` | `5` | Recent pages sent verbatim to the AI |
 
 ## How It Works
@@ -101,16 +104,20 @@ scribe-tribe/
 │   ├── src/
 │   │   ├── db.js          # node:sqlite schema, WAL, FK enforcement, migrations
 │   │   ├── app.js         # all routes (injectable db for test isolation)
-│   │   ├── ai.js          # OpenAI-compatible client with retry/backoff
-│   │   └── prompt.js      # prompt builder (tone, world, cast, context window)
-│   └── tests/             # Jest + supertest (40 tests)
+│   │   ├── ai.js          # OpenAI-compatible client with retry/backoff + model catalog
+│   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
+│   │   ├── epub.js        # dependency-free EPUB/ZIP writer
+│   └── tests/             # Jest + supertest (69 tests)
 ├── frontend/
 │   ├── index.html         # gothic UI + catgirl scribe SVG
 │   ├── styles.css
-│   ├── script.js          # XSS-safe rendering, loading states, export
-│   └── tests/             # Jest + jsdom (20 tests)
-├── e2e/                   # Playwright browser tests
+│   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
+│   ├── brand/             # production art assets (WebP + SVG)
+│   └── tests/             # Jest + jsdom (49 tests)
+├── e2e/                   # Playwright browser tests (chromium + mobile)
 ├── database/              # SQLite file lives here (gitignored)
+├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
+├── .github/workflows/      # CI: Jest + Playwright on every push
 ├── setup.sh
 ├── start.sh               # convenience launcher
 ├── .nvmrc                 # pins Node >= 22.5 (node:sqlite)
@@ -129,18 +136,22 @@ scribe-tribe/
 | GET/POST | `/api/stories` | List (with parsed cast + page counts) / create |
 | GET/PUT/DELETE | `/api/stories/:id` | Fetch / update (title, world, tone, cast) / delete |
 | GET/POST/DELETE | `/api/stories/:id/pages[/:n]` | List / add / delete pages |
+| DELETE | `/api/stories/:id/pages?after=N` | Burn every page after N (slide-to-confirm in the UI) |
 | POST | `/api/stories/:id/pages/generate` | AI-generate the next page (saves it) |
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
 | GET | `/api/stories/:id/export` | Download the full story as an EPUB |
+| GET | `/api/models` | OpenRouter model catalog with pricing (for the settings picker) |
+| POST | `/api/ai/world` | Flesh out a world from seeds (short/medium/long) |
+| POST | `/api/ai/character` | Flesh out a character from seeds (world-aware) |
 
 All validation errors return `400` with a helpful message; unknown ids return `404`.
 
 ## Testing
 
 ```bash
-npm test             # backend (40) + frontend (20) Jest suites — runs on Termux too
+npm test             # backend (69) + frontend (49) Jest suites — runs on Termux too
 npm run test:coverage
-npm run test:e2e     # Playwright; desktop only
+npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers
 ```
 
@@ -148,7 +159,7 @@ npm run test:e2e     # Playwright; desktop only
 - AI calls are **mocked** in unit/integration tests, so they're fast and free
 - E2E tests run against a real server with the AI endpoint mocked at the network layer
 - Transient AI failures are covered by retry/backoff tests
-- The Jest suites were developed and verified on Android/Termux; the e2e suite targets desktop browsers
+- The Jest and Playwright suites were developed and verified on Android/Termux (e2e via the native Chromium package)
 
 ## Creator's Note
 

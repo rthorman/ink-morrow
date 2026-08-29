@@ -68,17 +68,16 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#characterForm button[type="submit"]').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
 
-    // Story with tone + tiered cast: Seraphina is the MC, Drifter supports
+    // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
     await page.locator('#storiesBtn').click();
     await page.fill('#storyTitle', 'The Shadow and the Flame');
     await selectByLabel(page, '#storyWorld', 'E2E Realm');
     await page.selectOption('#storyTone', 'romantic');
-    await page.locator('#characterCheckboxes label', { hasText: 'Lady Seraphina' }).locator('input').check();
-    await page.locator('#characterCheckboxes label', { hasText: 'The Drifter' }).locator('input').check();
-    await page
-      .locator('#characterCheckboxes .cast-row', { hasText: 'Lady Seraphina' })
-      .locator('.cast-role')
-      .selectOption('mc');
+    await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
+    await selectByLabel(page, '#castCharSelect', 'The Drifter');
+    await page.fill('#castRelation', 'a debt of silence between them');
+    await page.locator('#castAddBtn').click();
+    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Lady Seraphina — Main Character');
     await page.locator('#storyForm button[type="submit"]').click();
 
     // Creating a story jumps to the write section with the story selected

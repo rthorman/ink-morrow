@@ -9,10 +9,15 @@ const TONE_INSTRUCTIONS = {
 // How many recent pages are included verbatim in the AI context window.
 const CONTEXT_WINDOW = parseInt(process.env.CONTEXT_WINDOW || '5', 10);
 
-function characterBlock(c) {
+const STATE_MARKER_TEXT = '<<<CHARACTER_STATE>>>';
+
+function characterBlock(c, { withId = false } = {}) {
+  const evolved = c.state && typeof c.state === 'object';
+  const personality = evolved && c.state.personality ? `${c.state.personality} (as the story has reshaped them)` : (c.personality || '');
+  const appearance = evolved && c.state.appearance ? `${c.state.appearance} (as the story has reshaped them)` : (c.appearance || '');
   return (
-    `- ${c.name}: ${c.description || ''}\n` +
-    `  Personality: ${c.personality || ''}\n  Appearance: ${c.appearance || ''}\n  Background: ${c.background || ''}`
+    `- ${c.name}${withId ? ` [id: ${c.id}]` : ''}: ${c.description || ''}\n` +
+    `  Personality: ${personality}\n  Appearance: ${appearance}\n  Background: ${c.background || ''}`
   );
 }
 
@@ -23,7 +28,7 @@ function firstSentence(text) {
   return cut.length > 160 ? cut.slice(0, 157) + '…' : cut;
 }
 
-function castSections(characters) {
+function castSections(characters, { withIds = false } = {}) {
   const mc = characters.filter((c) => c.role === 'mc');
   const background = characters.filter((c) => c.role === 'background');
   const supporting = characters.filter((c) => c.role !== 'mc' && c.role !== 'background');
@@ -31,14 +36,23 @@ function castSections(characters) {
 
   if (mc.length > 0) {
     sections.push(
-      'PROTAGONIST (the story follows this character; keep their voice, goals and perception central):\n' +
-        characterBlock(mc[0])
+      'PROTAGONIST / MAIN CHARACTER (the story follows this character; keep their voice, goals and perception central):\n' +
+        characterBlock(mc[0], { withId: withIds })
     );
   }
   if (supporting.length > 0) {
     sections.push(
-      'SUPPORTING CAST (important to the protagonist; stay consistent with these details):\n' +
-        supporting.map(characterBlock).join('\n')
+      'SUPPORTING CAST (important to the main character; stay consistent with these details and their current standing with the protagonist):\n' +
+        supporting
+          .map((c) => {
+            const evolvedRelation =
+              c.state && typeof c.state === 'object' && c.state.relationship_to_mc ? c.state.relationship_to_mc : null;
+            const relation = evolvedRelation
+              ? `${evolvedRelation} (as the story has reshaped it; it began as: ${c.relation || 'unspecified'})`
+              : (c.relation || 'unspecified');
+            return characterBlock(c, { withId: withIds }) + `\n  Relation to the main character: ${relation}`;
+          })
+          .join('\n')
     );
   }
   if (background.length > 0) {
@@ -48,6 +62,20 @@ function castSections(characters) {
     );
   }
   return sections;
+}
+
+// The state-update contract appended to prompts when the story has a cast.
+function stateUpdateInstruction(characters) {
+  const ids = characters.map((c) => c.id);
+  return (
+    `CHARACTER STATE UPDATES: after the story text, output a line that reads exactly ${STATE_MARKER_TEXT} ` +
+    'followed by one strict JSON object mapping character ids to the fields this page changed, e.g. ' +
+    `{"${ids[0]}": {"personality": "...", "appearance": "...", "relationship_to_mc": "..."}}. ` +
+    'Include ONLY characters who appear in this page, and ONLY fields that meaningfully changed through its events ' +
+    '(injury, revelation, vows, betrayal, grief, new resolve). Evolution is book-paced: compressed and consequence-driven, ' +
+    'a chapter-shaped approximation of a person, not lifelike gradual drift. Never restate unchanged fields. ' +
+    'If nothing meaningful changed, omit the entire block and end after the story text.'
+  );
 }
 
 function buildPrompt({ story, world, characters, pages, userInput, wordTarget }) {
@@ -61,11 +89,12 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
     );
   }
 
-  const castParts = castSections(characters || []);
+  const castParts = castSections(characters || [], { withIds: true });
   if (castParts.length > 0) {
     parts.push(...castParts);
+    parts.push(stateUpdateInstruction(characters));
   } else if ((characters || []).length > 0) {
-    parts.push('CHARACTERS:\n' + characters.map(characterBlock).join('\n'));
+    parts.push('CHARACTERS:\n' + characters.map((c) => characterBlock(c)).join('\n'));
   }
 
   const includedPages = (pages && pages.included) || [];
@@ -92,4 +121,4 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
   return parts.join('\n\n');
 }
 
-module.exports = { buildPrompt, CONTEXT_WINDOW, TONE_INSTRUCTIONS, castSections };
+module.exports = { buildPrompt, CONTEXT_WINDOW, TONE_INSTRUCTIONS, castSections, stateUpdateInstruction };

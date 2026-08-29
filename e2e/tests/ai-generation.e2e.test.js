@@ -9,12 +9,25 @@ async function selectByLabel(page, selector, text) {
 }
 
 async function createStoryViaUi(page, title) {
+  // These tests exercise generation, not casting - build the minimal legal
+  // cast (one Main Character) through the API, then select the story in the UI.
+  const worldRes = await page.request.post('/api/worlds', { data: { name: `${title} World` } });
+  const world = (await worldRes.json()).world;
+  const charRes = await page.request.post('/api/characters', {
+    data: { name: `${title} Protagonist`, world_id: world.id },
+  });
+  const character = (await charRes.json()).character;
+  const storyRes = await page.request.post('/api/stories', {
+    data: { title, world_id: world.id, characters: [{ id: character.id, role: 'mc', relation: null, state: null }] },
+  });
+  const story = (await storyRes.json()).story;
+
   await page.goto('/');
-  await page.locator('#storiesBtn').click();
-  await page.fill('#storyTitle', title);
-  await page.locator('#storyForm button[type="submit"]').click();
-  await expect(page.locator('#writeSection')).toHaveClass(/active/);
+  await page.locator('#writeBtn').click();
+  await page.selectOption('#currentStory', story.id);
   await expect(page.locator('#currentStory option', { hasText: title })).toBeAttached({ timeout: 5000 });
+  await expect(page.locator('#writeSection')).toHaveClass(/active/);
+  return story;
 }
 
 test.describe('AI generation flows (mocked)', () => {
@@ -129,7 +142,8 @@ test.describe('AI generation flows (mocked)', () => {
     await page.fill('#storyTitle', 'Context Story');
     await selectByLabel(page, '#storyWorld', 'Context Realm');
     await page.selectOption('#storyTone', 'explicit');
-    await page.locator('#characterCheckboxes label', { hasText: 'Sir Context' }).locator('input').check();
+    await selectByLabel(page, '#mcSelect', 'Sir Context');
+    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Sir Context — Main Character');
     await page.locator('#storyForm button[type="submit"]').click();
 
     await page.fill('#userInput', 'Sir Context opens the tome');

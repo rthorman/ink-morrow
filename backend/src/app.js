@@ -8,6 +8,12 @@ const { buildEpub } = require('./epub');
 const { buildPrompt, CONTEXT_WINDOW } = require('./prompt');
 
 const TONES = ['fade-to-black', 'romantic', 'explicit'];
+
+// Model ids from clients are bounded and forwarded verbatim to OpenRouter.
+function modelOverrideOf(value) {
+  const model = asString(value);
+  return model && model.length <= 200 ? model : null;
+}
 const CAST_ROLES = ['mc', 'supporting', 'background'];
 
 // ---------------------------------------------------------------------------
@@ -71,18 +77,22 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     total_cost_usd: db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS s FROM story_pages WHERE story_id = ?').get(story.id).s,
   });
 
-  // Cast entries are {id, role} with role in CAST_ROLES. Plain id strings
-  // (the pre-tiers format) are accepted and treated as 'supporting'.
+  // Cast entries are {id, role, relation, state}. role is mc|supporting|
+  // background; relation is free text (supporting cast's tie to the MC at the
+  // story's start); state holds the per-story mutable instance of a character
+  // (personality/appearance/relationship as the story reshapes them).
   function normalizeCastEntry(entry) {
-    if (typeof entry === 'string' && entry.trim()) return { id: entry.trim(), role: 'supporting' };
     if (entry && typeof entry === 'object' && typeof entry.id === 'string' && entry.id.trim()) {
       const role = entry.role === undefined || entry.role === null ? 'supporting' : asString(entry.role);
       if (!role || !CAST_ROLES.includes(role)) {
         return { error: `"characters[].role" must be one of: ${CAST_ROLES.join(', ')}` };
       }
-      return { id: entry.id.trim(), role };
+      const relation = entry.relation === undefined || entry.relation === null ? null : optionalText(entry.relation, { max: 2000 });
+      if (relation === undefined) return { error: '"characters[].relation" must be text' };
+      const state = entry.state && typeof entry.state === 'object' && !Array.isArray(entry.state) ? entry.state : null;
+      return { id: entry.id.trim(), role, relation, state };
     }
-    return { error: '"characters" must contain character ids or {id, role} objects' };
+    return { error: '"characters" must contain {id, role} cast entries' };
   }
 
   function normalizeCast(entries) {
@@ -385,9 +395,9 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     const world = story.world_id ? getWorld(story.world_id) : null;
     const cast = normalizeCast(JSON.parse(story.characters || '[]'));
     const characters = cast
-      .map(({ id, role }) => {
-        const character = getCharacter(id);
-        return character ? { ...character, role } : null;
+      .map((entry) => {
+        const character = getCharacter(entry.id);
+        return character ? { ...character, role: entry.role, relation: entry.relation, state: entry.state } : null;
       })
       .filter(Boolean);
     const allPages = storyPages(story.id);
@@ -404,13 +414,66 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     };
   }
 
+  // -- per-story mutable character state -------------------------------------
+
+  const STATE_MARKER = '<<<CHARACTER_STATE>>>';
+  const STATE_FIELDS = ['personality', 'appearance', 'relationship_to_mc'];
+
+  // The model appends a state block after the prose. Split it off so pages
+  // never store the marker; a missing block simply means "nothing changed".
+  function splitStateBlock(content) {
+    const idx = content.indexOf(STATE_MARKER);
+    if (idx === -1) return { prose: content.trim(), stateJson: null };
+    return {
+      prose: content.slice(0, idx).trim(),
+      stateJson: content.slice(idx + STATE_MARKER.length).trim() || null,
+    };
+  }
+
+  function applyStateUpdate(story, stateObj) {
+    if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return false;
+    const cast = normalizeCast(JSON.parse(story.characters || '[]'));
+    let changed = false;
+    for (const entry of cast) {
+      const upd = stateObj[entry.id];
+      if (!upd || typeof upd !== 'object' || Array.isArray(upd)) continue;
+      const state = entry.state && typeof entry.state === 'object' ? { ...entry.state } : {};
+      for (const field of STATE_FIELDS) {
+        const value = upd[field];
+        if (typeof value === 'string' && value.trim()) {
+          state[field] = value.trim().slice(0, 2000);
+          changed = true;
+        }
+      }
+      if (Object.keys(state).length > 0) entry.state = state;
+    }
+    if (changed) {
+      db.prepare('UPDATE stories SET characters = ? WHERE id = ?').run(JSON.stringify(cast), story.id);
+    }
+    return changed;
+  }
+
+  function consumeStoryText(story, rawContent) {
+    const { prose, stateJson } = splitStateBlock(rawContent);
+    if (!prose) {
+      const err = new Error('AI returned an empty response');
+      err.statusCode = 502;
+      throw err;
+    }
+    if (stateJson) {
+      const stateObj = parseAiJson(stateJson);
+      if (stateObj) applyStateUpdate(story, stateObj);
+    }
+    return prose;
+  }
+
   app.post('/api/stories/:id/pages/generate', async (req, res, next) => {
     try {
       const story = getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
       const userInput = optionalText(req.body.user_input, { max: 10000 }) || 'Continue the story.';
       if (userInput === undefined) return badRequest(res, '"user_input" must be text');
-      const modelOverride = asString(req.body.model);
+      const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const wordTarget = parseWordTarget(req.body.words);
 
@@ -419,6 +482,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
         { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
         { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput, wordTarget }) },
       ], { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) });
+      const prose = consumeStoryText(story, result.content);
 
       const id = uuidv4();
       const page_number =
@@ -426,7 +490,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       db.prepare(
         'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).run(
-        id, story.id, page_number, result.content, userInput,
+        id, story.id, page_number, prose, userInput,
         result.model, result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, result.cost_usd
       );
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
@@ -450,12 +514,13 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       const result = await chatCompletion([
         { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
         { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput: last.user_input || 'Continue the story.', wordTarget }) },
-      ], { model: asString(req.body.model) || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) });
+      ], { model: modelOverrideOf(req.body.model) || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) });
+      const prose = consumeStoryText(story, result.content);
 
       db.prepare(
         'UPDATE story_pages SET content = ?, created_at = CURRENT_TIMESTAMP, model = ?, prompt_tokens = ?, completion_tokens = ?, cost_usd = ? WHERE id = ?'
       ).run(
-        result.content, result.model,
+        prose, result.model,
         result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, result.cost_usd,
         last.id
       );
@@ -520,20 +585,35 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
   }
 
   async function runDraft(buildPrompt, modelOverride) {
-    const result = await chatCompletion(
-      [
-        { role: 'system', content: 'You are a precise creative assistant for an interactive-fiction tool. You always answer with a single strict JSON object and nothing else - no markdown fences, no commentary.' },
-        { role: 'user', content: buildPrompt() },
-      ],
-      { model: modelOverride || undefined, temperature: 0.95 }
-    );
-    const parsed = parseAiJson(result.content);
+    const SYSTEM_BASE =
+      'You are a precise creative assistant for an interactive-fiction tool. You always answer with a single strict JSON object and nothing else - no markdown fences, no commentary.';
+
+    const attempt = (extraNote) =>
+      chatCompletion(
+        [
+          { role: 'system', content: extraNote ? `${SYSTEM_BASE} ${extraNote}` : SYSTEM_BASE },
+          { role: 'user', content: buildPrompt() },
+        ],
+        { model: modelOverride || undefined, temperature: 0.95 }
+      );
+
+    // Unseeded drafts make some models ramble; one corrective retry keeps
+    // the UX stable. Both attempts are billed, so both costs are summed.
+    let first = await attempt();
+    let parsed = parseAiJson(first.content);
+    let cost = first.cost_usd || 0;
+    if (!parsed) {
+      const second = await attempt('Your previous answer was not a valid JSON object. This time return ONLY the JSON object.');
+      cost += second.cost_usd || 0;
+      parsed = parseAiJson(second.content);
+      first = second;
+    }
     if (!parsed) {
       const err = new Error('The scribe scribbled something illegible. Try again.');
       err.statusCode = 502;
       throw err;
     }
-    return { parsed, result };
+    return { parsed, result: first, cost_usd: cost || null };
   }
 
   app.post('/api/ai/world', async (req, res, next) => {
@@ -545,12 +625,12 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
         setting: optionalText(req.body.setting, { max: 200 }),
       };
       if (Object.values(seeds).includes(undefined)) return badRequest(res, 'World seed fields must be text');
-      const modelOverride = asString(req.body.model);
+      const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const length = DRAFT_LENGTHS[req.body.length] ? req.body.length : 'medium';
       const variant = Math.min(Math.max(parseInt(req.body.variant, 10) || 1, 1), 50);
 
-      const { parsed, result } = await runDraft(() => {
+      const { parsed, result, cost_usd } = await runDraft(() => {
         const seedLines = Object.entries(seeds)
           .filter(([, v]) => v)
           .map(([k, v]) => `${k}: ${v}`);
@@ -572,7 +652,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
           setting: asString(parsed.setting) || seeds.setting || '',
         },
         model: result.model,
-        cost_usd: result.cost_usd,
+        cost_usd,
       });
     } catch (error) {
       next(error);
@@ -591,12 +671,12 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       if (Object.values(seeds).includes(undefined)) return badRequest(res, 'Character seed fields must be text');
       const world = req.body.world_id ? getWorld(req.body.world_id) : null;
       if (req.body.world_id && !world) return badRequest(res, 'world_id does not reference an existing world');
-      const modelOverride = asString(req.body.model);
+      const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const length = DRAFT_LENGTHS[req.body.length] ? req.body.length : 'medium';
       const variant = Math.min(Math.max(parseInt(req.body.variant, 10) || 1, 1), 50);
 
-      const { parsed, result } = await runDraft(() => {
+      const { parsed, result, cost_usd } = await runDraft(() => {
         const seedLines = Object.entries(seeds)
           .filter(([, v]) => v)
           .map(([k, v]) => `${k}: ${v}`);
@@ -620,7 +700,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
           background: pick('background'),
         },
         model: result.model,
-        cost_usd: result.cost_usd,
+        cost_usd,
       });
     } catch (error) {
       next(error);

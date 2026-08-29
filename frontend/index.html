@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -164,8 +165,26 @@
                             <option value="explicit">Tone: Explicit (18+)</option>
                         </select>
                         <div class="character-selection">
-                            <p class="character-selection__label">Cast — one MC to follow, supporting cast close to them, background figures kept loose (shown first: characters from the chosen world):</p>
-                            <div id="characterCheckboxes" class="checkbox-group"></div>
+                            <p class="character-selection__label">Cast — every story needs one Main Character; add the rest one at a time with their tie to them.</p>
+                            <div class="cast-mc">
+                                <label for="mcSelect">Main Character</label>
+                                <select id="mcSelect">
+                                    <option value="">— Choose the character the story follows —</option>
+                                </select>
+                            </div>
+                            <div class="cast-add">
+                                <label for="castCharSelect">Add cast member</label>
+                                <select id="castCharSelect"></select>
+                                <label for="castTierSelect">Tier</label>
+                                <select id="castTierSelect">
+                                    <option value="supporting">Supporting</option>
+                                    <option value="background">Background</option>
+                                </select>
+                                <label for="castRelation">Relation to the Main Character (starting point; the story may change it)</label>
+                                <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
+                                <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
+                            </div>
+                            <div id="castList" class="cast-list" aria-label="Story cast"></div>
                         </div>
                         <button type="submit" class="btn btn-primary">Create Story</button>
                     </form>

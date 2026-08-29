@@ -143,3 +143,28 @@ describe('POST /api/ai/character', () => {
     expect(res.body.error).toContain('world_id');
   });
 });
+describe('Draft JSON repair', () => {
+  it('retries once with a corrective system note when the first answer is not JSON', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const good = JSON.stringify({ name: 'W', description: 'd', genre: 'g', setting: 's' });
+    axios.post
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: 'Ah yes, a world! Let me tell you about...' } }] } })
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: good } }] } });
+
+    const res = await request(app).post('/api/ai/world').send({}).expect(200);
+    expect(res.body.world.name).toBe('W');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    const secondSystem = axios.post.mock.calls[1][1].messages[0].content;
+    expect(secondSystem).toContain('not a valid JSON object');
+  });
+
+  it('gives up with 502 after two invalid answers', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    axios.post.mockResolvedValue({
+      data: { choices: [{ message: { content: 'no json here at all' } }] },
+    });
+    const res = await request(app).post('/api/ai/world').send({}).expect(502);
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(res.body.error).toContain('illegible');
+  });
+});

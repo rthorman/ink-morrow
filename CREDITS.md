@@ -28,8 +28,8 @@ through OpenRouter.
 
 Nearly everything here was written, reviewed, and fixed by that pairing,
 on-device, on the same budget tablet: the Express backend, the `node:sqlite`
-schema, the gothic frontend and its catgirl scribe, all 60 Jest tests, the
-Playwright suite, the CI workflow — and the bug hunts that caught real
+schema, the gothic frontend and its catgirl scribe, the full Jest and
+Playwright suites, the CI workflow — and the bug hunts that caught real
 crashers (including a fresh-clone one) before they ever shipped.
 
 The human's contributions: the vision, the direction, the taste — and lunch.

@@ -50,10 +50,16 @@ async function createCharacter(app, worldId = null, overrides = {}) {
   return res.body.character;
 }
 
-async function createStory(app, worldId = null, characterIds = [], overrides = {}) {
+async function createStory(app, worldId = null, cast = [], overrides = {}) {
+  // Accept [{id, role, ...}] objects; also accept plain ids for brevity,
+  // normalized to supporting cast entries (API requires objects - this helper
+  // exists for tests, not as an API contract).
+  const characters = cast.map((entry) =>
+    typeof entry === 'string' ? { id: entry, role: 'supporting', relation: null, state: null } : entry
+  );
   const res = await request(app)
     .post('/api/stories')
-    .send({ title: 'The Test Tale', world_id: worldId, characters: characterIds, ...overrides });
+    .send({ title: 'The Test Tale', world_id: worldId, characters, ...overrides });
   if (res.status !== 201) throw new Error(`createStory failed: ${res.status} ${JSON.stringify(res.body)}`);
   return res.body.story;
 }

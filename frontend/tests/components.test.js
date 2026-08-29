@@ -86,31 +86,78 @@ describe('Characters and casting', () => {
     await fw.loadCharacters();
   });
 
-  it('orders the cast checkboxes: chosen-world characters first', () => {
+  it('offers uncast characters in the pickers, world-mates first', () => {
     document.getElementById('storyWorld').value = 'w1';
-    fw.updateCharacterCheckboxes();
-
-    const labels = [...document.querySelectorAll('#characterCheckboxes label span')];
-    expect(labels.map((l) => l.textContent)).toEqual(['Realm Knight', 'Outsider (other world)', 'Drifter']);
+    fw.renderCastBuilder();
+    const mcOptions = [...document.getElementById('mcSelect').options].map((o) => o.textContent);
+    expect(mcOptions).toEqual(['— Choose the character the story follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
   });
 
-  it('marks characters from other worlds when casting across worlds', () => {
-    document.getElementById('storyWorld').value = 'w1';
-    fw.updateCharacterCheckboxes();
+  it('locks the MC once chosen and removes them from the member pool', () => {
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
 
-    const checkboxes = document.querySelectorAll('#characterCheckboxes input');
-    expect(checkboxes[0].classList.contains('in-world')).toBe(true); // knight belongs to realm
-    expect(checkboxes[1].classList.contains('in-world')).toBe(false); // outsider doesn't
+    expect(document.getElementById('mcSelect').disabled).toBe(true);
+    expect(fw.storyCast()).toEqual([{ id: 'c1', role: 'mc', relation: null }]);
+
+    const memberOptions = [...document.getElementById('castCharSelect').options].map((o) => o.value);
+    expect(memberOptions).toEqual(['', 'c2', 'c3']); // MC no longer offered
+    expect(document.querySelector('#castList .cast-list__row--mc .cast-list__name').textContent).toContain('Realm Knight — Main Character');
   });
 
-  it('creates a story with the checked cast and chosen tone', async () => {
+  it('replacing the MC puts the old one back in the pool', () => {
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
+    document.querySelector('#castList .cast-list__remove').click();
+    expect(fw.storyCast()).toEqual([]);
+    expect([...document.getElementById('mcSelect').options].map((o) => o.value)).toContain('c1');
+  });
+
+  it('adds supporting members one at a time with a relation', () => {
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
+
+    document.getElementById('castCharSelect').value = 'c2';
+    document.getElementById('castTierSelect').value = 'supporting';
+    document.getElementById('castRelation').value = 'owes her a life-debt from the war';
+    fw.addCastMember();
+
+    document.getElementById('castCharSelect').value = 'c3';
+    document.getElementById('castTierSelect').value = 'background';
+    document.getElementById('castRelation').value = '';
+    fw.addCastMember();
+
+    expect(fw.storyCast()).toEqual([
+      { id: 'c1', role: 'mc', relation: null },
+      { id: 'c2', role: 'supporting', relation: 'owes her a life-debt from the war' },
+      { id: 'c3', role: 'background', relation: null },
+    ]);
+  });
+
+  it('relation edits in the cast list update the entry', () => {
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
+    document.getElementById('castCharSelect').value = 'c2';
+    document.getElementById('castRelation').value = 'sworn shield';
+    fw.addCastMember();
+
+    const relationInput = document.querySelector('#castList .cast-list__relation');
+    relationInput.value = 'sworn shield, now doubting';
+    relationInput.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(fw.storyCast()[1].relation).toBe('sworn shield, now doubting');
+  });
+
+  it('creates a story with the cast and chosen tone', async () => {
     const fetchMock = global.fetch;
     fetchMock.mockResolvedValueOnce(jsonResponse(201, { story: { id: 's1', title: 'Tale', page_count: 0 } }));
 
     document.getElementById('storyTitle').value = 'Tale';
     document.getElementById('storyTone').value = 'explicit';
-    document.querySelectorAll('#characterCheckboxes input')[0].checked = true;
-    document.querySelectorAll('#characterCheckboxes input')[2].checked = true;
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
+    document.getElementById('castCharSelect').value = 'c3';
+    document.getElementById('castRelation').value = 'her long-lost sister';
+    fw.addCastMember();
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('storyForm').dispatchEvent(event);
@@ -122,47 +169,27 @@ describe('Characters and casting', () => {
     expect(body.title).toBe('Tale');
     expect(body.tone).toBe('explicit');
     expect(body.characters).toEqual([
-      { id: 'c1', role: 'supporting' },
-      { id: 'c3', role: 'supporting' },
+      { id: 'c1', role: 'mc', relation: null, state: null },
+      { id: 'c3', role: 'supporting', relation: 'her long-lost sister', state: null },
     ]);
+    // Cast resets after a successful creation
+    expect(fw.storyCast()).toEqual([]);
   });
 
-  it('casts exactly one MC and demotes the previous protagonist', async () => {
+  it('refuses to create a story without a Main Character', async () => {
     const fetchMock = global.fetch;
-    fetchMock.mockResolvedValueOnce(jsonResponse(201, { story: { id: 's9', title: 'Tale', page_count: 0 } }));
-
-    document.getElementById('storyWorld').value = 'w1';
-    fw.updateCharacterCheckboxes();
-
-    const rows = [...document.querySelectorAll('#characterCheckboxes .cast-row')];
-    rows[0].querySelector('input').checked = true;
-    rows[0].querySelector('input').dispatchEvent(new Event('change'));
-    rows[1].querySelector('input').checked = true;
-    rows[1].querySelector('input').dispatchEvent(new Event('change'));
-
-    // Crown the knight, then crown the outsider - the knight must step down.
-    rows[0].querySelector('.cast-role').value = 'mc';
-    rows[0].querySelector('.cast-role').dispatchEvent(new Event('change'));
-    rows[1].querySelector('.cast-role').value = 'mc';
-    rows[1].querySelector('.cast-role').dispatchEvent(new Event('change'));
-
-    expect([...document.querySelectorAll('.cast-role')].map((s) => s.value)).toEqual([
-      'supporting', // knight demoted
-      'mc', // outsider is the protagonist now
-      'supporting',
-    ]);
+    fetchMock.mockClear();
+    document.getElementById('storyTitle').value = 'Tale';
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('storyForm').dispatchEvent(event);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
-    expect(body.characters).toEqual([
-      { id: 'c1', role: 'supporting' },
-      { id: 'c2', role: 'mc' },
-    ]);
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/stories', expect.anything());
+    expect(document.querySelector('.error-message').textContent).toContain('Main Character');
   });
 });
+
 
 describe('Generation and export flows', () => {
   let fw, fetchMock;

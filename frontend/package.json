@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe-frontend",
-  "version": "2.0.0",
+  "version": "2.3.0",
   "description": "Frontend for ScribeTribe (served by the backend)",
   "scripts": {
     "test": "node node_modules/jest/bin/jest.js",

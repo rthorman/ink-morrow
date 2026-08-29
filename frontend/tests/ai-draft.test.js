@@ -152,3 +152,43 @@ describe('AI character drafts', () => {
     expect(savedBody.world_id).toBe('w1');
   });
 });
+describe('Scribe-voiced errors', () => {
+  it('wraps dependency failures without hiding the reason', () => {
+    const fw = loadScript();
+    fw.showError('World is referenced by 2 character(s) and 1 story(ies). Delete or reassign them first.');
+    const el = document.querySelector('.error-message');
+    expect(el.textContent).toContain('The scribe refuses');
+    expect(el.textContent).toContain('referenced by 2 character');
+    expect(el.textContent).toContain('Delete or reassign');
+  });
+
+  it('translates connectivity and key failures into scriptorium terms', () => {
+    const fw = loadScript();
+    fw.showError('Cannot reach the server - is it running?');
+    expect(document.querySelector('.error-message').textContent).toContain('scriptorium has gone dark');
+    fw.showError('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
+    expect(document.querySelector('.error-message').textContent).toContain('no key to the library');
+  });
+
+  it('shows draft failures inside the modal, not behind it', async () => {
+    const fetchMock = mockFetch();
+    fetchMock.mockImplementation((url, options) => {
+      if (url.includes('/api/ai/world') && options && options.method === 'POST') {
+        return Promise.resolve(jsonResponse(500, { error: 'no ink' }));
+      }
+      return Promise.resolve(jsonResponse(200, { worlds: [] }));
+    });
+    const fw = loadScript();
+    fw.openAiDraft('world');
+    const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
+    genBtn.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const errorLine = document.querySelector('#aiDraftBody .draft-error');
+    expect(errorLine).toBeTruthy();
+    expect(errorLine.textContent).toContain('no ink');
+    expect(document.getElementById('aiDraftModal').hidden).toBe(false);
+    // Nothing leaked behind the modal either
+    expect(document.querySelector('.content-section.active .error-message')).toBeNull();
+  });
+});

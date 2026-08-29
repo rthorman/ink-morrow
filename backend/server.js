@@ -14,7 +14,9 @@ const db = createDb(dbPath);
 const app = createApp(db);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
-const server = app.listen(PORT, () => {
+// 0.0.0.0 keeps LAN browsing working; set HOST=127.0.0.1 to lock it down.
+const HOST = process.env.HOST || '0.0.0.0';
+const server = app.listen(PORT, HOST, () => {
   console.log(`ScribeTribe (API + frontend) serving on http://localhost:${PORT}`);
 });
 

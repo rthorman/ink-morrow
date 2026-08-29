@@ -121,7 +121,7 @@ describe('Characters API', () => {
   it('removes a deleted character from story casts', async () => {
     const character = await createCharacter(app);
     const story = await createStory(app, null, [character.id]);
-    expect(story.characters).toEqual([{ id: character.id, role: 'supporting' }]);
+    expect(story.characters).toEqual([{ id: character.id, role: 'supporting', relation: null, state: null }]);
 
     await request(app).delete(`/api/characters/${character.id}`).expect(204);
 
@@ -152,13 +152,13 @@ describe('Stories API', () => {
 
     const res = await request(app)
       .post('/api/stories')
-      .send({ title: 'Two Heroes', world_id: world.id, characters: [c1.id, c2.id] })
+      .send({ title: 'Two Heroes', world_id: world.id, characters: [{ id: c1.id, role: 'supporting' }, { id: c2.id, role: 'supporting' }] })
       .expect(201);
 
     expect(res.body.story.characters).toEqual([
-      { id: c1.id, role: 'supporting' },
-      { id: c2.id, role: 'supporting' },
-    ]); // parsed {id, role} cast, not a JSON string
+      { id: c1.id, role: 'supporting', relation: null, state: null },
+      { id: c2.id, role: 'supporting', relation: null, state: null },
+    ]); // parsed {id, role, relation, state} cast, not a JSON string
     expect(res.body.story.page_count).toBe(0);
     expect(res.body.story.tone).toBe('fade-to-black'); // default
   });
@@ -175,7 +175,7 @@ describe('Stories API', () => {
   it('validates that cast members exist', async () => {
     const res = await request(app)
       .post('/api/stories')
-      .send({ title: 'X', characters: ['nonexistent'] })
+      .send({ title: 'X', characters: [{ id: 'nonexistent', role: 'supporting' }] })
       .expect(400);
     expect(res.body.error).toContain('unknown id');
   });

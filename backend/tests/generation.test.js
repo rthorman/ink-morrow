@@ -374,10 +374,13 @@ describe('Three-tier cast (MC / supporting / background)', () => {
     await generatePage(story.id, 'go');
     const prompt = axios.post.mock.calls[0][1].messages[1].content;
 
-    expect(prompt).toContain('PROTAGONIST (the story follows this character');
-    expect(prompt).toContain(`- ${mc.name}:`);
+    expect(prompt).toContain('PROTAGONIST / MAIN CHARACTER');
+    expect(prompt).toContain(`- ${mc.name} [id: ${mc.id}]:`);
+    expect(prompt).toContain('<<<CHARACTER_STATE>>>');
+    expect(prompt).toContain('book-paced');
+    expect(prompt).toContain(`${mc.name} [id:`);
     expect(prompt).toContain('SUPPORTING CAST');
-    expect(prompt).toContain(`- ${ally.name}:`);
+    expect(prompt).toContain(`- ${ally.name} [id: ${ally.id}]:`);
     expect(prompt).toContain('BACKGROUND FIGURES');
     expect(prompt).toContain(`- ${extra.name}: A stout man who sees everything and says little.`);
     // Background tier is one line: no full detail block for Hodge
@@ -388,15 +391,14 @@ describe('Three-tier cast (MC / supporting / background)', () => {
     expect(order).toEqual([...order].sort((a, b) => a - b));
   });
 
-  it('accepts legacy plain-id casts as supporting', async () => {
-    process.env.OPENROUTER_API_KEY = 'test-key';
-    mockAi();
-    const world = await createWorld(app, { name: 'Legacy Realm' });
-    const hero = await createCharacter(app, world.id, { name: 'Old Hero' });
-    const story = await createStory(app, world.id, [hero.id]); // plain ids
-
-    const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
-    expect(meta.body.story.characters).toEqual([{ id: hero.id, role: 'supporting' }]);
+  it('rejects plain-id casts - objects are required', async () => {
+    const world = await createWorld(app, { name: 'Strict Realm' });
+    const hero = await createCharacter(app, world.id, { name: 'Plain Hero' });
+    const res = await request(app)
+      .post('/api/stories')
+      .send({ title: 'Legacy Shape', world_id: world.id, characters: [hero.id] });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('{id, role}');
   });
 
   it('rejects two main characters in one story', async () => {
@@ -418,5 +420,114 @@ describe('Three-tier cast (MC / supporting / background)', () => {
       .send({ title: 'Bad Role', world_id: world.id, characters: [{ id: a.id, role: 'villain' }] });
     expect(res.status).toBe(400);
     expect(res.body.error).toContain('characters[].role');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('Mutable per-story character state', () => {
+  it('shows the relation to the MC and asks for a state block', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi('Page one.');
+    const world = await createWorld(app, { name: 'Relation Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'The Lead' });
+    const ally = await createCharacter(app, world.id, { name: 'The Ally' });
+    const story = await createStory(app, world.id, [
+      { id: mc.id, role: 'mc', relation: null, state: null },
+      { id: ally.id, role: 'supporting', relation: 'owes her a life-debt from the war', state: null },
+    ]);
+
+    await generatePage(story.id, 'go');
+    const prompt = axios.post.mock.calls[0][1].messages[1].content;
+    expect(prompt).toContain('Relation to the main character: owes her a life-debt from the war');
+    expect(prompt).toContain('<<<CHARACTER_STATE>>>');
+    expect(prompt).toContain('relationship_to_mc');
+  });
+
+  it('strips the state block from the page and persists the evolved state', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Evolution Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Hurtable' });
+    const story = await createStory(app, world.id, [
+      { id: mc.id, role: 'mc', relation: null, state: null },
+    ]);
+
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{
+          message: {
+            content:
+              'The bridge fell. She lost her left hand.\n\n<<<CHARACTER_STATE>>>\n' +
+              JSON.stringify({ [mc.id]: { personality: 'Flint-eyed and slower to trust after the bridge', appearance: 'Missing her left hand, bandaged stump' } }),
+          },
+        }],
+      },
+    });
+    const res = await generatePage(story.id, 'cross the bridge');
+    expect(res.status).toBe(201);
+    expect(res.body.page.content).toBe('The bridge fell. She lost her left hand.');
+    expect(res.body.page.content).not.toContain('CHARACTER_STATE');
+
+    const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
+    const cast = meta.body.story.characters;
+    expect(cast[0].state.personality).toContain('Flint-eyed');
+    expect(cast[0].state.appearance).toContain('Missing her left hand');
+
+    // The next prompt reflects the evolved instance, not the base sheet
+    mockAi('Page two.');
+    await generatePage(story.id, 'go on');
+    const prompt2 = axios.post.mock.calls[1][1].messages[1].content;
+    expect(prompt2).toContain('Flint-eyed and slower to trust after the bridge (as the story has reshaped them)');
+    expect(prompt2).toContain('Missing her left hand, bandaged stump');
+  });
+
+  it('keeps prose and state intact when the state block is malformed', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Grace Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Steady' });
+    const story = await createStory(app, world.id, [{ id: mc.id, role: 'mc', relation: null, state: null }]);
+
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{
+          message: { content: 'A quiet page.\n\n<<<CHARACTER_STATE>>>\nnot json at all' },
+        }],
+      },
+    });
+    const res = await generatePage(story.id, 'go');
+    expect(res.status).toBe(201);
+    expect(res.body.page.content).toBe('A quiet page.');
+
+    const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
+    expect(meta.body.story.characters[0].state).toBeNull();
+  });
+
+  it('evolved relationship replaces the seed relation in later prompts', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Drift Realm' });
+    const mc = await createCharacter(app, world.id, { name: 'Anchor' });
+    const ally = await createCharacter(app, world.id, { name: 'Drifter' });
+    const story = await createStory(app, world.id, [
+      { id: mc.id, role: 'mc', relation: null, state: null },
+      { id: ally.id, role: 'supporting', relation: 'childhood friends', state: null },
+    ]);
+
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{
+          message: {
+            content:
+              'The betrayal page.\n\n<<<CHARACTER_STATE>>>\n' +
+              JSON.stringify({ [ally.id]: { relationship_to_mc: 'Openly hostile since the betrayal; the friendship is ash' } }),
+          },
+        }],
+      },
+    });
+    await generatePage(story.id, 'betray');
+
+    mockAi('Next page.');
+    await generatePage(story.id, 'go');
+    const prompt = axios.post.mock.calls[1][1].messages[1].content;
+    expect(prompt).toContain('Openly hostile since the betrayal; the friendship is ash (as the story has reshaped it; it began as: childhood friends)');
   });
 });

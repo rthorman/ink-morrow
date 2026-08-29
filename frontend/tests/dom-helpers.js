@@ -52,7 +52,17 @@ function buildDom() {
             <option value="romantic">Romantic</option>
             <option value="explicit">Explicit</option>
           </select>
-          <div id="characterCheckboxes" class="checkbox-group"></div>
+          <div class="character-selection">
+            <select id="mcSelect"></select>
+            <select id="castCharSelect"></select>
+            <select id="castTierSelect">
+              <option value="supporting">Supporting</option>
+              <option value="background">Background</option>
+            </select>
+            <input type="text" id="castRelation">
+            <button id="castAddBtn" type="button">Add to cast</button>
+            <div id="castList" class="cast-list"></div>
+          </div>
           <button type="submit">Create Story</button>
         </form>
         <div id="storiesList" class="items-grid"></div>
@@ -97,11 +107,6 @@ function buildDom() {
     </div>
     <p id="scribeStatus" class="scribe-status">The scribe waits, quill at the ready…</p>
   `;
-
-  const scribe = document.createElement('p');
-  scribe.id = 'scribeStatus';
-  scribe.className = 'scribe-status';
-  document.body.appendChild(scribe);
 }
 
 function loadScript() {
