@@ -18,6 +18,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
 - **EPUB export** — download the full story as a valid EPUB e-book
 - **Read-only history** — earlier pages can't be edited; "delete everything after this page" trims the tale with a slide-to-confirm burn
+- **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, with model/voice pickers in Settings and honest per-generation cost accounting
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Full test suite** — 118 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
@@ -143,6 +144,9 @@ scribe-tribe/
 | GET | `/api/models` | OpenRouter model catalog with pricing (for the settings picker) |
 | POST | `/api/ai/world` | Flesh out a world from seeds (short/medium/long) |
 | POST | `/api/ai/character` | Flesh out a character from seeds (world-aware) |
+| GET | `/api/speech-models` | OpenRouter speech-model catalogue with voices (for Narration settings) |
+| POST | `/api/stories/:id/pages/:n/narrate` | Stream the page as speech (binary pass-through, cache-aware) |
+| GET | `/api/ai/generation-cost?id=` | Authoritative cost for a narration generation |
 
 All validation errors return `400` with a helpful message; unknown ids return `404`.
 

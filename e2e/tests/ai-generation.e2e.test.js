@@ -292,3 +292,96 @@ test.describe('Speculative next-page preparation', () => {
     await expect(page.locator('#generateBtn')).toHaveText('Next Page', { timeout: 5000 });
   });
 });
+
+test.describe('Narration (read aloud)', () => {
+  function silentWav() {
+    const sampleRate = 8000;
+    const seconds = 0.15;
+    const samples = sampleRate * seconds;
+    const buffer = Buffer.alloc(44 + samples);
+    buffer.write('RIFF', 0);
+    buffer.writeUInt32LE(36 + samples, 4);
+    buffer.write('WAVE', 8);
+    buffer.write('fmt ', 12);
+    buffer.writeUInt32LE(16, 16);
+    buffer.writeUInt16LE(1, 20); // PCM
+    buffer.writeUInt16LE(1, 22); // mono
+    buffer.writeUInt32LE(sampleRate, 24);
+    buffer.writeUInt32LE(sampleRate, 28); // byte rate
+    buffer.writeUInt16LE(1, 32); // block align
+    buffer.writeUInt16LE(8, 34); // 8-bit
+    buffer.write('data', 36);
+    buffer.writeUInt32LE(samples, 40);
+    return buffer;
+  }
+
+  test('configures narration, streams, and bills once per generation', async ({ page }) => {
+    page.on('request', (r) => { if (r.url().includes('narrate')) console.log('TEST-REQ-NARRATE'); });
+    page.on('response', (r) => { if (r.url().includes('narrate')) console.log('TEST-RESP-NARRATE:', r.status()); });
+    let narrateCalls = 0;
+    let costCalls = 0;
+    await page.route('**/api/stories/*/pages/generate', (route) =>
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          page: { id: 'p1', page_number: 1, content: 'The opening page.', user_input: null, cost_usd: 0 },
+        }),
+      })
+    );
+    await page.route('**/api/speech-models', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          models: [{ id: 'or/voice-1', name: 'Voice One', voices: [{ id: 'amber', label: 'Amber' }] }],
+        }),
+      })
+    );
+    await page.route('**/api/stories/*/pages/*/narrate', async (route) => {
+      narrateCalls++;
+      const headers = { 'X-Generation-Id': 'gen-e2e-01' };
+      if (narrateCalls > 1) headers['X-Narration-Cache'] = 'hit';
+      await route.fulfill({ status: 200, headers, body: silentWav() });
+    });
+    await page.route('**/api/ai/generation-cost*', async (route) => {
+      costCalls++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ generation_id: 'gen-e2e-01', cost_usd: 0.009, model: 'or/voice-1' }),
+      });
+    });
+
+    // Unconfigured: the control explains instead of failing silently
+    await createStoryViaUi(page, 'Narration Test');
+    await page.locator('#generateBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
+    await page.locator('#readAloudBtn').click();
+    await expect(page.locator('#settingsSection')).toHaveClass(/active/);
+    await expect(page.locator('.error-message').first()).toContainText('not configured');
+
+    // Configure model + dependent voice through Settings
+    await page.selectOption('#narrationModelSelect', 'or/voice-1');
+    await expect(page.locator('#narrationVoiceSelect')).toBeEnabled();
+    await page.selectOption('#narrationVoiceSelect', 'amber');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).narrationVoice)).toBe('amber');
+
+    // Read aloud: streams, plays, completes, and bills exactly once
+    await page.locator('#writeBtn').click();
+    await page.locator('#readAloudBtn').click();
+    await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 5000 });
+    expect(narrateCalls).toBe(1);
+    await expect
+      .poll(() => costCalls, { timeout: 5000 })
+      .toBeGreaterThanOrEqual(1);
+
+    // Replaying in-session uses the cache and never bills again
+    await page.locator('#readAloudBtn').click(); // Read again
+    await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 5000 });
+    expect(narrateCalls).toBe(2);
+    const costBefore = costCalls;
+    await page.waitForTimeout(500);
+    expect(costCalls).toBe(costBefore); // cache hit: no second cost event
+  });
+});

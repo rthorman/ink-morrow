@@ -4,7 +4,30 @@
 // Returns the module (initApp has already run, since readyState is 'complete'
 // in jsdom at require time).
 
+function installUrlStub() {
+  if (typeof window.URL.createObjectURL !== 'function') {
+    window.URL.createObjectURL = () => 'blob:narration-mock';
+    window.URL.revokeObjectURL = () => {};
+  }
+}
+
+function installAudioStub() {
+  if (typeof window.Audio === 'function') return;
+  window.Audio = class Audio extends EventTarget {
+    constructor() {
+      super();
+      this.src = '';
+      this.paused = true;
+    }
+    play() { this.paused = false; return Promise.resolve(); }
+    pause() { this.paused = true; }
+    load() {}
+  };
+}
+
 function buildDom() {
+  installAudioStub();
+  installUrlStub();
   document.body.innerHTML = `
     <div id="ageGate" class="age-gate" hidden>
       <p>This tool is for adult fiction writing.
@@ -72,6 +95,8 @@ function buildDom() {
         <div id="costTicker" class="cost-ticker" hidden></div>
         <button id="prevPageBtn">← Previous</button>        <span id="pageIndicator">Page 1 of 1</span>
         <button id="nextPageBtn">Next →</button>
+        <button id="readAloudBtn" type="button">Read aloud</button>
+        <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
         <textarea id="userInput"></textarea>
@@ -89,6 +114,8 @@ function buildDom() {
         <input type="number" id="wordsPerPageInput" value="400">
         <input type="checkbox" id="scriptoriumBgToggle">
         <input type="checkbox" id="costTickerToggle" checked>
+        <select id="narrationModelSelect"></select>
+        <select id="narrationVoiceSelect"></select>
       </section>
     </main>
     <div id="burnModal" class="burn-modal" hidden>

@@ -29,6 +29,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   costTicker: true,
   storyFont: 'literata',
   wordsPerPage: 400,
+  narrationModel: null,
+  narrationVoice: null,
 });
 const WORDS_MIN = 50;
 const WORDS_MAX = 2000;
@@ -327,6 +329,7 @@ function initApp() {
     settingsBtn.addEventListener('click', () => {
       showSection('settings');
       loadModels().then(renderModelList);
+      loadSpeechModels().then(renderNarrationSettings);
     });
   }
   const modelSearch = document.getElementById('modelSearch');
@@ -354,6 +357,7 @@ function initApp() {
   applySettings();
   initBurnModal();
   initAiDrafts();
+  initNarration();
 
   initAgeGate();
 
@@ -903,6 +907,7 @@ function openStory(storyId) {
 
 async function handleStorySelection(event) {
   const storyId = event.target.value;
+  stopNarration();
   if (!storyId) {
     currentStory = null;
     resetStoryReader();
@@ -1012,6 +1017,7 @@ function setPastPageBar(visible, pageNumber, pagesAfter) {
 
 function navigatePage(direction) {
   if (!currentStory || storyPages.length === 0) return;
+  stopNarration(); // obsolete stream: the reader moved on
   currentPage = Math.max(1, Math.min(storyPages.length, currentPage + direction));
   displayCurrentPage();
 }
@@ -1181,6 +1187,260 @@ async function exportStory() {
   } catch (error) {
     showError(error.message);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Narration (streaming page read-aloud)
+// ---------------------------------------------------------------------------
+
+let narrationState = 'idle'; // idle|starting|playing|paused|completed|failed
+let narrationAudio = null;
+let narrationGenerationId = null;
+let narrationCacheHit = false;
+const appliedNarrationCosts = new Set(); // generation ids already billed this session
+let speechModelsCache = null; // [{id, name, voices:[{id,label}]}]
+
+function narrationConfigured() {
+  return Boolean(settings.narrationModel && settings.narrationVoice);
+}
+
+function setNarrationState(state) {
+  narrationState = state;
+  const btn = document.getElementById('readAloudBtn');
+  const stop = document.getElementById('narrationStopBtn');
+  if (!btn || !stop) return;
+  switch (state) {
+    case 'starting':
+      btn.textContent = 'Preparing…';
+      stop.hidden = false;
+      break;
+    case 'playing':
+      btn.textContent = 'Pause';
+      stop.hidden = false;
+      break;
+    case 'paused':
+      btn.textContent = 'Resume';
+      stop.hidden = false;
+      break;
+    case 'completed':
+      btn.textContent = 'Read again';
+      stop.hidden = true;
+      break;
+    case 'failed':
+      btn.textContent = 'Retry reading';
+      stop.hidden = true;
+      break;
+    default:
+      btn.textContent = 'Read aloud';
+      stop.hidden = true;
+  }
+  btn.setAttribute('aria-label', 'Read the current page aloud' + (state === 'playing' ? ' (now playing)' : ''));
+}
+
+function stopNarration() {
+  if (narrationAudio) {
+    narrationAudio.pause();
+    narrationAudio.src = '';
+    try { narrationAudio.load(); } catch { /* jsdom: not implemented */ }
+    narrationAudio = null;
+  }
+  narrationGenerationId = null;
+  if (narrationState !== 'idle') setNarrationState('idle');
+}
+
+// Apply the authoritative cost for a generation exactly once.
+async function settleNarrationCost() {
+  const id = narrationGenerationId;
+  narrationGenerationId = null;
+  if (!id || narrationCacheHit || appliedNarrationCosts.has(id)) return;
+  appliedNarrationCosts.add(id);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const cost = await apiCall(`/ai/generation-cost?id=${encodeURIComponent(id)}`);
+      if (typeof cost.cost_usd === 'number') {
+        addCost(cost.cost_usd);
+        return;
+      }
+      if (cost && cost.error && String(cost.error).includes('not ready')) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue; // metadata not ready: bounded retry
+      }
+      return; // unexpected shape: give up quietly
+    } catch (error) {
+      return; // give up quietly; the ledger keeps other costs honest
+    }
+  }
+}
+
+function startNarration() {
+  if (!narrationStateAllowsStart()) return;
+  if (!narrationConfigured()) {
+    showError('Narration is not configured — choose a speech model and voice in Settings.');
+    showSection('settings');
+    loadSpeechModels().then(renderNarrationSettings);
+    return;
+  }
+  if (!currentStory || storyPages.length === 0 || currentPage > storyPages.length) {
+    showError('Select a page to read first.');
+    return;
+  }
+  stopNarration();
+
+  setNarrationState('starting');
+  const audio = new Audio();
+  narrationAudio = audio;
+  narrationCacheHit = false;
+  fetch(`/api/stories/${currentStory.id}/pages/${currentPage}/narrate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model: settings.narrationModel, voice: settings.narrationVoice }),
+  })
+    .then((response) => {
+      if (!response.ok) {
+        return response.json().then((body) => { throw new Error(body.error || `Narration failed (${response.status})`); });
+      }
+      narrationGenerationId = response.headers.get('X-Generation-Id');
+      narrationCacheHit = response.headers.get('X-Narration-Cache') === 'hit';
+      return response.blob();
+    })
+    .then((blob) => {
+      if (narrationAudio !== audio) return; // superseded meanwhile
+      audio.src = URL.createObjectURL(blob);
+      const played = audio.play();
+      if (played && played.catch) played.catch(() => setNarrationState('failed'));
+    })
+    .catch((error) => {
+      if (narrationAudio !== audio) return;
+      showError(scribeErrorMessage(error.message));
+      setNarrationState('failed');
+    });
+
+  audio.addEventListener('playing', () => {
+    if (narrationAudio === audio) setNarrationState('playing');
+  });
+  audio.addEventListener('ended', () => {
+    if (narrationAudio === audio) {
+      setNarrationState('completed');
+      settleNarrationCost();
+    }
+  });
+  audio.addEventListener('error', () => {
+    if (narrationAudio === audio) {
+      setNarrationState('failed');
+      settleNarrationCost();
+    }
+  });
+}
+
+function narrationStateAllowsStart() {
+  return ['idle', 'completed', 'failed', 'paused'].includes(narrationState) ||
+    (narrationState === 'playing');
+}
+
+function onReadAloudClick() {
+  if (narrationState === 'playing') {
+    if (narrationAudio) narrationAudio.pause();
+    setNarrationState('paused');
+    return;
+  }
+  if (narrationState === 'paused') {
+    if (narrationAudio) {
+      const played = narrationAudio.play();
+      if (played && played.catch) played.catch(() => setNarrationState('failed'));
+    }
+    setNarrationState('playing');
+    return;
+  }
+  startNarration();
+}
+
+// -- Settings: speech models + dependent voices -------------------------------
+
+async function loadSpeechModels() {
+  if (speechModelsCache) return speechModelsCache;
+  try {
+    const data = await apiCall('/speech-models');
+    speechModelsCache = data.models || [];
+  } catch {
+    speechModelsCache = [];
+    showError(scribeErrorMessage('Could not load the speech catalogue.'));
+  }
+  return speechModelsCache;
+}
+
+function renderNarrationSettings() {
+  const modelSelect = document.getElementById('narrationModelSelect');
+  const voiceSelect = document.getElementById('narrationVoiceSelect');
+  if (!modelSelect || !voiceSelect) return;
+  const models = speechModelsCache || [];
+
+  modelSelect.textContent = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = models.length ? '— Choose a speech model —' : '— No speech models available —';
+  modelSelect.appendChild(placeholder);
+  models.forEach((m) => {
+    const option = document.createElement('option');
+    option.value = m.id;
+    option.textContent = m.name;
+    modelSelect.appendChild(option);
+  });
+  modelSelect.value = settings.narrationModel || '';
+  modelSelect.disabled = models.length === 0;
+
+  const selected = models.find((m) => m.id === settings.narrationModel);
+  if (!selected) {
+    // Saved model disappeared from the catalogue: narration is unconfigured.
+    if (settings.narrationModel || settings.narrationVoice) {
+      setSetting('narrationModel', null);
+      setSetting('narrationVoice', null);
+    }
+  }
+  populateNarrationVoices(selected, voiceSelect);
+}
+
+function populateNarrationVoices(modelEntry, voiceSelect) {
+  voiceSelect.textContent = '';
+  const placeholder = document.createElement('option');
+  placeholder.value = '';
+  placeholder.textContent = modelEntry ? '— Choose a voice —' : '— Choose a model first —';
+  voiceSelect.appendChild(placeholder);
+  if (modelEntry) {
+    modelEntry.voices.forEach((v) => {
+      const option = document.createElement('option');
+      option.value = v.id;
+      option.textContent = v.label;
+      voiceSelect.appendChild(option);
+    });
+    const saved = modelEntry.voices.some((v) => v.id === settings.narrationVoice);
+    voiceSelect.value = saved ? settings.narrationVoice : '';
+  }
+  voiceSelect.disabled = !modelEntry;
+}
+
+function initNarration() {
+  const btn = document.getElementById('readAloudBtn');
+  if (btn) btn.addEventListener('click', onReadAloudClick);
+  const stopBtn = document.getElementById('narrationStopBtn');
+  if (stopBtn) stopBtn.addEventListener('click', stopNarration);
+
+  const modelSelect = document.getElementById('narrationModelSelect');
+  if (modelSelect) {
+    modelSelect.addEventListener('change', () => {
+      setSetting('narrationModel', modelSelect.value || null);
+      // A new model invalidates the saved voice immediately.
+      setSetting('narrationVoice', null);
+      const selected = (speechModelsCache || []).find((m) => m.id === settings.narrationModel);
+      populateNarrationVoices(selected, document.getElementById('narrationVoiceSelect'));
+    });
+  }
+  const voiceSelect = document.getElementById('narrationVoiceSelect');
+  if (voiceSelect) {
+    voiceSelect.addEventListener('change', () => {
+      setSetting('narrationVoice', voiceSelect.value || null);
+    });
+  }
+  setNarrationState('idle');
 }
 
 // ---------------------------------------------------------------------------
@@ -1466,6 +1726,7 @@ async function burnAfterCurrentPage() {
   try {
     const result = await apiCall(`/stories/${currentStory.id}/pages?after=${after}`, 'DELETE');
     discardSpeculative();
+    stopNarration();
     await loadStoryPages();
     showSuccess(result.deleted === 1 ? '1 page burned.' : `${result.deleted} pages burned.`);
   } catch (error) {
@@ -1566,6 +1827,9 @@ if (typeof module !== 'undefined' && module.exports) {
     scribeErrorMessage,
     maybeStartSpeculative,
     discardSpeculative,
+    loadSpeechModels,
+    renderNarrationSettings,
+    __lastNarrationAudio: () => narrationAudio,
     // Settings + cost ticker
     loadSettings,
     setSetting,

@@ -3,7 +3,7 @@
 const express = require('express');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const { chatCompletion, listModels } = require('./ai');
+const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { buildEpub } = require('./epub');
 const { buildPrompt, CONTEXT_WINDOW } = require('./prompt');
 
@@ -781,6 +781,139 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
       invalidatePreview(story.id);
       res.status(201).json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // -- narration (streaming page read-aloud) ---------------------------------
+
+  const NARRATION_MAX_CHARS = 16000;
+  const NARRATION_CACHE_MAX_BYTES = 32 * 1024 * 1024;
+  // Keyed by sha256(text)+model+voice+format; value is the completed mp3 so an
+  // in-session replay never triggers (or bills) a second upstream generation.
+  const narrationCache = new Map();
+  const crypto = require('crypto');
+
+  function narrationCacheKey(text, model, voice) {
+    return crypto.createHash('sha256').update(text).digest('hex') + '|' + model + '|' + voice + '|mp3';
+  }
+
+  function rememberNarration(key, buffer, contentType, generationId) {
+    if (buffer.length === 0 || buffer.length > 4 * 1024 * 1024) return; // single-page cap
+    narrationCache.set(key, { buffer, contentType, generationId, bytes: buffer.length });
+    let total = 0;
+    for (const entry of narrationCache.values()) total += entry.bytes;
+    while (total > NARRATION_CACHE_MAX_BYTES && narrationCache.size > 1) {
+      const oldest = narrationCache.keys().next().value; // insertion order ~ LRU
+      total -= narrationCache.get(oldest).bytes;
+      narrationCache.delete(oldest);
+    }
+  }
+
+  function normalizeNarrationText(content) {
+    return String(content || '')
+      .replace(/\r\n/g, '\n')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  app.get('/api/speech-models', async (req, res, next) => {
+    try {
+      res.json({ models: await listSpeechModels() });
+    } catch (error) {
+      error.statusCode = 502;
+      next(error);
+    }
+  });
+
+  app.post('/api/stories/:id/pages/:number/narrate', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const page = db
+        .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+        .get(story.id, parseInt(req.params.number, 10));
+      if (!page) return notFound(res, 'Page not found');
+
+      // Model and voice are validated against the live catalogue, never trusted.
+      const model = asString(req.body.model);
+      const voice = asString(req.body.voice);
+      const catalogue = await listSpeechModels();
+      const entry = catalogue.find((m) => m.id === model);
+      if (!model || !voice || !entry || !entry.voices.some((v) => v.id === voice)) {
+        return res.status(400).json({
+          error: 'Narration is not configured with a valid model and voice. Choose both in Settings.',
+        });
+      }
+
+      const text = normalizeNarrationText(page.content);
+      if (!text) return badRequest(res, 'This page has no narratable text.');
+      if (text.length > NARRATION_MAX_CHARS) {
+        return res.status(413).json({ error: 'This page is too long to narrate in one breath. Shorten or split it first.' });
+      }
+
+      // In-session replay: serve the remembered audio without a new generation.
+      const key = narrationCacheKey(text, model, voice);
+      const cached = narrationCache.get(key);
+      if (cached) {
+        res.setHeader('Content-Type', cached.contentType);
+        res.setHeader('X-Narration-Cache', 'hit');
+        if (cached.generationId) res.setHeader('X-Generation-Id', cached.generationId);
+        return res.send(cached.buffer);
+      }
+
+      const speech = await createSpeech({ model, voice, input: text });
+      res.setHeader('Content-Type', speech.contentType);
+      if (speech.generationId) res.setHeader('X-Generation-Id', speech.generationId);
+
+      // Stream through while remembering the audio for session replays.
+      const chunks = [];
+      let aborted = false;
+      res.on('close', () => {
+        // A real client disconnect mid-stream: abort upstream work.
+        if (!res.writableEnded) {
+          aborted = true;
+          speech.stream.destroy();
+        }
+      });
+      speech.stream.on('data', (chunk) => {
+        if (chunks && chunks.length < 4 * 1024 * 1024) chunks.push(chunk);
+        if (!res.write(chunk)) speech.stream.pause();
+      });
+      res.on('drain', () => speech.stream.resume());
+      speech.stream.on('end', () => {
+        if (!aborted) {
+          rememberNarration(key, Buffer.concat(chunks), speech.contentType, speech.generationId);
+        }
+        res.end();
+      });
+      speech.stream.on('error', (error) => {
+        if (aborted) return res.end();
+        res.end();
+        console.error('Narration upstream error:', error.message);
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Authoritative TTS cost for a generation, idempotent and server-cached.
+  app.get('/api/ai/generation-cost', async (req, res, next) => {
+    try {
+      const id = asString(req.query.id);
+      if (!id || !/^[a-zA-Z0-9-]{8,64}$/.test(id)) return badRequest(res, '"id" must be a generation id');
+      try {
+        const cost = await fetchGenerationCost(id);
+        res.json(cost);
+      } catch (error) {
+        // Metadata not ready yet: tell the client to retry shortly.
+        if (error.response?.status === 404 || error.response?.status === 429) {
+          return res.status(202).json({ error: 'Cost metadata is not ready yet. Retry shortly.' });
+        }
+        throw error;
+      }
     } catch (error) {
       next(error);
     }

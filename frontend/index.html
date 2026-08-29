@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -212,6 +212,8 @@
                             <button id="prevPageBtn" type="button">← Previous</button>
                             <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
                             <button id="nextPageBtn" type="button">Next →</button>
+                            <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
+                            <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
                         </div>
 
                         <div id="storyContent" class="story-content">
@@ -252,6 +254,18 @@
                     <h3>Story Typeface</h3>
                     <p class="current-model">Typeface for the story reading &amp; writing window</p>
                     <div id="fontList" class="font-list" aria-label="Story typeface"></div>
+                </div>
+                <div class="create-form">
+                    <h3>Narration</h3>
+                    <p class="current-model" id="narrationStatus">Reading aloud uses a speech model through OpenRouter. The current page's text is sent to the selected provider.</p>
+                    <label for="narrationModelSelect">Speech model</label>
+                    <select id="narrationModelSelect">
+                        <option value="">— Choose a speech model —</option>
+                    </select>
+                    <label for="narrationVoiceSelect">Voice</label>
+                    <select id="narrationVoiceSelect" disabled>
+                        <option value="">— Choose a voice —</option>
+                    </select>
                 </div>
                 <div class="create-form">
                     <h3>Page Length</h3>

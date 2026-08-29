@@ -21,7 +21,7 @@ describe('Settings defaults and persistence', () => {
 
   it('defaults: server model, no scriptorium bg, ticker on', () => {
     const fw = loadScript();
-    expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400 });
+    expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null });
     expect(document.getElementById('costTicker').hidden).toBe(false);
     expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--st-prose-family')).toContain('Literata');

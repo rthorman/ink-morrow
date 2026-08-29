@@ -1112,6 +1112,44 @@ button:disabled {
   font-size: 0.95rem;
 }
 
+/* ------------------------------------------------------------------ narration */
+
+.narrate-btn {
+  min-height: var(--st-touch-min);
+  padding: 8px 16px;
+  background: var(--st-surface-3);
+  color: var(--st-witchlight-400);
+  border: 1px solid rgb(105 217 203 / 0.45);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease;
+}
+
+.narrate-btn:hover {
+  background: var(--st-ink-700);
+  color: var(--st-witchlight-400);
+  border-color: var(--st-witchlight-400);
+}
+
+#readAloudBtn[aria-label*='playing'] {
+  background: rgb(105 217 203 / 0.14);
+}
+
+#narrationStopBtn {
+  color: var(--st-danger-500);
+  border-color: rgb(214 75 88 / 0.45);
+}
+
+#narrationStopBtn:hover {
+  background: rgb(214 75 88 / 0.16);
+  color: #edaab1;
+  border-color: var(--st-danger-500);
+}
+
 /* ------------------------------------------------------------------ cost ticker */
 
 .cost-ticker {

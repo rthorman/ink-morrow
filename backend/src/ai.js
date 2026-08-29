@@ -7,6 +7,8 @@ const RETRY_ATTEMPTS = 3;
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 let modelsCache = { at: 0, models: null };
+let speechModelsCache = { at: 0, models: null };
+const generationCosts = new Map(); // generation id -> reconciled cost payload
 
 function aiConfig() {
   return {
@@ -52,6 +54,102 @@ async function listModels() {
 // Test hook: clear the cached catalog.
 function resetModelCache() {
   modelsCache = { at: 0, models: null };
+  speechModelsCache = { at: 0, models: null };
+}
+
+/**
+ * Speech-model discovery: OpenRouter's catalogue filtered to
+ * output_modalities=speech, keeping only models with a published voice list.
+ * Cached for MODELS_CACHE_TTL_MS. Normalized to {id, name, voices:[{id,label}]}.
+ */
+async function listSpeechModels() {
+  if (speechModelsCache.models && Date.now() - speechModelsCache.at < MODELS_CACHE_TTL_MS) {
+    return speechModelsCache.models;
+  }
+  const cfg = aiConfig();
+  const response = await axios.get(`${cfg.baseUrl}/models`, {
+    params: { output_modalities: 'speech' },
+    timeout: 15000,
+  });
+  const models = (response.data?.data || [])
+    .filter((m) => typeof m.id === 'string' && Array.isArray(m.supported_voices) && m.supported_voices.length > 0)
+    .map((m) => ({
+      id: m.id,
+      name: m.name || m.id,
+      voices: m.supported_voices.map((v) => {
+        const id = typeof v === 'string' ? v : String(v?.id || '');
+        return { id, label: humanizeVoiceLabel(id) };
+      }).filter((v) => v.id),
+    }));
+  speechModelsCache = { at: Date.now(), models };
+  return models;
+}
+
+function humanizeVoiceLabel(id) {
+  return String(id)
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Server-side speech generation against OpenRouter's dedicated TTS endpoint.
+ * Returns a STREAM (axios responseType 'stream'); never buffers the body.
+ * Resolves with { stream, contentType, generationId } once headers arrive.
+ */
+async function createSpeech({ model, voice, input }) {
+  const cfg = aiConfig();
+  if (!cfg.apiKey) {
+    const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
+    err.statusCode = 503;
+    throw err;
+  }
+  const response = await axios.post(
+    `${cfg.baseUrl}/audio/speech`,
+    { model, voice, input, response_format: 'mp3' },
+    {
+      headers: {
+        Authorization: `Bearer ${cfg.apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      responseType: 'stream',
+      timeout: cfg.timeout,
+    }
+  );
+  const stream = response.data;
+  return {
+    stream,
+    contentType: response.headers['content-type'] || 'audio/mpeg',
+    generationId: response.headers['x-generation-id'] || null,
+  };
+}
+
+/**
+ * Authoritative cost for a generation: OpenRouter's /generation endpoint.
+ * Cached per generation id so retries and replays never refetch or double count.
+ */
+async function fetchGenerationCost(generationId) {
+  if (generationCosts.has(generationId)) return generationCosts.get(generationId);
+  const cfg = aiConfig();
+  if (!cfg.apiKey) {
+    const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
+    err.statusCode = 503;
+    throw err;
+  }
+  const response = await axios.get(`${cfg.baseUrl}/generation`, {
+    params: { id: generationId },
+    headers: { Authorization: `Bearer ${cfg.apiKey}` },
+    timeout: 15000,
+  });
+  const data = response.data?.data || {};
+  const payload = {
+    generation_id: generationId,
+    cost_usd: typeof data.total_cost === 'number' ? data.total_cost : null,
+    model: data.model || null,
+    provider: data.provider_name || null,
+    latency_ms: typeof data.latency === 'number' ? data.latency : null,
+  };
+  generationCosts.set(generationId, payload);
+  return payload;
 }
 
 /**
@@ -142,4 +240,4 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens }
   throw err;
 }
 
-module.exports = { chatCompletion, listModels, resetModelCache };
+module.exports = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost, resetModelCache };

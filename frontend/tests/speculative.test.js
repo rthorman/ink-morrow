@@ -142,6 +142,9 @@ describe('Speculative next-page preparation', () => {
       if (url.includes('/commit-preview')) {
         return Promise.resolve(jsonResponse(404, { error: 'No prepared page for this story.' }));
       }
+      if (url.includes('/pages/preview')) {
+        return Promise.resolve(jsonResponse(500, { error: 'no preview' })); // chained prep fails here
+      }
       if (url.includes('/pages/generate')) {
         return Promise.resolve(
           jsonResponse(201, { page: { page_number: 2, content: 'The live page.', user_input: null, cost_usd: 0.02 } })
