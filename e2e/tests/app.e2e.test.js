@@ -119,8 +119,8 @@ test.describe('ScribeTribe UI', () => {
       route.fulfill({
         json: {
           models: [
-            { id: 'z-ai/glm-5.1', name: 'GLM 5.1', context_length: 128000, pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 } },
-            { id: 'a/other-model', name: 'Other Model', context_length: 64000, pricing: { prompt_per_mtok: 10, completion_per_mtok: 30 } },
+            { id: 'z-ai/glm-5.1', name: 'GLM 5.1', context_length: 128000, reasoning: true, pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 } },
+            { id: 'a/other-model', name: 'Other Model', context_length: 64000, reasoning: false, pricing: { prompt_per_mtok: 10, completion_per_mtok: 30 } },
           ],
         },
       })
@@ -137,6 +137,15 @@ test.describe('ScribeTribe UI', () => {
     // Selecting a model updates the label
     await page.locator('#modelList .model-item').click();
     await expect(page.locator('#currentModel')).toContainText('a/other-model');
+
+    // Reasoning level appears only for a model that can think first
+    await expect(page.locator('#reasoningBlock')).toBeHidden();
+    await page.fill('#modelSearch', 'glm');
+    await page.locator('#modelList .model-item').click();
+    await expect(page.locator('#reasoningBlock')).toBeVisible();
+    await expect(page.locator('#reasoningSelect')).toHaveValue('medium');
+    await page.selectOption('#reasoningSelect', 'high');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).reasoningEffort)).toBe('high');
 
     // Scriptorium background toggle applies on the writing page
     await page.locator('#scriptoriumBgToggle').check();

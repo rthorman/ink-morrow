@@ -10,11 +10,19 @@ const SPEECH_MODELS = [
       { id: 'amber', label: 'Amber' },
       { id: 'sapphire_blue', label: 'Sapphire Blue' },
     ],
+    pricing: { prompt_per_mchar: 15, completion_per_mtok: 0 }, // $15 per 1M chars
   },
   {
     id: 'or/voice-2',
     name: 'Voice Two',
     voices: [{ id: 'marble', label: 'Marble' }],
+    pricing: { prompt_per_mchar: 0, completion_per_mtok: 0 }, // free
+  },
+  {
+    id: 'or/voice-3',
+    name: 'Voice Three',
+    voices: [{ id: 'gem', label: 'Gem' }],
+    pricing: { prompt_per_mchar: 1, completion_per_mtok: 20 }, // chars + audio tokens
   },
 ];
 
@@ -58,7 +66,7 @@ describe('Narration settings', () => {
     await fw.loadSpeechModels();
     fw.renderNarrationSettings();
     const modelSelect = document.getElementById('narrationModelSelect');
-    expect([...modelSelect.options].map((o) => o.value)).toEqual(['', 'or/voice-1', 'or/voice-2']);
+    expect([...modelSelect.options].map((o) => o.value)).toEqual(['', 'or/voice-1', 'or/voice-2', 'or/voice-3']);
 
     modelSelect.value = 'or/voice-1';
     modelSelect.dispatchEvent(new Event('change', { bubbles: true }));
@@ -97,6 +105,26 @@ describe('Narration settings', () => {
     fw.renderNarrationSettings();
     expect(fw.state().settings.narrationModel).toBeNull();
     expect(fw.state().settings.narrationVoice).toBeNull();
+  });
+
+  it('labels each narrator with the approximate cost of one page', async () => {
+    await fw.loadSpeechModels();
+    fw.renderNarrationSettings();
+    const labels = [...document.getElementById('narrationModelSelect').options].map((o) => o.textContent);
+    // 400 words ≈ 2600 chars; voice-1 is $15/1M chars → $0.039 a page
+    expect(labels[1]).toBe('Voice One — ≈$0.0390 per page');
+    expect(labels[2]).toBe('Voice Two — free');
+    // voice-3 adds audio-token pricing: 2600×$1/1M + 8000 tokens×$20/1M = $0.1626
+    expect(labels[3]).toBe('Voice Three — ≈$0.1626 per page');
+  });
+
+  it('relabels the cost estimate when the words-per-page target changes', async () => {
+    await fw.loadSpeechModels();
+    fw.renderNarrationSettings();
+    fw.setSetting('wordsPerPage', 200); // applySettings re-renders the labels
+    const labels = [...document.getElementById('narrationModelSelect').options].map((o) => o.textContent);
+    expect(labels[1]).toBe('Voice One — ≈$0.0195 per page');
+    expect(labels[2]).toBe('Voice Two — free');
   });
 });
 
@@ -236,5 +264,84 @@ describe('Narration player', () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(document.getElementById('readAloudBtn').textContent).toBe('Retry reading');
     expect(document.querySelector('.error-message').textContent).toContain('rate limited');
+  });
+});
+describe('Narration autoplay', () => {
+  let fw, fetchMock;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    fetchMock = mockFetch();
+    fw = loadScript();
+    fw.setSetting('narrationModel', 'or/voice-1');
+    fw.setSetting('narrationVoice', 'amber');
+  });
+
+  function twoPages() {
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2, total_cost_usd: 0 },
+      storyPages: [
+        { page_number: 1, content: 'One.', user_input: null, cost_usd: 0 },
+        { page_number: 2, content: 'Two.', user_input: null, cost_usd: 0 },
+      ],
+      currentPage: 1,
+    });
+    fw.displayCurrentPage();
+  }
+
+  it('flips to the next page and keeps narrating until the tale ends', async () => {
+    twoPages();
+    fetchMock.mockImplementation((url) => {
+      if (String(url).includes('/narrate')) {
+        return Promise.resolve(narrateResponse({ generationId: 'gen-auto1' }));
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+
+    document.getElementById('narrationAutoBtn').click(); // autoplay on
+    expect(document.getElementById('narrationAutoBtn').classList.contains('active')).toBe(true);
+
+    document.getElementById('readAloudBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    let audio = fw.__lastNarrationAudio();
+    audio.dispatchEvent(new Event('playing'));
+    audio.dispatchEvent(new Event('ended')); // page one done
+
+    await new Promise((r) => setTimeout(r, 500)); // breath between pages
+    expect(fw.state().currentPage).toBe(2); // flipped
+    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
+    await new Promise((r) => setTimeout(r, 0));
+    audio = fw.__lastNarrationAudio(); // narrating page two now
+    expect(audio).not.toBe(null);
+    audio.dispatchEvent(new Event('playing'));
+    audio.dispatchEvent(new Event('ended')); // the tale ends
+
+    await new Promise((r) => setTimeout(r, 50));
+    expect(fw.state().currentPage).toBe(2); // no page after the last
+    expect(document.querySelector('.success-message').textContent).toContain('end of the written tale');
+  });
+
+  it('autoplay survives Stop being pressed only for playback, and can be toggled off', async () => {
+    twoPages();
+    fetchMock.mockImplementation((url) => {
+      if (String(url).includes('/narrate')) return Promise.resolve(narrateResponse({ generationId: 'gen-auto2' }));
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+
+    document.getElementById('narrationAutoBtn').click();
+    document.getElementById('readAloudBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    const audio = fw.__lastNarrationAudio();
+    audio.dispatchEvent(new Event('playing'));
+
+    document.getElementById('narrationStopBtn').click(); // user halts playback
+    expect(document.getElementById('readAloudBtn').textContent).toBe('Read aloud');
+
+    document.getElementById('narrationAutoBtn').click(); // toggle autoplay off
+    expect(document.getElementById('narrationAutoBtn').classList.contains('active')).toBe(false);
+
+    audio.dispatchEvent(new Event('ended')); // a stale end must not resurrect the chain
+    await new Promise((r) => setTimeout(r, 500));
+    expect(fw.state().currentPage).toBe(1);
   });
 });

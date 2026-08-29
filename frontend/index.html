@@ -213,6 +213,7 @@
                             <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
                             <button id="nextPageBtn" type="button">Next →</button>
                             <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
+                            <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Keep reading pages aloud one after the other until stopped">Auto</button>
                             <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
                         </div>
 
@@ -249,11 +250,26 @@
                     <input type="text" id="modelSearch" placeholder="Search by name or id… (e.g. claude, glm, gemini)" autocomplete="off">
                     <div id="modelList" class="model-list" aria-label="Available models"></div>
                     <button id="modelResetBtn" type="button" class="btn btn-secondary">Use the server default model</button>
+                    <div id="reasoningBlock" hidden>
+                        <label for="reasoningSelect">Reasoning level (this model thinks before writing)</label>
+                        <select id="reasoningSelect">
+                            <option value="low">Low — quick thoughts</option>
+                            <option value="medium">Medium — balanced</option>
+                            <option value="high">High — deepest thought</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="create-form">
                     <h3>Story Typeface</h3>
                     <p class="current-model">Typeface for the story reading &amp; writing window</p>
                     <div id="fontList" class="font-list" aria-label="Story typeface"></div>
+                    <label for="fontSizeSelect">Story text size</label>
+                    <select id="fontSizeSelect">
+                        <option value="16">Small (16px)</option>
+                        <option value="18">Medium (18px)</option>
+                        <option value="20">Large (20px)</option>
+                        <option value="22">Extra large (22px)</option>
+                    </select>
                 </div>
                 <div class="create-form">
                     <h3>Narration</h3>

@@ -62,9 +62,15 @@ async function generatePage(appOrStory, storyId, content) {
 }
 
 describe('GET /api/speech-models', () => {
-  it('lists only speech models with published voices, voices humanized', async () => {
+  it('lists only speech models with published voices, voices humanized, per-char pricing normalized', async () => {
     mockSpeechCatalog([
-      { id: 'or/voice-1', name: 'Voice One', supported_voices: ['amber', 'sapphire_blue'] },
+      {
+        id: 'or/voice-1',
+        name: 'Voice One',
+        supported_voices: ['amber', 'sapphire_blue'],
+        pricing: { prompt: '0.000015', completion: '0.00002' },
+      },
+      { id: 'or/free-voice', name: 'Free Voice', supported_voices: ['wind'], pricing: { prompt: '0' } },
       { id: 'or/no-voices', name: 'Silent', supported_voices: [] },
       { id: 'or/not-speech', name: 'Text Model' },
     ]);
@@ -77,6 +83,13 @@ describe('GET /api/speech-models', () => {
           { id: 'amber', label: 'Amber' },
           { id: 'sapphire_blue', label: 'Sapphire Blue' },
         ],
+        pricing: { prompt_per_mchar: 15, completion_per_mtok: 20 },
+      },
+      {
+        id: 'or/free-voice',
+        name: 'Free Voice',
+        voices: [{ id: 'wind', label: 'Wind' }],
+        pricing: { prompt_per_mchar: 0, completion_per_mtok: 0 },
       },
     ]);
   });
@@ -221,6 +234,122 @@ describe('POST /api/stories/:id/pages/:number/narrate', () => {
       .send({ model: 'or/voice-1', voice: 'amber' })
       .expect(404);
   });
+
+  it('segments long pages and streams the pieces back-to-back with joined generation ids', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockSpeechCatalog([{ id: 'or/voice-1', name: 'V', supported_voices: ['amber'] }]);
+    const sentences = Array.from({ length: 6 }, (_, i) => `Sentence number ${i + 1} rolls across the moor. `.repeat(8).trim());
+    const story = await narratableStory(sentences.join(' ')); // > 1800 chars → 2 segments
+
+    axios.post.mockImplementation((_url, body) => {
+      const index = axios.post.mock.calls.length;
+      return Promise.resolve({
+        headers: { 'content-type': 'audio/mpeg', 'x-generation-id': `gen-seg${String(index).padStart(2, '0')}x` },
+        data: fakeSpeechStream([Buffer.from(`seg${index - 1}:` + body.input.slice(0, 12))]),
+      });
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/narrate`)
+      .send({ model: 'or/voice-1', voice: 'amber' })
+      .buffer()
+      .parse(binaryParser)
+      .expect(200);
+
+    const sentInputs = axios.post.mock.calls.map((c) => c[1].input);
+    expect(sentInputs.length).toBe(2);
+    sentInputs.forEach((input) => expect(input.length).toBeLessThanOrEqual(1800));
+    expect(sentInputs.join(' ').replace(/\s+/g, ' ')).toBe(sentences.join(' ').replace(/\s+/g, ' ')); // no words lost
+    expect(res.headers['x-generation-id']).toBe('gen-seg01x,gen-seg02x');
+    expect(res.body.toString()).toBe(`seg0:${sentInputs[0].slice(0, 12)}seg1:${sentInputs[1].slice(0, 12)}`);
+  });
+
+  it('halves a segment the provider refuses (413) until a piece fits', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockSpeechCatalog([{ id: 'or/voice-1', name: 'V', supported_voices: ['amber'] }]);
+    // One 700-char segment with sentence breaks; the first (full) attempt 413s.
+    const longSentence = 'The bell tolls across the frozen lake. '.repeat(20).trim();
+    const story = await narratableStory(longSentence); // ~720 chars
+
+    let calls = 0;
+    axios.post.mockImplementation(() => {
+      calls++;
+      if (calls === 1) {
+        return Promise.reject({ response: { status: 413, data: '{"error":{"message":"Provider returned 413"}}' } });
+      }
+      return Promise.resolve({
+        headers: { 'content-type': 'audio/mpeg', 'x-generation-id': `gen-half${calls}x` },
+        data: fakeSpeechStream([Buffer.from(`piece${calls}`)]),
+      });
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/narrate`)
+      .send({ model: 'or/voice-1', voice: 'amber' })
+      .buffer()
+      .parse(binaryParser)
+      .expect(200);
+
+    expect(calls).toBe(3); // original rejected, the two bisection pieces fit
+    expect(axios.post.mock.calls[1][1].input.length).toBeLessThan(longSentence.length);
+    expect(axios.post.mock.calls[2][1].input.length).toBeLessThan(longSentence.length);
+    expect(res.body.toString()).toBe('piece2piece3');
+    expect(res.headers['x-generation-id']).toBe('gen-half2x,gen-half3x');
+  });
+
+  it('surfaces the real provider reason when even the smallest piece is refused', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockSpeechCatalog([{ id: 'or/voice-1', name: 'V', supported_voices: ['amber'] }]);
+    const story = await narratableStory('A short page that will be refused outright.');
+
+    axios.post.mockRejectedValue({ response: { status: 400, data: '{"error":{"message":"voice is retired"}}' } });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/narrate`)
+      .send({ model: 'or/voice-1', voice: 'amber' })
+      .expect(400);
+    expect(res.body.error).toContain('voice is retired');
+  });
+
+  it('falls back to pcm for pcm-only narrators and delivers a playable WAV', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockSpeechCatalog([{ id: 'or/voice-1', name: 'V', supported_voices: ['amber'] }]);
+    const story = await narratableStory('A pcm-only narrator reads this page.');
+
+    axios.post
+      .mockRejectedValueOnce({
+        response: { status: 400, data: '{"error":{"message":"TTS only supports response_format=\\"pcm\\". Got \\"mp3\\"."}}' },
+      })
+      .mockResolvedValueOnce({
+        headers: { 'content-type': 'audio/pcm', 'x-generation-id': 'gen-pcmpcm' },
+        data: fakeSpeechStream([Buffer.from([1, 2, 3, 4, 5, 6, 7, 8])]),
+      });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/narrate`)
+      .send({ model: 'or/voice-1', voice: 'amber' })
+      .buffer()
+      .parse(binaryParser)
+      .expect(200);
+
+    expect(axios.post.mock.calls[0][1].response_format).toBe('mp3');
+    expect(axios.post.mock.calls[1][1].response_format).toBe('pcm');
+    expect(res.headers['content-type']).toContain('audio/wav');
+    expect(res.headers['x-generation-id']).toBe('gen-pcmpcm');
+    expect(res.body.subarray(0, 4).toString()).toBe('RIFF'); // WAV header
+    expect(res.body.readUInt32LE(40)).toBe(8); // data chunk size = 8 pcm bytes
+    expect(res.body.subarray(44).toString('hex')).toBe('0102030405060708');
+
+    // Replay: served from the session cache in the same WAV shape.
+    const replay = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/narrate`)
+      .send({ model: 'or/voice-1', voice: 'amber' })
+      .buffer()
+      .parse(binaryParser)
+      .expect(200);
+    expect(replay.headers['x-narration-cache']).toBe('hit');
+    expect(replay.body.equals(res.body)).toBe(true);
+  });
 });
 
 describe('GET /api/ai/generation-cost', () => {
@@ -249,5 +378,20 @@ describe('GET /api/ai/generation-cost', () => {
   it('rejects malformed ids', async () => {
     await request(app).get('/api/ai/generation-cost?id=../etc').expect(400);
     await request(app).get('/api/ai/generation-cost').expect(400);
+    await request(app).get('/api/ai/generation-cost?id=gen-ab1').expect(400); // piece too short
+  });
+
+  it('sums the costs of comma-joined segment generations, cached per id', async () => {
+    axios.get.mockImplementation((_url, options) => {
+      const cost = options?.params?.id === 'gen-sum001' ? { total_cost: 0.01, model: 'or/voice-1' } : { total_cost: 0.02, model: 'or/voice-1' };
+      return Promise.resolve({ data: { data: cost } });
+    });
+
+    const res = await request(app).get('/api/ai/generation-cost?id=gen-sum001,gen-sum002').expect(200);
+    expect(res.body.cost_usd).toBeCloseTo(0.03);
+    expect(res.body.generation_id).toBe('gen-sum001,gen-sum002');
+
+    await request(app).get('/api/ai/generation-cost?id=gen-sum001,gen-sum002').expect(200);
+    expect(axios.get).toHaveBeenCalledTimes(2); // per-id cache: one fetch each, no refetch
   });
 });

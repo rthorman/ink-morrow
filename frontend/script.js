@@ -31,7 +31,11 @@ const DEFAULT_SETTINGS = Object.freeze({
   wordsPerPage: 400,
   narrationModel: null,
   narrationVoice: null,
+  reasoningEffort: null,
+  storyFontSize: 18,
 });
+const FONT_SIZE_MIN = 14;
+const FONT_SIZE_MAX = 24;
 const WORDS_MIN = 50;
 const WORDS_MAX = 2000;
 
@@ -70,11 +74,17 @@ function saveSettings() {
 
 function setSetting(key, value) {
   if (!(key in DEFAULT_SETTINGS)) return;
+  if (key === 'storyFontSize') {
+    const px = parseInt(value, 10);
+    if (!Number.isFinite(px)) return;
+    value = Math.min(Math.max(px, FONT_SIZE_MIN), FONT_SIZE_MAX);
+  }
   if (key === 'wordsPerPage') {
     const n = parseInt(value, 10);
     if (!Number.isFinite(n)) return;
     value = Math.min(Math.max(n, WORDS_MIN), WORDS_MAX);
   }
+  if (settings[key] === value) return; // no change: nothing to apply or persist
   settings[key] = value;
   saveSettings();
   applySettings();
@@ -89,8 +99,13 @@ function applySettings() {
   if (tickerToggle) tickerToggle.checked = Boolean(settings.costTicker);
   const font = STORY_FONTS[settings.storyFont] || STORY_FONTS.literata;
   document.documentElement.style.setProperty('--st-prose-family', font.stack);
+  const fontSize = Math.min(Math.max(parseInt(settings.storyFontSize, 10) || 18, FONT_SIZE_MIN), FONT_SIZE_MAX);
+  document.documentElement.style.setProperty('--st-prose-size', fontSize + 'px');
+  const fontSizeSelect = document.getElementById('fontSizeSelect');
+  if (fontSizeSelect) fontSizeSelect.value = String(fontSize);
   const wordsInput = document.getElementById('wordsPerPageInput');
   if (wordsInput) wordsInput.value = String(settings.wordsPerPage);
+  if (speechModelsCache) renderNarrationSettings(); // per-page cost labels track the word target
   updateCurrentModelLabel();
   updateCostTicker();
   renderFontList();
@@ -189,6 +204,7 @@ async function maybeStartSpeculative() {
     const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
       words: settings.wordsPerPage,
       ...(settings.model ? { model: settings.model } : {}),
+      ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
     if (!speculative || speculative.storyId !== storyId) return; // story changed mid-flight
     speculative = { storyId, ready: true };
@@ -236,6 +252,31 @@ async function loadModels() {
   return modelsCache;
 }
 
+// Reasoning level: only shown when the selected model can think first.
+function selectedModelEntry() {
+  if (!settings.model || !modelsCache) return null;
+  return modelsCache.find((m) => m.id === settings.model) || null;
+}
+
+function reasoningApplies() {
+  const entry = selectedModelEntry();
+  return Boolean(entry && entry.reasoning);
+}
+
+function updateReasoningBlock() {
+  const block = document.getElementById('reasoningBlock');
+  const select = document.getElementById('reasoningSelect');
+  if (!block || !select) return;
+  const applies = reasoningApplies();
+  block.hidden = !applies;
+  if (applies) {
+    if (!settings.reasoningEffort) setSetting('reasoningEffort', 'medium');
+    select.value = settings.reasoningEffort || 'medium';
+  } else if (settings.reasoningEffort) {
+    setSetting('reasoningEffort', null); // carried thoughts don't fit this model
+  }
+}
+
 function renderModelList() {
   const list = document.getElementById('modelList');
   if (!list) return;
@@ -275,11 +316,14 @@ function renderModelList() {
     item.append(name, id, meta);
 
     item.addEventListener('click', () => {
+      const switching = settings.model !== m.id;
       setSetting('model', settings.model === m.id ? null : m.id);
+      if (switching && !m.reasoning) setSetting('reasoningEffort', null); // carried thoughts don't fit this model
       renderModelList();
     });
     list.appendChild(item);
   });
+  updateReasoningBlock();
 }
 
 // Global state
@@ -338,7 +382,14 @@ function initApp() {
   if (modelReset) {
     modelReset.addEventListener('click', () => {
       setSetting('model', null);
+      setSetting('reasoningEffort', null);
       renderModelList();
+    });
+  }
+  const reasoningSelect = document.getElementById('reasoningSelect');
+  if (reasoningSelect) {
+    reasoningSelect.addEventListener('change', () => {
+      setSetting('reasoningEffort', reasoningSelect.value || null);
     });
   }
   const bgToggle = document.getElementById('scriptoriumBgToggle');
@@ -348,6 +399,10 @@ function initApp() {
   const wordsInput = document.getElementById('wordsPerPageInput');
   if (wordsInput) {
     wordsInput.addEventListener('change', () => setSetting('wordsPerPage', wordsInput.value));
+  }
+  const fontSizeSelect = document.getElementById('fontSizeSelect');
+  if (fontSizeSelect) {
+    fontSizeSelect.addEventListener('change', () => setSetting('storyFontSize', fontSizeSelect.value));
   }
   const userInputEl = document.getElementById('userInput');
   if (userInputEl) {
@@ -1105,6 +1160,7 @@ async function generateNextPageLive(userInput) {
       user_input: direction || null,
       words: settings.wordsPerPage,
       ...(settings.model ? { model: settings.model } : {}),
+      ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
     storyPages.push(data.page);
     currentPage = storyPages.length;
@@ -1135,6 +1191,7 @@ async function retryLastPage() {
     const data = await apiCall(`/stories/${currentStory.id}/pages/regenerate`, 'POST', {
       words: settings.wordsPerPage,
       ...(settings.model ? { model: settings.model } : {}),
+      ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
     storyPages[storyPages.length - 1] = data.page;
     const newCost = typeof data.page?.cost_usd === 'number' ? data.page.cost_usd : 0;
@@ -1194,6 +1251,7 @@ async function exportStory() {
 // ---------------------------------------------------------------------------
 
 let narrationState = 'idle'; // idle|starting|playing|paused|completed|failed
+let narrationAuto = false; // keep flipping pages once each is narrated
 let narrationAudio = null;
 let narrationGenerationId = null;
 let narrationCacheHit = false;
@@ -1235,6 +1293,21 @@ function setNarrationState(state) {
       stop.hidden = true;
   }
   btn.setAttribute('aria-label', 'Read the current page aloud' + (state === 'playing' ? ' (now playing)' : ''));
+}
+
+// Autoplay: once this page is narrated, flip to the next and keep reading
+// until the tale runs out or the user stops.
+function maybeAutoAdvanceNarration() {
+  if (!narrationAuto || !currentStory) return;
+  if (currentPage < storyPages.length) {
+    setTimeout(() => {
+      if (!narrationAuto || !currentStory) return; // user changed their mind meanwhile
+      navigatePage(1); // also stops the finished playback cleanly
+      startNarration();
+    }, 350); // a breath between pages
+  } else {
+    showSuccess('The scribe has read to the end of the written tale.');
+  }
 }
 
 function stopNarration() {
@@ -1322,6 +1395,7 @@ function startNarration() {
     if (narrationAudio === audio) {
       setNarrationState('completed');
       settleNarrationCost();
+      maybeAutoAdvanceNarration();
     }
   });
   audio.addEventListener('error', () => {
@@ -1368,6 +1442,25 @@ async function loadSpeechModels() {
   return speechModelsCache;
 }
 
+// Approximate USD cost of narrating one page with this model: input is priced
+// per character (≈6.5 chars per word incl. spaces), some models also price
+// output audio tokens (≈20 per word — measured against a live Gemini bill).
+// At the mercy of honest rounding.
+function estimateNarrationCostPerPage(model) {
+  if (!model) return 0;
+  const words = Number.isFinite(settings.wordsPerPage) ? settings.wordsPerPage : 400;
+  const chars = words * 6.5;
+  const audioTokens = words * 20;
+  const p = model.pricing || {};
+  const cost = (chars * (p.prompt_per_mchar || 0) + audioTokens * (p.completion_per_mtok || 0)) / 1e6;
+  return Number.isFinite(cost) ? cost : 0;
+}
+
+function narrationOptionLabel(model) {
+  const cost = estimateNarrationCostPerPage(model);
+  return cost > 0 ? `${model.name} — ≈${formatUsd(cost)} per page` : `${model.name} — free`;
+}
+
 function renderNarrationSettings() {
   const modelSelect = document.getElementById('narrationModelSelect');
   const voiceSelect = document.getElementById('narrationVoiceSelect');
@@ -1382,7 +1475,7 @@ function renderNarrationSettings() {
   models.forEach((m) => {
     const option = document.createElement('option');
     option.value = m.id;
-    option.textContent = m.name;
+    option.textContent = narrationOptionLabel(m);
     modelSelect.appendChild(option);
   });
   modelSelect.value = settings.narrationModel || '';
@@ -1423,6 +1516,14 @@ function initNarration() {
   if (btn) btn.addEventListener('click', onReadAloudClick);
   const stopBtn = document.getElementById('narrationStopBtn');
   if (stopBtn) stopBtn.addEventListener('click', stopNarration);
+  const autoBtn = document.getElementById('narrationAutoBtn');
+  if (autoBtn) {
+    autoBtn.addEventListener('click', () => {
+      narrationAuto = !narrationAuto;
+      autoBtn.setAttribute('aria-pressed', narrationAuto ? 'true' : 'false');
+      autoBtn.classList.toggle('active', narrationAuto);
+    });
+  }
 
   const modelSelect = document.getElementById('narrationModelSelect');
   if (modelSelect) {
@@ -1830,6 +1931,7 @@ if (typeof module !== 'undefined' && module.exports) {
     loadSpeechModels,
     renderNarrationSettings,
     __lastNarrationAudio: () => narrationAudio,
+    __setModelsCache(models) { modelsCache = models; },
     // Settings + cost ticker
     loadSettings,
     setSetting,

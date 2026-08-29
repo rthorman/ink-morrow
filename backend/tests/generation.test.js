@@ -291,7 +291,7 @@ describe('Model selection, usage and cost accounting', () => {
     ]);
     const res = await request(app).get('/api/models').expect(200);
     expect(res.body.models).toEqual([
-      { id: 'a/b', name: 'B Model', context_length: 8, pricing: { prompt_per_mtok: 1, completion_per_mtok: 2 } },
+      { id: 'a/b', name: 'B Model', context_length: 8, reasoning: false, pricing: { prompt_per_mtok: 1, completion_per_mtok: 2 } },
     ]);
   });
 
@@ -622,5 +622,46 @@ describe('Speculative next-page preview', () => {
 
     await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
     const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('Reasoning effort', () => {
+  it('passes the effort through as OpenRouter reasoning config', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi('A considered page.');
+    const world = await createWorld(app, { name: 'Thought Realm' });
+    const story = await createStory(app, world.id);
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', reasoning_effort: 'high' });
+    expect(res.status).toBe(201);
+
+    const body = axios.post.mock.calls[0][1];
+    expect(body.reasoning).toEqual({ effort: 'high' });
+    expect(body.max_tokens).toBeGreaterThanOrEqual(6000); // room to think
+  });
+
+  it('rejects unknown efforts', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi();
+    const world = await createWorld(app, { name: 'Strict Thought Realm' });
+    const story = await createStory(app, world.id);
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', reasoning_effort: 'maximum' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toContain('reasoning_effort');
+  });
+
+  it('omits the reasoning field entirely when no effort is sent', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi();
+    const world = await createWorld(app, { name: 'Plain Realm' });
+    const story = await createStory(app, world.id);
+    await request(app).post(`/api/stories/${story.id}/pages/generate`).send({ user_input: 'go' }).expect(201);
+    expect(axios.post.mock.calls[0][1].reasoning).toBeUndefined();
   });
 });

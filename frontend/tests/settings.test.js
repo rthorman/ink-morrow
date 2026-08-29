@@ -21,7 +21,7 @@ describe('Settings defaults and persistence', () => {
 
   it('defaults: server model, no scriptorium bg, ticker on', () => {
     const fw = loadScript();
-    expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null });
+    expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null, reasoningEffort: null, storyFontSize: 18 });
     expect(document.getElementById('costTicker').hidden).toBe(false);
     expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--st-prose-family')).toContain('Literata');
@@ -240,5 +240,114 @@ describe('Words per page setting', () => {
     await fw.retryLastPage();
     const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect(body.words).toBe(400);
+  });
+});
+
+describe('Reasoning level selector', () => {
+  let fw;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockFetch();
+    fw = loadScript();
+  });
+
+  it('appears with a medium default when a reasoning model is selected', async () => {
+    fw.setSetting('model', 'z-ai/glm-5.1');
+    // Simulate the catalog knowing this model can reason
+    fw.__setModelsCache([{ id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} }]);
+    fw.renderModelList();
+
+    expect(document.getElementById('reasoningBlock').hidden).toBe(false);
+    expect(fw.state().settings.reasoningEffort).toBe('medium');
+    expect(document.getElementById('reasoningSelect').value).toBe('medium');
+  });
+
+  it('is hidden for plain models and the effort is cleared on switch', async () => {
+    fw.setSetting('model', 'z-ai/glm-5.1');
+    fw.setSetting('reasoningEffort', 'high');
+    fw.__setModelsCache([{ id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} }]);
+    fw.renderModelList();
+    expect(document.getElementById('reasoningBlock').hidden).toBe(false);
+
+    // Switch to a non-reasoning model: selector hides and the effort resets
+    fw.setSetting('model', 'plain/model');
+    fw.__setModelsCache([
+      { id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} },
+      { id: 'plain/model', name: 'Plain', reasoning: false, context_length: 1000, pricing: {} },
+    ]);
+    fw.renderModelList();
+    expect(document.getElementById('reasoningBlock').hidden).toBe(true);
+    expect(fw.state().settings.reasoningEffort).toBeNull();
+  });
+
+  it('sends reasoning_effort with generate only for reasoning models', async () => {
+    const fetchMock = global.fetch;
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(201, { page: { page_number: 1, content: 'Thoughtful.', user_input: null, cost_usd: null } })
+    );
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 0, total_cost_usd: 0 },
+      storyPages: [],
+      currentPage: 1,
+    });
+
+    // Plain model: no reasoning field
+    fw.setSetting('model', 'plain/model');
+    fw.__setModelsCache([{ id: 'plain/model', name: 'Plain', reasoning: false, context_length: 1000, pricing: {} }]);
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(201, { page: { page_number: 1, content: 'Quick.', user_input: null, cost_usd: null } })
+    );
+    await fw.generateNextPage();
+    let body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
+    expect('reasoning_effort' in body).toBe(false);
+
+    // Reasoning model: effort goes along
+    fw.setSetting('model', 'z-ai/glm-5.1');
+    fw.setSetting('reasoningEffort', 'high');
+    fw.__setModelsCache([{ id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} }]);
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 1, total_cost_usd: 0 },
+      storyPages: [{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0 }],
+      currentPage: 1,
+    });
+    fetchMock.mockClear();
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(201, { page: { page_number: 2, content: 'Deep.', user_input: null, cost_usd: null } })
+    );
+    await fw.generateNextPage();
+    body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
+    expect(body.reasoning_effort).toBe('high');
+  });
+});
+
+describe('Story font size picker', () => {
+  let fw;
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockFetch();
+    fw = loadScript();
+  });
+
+  it('defaults to 18px and sets the prose size variable', () => {
+    expect(fw.state().settings.storyFontSize).toBe(18);
+    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('18px');
+    expect(document.getElementById('fontSizeSelect').value).toBe('18');
+  });
+
+  it('changes persist and update the variable, clamped to a readable range', () => {
+    const select = document.getElementById('fontSizeSelect');
+    select.value = '22';
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(fw.state().settings.storyFontSize).toBe(22);
+    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('22px');
+    expect(JSON.parse(window.localStorage.getItem('st-settings')).storyFontSize).toBe(22);
+
+    // Out-of-range values clamp instead of breaking the reading pane
+    fw.setSetting('storyFontSize', 99);
+    expect(fw.state().settings.storyFontSize).toBe(24);
+    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('24px');
   });
 });

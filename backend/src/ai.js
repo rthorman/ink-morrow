@@ -40,6 +40,7 @@ async function listModels() {
       id: m.id,
       name: m.name || m.id,
       context_length: typeof m.context_length === 'number' ? m.context_length : null,
+      reasoning: Array.isArray(m.supported_parameters) && m.supported_parameters.includes('reasoning'),
       // OpenRouter prices are USD-per-token strings; expose USD per 1M tokens.
       pricing: {
         prompt_per_mtok: (parseFloat(m.pricing?.prompt) || 0) * 1e6,
@@ -80,6 +81,12 @@ async function listSpeechModels() {
         const id = typeof v === 'string' ? v : String(v?.id || '');
         return { id, label: humanizeVoiceLabel(id) };
       }).filter((v) => v.id),
+      // TTS pricing: prompt is USD per input character, completion USD per
+      // output token (Gemini-style models). Exposed per 1M units.
+      pricing: {
+        prompt_per_mchar: (parseFloat(m.pricing?.prompt) || 0) * 1e6,
+        completion_per_mtok: (parseFloat(m.pricing?.completion) || 0) * 1e6,
+      },
     }));
   speechModelsCache = { at: Date.now(), models };
   return models;
@@ -91,36 +98,100 @@ function humanizeVoiceLabel(id) {
     .replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Reads a fully-buffered error body out of an axios failure. The body may be
+// a plain value (tests, non-stream errors) or a readable stream (real axios).
+async function speechErrorBody(data) {
+  if (data === undefined || data === null) return null;
+  if (typeof data === 'string' || Buffer.isBuffer(data)) return data;
+  if (typeof data.pipe !== 'function') return JSON.stringify(data);
+  return await new Promise((resolve) => {
+    const parts = [];
+    data.on('data', (c) => parts.push(c));
+    data.on('end', () => resolve(Buffer.concat(parts)));
+    data.on('error', () => resolve(Buffer.concat(parts)));
+  });
+}
+
+// Turns an axios failure into an Error that carries the upstream status and,
+// when the provider bothered to explain itself, the real reason.
+async function speechError(error) {
+  const status = error.response?.status;
+  const raw = await speechErrorBody(error.response?.data);
+  let message = null;
+  if (raw !== null && raw !== undefined && (!Buffer.isBuffer(raw) || raw.length)) {
+    try {
+      const parsed = JSON.parse(raw.toString());
+      message = parsed?.error?.message || parsed?.error || null;
+    } catch {
+      message = String(raw).slice(0, 200);
+    }
+  }
+  const err = new Error(
+    message
+      ? `The narrator refused this page: ${message}`
+      : error.message || 'Speech generation failed'
+  );
+  err.statusCode = Number.isFinite(status) && status >= 400 && status < 500 ? status : 502;
+  return err;
+}
+
 /**
  * Server-side speech generation against OpenRouter's dedicated TTS endpoint.
  * Returns a STREAM (axios responseType 'stream'); never buffers the body.
- * Resolves with { stream, contentType, generationId } once headers arrive.
+ * Resolves with { stream, contentType, generationId, format } once headers
+ * arrive. Tries mp3 first; models that only speak pcm (Gemini TTS) are
+ * detected from the provider's refusal and retried transparently.
  */
-async function createSpeech({ model, voice, input }) {
+async function createSpeech({ model, voice, input, responseFormat = 'mp3' }) {
   const cfg = aiConfig();
   if (!cfg.apiKey) {
-    const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
+    const err = new Error('OpenRouter API key is not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
     throw err;
   }
-  const response = await axios.post(
-    `${cfg.baseUrl}/audio/speech`,
-    { model, voice, input, response_format: 'mp3' },
-    {
-      headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      responseType: 'stream',
-      timeout: cfg.timeout,
+  let format = responseFormat;
+  let lastError = null;
+  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
+    try {
+      const response = await axios.post(
+        `${cfg.baseUrl}/audio/speech`,
+        { model, voice, input, response_format: format },
+        {
+          headers: {
+            Authorization: `Bearer ${cfg.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          responseType: 'stream',
+          timeout: cfg.timeout,
+        }
+      );
+      return {
+        stream: response.data,
+        contentType: response.headers['content-type'] || (format === 'pcm' ? 'audio/pcm' : 'audio/mpeg'),
+        generationId: response.headers['x-generation-id'] || null,
+        format,
+      };
+    } catch (error) {
+      const err = await speechError(error);
+      // pcm-only narrators (e.g. Gemini TTS) refuse mp3: fall back once.
+      if (
+        format !== 'pcm' &&
+        Number.isFinite(error.response?.status) &&
+        error.response.status === 400 &&
+        /pcm/i.test(err.message)
+      ) {
+        format = 'pcm';
+        lastError = err;
+        continue;
+      }
+      if (RETRYABLE.has(error.response?.status) && attempt < RETRY_ATTEMPTS - 1) {
+        await sleep(cfg.retryBaseDelay * Math.pow(2, attempt));
+        continue;
+      }
+      throw err;
     }
-  );
-  const stream = response.data;
-  return {
-    stream,
-    contentType: response.headers['content-type'] || 'audio/mpeg',
-    generationId: response.headers['x-generation-id'] || null,
-  };
+  }
+  throw lastError || new Error('Speech generation failed');
 }
 
 /**
@@ -176,7 +247,7 @@ async function computeCostUsd(model, usage) {
  * on transient failures (429, 5xx, network errors).
  * Returns { content, model, usage, cost_usd }.
  */
-async function chatCompletion(messages, { temperature = 0.85, model, maxTokens } = {}) {
+async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, reasoningEffort } = {}) {
   const cfg = aiConfig();
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
@@ -184,7 +255,12 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens }
     throw err;
   }
   const useModel = (typeof model === 'string' && model.trim()) || cfg.model;
-  const useMaxTokens = Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(Math.round(maxTokens), 16000) : cfg.maxTokens;
+  const useReasoningEffort = ['low', 'medium', 'high'].includes(reasoningEffort) ? reasoningEffort : null;
+  let useMaxTokens = Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(Math.round(maxTokens), 16000) : cfg.maxTokens;
+  if (useReasoningEffort) {
+    // Reasoning tokens come out of the same budget: give the model room to think.
+    useMaxTokens = Math.max(useMaxTokens, 6000);
+  }
 
   let lastError = null;
   for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
@@ -199,6 +275,7 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens }
           messages,
           temperature,
           max_tokens: useMaxTokens,
+          ...(useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
         },
         {
           headers: {

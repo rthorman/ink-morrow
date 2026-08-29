@@ -7,6 +7,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 ## Features
 
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
+- **Prepared next page** — while you read, the next page is quietly prepared; an empty Generate lands instantly, and cost is booked only when you take it
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
 - **Three-tier casts** — every story follows one Main Character, with supporting cast (each carrying a free-text relation to them) and loose background figures
@@ -14,13 +15,15 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Per-story tone setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+)
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
+- **Thinking narrators** — models that can reason before writing expose a reasoning level (low/medium/high) in Settings, with room in the token budget to think
 - **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
 - **EPUB export** — download the full story as a valid EPUB e-book
 - **Read-only history** — earlier pages can't be edited; "delete everything after this page" trims the tale with a slide-to-confirm burn
-- **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, with model/voice pickers in Settings and honest per-generation cost accounting
+- **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
+- **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 118 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 166 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -31,7 +34,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 118 Jest tests (69 backend + 49 frontend) pass on-device under Termux
+- All 166 Jest tests (92 backend + 74 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -108,13 +111,13 @@ scribe-tribe/
 │   │   ├── ai.js          # OpenAI-compatible client with retry/backoff + model catalog
 │   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
 │   │   ├── epub.js        # dependency-free EPUB/ZIP writer
-│   └── tests/             # Jest + supertest (69 tests)
+│   └── tests/             # Jest + supertest (92 tests)
 ├── frontend/
 │   ├── index.html         # gothic UI + catgirl scribe SVG
 │   ├── styles.css
 │   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
 │   ├── brand/             # production art assets (WebP + SVG)
-│   └── tests/             # Jest + jsdom (49 tests)
+│   └── tests/             # Jest + jsdom (74 tests)
 ├── e2e/                   # Playwright browser tests (chromium + mobile)
 ├── database/              # SQLite file lives here (gitignored)
 ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
@@ -140,11 +143,13 @@ scribe-tribe/
 | DELETE | `/api/stories/:id/pages?after=N` | Burn every page after N (slide-to-confirm in the UI) |
 | POST | `/api/stories/:id/pages/generate` | AI-generate the next page (saves it) |
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
+| POST | `/api/stories/:id/pages/preview` | Silently prepare the next page (no direction, nothing saved) |
+| POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
 | GET | `/api/stories/:id/export` | Download the full story as an EPUB |
 | GET | `/api/models` | OpenRouter model catalog with pricing (for the settings picker) |
 | POST | `/api/ai/world` | Flesh out a world from seeds (short/medium/long) |
 | POST | `/api/ai/character` | Flesh out a character from seeds (world-aware) |
-| GET | `/api/speech-models` | OpenRouter speech-model catalogue with voices (for Narration settings) |
+| GET | `/api/speech-models` | OpenRouter speech-model catalogue with voices + per-char pricing (for Narration settings) |
 | POST | `/api/stories/:id/pages/:n/narrate` | Stream the page as speech (binary pass-through, cache-aware) |
 | GET | `/api/ai/generation-cost?id=` | Authoritative cost for a narration generation |
 
@@ -153,7 +158,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 ## Testing
 
 ```bash
-npm test             # backend (69) + frontend (49) Jest suites — runs on Termux too
+npm test             # backend (92) + frontend (74) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers
@@ -172,6 +177,8 @@ ScribeTribe was born on a very budget Android tablet. Not a modest laptop, not a
 The whole thing was finished in one afternoon, while my wife was out having lunch with her friends. By the time she got home, the scribes were already purring.
 
 You don't need a workstation to build software. You need a story you want to tell and a few free hours.
+
+Ok, ok, so I continued into the night. I did. Its fun. And yes, the wife loves the stories.
 
 Credit where due: the code was written in partnership with [OpenCode](https://opencode.ai) running natively on Termux, powered by GLM-5.3 (Z.ai); ScribeTribe's branding concept, art direction, design system, implementation brief, and visual assets were developed collaboratively with [OpenAI Codex in ChatGPT](https://openai.com/codex/) (GPT‑5‑based), and the visual assets were created using OpenAI image-generation tools — see [CREDITS.md](./CREDITS.md).
 

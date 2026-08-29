@@ -15,6 +15,13 @@ function modelOverrideOf(value) {
   return model && model.length <= 200 ? model : null;
 }
 const CAST_ROLES = ['mc', 'supporting', 'background'];
+const REASONING_EFFORTS = ['low', 'medium', 'high'];
+
+function parseReasoningEffort(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const effort = asString(value);
+  return REASONING_EFFORTS.includes(effort) ? effort : null;
+}
 
 // ---------------------------------------------------------------------------
 // Validation helpers
@@ -479,11 +486,15 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const wordTarget = parseWordTarget(req.body.words);
+      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
+      if (req.body.reasoning_effort !== undefined && req.body.reasoning_effort !== null && req.body.reasoning_effort !== '' && !reasoningEffort) {
+        return badRequest(res, '"reasoning_effort" must be one of: low, medium, high');
+      }
 
       const ctx = loadContext(story);
       const result = await chatCompletion(
         generationMessages(story, ctx, userInput, wordTarget),
-        { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverride || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
       const prose = consumeStoryText(story, result.content);
 
@@ -515,9 +526,10 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
 
       const ctx = loadContext(story, { excludeLast: true });
       const wordTarget = parseWordTarget(req.body.words);
+      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
       const result = await chatCompletion(
         generationMessages(story, ctx, last.user_input || 'Continue the story.', wordTarget),
-        { model: modelOverrideOf(req.body.model) || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverrideOf(req.body.model) || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
       const prose = consumeStoryText(story, result.content);
 
@@ -737,11 +749,12 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const wordTarget = parseWordTarget(req.body.words);
+      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
 
       const ctx = loadContext(story);
       const result = await chatCompletion(
         generationMessages(story, ctx, 'Continue the story.', wordTarget),
-        { model: modelOverride || undefined, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverride || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
 
       const expectedPage = storyPages(story.id).length + 1;
@@ -789,18 +802,23 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
   // -- narration (streaming page read-aloud) ---------------------------------
 
   const NARRATION_MAX_CHARS = 16000;
+  const NARRATION_SEGMENT_CHARS = 1800; // many narrators reject longer input outright
+  const NARRATION_MIN_SEGMENT_CHARS = 300; // below this, halving cannot help
   const NARRATION_CACHE_MAX_BYTES = 32 * 1024 * 1024;
-  // Keyed by sha256(text)+model+voice+format; value is the completed mp3 so an
-  // in-session replay never triggers (or bills) a second upstream generation.
+  const NARRATION_ENTRY_MAX_BYTES = 8 * 1024 * 1024; // single-page cap
+  const NARRATION_PCM_MAX_BYTES = 24 * 1024 * 1024; // raw pcm buffering guard
+  // Keyed by sha256(text)+model+voice; value is the completed audio (mp3 or a
+  // WAV-wrapped pcm) so an in-session replay never triggers (or bills) a
+  // second upstream generation.
   const narrationCache = new Map();
   const crypto = require('crypto');
 
   function narrationCacheKey(text, model, voice) {
-    return crypto.createHash('sha256').update(text).digest('hex') + '|' + model + '|' + voice + '|mp3';
+    return crypto.createHash('sha256').update(text).digest('hex') + '|' + model + '|' + voice;
   }
 
   function rememberNarration(key, buffer, contentType, generationId) {
-    if (buffer.length === 0 || buffer.length > 4 * 1024 * 1024) return; // single-page cap
+    if (buffer.length === 0 || buffer.length > NARRATION_ENTRY_MAX_BYTES) return;
     narrationCache.set(key, { buffer, contentType, generationId, bytes: buffer.length });
     let total = 0;
     for (const entry of narrationCache.values()) total += entry.bytes;
@@ -809,6 +827,112 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       total -= narrationCache.get(oldest).bytes;
       narrationCache.delete(oldest);
     }
+  }
+
+  // Split narratable text into segments at sentence boundaries. Providers cap
+  // input length (Deepgram ~2000 chars, others less), so a full page is fed to
+  // them piece by piece.
+  function splitNarrationSegments(text, limit = NARRATION_SEGMENT_CHARS) {
+    const segments = [];
+    let current = '';
+    const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+    for (const sentence of sentences) {
+      if (sentence.length > limit) {
+        if (current.trim()) segments.push(current.trim());
+        current = '';
+        for (let i = 0; i < sentence.length; i += limit) segments.push(sentence.slice(i, i + limit).trim());
+        continue;
+      }
+      if (current && current.length + sentence.length > limit) {
+        segments.push(current.trim());
+        current = '';
+      }
+      current += sentence;
+    }
+    if (current.trim()) segments.push(current.trim());
+    return segments.filter(Boolean);
+  }
+
+  // Split text into exactly two halves at a sentence boundary near the middle
+  // (hard-splitting an overlong sentence when there is no boundary).
+  function bisectNarration(text) {
+    const half = Math.floor(text.length / 2);
+    const sentences = text.match(/[^.!?…]+[.!?…]*\s*/g) || [text];
+    let first = '';
+    let i = 0;
+    for (; i < sentences.length; i++) {
+      if (first.length && first.length + sentences[i].length > half) break;
+      first += sentences[i];
+    }
+    if (i === 0) {
+      // The very first sentence crosses the middle: hard-split it.
+      first = sentences[0].slice(0, half);
+      const rest = sentences[0].slice(half) + sentences.slice(1).join('');
+      return [first.trim(), rest.trim()].filter(Boolean);
+    }
+    return [first.trim(), sentences.slice(i).join('').trim()].filter(Boolean);
+  }
+
+  // Synthesize one segment, pushing each upstream result into `results`.
+  // When a provider refuses even a within-limit segment (400/413 — limits
+  // vary and are undocumented), bisect at sentence boundaries and recurse.
+  async function synthesizeNarration(model, voice, text, results) {
+    try {
+      results.push(await createSpeech({ model, voice, input: text }));
+    } catch (error) {
+      const status = error.statusCode || 0;
+      if ((status === 400 || status === 413) && text.length > NARRATION_MIN_SEGMENT_CHARS) {
+        for (const piece of bisectNarration(text)) {
+          await synthesizeNarration(model, voice, piece, results);
+        }
+        return;
+      }
+      throw error;
+    }
+  }
+
+  // 44-byte WAV header for OpenAI-style pcm: 24kHz 16-bit signed LE mono.
+  function wavHeader(dataBytes) {
+    const b = Buffer.alloc(44);
+    b.write('RIFF', 0);
+    b.writeUInt32LE(36 + dataBytes, 4);
+    b.write('WAVE', 8);
+    b.write('fmt ', 12);
+    b.writeUInt32LE(16, 16); // fmt chunk size
+    b.writeUInt16LE(1, 20); // PCM
+    b.writeUInt16LE(1, 22); // mono
+    b.writeUInt32LE(24000, 24); // sample rate
+    b.writeUInt32LE(48000, 28); // byte rate
+    b.writeUInt16LE(2, 32); // block align
+    b.writeUInt16LE(16, 34); // bits per sample
+    b.write('data', 36);
+    b.writeUInt32LE(dataBytes, 40);
+    return b;
+  }
+
+  // pcm narrators cannot stream through (the WAV header needs the total size),
+  // so their segments are collected and delivered as one complete WAV.
+  async function collectNarrationPcm(results) {
+    const parts = [];
+    let total = 0;
+    for (const result of results) {
+      await new Promise((resolve, reject) => {
+        result.stream.on('data', (chunk) => {
+          total += chunk.length;
+          if (total > NARRATION_PCM_MAX_BYTES) {
+            const err = new Error('This page is too long for this narrator in one breath. Try an mp3 narrator or a shorter page.');
+            err.statusCode = 413;
+            reject(err);
+            result.stream.destroy();
+            return;
+          }
+          parts.push(chunk);
+        });
+        result.stream.on('end', resolve);
+        result.stream.on('error', reject);
+      });
+    }
+    return Buffer.concat(parts);
   }
 
   function normalizeNarrationText(content) {
@@ -864,49 +988,92 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
         return res.send(cached.buffer);
       }
 
-      const speech = await createSpeech({ model, voice, input: text });
-      res.setHeader('Content-Type', speech.contentType);
-      if (speech.generationId) res.setHeader('X-Generation-Id', speech.generationId);
+      // Segment the page and synthesize each piece (halving retries on
+      // provider limits). All headers must arrive before the body starts so
+      // every generation id is known up front for honest cost accounting.
+      const segments = splitNarrationSegments(text);
+      const results = [];
+      for (const segment of segments) {
+        await synthesizeNarration(model, voice, segment, results);
+      }
+      const generationIds = results.map((r) => r.generationId).filter(Boolean);
+      const joinedGenerationId = generationIds.join(',') || null;
 
-      // Stream through while remembering the audio for session replays.
+      // pcm narrators: one complete WAV (the header needs the total size).
+      if (results[0].format === 'pcm') {
+        const pcm = await collectNarrationPcm(results);
+        const wav = Buffer.concat([wavHeader(pcm.length), pcm]);
+        res.setHeader('Content-Type', 'audio/wav');
+        if (joinedGenerationId) res.setHeader('X-Generation-Id', joinedGenerationId);
+        rememberNarration(key, wav, 'audio/wav', joinedGenerationId);
+        return res.send(wav);
+      }
+
+      // mp3 narrators: stream segments back-to-back with backpressure.
+      const contentType = results[0].contentType || 'audio/mpeg';
+      res.setHeader('Content-Type', contentType);
+      if (joinedGenerationId) res.setHeader('X-Generation-Id', joinedGenerationId);
+
       const chunks = [];
+      let remembered = 0;
       let aborted = false;
       res.on('close', () => {
         // A real client disconnect mid-stream: abort upstream work.
         if (!res.writableEnded) {
           aborted = true;
-          speech.stream.destroy();
+          results.forEach((r) => r.stream.destroy());
         }
       });
-      speech.stream.on('data', (chunk) => {
-        if (chunks && chunks.length < 4 * 1024 * 1024) chunks.push(chunk);
-        if (!res.write(chunk)) speech.stream.pause();
-      });
-      res.on('drain', () => speech.stream.resume());
-      speech.stream.on('end', () => {
-        if (!aborted) {
-          rememberNarration(key, Buffer.concat(chunks), speech.contentType, speech.generationId);
+      let index = 0;
+      const pipeNext = () => {
+        if (aborted) return;
+        if (index >= results.length) {
+          if (!aborted) rememberNarration(key, Buffer.concat(chunks), contentType, joinedGenerationId);
+          return res.end();
         }
-        res.end();
-      });
-      speech.stream.on('error', (error) => {
-        if (aborted) return res.end();
-        res.end();
-        console.error('Narration upstream error:', error.message);
-      });
+        const stream = results[index++].stream;
+        stream.on('data', (chunk) => {
+          if (remembered + chunk.length <= NARRATION_ENTRY_MAX_BYTES) {
+            chunks.push(chunk);
+            remembered += chunk.length;
+          }
+          if (!res.write(chunk)) stream.pause();
+        });
+        res.on('drain', () => stream.resume());
+        stream.on('end', pipeNext);
+        stream.on('error', (error) => {
+          if (aborted) return res.end();
+          results.forEach((r) => r.stream.destroy());
+          res.end();
+          console.error('Narration upstream error:', error.message);
+        });
+      };
+      pipeNext();
     } catch (error) {
       next(error);
     }
   });
 
-  // Authoritative TTS cost for a generation, idempotent and server-cached.
+  // Authoritative TTS cost for a generation (or a comma-joined set of
+  // segment generations), idempotent and server-cached per id.
   app.get('/api/ai/generation-cost', async (req, res, next) => {
     try {
       const id = asString(req.query.id);
-      if (!id || !/^[a-zA-Z0-9-]{8,64}$/.test(id)) return badRequest(res, '"id" must be a generation id');
+      const ids = id ? id.split(',') : [];
+      if (!ids.length || ids.some((single) => !/^[a-zA-Z0-9-]{8,64}$/.test(single))) {
+        return badRequest(res, '"id" must be a generation id');
+      }
       try {
-        const cost = await fetchGenerationCost(id);
-        res.json(cost);
+        const costs = [];
+        for (const single of ids) costs.push(await fetchGenerationCost(single));
+        const total = costs.reduce((sum, cost) => sum + (typeof cost.cost_usd === 'number' ? cost.cost_usd : 0), 0);
+        res.json({
+          generation_id: id,
+          cost_usd: total,
+          model: costs[0]?.model || null,
+          provider: costs[0]?.provider || null,
+          latency_ms: costs[0]?.latency_ms || null,
+        });
       } catch (error) {
         // Metadata not ready yet: tell the client to retry shortly.
         if (error.response?.status === 404 || error.response?.status === 429) {

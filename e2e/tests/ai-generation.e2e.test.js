@@ -383,5 +383,27 @@ test.describe('Narration (read aloud)', () => {
     const costBefore = costCalls;
     await page.waitForTimeout(500);
     expect(costCalls).toBe(costBefore); // cache hit: no second cost event
+
+    // Autoplay: a second page, then the chain flips and reads to the end
+    await page.fill('#userInput', 'a second page');
+    await page.route('**/api/stories/*/pages/generate', (route) =>
+      route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          page: { id: 'p2', page_number: 2, content: 'The second page.', user_input: 'a second page', cost_usd: 0 },
+        }),
+      })
+    );
+    await page.locator('#generateBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
+
+    await page.locator('#narrationAutoBtn').click(); // autoplay on
+    await page.locator('#prevPageBtn').click(); // back to page one
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
+
+    await page.locator('#readAloudBtn').click(); // starts the chain on page one
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 8000 }); // flipped automatically
+    await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 8000 }); // tale exhausted
   });
 });

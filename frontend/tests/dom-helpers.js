@@ -96,6 +96,7 @@ function buildDom() {
         <button id="prevPageBtn">← Previous</button>        <span id="pageIndicator">Page 1 of 1</span>
         <button id="nextPageBtn">Next →</button>
         <button id="readAloudBtn" type="button">Read aloud</button>
+        <button id="narrationAutoBtn" type="button">Auto</button>
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
@@ -110,11 +111,14 @@ function buildDom() {
         <input type="text" id="modelSearch">
         <div id="modelList" class="model-list"></div>
         <div id="fontList" class="font-list"></div>
+        <select id="fontSizeSelect"><option value="16">Small</option><option value="18">Medium</option><option value="20">Large</option><option value="22">Extra large</option></select>
         <button id="modelResetBtn" type="button">Use the server default model</button>
         <input type="number" id="wordsPerPageInput" value="400">
         <input type="checkbox" id="scriptoriumBgToggle">
         <input type="checkbox" id="costTickerToggle" checked>
         <select id="narrationModelSelect"></select>
+        <select id="reasoningSelect" hidden><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+        <div id="reasoningBlock" hidden></div>
         <select id="narrationVoiceSelect"></select>
       </section>
     </main>

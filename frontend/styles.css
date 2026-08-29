@@ -33,6 +33,8 @@
   --st-ash-600: #726879;
   --st-danger-500: #d64b58;
   --st-success-500: #64b98a;
+  --st-success-700: #2f5c44;
+  --st-success-600: #3d7a58;
 
   --st-bg: var(--st-ink-950);
   --st-surface-1: var(--st-ink-900);
@@ -713,7 +715,7 @@ button:disabled {
   max-width: var(--st-prose-max);
   margin: 0 auto 16px auto;
   font-family: var(--st-prose-family, var(--st-font-reading));
-  font-size: 1.12rem;
+  font-size: var(--st-prose-size, 1.12rem);
   line-height: 1.75;
   color: var(--st-vellum-100);
 }
@@ -774,18 +776,20 @@ button:disabled {
   transform: scale(0.97);
 }
 
-/* Prepared next page: the same button, same dimensions, green and ready. */
+/* Prepared next page: the same button, same dimensions - a gothic deep
+   forest green with tarnished-gold edging and vellum lettering. */
 .action-buttons button.next-page {
-  background: var(--st-success-500);
-  border-color: var(--st-success-500);
-  color: var(--st-ink-950);
+  background: linear-gradient(170deg, var(--st-success-700), var(--st-ink-900) 140%);
+  border-color: var(--st-success-600);
+  color: var(--st-vellum-100);
   font-weight: 600;
+  box-shadow: 0 0 0 1px rgb(199 163 91 / 0.18) inset;
 }
 
 .action-buttons button.next-page:hover:not(:disabled) {
-  background: rgb(127 205 160);
-  border-color: rgb(127 205 160);
-  color: var(--st-ink-950);
+  background: linear-gradient(170deg, var(--st-success-600), var(--st-success-700) 130%);
+  border-color: var(--st-gold-500);
+  color: var(--st-vellum-50);
 }
 
 #generateBtn.busy {
@@ -1059,6 +1063,7 @@ button:disabled {
 
 .story-content .placeholder {
   font-family: var(--st-prose-family, var(--st-font-reading));
+  font-size: var(--st-prose-size, 1.12rem);
 }
 
 .setting-hint {
@@ -1137,6 +1142,12 @@ button:disabled {
 
 #readAloudBtn[aria-label*='playing'] {
   background: rgb(105 217 203 / 0.14);
+}
+
+#narrationAutoBtn.active {
+  background: rgb(105 217 203 / 0.18);
+  border-color: var(--st-witchlight-400);
+  color: var(--st-vellum-100);
 }
 
 #narrationStopBtn {
@@ -1562,6 +1573,64 @@ button:disabled {
 
   .action-buttons button {
     flex: 1 1 100%;
+  }
+
+  /* Page navigation: wrap into two rows, every control reachable */
+  .page-navigation {
+    flex-wrap: wrap;
+  }
+
+  .page-navigation button {
+    flex: 1 1 30%;
+    min-width: 0;
+  }
+
+  .page-indicator {
+    flex: 1 1 100%;
+    order: -1;
+    text-align: center;
+  }
+
+  /* Model list rows collapse to one column: name/id stack above pricing */
+  .model-item {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'name' 'id' 'meta';
+  }
+
+  .model-item__meta {
+    white-space: normal;
+  }
+
+  /* Settings controls fill the narrow column */
+  .seg {
+    width: 100%;
+  }
+
+  .seg-btn {
+    flex: 1 1 0;
+    padding: 8px 8px;
+  }
+
+  .draft-actions .btn {
+    flex: 1 1 100%;
+  }
+
+  .burn-modal__panel {
+    padding: 18px 14px;
+  }
+
+  .cast-list__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cast-list__remove {
+    width: 100%;
+  }
+
+  .font-list {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 
