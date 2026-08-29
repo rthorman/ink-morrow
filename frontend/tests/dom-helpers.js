@@ -97,6 +97,7 @@ function buildDom() {
         <button id="nextPageBtn">Next →</button>
         <button id="readAloudBtn" type="button">Read aloud</button>
         <button id="narrationAutoBtn" type="button">Auto</button>
+        <button id="imagePromptBtn" type="button">Scene image</button>
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
@@ -128,6 +129,49 @@ function buildDom() {
         <p id="burnBody" class="burn-modal__body"></p>
         <input type="range" id="burnSlider" min="0" max="100" step="1" value="0">
         <button id="burnCancelBtn" type="button" class="btn btn-secondary">Keep them</button>
+      </div>
+    </div>
+    <div id="imagePromptModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="imagePromptTitle" aria-describedby="imagePromptHint">
+        <h2 id="imagePromptTitle">Scene image prompt</h2>
+        <p id="imagePromptHint" class="burn-modal__body"></p>
+        <textarea id="imagePromptText" rows="10"></textarea>
+        <img id="sceneImageResult" alt="The painted scene" hidden>
+        <p id="sceneImageCost" class="scene-image-cost" hidden></p>
+        <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
+        <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+    <div id="characterEditorModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="characterEditorTitle">
+        <h2 id="characterEditorTitle">Edit character</h2>
+        <form id="characterEditorForm">
+          <input type="text" id="charEditName">
+          <textarea id="charEditDescription"></textarea>
+          <textarea id="charEditPersonality"></textarea>
+          <textarea id="charEditAppearance"></textarea>
+          <textarea id="charEditBackground"></textarea>
+          <textarea id="charEditImagePrompt"></textarea>
+        </form>
+        <button id="charEditSaveBtn" type="submit" form="characterEditorForm">Save</button>
+        <button id="charEditRedoImageBtn" type="button">Save &amp; redo image</button>
+        <button id="charEditCancelBtn" type="button">Cancel</button>
+      </div>
+    </div>
+    <div id="worldEditorModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="worldEditorTitle">
+        <h2 id="worldEditorTitle">Edit world</h2>
+        <form id="worldEditorForm">
+          <input type="text" id="worldEditName">
+          <textarea id="worldEditDescription"></textarea>
+          <input type="text" id="worldEditGenre">
+          <input type="text" id="worldEditSetting">
+          <textarea id="worldEditLore"></textarea>
+          <textarea id="worldEditImagePrompt"></textarea>
+        </form>
+        <button id="worldEditSaveBtn" type="submit" form="worldEditorForm">Save</button>
+        <button id="worldEditRedoImageBtn" type="button">Save &amp; redo image</button>
+        <button id="worldEditCancelBtn" type="button">Cancel</button>
       </div>
     </div>
     <div id="aiDraftModal" class="burn-modal" hidden>

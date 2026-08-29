@@ -6,6 +6,8 @@ database/*.db
 database/*.db-journal
 database/*.db-shm
 database/*.db-wal
+# Generated reference/scene images are user data, never repo content
+database/images/
 
 # Environment variables (the example file IS committed)
 .env

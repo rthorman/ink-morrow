@@ -214,6 +214,7 @@
                             <button id="nextPageBtn" type="button">Next →</button>
                             <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
                             <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Keep reading pages aloud one after the other until stopped">Auto</button>
+                            <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Scene image</button>
                             <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
                         </div>
 
@@ -319,6 +320,73 @@
             </div>
             <div class="burn-modal__actions">
                 <button id="burnCancelBtn" type="button" class="btn btn-secondary">Keep them</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="imagePromptModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="imagePromptTitle" aria-describedby="imagePromptHint">
+            <h2 id="imagePromptTitle">Scene image prompt</h2>
+            <p id="imagePromptHint" class="burn-modal__body">
+                Condensed from the world, the cast as they stand in this scene, and the pages so far.
+                Edit freely before feeding it to an image generator.
+            </p>
+            <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
+            <img id="sceneImageResult" alt="The painted scene" hidden>
+            <p id="sceneImageCost" class="scene-image-cost" hidden></p>
+            <div class="burn-modal__actions">
+                <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
+                <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="characterEditorModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel" role="dialog" aria-modal="true" aria-labelledby="characterEditorTitle">
+            <h2 id="characterEditorTitle">Edit character</h2>
+            <form id="characterEditorForm" class="create-form editor-form">
+                <label for="charEditName">Name</label>
+                <input type="text" id="charEditName" maxlength="200" autocomplete="off">
+                <label for="charEditDescription">Description</label>
+                <textarea id="charEditDescription" rows="3" maxlength="10000"></textarea>
+                <label for="charEditPersonality">Personality</label>
+                <textarea id="charEditPersonality" rows="2" maxlength="10000"></textarea>
+                <label for="charEditAppearance">Appearance</label>
+                <textarea id="charEditAppearance" rows="2" maxlength="10000"></textarea>
+                <label for="charEditBackground">Background</label>
+                <textarea id="charEditBackground" rows="2" maxlength="10000"></textarea>
+                <label for="charEditImagePrompt">Portrait blurb — sent to the image generator (empty = composed from the sheet)</label>
+                <textarea id="charEditImagePrompt" rows="3" maxlength="2000"></textarea>
+            </form>
+            <div class="burn-modal__actions">
+                <button id="charEditSaveBtn" type="submit" form="characterEditorForm" class="btn">Save</button>
+                <button id="charEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
+                <button id="charEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="worldEditorModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel" role="dialog" aria-modal="true" aria-labelledby="worldEditorTitle">
+            <h2 id="worldEditorTitle">Edit world</h2>
+            <form id="worldEditorForm" class="create-form editor-form">
+                <label for="worldEditName">Name</label>
+                <input type="text" id="worldEditName" maxlength="200" autocomplete="off">
+                <label for="worldEditDescription">Description</label>
+                <textarea id="worldEditDescription" rows="3" maxlength="10000"></textarea>
+                <label for="worldEditGenre">Genre</label>
+                <input type="text" id="worldEditGenre" maxlength="100" autocomplete="off">
+                <label for="worldEditSetting">Setting</label>
+                <input type="text" id="worldEditSetting" maxlength="200" autocomplete="off">
+                <label for="worldEditLore">Lorebook — canonical facts of this world; honored by every future page</label>
+                <textarea id="worldEditLore" rows="7" maxlength="20000"></textarea>
+                <label for="worldEditImagePrompt">Scene blurb — sent to the image generator (empty = composed from the world)</label>
+                <textarea id="worldEditImagePrompt" rows="3" maxlength="2000"></textarea>
+            </form>
+            <div class="burn-modal__actions">
+                <button id="worldEditSaveBtn" type="submit" form="worldEditorForm" class="btn">Save</button>
+                <button id="worldEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
+                <button id="worldEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </div>

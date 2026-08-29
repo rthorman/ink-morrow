@@ -1385,6 +1385,154 @@ button:disabled {
   justify-content: center;
 }
 
+/* ------------------------------------------------------------------ entity reference images */
+
+.card-image-wrap {
+  margin: 10px 0 12px 0;
+}
+
+.card-image {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--st-border);
+}
+
+.card-image--pending,
+.card-image--failed {
+  aspect-ratio: 3 / 4;
+  max-width: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  font-family: var(--st-font-reading);
+  font-style: italic;
+  font-size: 0.92rem;
+  color: var(--st-ash-600);
+  background: var(--st-surface-2);
+  border: 1px dashed var(--st-border);
+}
+
+.card-image--failed {
+  color: var(--st-danger-500);
+}
+
+.card-image-redo {
+  margin-top: 8px;
+  padding: 5px 12px;
+  font-family: var(--st-font-ui);
+  font-size: 0.85rem;
+  color: var(--st-vellum-300);
+  background: var(--st-surface-3);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+}
+
+.card-image-redo:hover:not(:disabled) {
+  color: var(--st-vellum-100);
+  border-color: var(--st-gold-500);
+}
+
+/* Clickable cards open the entity editor */
+.item-card {
+  cursor: pointer;
+  transition: border-color var(--st-duration-fast) ease, box-shadow var(--st-duration-fast) ease;
+}
+
+.item-card:hover {
+  border-color: var(--st-border-bright);
+  box-shadow: 0 0 0 1px rgb(199 163 91 / 0.15);
+}
+
+/* ------------------------------------------------------------------ entity editor modals */
+
+.editor-panel {
+  text-align: left;
+}
+
+.editor-form {
+  max-height: min(56vh, 480px);
+  overflow-y: auto;
+  margin: 0 0 18px 0;
+  padding-right: 4px;
+}
+
+.editor-form label {
+  display: block;
+  margin: 12px 0 4px 0;
+  font-family: var(--st-font-ui);
+  font-size: 0.9rem;
+  color: var(--st-gold-300);
+}
+
+.editor-form input[type='text'] {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  padding: 8px 12px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+}
+
+.editor-form input[type='text']:focus,
+.editor-form textarea:focus {
+  border-color: var(--st-gold-500);
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ scene image prompt modal */
+
+#imagePromptModal .burn-modal__panel {
+  width: min(720px, 100%);
+  border-color: var(--st-border-bright);
+}
+
+#imagePromptModal .burn-modal__panel h2 {
+  color: var(--st-gold-300);
+}
+
+#imagePromptText {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  margin: 0 0 20px 0;
+  padding: 10px 12px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+#imagePromptText:focus {
+  border-color: var(--st-gold-500);
+  outline: none;
+}
+
+#sceneImageResult {
+  display: block;
+  width: 100%;
+  margin: 0 0 12px 0;
+  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--st-border-bright);
+}
+
+#sceneImageCost {
+  margin: 0 0 18px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--st-gold-300);
+}
+
 /* ------------------------------------------------------------------ AI draft modal */
 
 .draft-panel {

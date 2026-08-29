@@ -4,6 +4,13 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 **ScribeTribe is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
 
+> [!WARNING]
+> **Costs real money — set a spending limit on your API key first.**
+>
+> ScribeTribe attempts to predict and meter **every** cost involved: pages, retries, narration, reference portraits, world scenes, and scene paintings all carry live estimates and per-generation accounting in the cost ticker. But it is **impossible to make guarantees** — upstream prices change without notice, providers meter their own way, retries happen, and estimates are estimates.
+>
+> The only real safety is upstream of this app: **create a dedicated OpenRouter API key and set a hard spend limit on it** (OpenRouter lets you cap a key's credit) before you put it in `backend/.env`. Treat anything this app reports as a good-faith tally, not an invoice.
+
 ## Features
 
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
@@ -13,17 +20,21 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Three-tier casts** — every story follows one Main Character, with supporting cast (each carrying a free-text relation to them) and loose background figures
 - **Living characters** — per-story mutable state: personality, appearance, and relationships evolve book-paced as pages deal injuries, revelations and betrayals; the base character sheets stay untouched
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
+- **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot and any image can be redone from its card
+- **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
+- **Canonical worlds** — stories reference the one live world: edit it and future pages follow; world-changing events persist because you decide when they happen. Characters are the opposite — stories hold their own mutable copies
+- **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references
 - **Per-story tone setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+)
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — models that can reason before writing expose a reasoning level (low/medium/high) in Settings, with room in the token budget to think
-- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker
+- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, **not a guarantee** (see the warning above; cap your key)
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
 - **EPUB export** — download the full story as a valid EPUB e-book
 - **Read-only history** — earlier pages can't be edited; "delete everything after this page" trims the tale with a slide-to-confirm burn
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 166 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 208 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -34,7 +45,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 166 Jest tests (92 backend + 74 frontend) pass on-device under Termux
+- All 208 Jest tests (115 backend + 93 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -81,7 +92,7 @@ npm start               # http://localhost:3000
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OPENROUTER_API_KEY` | — | **Required** for AI generation |
+| `OPENROUTER_API_KEY` | — | **Required** for AI generation. Use a **dedicated key with a hard spend limit** — the app meters costs in good faith but cannot guarantee them |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible endpoint |
 | `OPENROUTER_MODEL` | `z-ai/glm-5.1` | Model used for pages |
 | `PORT` | `3000` | Server port (app + API together) |
@@ -90,6 +101,8 @@ npm start               # http://localhost:3000
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |
 | `AI_TIMEOUT_MS` | `120000` | Per-request AI timeout
+| `IMAGE_MODEL` | `x-ai/grok-imagine-image-2.0` | Image model for reference portraits and scene paintings
+| `IMAGE_TIMEOUT_MS` | `180000` | Per-request image generation timeout
 | `CONTEXT_WINDOW` | `5` | Recent pages sent verbatim to the AI |
 
 ## How It Works
@@ -111,13 +124,14 @@ scribe-tribe/
 │   │   ├── ai.js          # OpenAI-compatible client with retry/backoff + model catalog
 │   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
 │   │   ├── epub.js        # dependency-free EPUB/ZIP writer
-│   └── tests/             # Jest + supertest (92 tests)
+│   │   ├── images.js     # OpenRouter Image API client (Grok Imagine) + disk store
+│   └── tests/             # Jest + supertest (115 tests)
 ├── frontend/
 │   ├── index.html         # gothic UI + catgirl scribe SVG
 │   ├── styles.css
 │   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
 │   ├── brand/             # production art assets (WebP + SVG)
-│   └── tests/             # Jest + jsdom (74 tests)
+│   └── tests/             # Jest + jsdom (93 tests)
 ├── e2e/                   # Playwright browser tests (chromium + mobile)
 ├── database/              # SQLite file lives here (gitignored)
 ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
@@ -145,6 +159,10 @@ scribe-tribe/
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
 | POST | `/api/stories/:id/pages/preview` | Silently prepare the next page (no direction, nothing saved) |
 | POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
+| POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
+| POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits attached as identity references) |
+| GET/POST | `/api/characters/:id/image` | Fetch the reference portrait / regenerate it in the background |
+| GET/POST | `/api/worlds/:id/image` | Fetch the world scene / regenerate it in the background |
 | GET | `/api/stories/:id/export` | Download the full story as an EPUB |
 | GET | `/api/models` | OpenRouter model catalog with pricing (for the settings picker) |
 | POST | `/api/ai/world` | Flesh out a world from seeds (short/medium/long) |
@@ -158,7 +176,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 ## Testing
 
 ```bash
-npm test             # backend (92) + frontend (74) Jest suites — runs on Termux too
+npm test             # backend (115) + frontend (93) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers

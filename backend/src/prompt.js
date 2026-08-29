@@ -87,6 +87,7 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
     parts.push(
       `WORLD SETTING:\nName: ${world.name}\nDescription: ${world.description || '(none)'}\nGenre: ${world.genre || '(any)'}\nSetting: ${world.setting || '(any)'}`
     );
+    if (world.lore) parts.push(`LOREBOOK (canonical facts of this world - honor them):\n${world.lore}`);
   }
 
   const castParts = castSections(characters || [], { withIds: true });
@@ -121,4 +122,105 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
   return parts.join('\n\n');
 }
 
-module.exports = { buildPrompt, CONTEXT_WINDOW, TONE_INSTRUCTIONS, castSections, stateUpdateInstruction };
+// What each story tone permits in a *visual* rendering of a scene.
+const IMAGE_TONE_INSTRUCTIONS = {
+  'fade-to-black':
+    'This story keeps things tasteful and the image must too: NEVER depict sex scenes, nudity, or gory/graphic battles. ' +
+    'Render such moments obliquely - aftermath, charged stillness, silhouettes, smoke, implied intensity. Nothing explicit.',
+  romantic:
+    'This story may be sensual: the image may carry romantic, sensual mood - closeness, longing, artful bared skin - ' +
+    'but no explicit imagery.',
+  explicit:
+    'This story is intended for adults (18+): the image may be explicit if the scene calls for it - ' +
+    'nudity and graphic moments are permitted. All characters are adults.',
+};
+
+function buildImagePrompt({ story, world, characters, pages }) {
+  const parts = [];
+  parts.push('You are an art director translating a written scene into a single prompt for an image-generation AI.');
+  parts.push(`CONTENT RULES: ${IMAGE_TONE_INSTRUCTIONS[story.tone] || IMAGE_TONE_INSTRUCTIONS['fade-to-black']}`);
+
+  if (world) {
+    parts.push(
+      `WORLD (sets the overall tone, palette and atmosphere of the image):\n` +
+        `Name: ${world.name}\nDescription: ${world.description || '(none)'}\n` +
+        `Genre: ${world.genre || '(any)'}\nSetting: ${world.setting || '(any)'}`
+    );
+    if (world.lore) parts.push(`LOREBOOK:\n${world.lore}`);
+  }
+
+  const castParts = castSections(characters || []);
+  if (castParts.length > 0) {
+    parts.push(...castParts);
+    parts.push(
+      'Cast appearance notes above reflect how the story has reshaped each character so far. ' +
+        'Describe only the characters actually present in the scene to illustrate, AS THEY ARE IN THIS MOMENT: ' +
+        'what is happening on the final page changes how they look - a burning character is on fire, ' +
+        'an undressed character is undressed, a wounded character is wounded.'
+    );
+  }
+
+  const includedPages = (pages && pages.included) || [];
+  if (includedPages.length > 0) {
+    const omitted = (pages.total || 0) - includedPages.length;
+    let context = 'PREVIOUS PAGES (context for environment and events):\n';
+    if (omitted > 0) {
+      context += `[... ${omitted} earlier page(s) omitted for brevity. The tale so far began with: "${pages.firstContent}" ...]\n`;
+    }
+    context += includedPages.map((p) => `Page ${p.page_number}:\n${p.content}`).join('\n\n');
+    parts.push(context);
+  }
+
+  parts.push(
+    'THE SCENE TO ILLUSTRATE is the final page above. Condense everything into ONE image-generation prompt: ' +
+      'the world\'s overall tone, the environment as it stands at this moment, the composition and framing of the shot, ' +
+      'and each character present with their appearance exactly as the scene has left them. ' +
+      'Aim for 80-160 words of plain descriptive prose, ready to paste into an image generator. ' +
+      'Output ONLY the prompt text - no titles, no explanations, no markdown.'
+  );
+  return parts.join('\n\n');
+}
+
+// A character reference portrait: one figure, plain backdrop, reusable as an
+// identity reference for later scene illustrations.
+function buildCharacterImagePrompt(character) {
+  const lines = [
+    'Single-character reference portrait for an illustrated storybook: one figure, full body, standing, facing the viewer.',
+    `Character: ${character.name}.`,
+    `Description: ${character.description || '(unspecified)'}`,
+  ];
+  if (character.appearance) lines.push(`Appearance: ${character.appearance}`);
+  if (character.personality) lines.push(`Personality (let it shape posture and expression): ${character.personality}`);
+  if (character.background) lines.push(`Background hints (era, clothing, worn gear): ${character.background}`);
+  lines.push(
+    'Plain neutral background, soft even light. Only this character - no other people, no creatures, no text, no captions, no watermark.'
+  );
+  return lines.join('\n');
+}
+
+// A world reference image: a still, EMPTY place. The cast never appears here.
+function buildWorldImagePrompt(world) {
+  const lines = [
+    'Empty establishing-shot environment for an illustrated storybook world: a still, unpopulated place.',
+    'STRICTLY NO people, no humanoids, no creatures, no monsters, no animals, no motion, no action - the scene itself only.',
+    `World: ${world.name}.`,
+  ];
+  if (world.description) lines.push(`Description: ${world.description}`);
+  if (world.genre) lines.push(`Genre: ${world.genre}`);
+  if (world.setting) lines.push(`Setting: ${world.setting}`);
+  if (world.lore) lines.push(`Lore (places and atmosphere only - still no people, no creatures): ${world.lore}`);
+  lines.push('No text, no captions, no watermark.');
+  return lines.join('\n');
+}
+
+module.exports = {
+  buildPrompt,
+  buildImagePrompt,
+  buildCharacterImagePrompt,
+  buildWorldImagePrompt,
+  CONTEXT_WINDOW,
+  TONE_INSTRUCTIONS,
+  IMAGE_TONE_INSTRUCTIONS,
+  castSections,
+  stateUpdateInstruction,
+};

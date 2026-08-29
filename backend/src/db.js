@@ -11,6 +11,10 @@ CREATE TABLE IF NOT EXISTS worlds (
   description TEXT,
   genre TEXT,
   setting TEXT,
+  image_status TEXT NOT NULL DEFAULT 'none',
+  image_media_type TEXT,
+  image_cost_usd REAL,
+  image_updated_at TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -23,6 +27,10 @@ CREATE TABLE IF NOT EXISTS characters (
   appearance TEXT,
   background TEXT,
   world_id TEXT REFERENCES worlds (id),
+  image_status TEXT NOT NULL DEFAULT 'none',
+  image_media_type TEXT,
+  image_cost_usd REAL,
+  image_updated_at TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -85,6 +93,17 @@ function createDb(dbPath) {
   ensureColumn(db, 'story_pages', 'prompt_tokens', 'prompt_tokens INTEGER');
   ensureColumn(db, 'story_pages', 'completion_tokens', 'completion_tokens INTEGER');
   ensureColumn(db, 'story_pages', 'cost_usd', 'cost_usd REAL');
+  // v4: reference images for characters & worlds (generated in the background)
+  for (const table of ['characters', 'worlds']) {
+    ensureColumn(db, table, 'image_status', "image_status TEXT NOT NULL DEFAULT 'none'");
+    ensureColumn(db, table, 'image_media_type', 'image_media_type TEXT');
+    ensureColumn(db, table, 'image_cost_usd', 'image_cost_usd REAL');
+    ensureColumn(db, table, 'image_updated_at', 'image_updated_at TEXT');
+  }
+  // v5: editable image blurbs + world lorebooks (kept out of creation forms by design)
+  ensureColumn(db, 'worlds', 'lore', 'lore TEXT');
+  ensureColumn(db, 'worlds', 'image_prompt', 'image_prompt TEXT');
+  ensureColumn(db, 'characters', 'image_prompt', 'image_prompt TEXT');
   return db;
 }
 

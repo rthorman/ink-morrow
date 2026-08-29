@@ -5,7 +5,14 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { buildEpub } = require('./epub');
-const { buildPrompt, CONTEXT_WINDOW } = require('./prompt');
+const { generateImage, createImageStore } = require('./images');
+const {
+  buildPrompt,
+  buildImagePrompt,
+  buildCharacterImagePrompt,
+  buildWorldImagePrompt,
+  CONTEXT_WINDOW,
+} = require('./prompt');
 
 const TONES = ['fade-to-black', 'romantic', 'explicit'];
 
@@ -56,7 +63,10 @@ function notFound(res, message) {
 // App factory - injectable db so tests never touch the real database
 // ---------------------------------------------------------------------------
 
-function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = {}) {
+function createApp(
+  db,
+  { staticDir = path.join(__dirname, '../../frontend'), imageDir = path.join(__dirname, '../../database/images') } = {}
+) {
   const app = express();
   app.disable('x-powered-by');
   app.use(express.json({ limit: '1mb' }));
@@ -125,6 +135,120 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     return { cast };
   }
 
+  // -- reference images (characters & worlds) -------------------------------
+  // Generated in the background through a sequential queue: creation
+  // responds instantly, the portrait/scene lands when the model finishes.
+
+  const imageStore = createImageStore(imageDir);
+  const imageQueue = [];
+  const imageInFlight = new Set(); // 'character:<id>' keys being generated
+  let imageWorking = false;
+  // Auto-generation (creation + boot backfill) can be silenced in tests so it
+  // never steals mocked upstream calls; explicit redo always works.
+  const autoImagesEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_BACKGROUND_IMAGES === '1';
+
+  const tableFor = (kind) => (kind === 'world' ? 'worlds' : 'characters');
+
+  function enqueueEntityImage(kind, id, { auto = false } = {}) {
+    if (auto && !autoImagesEnabled) return;
+    const key = kind + ':' + id;
+    if (imageInFlight.has(key)) return; // already queued or generating
+    const table = tableFor(kind);
+    const row = db.prepare('SELECT image_status FROM ' + table + ' WHERE id = ?').get(id);
+    if (!row) return;
+    if (row.image_status === 'pending' || imageInFlight.has(key)) return;
+    imageInFlight.add(key);
+    db.prepare('UPDATE ' + table + " SET image_status = 'pending' WHERE id = ?").run(id);
+    imageQueue.push({ kind, id });
+    drainImageQueue();
+  }
+
+  async function drainImageQueue() {
+    if (imageWorking) return;
+    imageWorking = true;
+    try {
+      while (imageQueue.length > 0) {
+        const { kind, id } = imageQueue.shift();
+        const key = kind + ':' + id;
+        const table = tableFor(kind);
+        try {
+          const row = db.prepare('SELECT * FROM ' + table + ' WHERE id = ?').get(id);
+          if (!row) continue; // deleted while queued
+          // An edited blurb overrides the auto-composed one
+          const prompt =
+            row.image_prompt && row.image_prompt.trim()
+              ? row.image_prompt
+              : kind === 'world'
+                ? buildWorldImagePrompt(row)
+                : buildCharacterImagePrompt(row);
+          const result = await generateImage({
+            prompt,
+            // Characters are reused as identity references, worlds set mood:
+            quality: kind === 'world' ? 'low' : 'medium',
+            resolution: '1K',
+            aspectRatio: '3:4',
+          });
+          imageStore.writeImage(kind, id, result.buffer, result.mediaType);
+          db.prepare(
+            'UPDATE ' + table + " SET image_status = 'ready', image_media_type = ?, image_cost_usd = ?, image_updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+          ).run(result.mediaType, result.cost, id);
+        } catch (error) {
+          db.prepare(
+            'UPDATE ' + table + " SET image_status = 'failed', image_updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+          ).run(id);
+          console.error(`Reference image (${kind} ${id}) failed:`, error.message);
+        } finally {
+          imageInFlight.delete(key);
+        }
+      }
+    } finally {
+      imageWorking = false;
+    }
+  }
+
+  function serveEntityImage(kind, req, res) {
+    const table = tableFor(kind);
+    const row = db.prepare('SELECT * FROM ' + table + ' WHERE id = ?').get(req.params.id);
+    if (!row) return notFound(res, 'Not found');
+    if (row.image_status !== 'ready') {
+      return res.status(404).json({ error: kind === 'world' ? 'World has no image yet.' : 'Character has no image yet.' });
+    }
+    const image = imageStore.readImage(kind, row.id);
+    if (!image) return notFound(res, 'Image file is missing');
+    res.setHeader('Content-Type', image.mediaType);
+    res.setHeader('Cache-Control', 'no-cache');
+    return res.send(image.buffer);
+  }
+
+  app.get('/api/worlds/:id/image', (req, res) => serveEntityImage('world', req, res));
+  app.post('/api/worlds/:id/image', (req, res) => {
+    const world = getWorld(req.params.id);
+    if (!world) return notFound(res, 'World not found');
+    enqueueEntityImage('world', world.id);
+    return res.json({ image_status: 'pending' });
+  });
+
+  app.get('/api/characters/:id/image', (req, res) => serveEntityImage('character', req, res));
+  app.post('/api/characters/:id/image', (req, res) => {
+    const character = getCharacter(req.params.id);
+    if (!character) return notFound(res, 'Character not found');
+    enqueueEntityImage('character', character.id);
+    return res.json({ image_status: 'pending' });
+  });
+
+  // Backfill: existing entities get their reference image in the background
+  // as soon as the server boots with an API key configured.
+  if (process.env.OPENROUTER_API_KEY && autoImagesEnabled) {
+    for (const row of db
+      .prepare("SELECT id FROM characters WHERE image_status IS NULL OR image_status = 'none'")
+      .all()) {
+      enqueueEntityImage('character', row.id);
+    }
+    for (const row of db.prepare("SELECT id FROM worlds WHERE image_status IS NULL OR image_status = 'none'").all()) {
+      enqueueEntityImage('world', row.id);
+    }
+  }
+
   // -- worlds --------------------------------------------------------------
 
   app.get('/api/worlds', (req, res) => {
@@ -149,6 +273,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     db.prepare('INSERT INTO worlds (id, name, description, genre, setting) VALUES (?, ?, ?, ?, ?)').run(
       id, name, description, genre, setting
     );
+    enqueueEntityImage('world', id, { auto: true }); // reference image in the background
     res.status(201).json({ world: getWorld(id) });
   });
 
@@ -161,11 +286,17 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     const description = req.body.description === undefined ? world.description : optionalText(req.body.description);
     const genre = req.body.genre === undefined ? world.genre : optionalText(req.body.genre, { max: 100 });
     const setting = req.body.setting === undefined ? world.setting : optionalText(req.body.setting, { max: 200 });
-    if ([description, genre, setting].includes(undefined)) return badRequest(res, 'World fields must be text');
+    // The lorebook lives here, deliberately out of the creation form.
+    const lore = req.body.lore === undefined ? world.lore : optionalText(req.body.lore, { max: 20000 });
+    // Editable blurb sent to the image generator (empty = auto-composed)
+    const imagePrompt = req.body.image_prompt === undefined ? world.image_prompt : optionalText(req.body.image_prompt, { max: 2000 });
+    if ([description, genre, setting, lore, imagePrompt].includes(undefined)) {
+      return badRequest(res, 'World fields must be text');
+    }
 
     db.prepare(
-      'UPDATE worlds SET name = ?, description = ?, genre = ?, setting = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(name, description, genre, setting, world.id);
+      'UPDATE worlds SET name = ?, description = ?, genre = ?, setting = ?, lore = ?, image_prompt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(name, description, genre, setting, lore, imagePrompt, world.id);
     res.json({ world: getWorld(world.id) });
   });
 
@@ -180,6 +311,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       });
     }
     db.prepare('DELETE FROM worlds WHERE id = ?').run(world.id);
+    imageStore.deleteImage('world', world.id); // never leave orphans
     res.status(204).end();
   });
 
@@ -214,6 +346,13 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       fields[key] = value;
     }
 
+    // Editable blurb sent to the image generator (empty = auto-composed)
+    const imagePrompt = body.image_prompt === undefined
+      ? (partial ? existing.image_prompt : null)
+      : optionalText(body.image_prompt, { max: 2000 });
+    if (imagePrompt === undefined) return { error: '"image_prompt" must be text' };
+    fields.image_prompt = imagePrompt;
+
     let world_id = existing ? existing.world_id : null;
     if (body.world_id !== undefined) {
       world_id = body.world_id === null || body.world_id === '' ? null : asString(body.world_id);
@@ -232,6 +371,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     db.prepare(
       'INSERT INTO characters (id, name, description, personality, appearance, background, world_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).run(id, payload.name, payload.description, payload.personality, payload.appearance, payload.background, payload.world_id);
+    enqueueEntityImage('character', id, { auto: true }); // reference portrait in the background
     res.status(201).json({ character: getCharacter(id) });
   });
 
@@ -241,8 +381,8 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     const payload = validateCharacterPayload(req.body, { partial: true, existing: character });
     if (payload.error) return badRequest(res, payload.error);
     db.prepare(
-      'UPDATE characters SET name = ?, description = ?, personality = ?, appearance = ?, background = ?, world_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(payload.name, payload.description, payload.personality, payload.appearance, payload.background, payload.world_id, character.id);
+      'UPDATE characters SET name = ?, description = ?, personality = ?, appearance = ?, background = ?, world_id = ?, image_prompt = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+    ).run(payload.name, payload.description, payload.personality, payload.appearance, payload.background, payload.world_id, payload.image_prompt, character.id);
     res.json({ character: getCharacter(character.id) });
   });
 
@@ -260,6 +400,7 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       }
     }
     db.prepare('DELETE FROM characters WHERE id = ?').run(character.id);
+    imageStore.deleteImage('character', character.id); // never leave orphans
     res.status(204).end();
   });
 
@@ -401,15 +542,19 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
     return words * 2 + 250;
   }
 
-  function loadContext(story, { excludeLast = false } = {}) {
-    const world = story.world_id ? getWorld(story.world_id) : null;
+  function castCharacters(story) {
     const cast = normalizeCast(JSON.parse(story.characters || '[]'));
-    const characters = cast
+    return cast
       .map((entry) => {
         const character = getCharacter(entry.id);
         return character ? { ...character, role: entry.role, relation: entry.relation, state: entry.state } : null;
       })
       .filter(Boolean);
+  }
+
+  function loadContext(story, { excludeLast = false } = {}) {
+    const world = story.world_id ? getWorld(story.world_id) : null;
+    const characters = castCharacters(story);
     const allPages = storyPages(story.id);
     if (excludeLast) allPages.pop();
     const included = allPages.slice(-CONTEXT_WINDOW);
@@ -542,6 +687,95 @@ function createApp(db, { staticDir = path.join(__dirname, '../../frontend') } = 
       );
       invalidatePreview(story.id);
       res.json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(last.id) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Condense the current page (plus its predecessors), the world and the
+  // in-story cast state into a prompt an image-generation AI can consume.
+  app.post('/api/stories/:id/pages/:number/image-prompt', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const page = db
+        .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+        .get(story.id, parseInt(req.params.number, 10));
+      if (!page) return notFound(res, 'Page not found');
+
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
+
+      const world = story.world_id ? getWorld(story.world_id) : null;
+      const characters = castCharacters(story);
+      const allPages = storyPages(story.id);
+      const upto = allPages.slice(0, allPages.findIndex((p) => p.page_number === page.page_number) + 1);
+      const pages = {
+        total: upto.length,
+        included: upto.slice(-CONTEXT_WINDOW),
+        firstContent: upto.length > 0 ? upto[0].content.slice(0, 500) : null,
+      };
+
+      const result = await chatCompletion(
+        [
+          { role: 'system', content: 'You are a precise, disciplined art director.' },
+          { role: 'user', content: buildImagePrompt({ story, world, characters, pages }) },
+        ],
+        { model: modelOverride || undefined, reasoningEffort, maxTokens: 800 }
+      );
+      res.json({ prompt: String(result.content || '').trim() });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Render the scene as an actual image: the (user-editable, tone-honoring)
+  // prompt from above drives generation, while the cast's reference portraits
+  // ride along as identity references (the story's current cast, so refs track
+  // whatever the story has done to them).
+  app.post('/api/stories/:id/pages/:number/scene-image', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const page = db
+        .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+        .get(story.id, parseInt(req.params.number, 10));
+      if (!page) return notFound(res, 'Page not found');
+      const prompt = optionalText(req.body.prompt, { max: 4000 });
+      if (!prompt) return badRequest(res, '"prompt" is required (use the condensed scene prompt)');
+
+      // Identity references: MC first, then supporting cast, then background.
+      const cast = castCharacters(story)
+        .sort((a, b) => {
+          const rank = (c) => (c.role === 'mc' ? 0 : c.role === 'supporting' ? 1 : 2);
+          return rank(a) - rank(b);
+        })
+        .map((c) => ({ id: c.id, name: c.name, status: c.image_status }))
+        .filter((c) => c.status === 'ready')
+        .slice(0, 3);
+      const inputReferences = [];
+      const resolvedReferences = [];
+      for (const c of cast) {
+        const url = imageStore.base64Reference('character', c.id);
+        if (!url) continue; // ready status but the file is gone (legacy copy): skip gracefully
+        inputReferences.push({ type: 'image_url', image_url: { url } });
+        resolvedReferences.push(c.id);
+      }
+
+      const result = await generateImage({
+        prompt,
+        aspectRatio: '2:3', // book-plate portrait
+        resolution: '1K',
+        quality: 'medium',
+        inputReferences,
+      });
+      res.json({
+        image: result.buffer.toString('base64'),
+        media_type: result.mediaType,
+        cost_usd: result.cost,
+        references: resolvedReferences,
+      });
     } catch (error) {
       next(error);
     }

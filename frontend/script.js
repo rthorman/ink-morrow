@@ -169,6 +169,46 @@ function addCost(costUsd) {
   updateCostTicker();
 }
 
+// Reference-image costs are booked exactly once per generation (per entity +
+// image_updated_at), whenever the session observes the finished image.
+const chargedImages = new Set();
+
+function chargeEntityImageCosts(rows, kind) {
+  for (const row of rows || []) {
+    if (row.image_status !== 'ready' || typeof row.image_cost_usd !== 'number') continue;
+    const key = `${kind}/${row.id}@${row.image_updated_at}`;
+    if (chargedImages.has(key)) continue;
+    chargedImages.add(key);
+    addSessionCost(row.image_cost_usd);
+  }
+}
+
+// While portraits/scenes are being painted in the background, refresh the
+// lists until every pending brush has landed.
+let imagePollTimer = null;
+
+function anyImagePending() {
+  return [...worlds, ...characters].some((r) => r.image_status === 'pending');
+}
+
+function scheduleImagePolling() {
+  if (imagePollTimer || !anyImagePending()) return;
+  imagePollTimer = setInterval(async () => {
+    if (!anyImagePending()) {
+      stopImagePolling();
+      return;
+    }
+    await Promise.all([loadWorlds(), loadCharacters()]);
+  }, 4000);
+}
+
+function stopImagePolling() {
+  if (imagePollTimer) {
+    clearInterval(imagePollTimer);
+    imagePollTimer = null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Speculative next-page preparation
 // ---------------------------------------------------------------------------
@@ -413,6 +453,8 @@ function initApp() {
   initBurnModal();
   initAiDrafts();
   initNarration();
+  initImagePrompt();
+  initEntityEditors();
 
   initAgeGate();
 
@@ -534,10 +576,209 @@ async function loadWorlds() {
   try {
     const data = await apiCall('/worlds');
     worlds = data.worlds || [];
+    chargeEntityImageCosts(worlds, 'world');
     renderWorlds();
     updateWorldSelects();
+    scheduleImagePolling();
   } catch (error) {
     showError(error.message);
+  }
+}
+
+// Reference image block for entity cards: the painted image (or its
+// placeholder) plus a redo button that regenerates in the background.
+// A "ready" image whose file has gone missing (legacy copies) degrades to
+// the failed placeholder instead of a broken image.
+function entityImageBlock(kind, row, altText) {
+  const wrap = document.createElement('div');
+  wrap.className = 'card-image-wrap';
+  if (row.image_status === 'ready') {
+    const img = document.createElement('img');
+    img.className = 'card-image';
+    img.src = `/api/${kind === 'world' ? 'worlds' : 'characters'}/${row.id}/image`;
+    img.alt = altText;
+    img.addEventListener('error', () => {
+      const missing = document.createElement('div');
+      missing.className = 'card-image card-image--failed';
+      missing.textContent = 'The painting is missing.';
+      if (img.parentNode) img.parentNode.replaceChild(missing, img);
+    });
+    wrap.appendChild(img);
+  } else if (row.image_status === 'pending') {
+    const pending = document.createElement('div');
+    pending.className = 'card-image card-image--pending';
+    pending.textContent = kind === 'world' ? 'The scene is being painted…' : 'The portrait is being painted…';
+    wrap.appendChild(pending);
+  } else if (row.image_status === 'failed') {
+    const failed = document.createElement('div');
+    failed.className = 'card-image card-image--failed';
+    failed.textContent = 'The painting failed.';
+    wrap.appendChild(failed);
+  }
+  const redo = document.createElement('button');
+  redo.type = 'button';
+  redo.className = 'card-image-redo';
+  redo.textContent = row.image_status === 'ready' ? '↻ Redo image' : '↻ Paint image';
+  redo.addEventListener('click', async () => {
+    redo.disabled = true;
+    try {
+      await apiCall(`/${kind === 'world' ? 'worlds' : 'characters'}/${row.id}/image`, 'POST');
+      if (kind === 'world') loadWorlds();
+      else loadCharacters();
+    } catch (error) {
+      showError(error.message);
+      redo.disabled = false;
+    }
+  });
+  wrap.appendChild(redo);
+  return wrap;
+}
+
+// ---------------------------------------------------------------------------
+// Entity editors: click a card to edit it. Plain fields only - no AI assists
+// here; the image generator gets whatever blurb the user writes.
+// ---------------------------------------------------------------------------
+
+let editingCharacterId = null;
+let editingWorldId = null;
+
+function openCharacterEditor(character) {
+  const modal = document.getElementById('characterEditorModal');
+  if (!modal) return;
+  editingCharacterId = character.id;
+  document.getElementById('charEditName').value = character.name || '';
+  document.getElementById('charEditDescription').value = character.description || '';
+  document.getElementById('charEditPersonality').value = character.personality || '';
+  document.getElementById('charEditAppearance').value = character.appearance || '';
+  document.getElementById('charEditBackground').value = character.background || '';
+  document.getElementById('charEditImagePrompt').value = character.image_prompt || '';
+  modal.hidden = false;
+  document.getElementById('charEditName').focus();
+}
+
+function closeCharacterEditor() {
+  const modal = document.getElementById('characterEditorModal');
+  if (modal) modal.hidden = true;
+  editingCharacterId = null;
+}
+
+async function saveCharacterEditor() {
+  if (!editingCharacterId) return false;
+  await apiCall(`/characters/${editingCharacterId}`, 'PUT', {
+    name: document.getElementById('charEditName').value,
+    description: document.getElementById('charEditDescription').value,
+    personality: document.getElementById('charEditPersonality').value,
+    appearance: document.getElementById('charEditAppearance').value,
+    background: document.getElementById('charEditBackground').value,
+    image_prompt: document.getElementById('charEditImagePrompt').value,
+  });
+  closeCharacterEditor();
+  await loadCharacters();
+  showSuccess('Character saved.');
+  return true;
+}
+
+function openWorldEditor(world) {
+  const modal = document.getElementById('worldEditorModal');
+  if (!modal) return;
+  editingWorldId = world.id;
+  document.getElementById('worldEditName').value = world.name || '';
+  document.getElementById('worldEditDescription').value = world.description || '';
+  document.getElementById('worldEditGenre').value = world.genre || '';
+  document.getElementById('worldEditSetting').value = world.setting || '';
+  document.getElementById('worldEditLore').value = world.lore || '';
+  document.getElementById('worldEditImagePrompt').value = world.image_prompt || '';
+  modal.hidden = false;
+  document.getElementById('worldEditName').focus();
+}
+
+function closeWorldEditor() {
+  const modal = document.getElementById('worldEditorModal');
+  if (modal) modal.hidden = true;
+  editingWorldId = null;
+}
+
+async function saveWorldEditor() {
+  if (!editingWorldId) return false;
+  await apiCall(`/worlds/${editingWorldId}`, 'PUT', {
+    name: document.getElementById('worldEditName').value,
+    description: document.getElementById('worldEditDescription').value,
+    genre: document.getElementById('worldEditGenre').value,
+    setting: document.getElementById('worldEditSetting').value,
+    lore: document.getElementById('worldEditLore').value,
+    image_prompt: document.getElementById('worldEditImagePrompt').value,
+  });
+  closeWorldEditor();
+  // Worlds are canonical: stories keep using this very world, so every
+  // list that shows it (or its name) refreshes.
+  await Promise.all([loadWorlds(), loadCharacters(), loadStories()]);
+  showSuccess('World saved.');
+  return true;
+}
+
+function initEntityEditors() {
+  const characterForm = document.getElementById('characterEditorForm');
+  if (characterForm) {
+    characterForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveCharacterEditor().catch((error) => showError(error.message));
+    });
+  }
+  const characterRedo = document.getElementById('charEditRedoImageBtn');
+  if (characterRedo) {
+    characterRedo.addEventListener('click', () => {
+      (async () => {
+        const id = editingCharacterId;
+        if (!id) return;
+        try {
+          await saveCharacterEditor(); // saves the fields (incl. the blurb) first
+          await apiCall(`/characters/${id}/image`, 'POST');
+          await loadCharacters();
+          showSuccess('A new portrait is being painted.');
+        } catch (error) {
+          showError(error.message);
+        }
+      })();
+    });
+  }
+  const worldRedo = document.getElementById('worldEditRedoImageBtn');
+  if (worldRedo) {
+    worldRedo.addEventListener('click', () => {
+      (async () => {
+        const id = editingWorldId;
+        if (!id) return;
+        try {
+          await saveWorldEditor(); // saves the fields (incl. the blurb) first
+          await apiCall(`/worlds/${id}/image`, 'POST');
+          await loadWorlds();
+          showSuccess('A new scene is being painted.');
+        } catch (error) {
+          showError(error.message);
+        }
+      })();
+    });
+  }
+  const worldForm = document.getElementById('worldEditorForm');
+  if (worldForm) {
+    worldForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      saveWorldEditor().catch((error) => showError(error.message));
+    });
+  }
+  for (const [cancelId, closeFn, modalId] of [
+    ['charEditCancelBtn', closeCharacterEditor, 'characterEditorModal'],
+    ['worldEditCancelBtn', closeWorldEditor, 'worldEditorModal'],
+  ]) {
+    const cancel = document.getElementById(cancelId);
+    const modal = document.getElementById(modalId);
+    if (!cancel || !modal) continue;
+    cancel.addEventListener('click', () => closeFn());
+    modal.addEventListener('click', (event) => {
+      if (event.target === modal) closeFn();
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !modal.hidden) closeFn();
+    });
   }
 }
 
@@ -582,7 +823,11 @@ function renderWorlds() {
       }
     });
 
-    card.append(title, desc, meta, del);
+    card.append(title, entityImageBlock('world', world, `Reference scene for the world ${world.name}`), desc, meta, del);
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return; // buttons keep their own jobs
+      openWorldEditor(world);
+    });
     container.appendChild(card);
   });
 }
@@ -631,8 +876,10 @@ async function loadCharacters() {
   try {
     const data = await apiCall('/characters');
     characters = data.characters || [];
+    chargeEntityImageCosts(characters, 'character');
     renderCharacters();
     renderCastBuilder();
+    scheduleImagePolling();
   } catch (error) {
     showError(error.message);
   }
@@ -679,7 +926,11 @@ function renderCharacters() {
       }
     });
 
-    card.append(title, desc, meta, del);
+    card.append(title, entityImageBlock('character', character, `Reference portrait of ${character.name}`), desc, meta, del);
+    card.addEventListener('click', (event) => {
+      if (event.target.closest('button')) return; // buttons keep their own jobs
+      openCharacterEditor(character);
+    });
     container.appendChild(card);
   });
 }
@@ -1835,6 +2086,112 @@ async function burnAfterCurrentPage() {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Scene image prompt: condense the current page into an image-gen prompt
+// ---------------------------------------------------------------------------
+
+const IMAGE_PROMPT_BUTTON_LABEL = 'Scene image';
+
+// Paint the scene for real: the (user-edited) prompt drives Grok Imagine
+// through OpenRouter, with the cast's reference portraits riding along as
+// identity references. The bill lands in both the session and the story.
+async function generateSceneImage() {
+  if (!currentStory || currentPage < 1 || currentPage > storyPages.length) {
+    showError('Select a page to illustrate first.');
+    return;
+  }
+  const box = document.getElementById('imagePromptText');
+  const btn = document.getElementById('imagePromptGenerateBtn');
+  const img = document.getElementById('sceneImageResult');
+  const costEl = document.getElementById('sceneImageCost');
+  if (!box || !btn || !img) return;
+  const prompt = box.value.trim();
+  if (!prompt) {
+    showError('The prompt box is empty — condense the scene first.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Painting…';
+  img.hidden = true;
+  img.removeAttribute('src');
+  if (costEl) costEl.hidden = true;
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/scene-image`, 'POST', { prompt });
+    img.src = `data:${data.media_type};base64,${data.image}`;
+    img.hidden = false;
+    if (costEl) {
+      if (typeof data.cost_usd === 'number') {
+        const refs = Array.isArray(data.references) ? data.references.length : 0;
+        costEl.textContent =
+          `This painting cost ${formatUsd(data.cost_usd)}` +
+          (refs > 0 ? ` · ${refs} cast portrait${refs > 1 ? 's' : ''} as reference${refs > 1 ? 's' : ''}` : '');
+        costEl.hidden = false;
+        addCost(data.cost_usd); // scene images belong to the tale: session + story
+      }
+    }
+  } catch (error) {
+    showError(scribeErrorMessage(error.message));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate image';
+  }
+}
+
+async function generateImagePrompt() {
+  if (!currentStory || currentPage < 1 || currentPage > storyPages.length) {
+    showError('Select a page to illustrate first.');
+    return;
+  }
+  const btn = document.getElementById('imagePromptBtn');
+  const modal = document.getElementById('imagePromptModal');
+  const box = document.getElementById('imagePromptText');
+  if (!modal || !box) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Thinking…';
+  }
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-prompt`, 'POST', {
+      ...(settings.model ? { model: settings.model } : {}),
+      ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+    });
+    box.value = data.prompt || '';
+    const img = document.getElementById('sceneImageResult');
+    if (img) {
+      img.hidden = true;
+      img.removeAttribute('src');
+    }
+    const costEl = document.getElementById('sceneImageCost');
+    if (costEl) costEl.hidden = true;
+    modal.hidden = false;
+    box.focus();
+  } catch (error) {
+    showError(scribeErrorMessage(error.message));
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = IMAGE_PROMPT_BUTTON_LABEL;
+    }
+  }
+}
+
+function initImagePrompt() {
+  const btn = document.getElementById('imagePromptBtn');
+  if (btn) btn.addEventListener('click', generateImagePrompt);
+  const generateBtn = document.getElementById('imagePromptGenerateBtn');
+  if (generateBtn) generateBtn.addEventListener('click', generateSceneImage);
+  const modal = document.getElementById('imagePromptModal');
+  const cancel = document.getElementById('imagePromptCancelBtn');
+  if (!modal || !cancel) return;
+  cancel.addEventListener('click', () => { modal.hidden = true; });
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) modal.hidden = true;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) modal.hidden = true;
+  });
+}
+
 function initBurnModal() {
   const modal = document.getElementById('burnModal');
   const slider = document.getElementById('burnSlider');
@@ -1932,6 +2289,14 @@ if (typeof module !== 'undefined' && module.exports) {
     renderNarrationSettings,
     __lastNarrationAudio: () => narrationAudio,
     __setModelsCache(models) { modelsCache = models; },
+    // Scene image prompt
+    generateImagePrompt,
+    generateSceneImage,
+    // Entity editors
+    openCharacterEditor,
+    saveCharacterEditor,
+    openWorldEditor,
+    saveWorldEditor,
     // Settings + cost ticker
     loadSettings,
     setSetting,

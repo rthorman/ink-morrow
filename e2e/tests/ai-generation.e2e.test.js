@@ -407,3 +407,71 @@ test.describe('Narration (read aloud)', () => {
     await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 8000 }); // tale exhausted
   });
 });
+
+// ---------------------------------------------------------------------------
+// Scene image prompt: condense the current page into an image-gen prompt
+// ---------------------------------------------------------------------------
+
+test.describe('Scene image prompt', () => {
+  test('condenses the current page into an editable popup, paints it, and books the cost', async ({ page }) => {
+    let promptCalls = 0;
+    let sceneCalls = 0;
+    await page.route('**/api/stories/*/pages/*/image-prompt', async (route) => {
+      promptCalls++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ prompt: 'A candlelit gothic hall, wide cinematic shot, frost on black stone.' }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/*/scene-image', async (route) => {
+      sceneCalls++;
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        // A real 1x1 PNG so the <img> element renders something valid
+        body: JSON.stringify({
+          image:
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          media_type: 'image/png',
+          cost_usd: 0.06,
+          references: [],
+        }),
+      });
+    });
+
+    const story = await createStoryViaUi(page, 'Image Prompt Test');
+    await page.request.post(`/api/stories/${story.id}/pages`, {
+      data: { content: 'The hall stood dark and cold.', user_input: null },
+    });
+    await page.selectOption('#currentStory', story.id); // reload with the page present
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
+
+    await page.locator('#imagePromptBtn').click();
+    await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#imagePromptText')).toHaveValue(
+      'A candlelit gothic hall, wide cinematic shot, frost on black stone.'
+    );
+    expect(promptCalls).toBe(1);
+
+    // Paint it: the edited prompt is sent, the image appears, the cost shows
+    await page.fill('#imagePromptText', 'A candlelit gothic hall, warmer light.');
+    await page.locator('#imagePromptGenerateBtn').click();
+    await expect(page.locator('#sceneImageResult')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#sceneImageCost')).toContainText('$0.0600');
+    expect(sceneCalls).toBe(1);
+    const sentBody = page.waitForRequest((request) => {
+      if (request.url().includes('/scene-image')) {
+        expect(JSON.parse(request.postData()).prompt).toBe('A candlelit gothic hall, warmer light.');
+        return true;
+      }
+      return false;
+    });
+    await page.locator('#imagePromptGenerateBtn').click(); // repaint with the same text
+    await sentBody;
+    await expect(page.locator('#sceneImageResult')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('#imagePromptCancelBtn').click();
+    await expect(page.locator('#imagePromptModal')).toBeHidden();
+  });
+});

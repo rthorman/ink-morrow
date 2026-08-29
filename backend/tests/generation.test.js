@@ -78,6 +78,29 @@ describe('POST /api/stories/:id/pages/generate', () => {
     expect(sent.max_tokens).toBeGreaterThanOrEqual(1500);
   });
 
+  it('feeds the canonical world lorebook into page generation as it evolves', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi();
+
+    const world = await createWorld(app, { name: 'Lore Realm' });
+    const story = await createStory(app, world.id, []);
+
+    await request(app).put(`/api/worlds/${world.id}`).send({ lore: 'The moon over Lore Realm never sets.' }).expect(200);
+    const first = await generatePage(story.id, 'Walk outside');
+    expect(first.status).toBe(201);
+    let prompt = axios.post.mock.calls[0][1].messages[1].content;
+    expect(prompt).toContain('LOREBOOK');
+    expect(prompt).toContain('The moon over Lore Realm never sets.');
+
+    // World edits are live: the canonical world, not a copy - later pages see changes
+    await request(app).put(`/api/worlds/${world.id}`).send({ lore: 'The moon finally set; ash now falls instead.' }).expect(200);
+    const second = await generatePage(story.id, 'Walk outside again');
+    expect(second.status).toBe(201);
+    prompt = axios.post.mock.calls[axios.post.mock.calls.length - 1][1].messages[1].content;
+    expect(prompt).toContain('ash now falls instead');
+    expect(prompt).not.toContain('The moon over Lore Realm never sets.');
+  });
+
   it('keeps tone instructions for non-explicit stories too', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     mockAi();

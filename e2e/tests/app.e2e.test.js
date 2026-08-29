@@ -68,6 +68,13 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#characterForm button[type="submit"]').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
 
+    // Every card carries reference-image controls (e2e key is a dummy, so
+    // the portrait itself fails; the UI must still show the state honestly)
+    const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
+    await expect(drifterCard.locator('.card-image-redo')).toBeVisible({ timeout: 5000 });
+    await drifterCard.locator('.card-image-redo').click();
+    await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
+
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
     await page.locator('#storiesBtn').click();
     await page.fill('#storyTitle', 'The Shadow and the Flame');
@@ -211,4 +218,48 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#aiDraftBody button', { hasText: 'Save as World' }).click();
     await expect(page.locator('#aiDraftModal')).toBeHidden();
     await expect(page.locator('#worldsList .item-card', { hasText: 'The Ashen Marches, Revised' })).toBeVisible({ timeout: 5000 });
+  });
+
+  test('edits a character through the card editor, no AI assists involved', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('.container');
+    await page.locator('#charactersBtn').click();
+    await page.fill('#characterName', 'Editable Soul');
+    await page.locator('#characterForm button[type="submit"]').click();
+    const card = page.locator('#charactersList .item-card', { hasText: 'Editable Soul' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await card.click(); // the card itself opens the editor
+    await expect(page.locator('#characterEditorModal')).toBeVisible();
+    await expect(page.locator('#charEditName')).toHaveValue('Editable Soul');
+    await page.fill('#charEditDescription', 'Rewritten by hand.');
+    await page.fill('#charEditImagePrompt', 'A lone figure in ink.');
+    await page.locator('#charEditSaveBtn').click();
+    await expect(page.locator('#characterEditorModal')).toBeHidden();
+    await expect(card).toContainText('Rewritten by hand.');
+
+    // The editor is plain fields only: exactly Save / Save & redo image / Cancel
+    expect(await page.locator('#characterEditorModal button').count()).toBe(3);
+  });
+
+  test('edits a world lorebook through the editor', async ({ page }) => {
+    await page.goto('/');
+    await page.waitForSelector('.container');
+    await page.locator('#worldsBtn').click();
+    await page.fill('#worldName', 'Lorebook Realm');
+    await page.locator('#worldForm button[type="submit"]').click();
+    const card = page.locator('#worldsList .item-card', { hasText: 'Lorebook Realm' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    await card.click();
+    await expect(page.locator('#worldEditorModal')).toBeVisible();
+    await page.fill('#worldEditLore', 'The twin moons chase each other forever.');
+    await page.locator('#worldEditSaveBtn').click();
+    await expect(page.locator('#worldEditorModal')).toBeHidden();
+
+    // The saved lore is still there when reopening the editor
+    await card.click();
+    await expect(page.locator('#worldEditLore')).toHaveValue('The twin moons chase each other forever.');
+    await page.locator('#worldEditCancelBtn').click();
+    await expect(page.locator('#worldEditorModal')).toBeHidden();
   });
