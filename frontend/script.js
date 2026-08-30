@@ -6,7 +6,6 @@
 
 const API_BASE_URL = '/api';
 
-const SCRIBE_IDLE = 'The scribe waits, quill at the ready…';
 const SCRIBE_FLAVOR = [
   'The quill dips into shadow-ink…',
   'Ink remembers. Give it a moment.',
@@ -1271,8 +1270,6 @@ function displayCurrentPage() {
   const retryBtn = document.getElementById('retryBtn');
   const deletePageBtn = document.getElementById('deletePageBtn');
   contentDiv.textContent = '';
-
-  const onLastPage = Boolean(currentStory) && storyPages.length > 0 && currentPage === storyPages.length;
 
   if (!currentStory) {
     const placeholder = document.createElement('p');

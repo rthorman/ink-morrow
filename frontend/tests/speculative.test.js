@@ -138,7 +138,6 @@ describe('Speculative next-page preparation', () => {
     // write, but its HTTP response arrives afterwards - it must be ignored,
     // a FRESH preview must fire, and the green button must be real.
     let previewCalls = 0;
-    let resolvePreview;
     const deferred = [];
     fetchMock.mockImplementation((url, options) => {
       if (String(url).includes('/pages/preview') && options && options.method === 'POST') {

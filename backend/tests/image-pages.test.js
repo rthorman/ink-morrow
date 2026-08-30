@@ -7,7 +7,7 @@ const path = require('path');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const { buildPrompt } = require('../src/prompt');
-const { resetDb, createWorld, createCharacter, createStory, addPage } = require('./helpers');
+const { resetDb, createWorld, createStory, addPage } = require('./helpers');
 
 // Image pages never call the upstream (the client sends the painted bytes);
 // axios stays unmocked so any surprise call would fail loudly.

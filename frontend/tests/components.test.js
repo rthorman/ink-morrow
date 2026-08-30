@@ -246,7 +246,7 @@ describe('Generation and export flows', () => {
     );
     await fw.retryLastPage();
 
-    const [url, options] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
+    const [url] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
     expect(url).toBe('/api/stories/s1/pages/regenerate');
     expect(fw.state().storyPages[0].content).toBe('Rewritten.');
   });

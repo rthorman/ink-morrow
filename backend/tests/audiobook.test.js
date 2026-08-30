@@ -7,7 +7,7 @@ const path = require('path');
 const { PassThrough } = require('stream');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
-const { resetDb, createWorld, createCharacter, createStory } = require('./helpers');
+const { createWorld, createCharacter, createStory } = require('./helpers');
 
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 const axios = require('axios');

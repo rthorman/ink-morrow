@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+const { loadScript, mockFetch } = require('./dom-helpers');
 
 describe('UI navigation', () => {
   let fw;
