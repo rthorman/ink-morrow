@@ -627,7 +627,7 @@ button:disabled {
 .writing-interface textarea {
   width: 100%;
   min-height: var(--st-touch-min);
-  background: var(--st-surface-3);
+  background-color: var(--st-surface-3);
   color: var(--st-vellum-100);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-sm);
@@ -658,6 +658,61 @@ button:disabled {
   outline: 2px solid var(--st-focus);
   outline-offset: 2px;
   border-color: var(--st-gold-500);
+}
+
+/* ------------------------------------------------------------------ selects (brand identity) */
+
+/* Every dropdown speaks vellum on ink with the house gold caret - no gray
+   OS boxes anywhere. A bare-element rule fills every gap the section rules
+   miss (e.g. the render-quality picker in the scene-image modal). */
+select:not([multiple]) {
+  min-height: var(--st-touch-min);
+  background-color: var(--st-surface-3);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23c7a35b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 10px 36px 10px 14px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color var(--st-duration-fast) ease;
+}
+
+select:not([multiple]):hover:not(:disabled) {
+  border-color: var(--st-border-bright);
+}
+
+select:focus {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 2px;
+  border-color: var(--st-gold-500);
+}
+
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Room for the caret inside the section-styled selects (their own padding
+   rules out-specify the bare-element one, so repeat it at their level). */
+.create-form select,
+.story-selector select,
+.cast-mc select,
+.cast-add select {
+  padding-right: 36px;
+}
+
+/* The opened list: vellum on ink where the platform honors option styling;
+   the color-scheme meta keeps native lists (Android) dark regardless. */
+select option,
+select optgroup {
+  background-color: var(--st-ink-900);
+  color: var(--st-vellum-100);
 }
 
 /* ------------------------------------------------------------------ lists / cards */
@@ -841,7 +896,7 @@ button:disabled {
   width: 100%;
   min-height: var(--st-touch-min);
   margin-bottom: 0;
-  background: var(--st-surface-3);
+  background-color: var(--st-surface-3);
   color: var(--st-vellum-100);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-sm);
@@ -1070,7 +1125,7 @@ button:disabled {
   min-height: var(--st-touch-min);
   margin-bottom: 12px;
   padding: 10px 14px;
-  background: var(--st-surface-3);
+  background-color: var(--st-surface-3);
   color: var(--st-vellum-100);
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-sm);
@@ -1693,6 +1748,13 @@ button:disabled {
 #imagePromptModal .burn-modal__panel {
   width: min(720px, 100%);
   border-color: var(--st-border-bright);
+}
+
+/* The render-quality picker sits in the modal flow like the prompt box */
+#imagePromptModal select {
+  display: block;
+  width: 100%;
+  margin-bottom: 20px;
 }
 
 #imagePromptModal .burn-modal__panel h2 {
