@@ -74,6 +74,22 @@ CREATE TABLE IF NOT EXISTS story_previews (
   cost_usd REAL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS audiobooks (
+  story_id TEXT PRIMARY KEY REFERENCES stories (id) ON DELETE CASCADE,
+  model TEXT NOT NULL,
+  voice TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'ready', 'failed')),
+  pages_done INTEGER NOT NULL DEFAULT 0,
+  pages_total INTEGER NOT NULL DEFAULT 0,
+  size_bytes INTEGER,
+  duration_s INTEGER,
+  cost_usd REAL NOT NULL DEFAULT 0,
+  fingerprint TEXT,
+  error TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 function ensureColumn(db, table, column, ddl) {
@@ -115,6 +131,11 @@ function createDb(dbPath) {
   ensureColumn(db, 'worlds', 'lore', 'lore TEXT');
   ensureColumn(db, 'worlds', 'image_prompt', 'image_prompt TEXT');
   ensureColumn(db, 'characters', 'image_prompt', 'image_prompt TEXT');
+  // v6: painted scene plates bound into the story as real pages. A row with
+  // image_media_type set is an illustration page (content stays empty); the
+  // bytes live on disk keyed by the page id, so renumbering never orphans them.
+  ensureColumn(db, 'story_pages', 'image_media_type', 'image_media_type TEXT');
+  ensureColumn(db, 'story_pages', 'image_prompt', 'image_prompt TEXT');
   return db;
 }
 

@@ -210,6 +210,183 @@ body {
   gap: 10px;
 }
 
+/* Persistent low-storage banner: sits under the nav, visible on every
+   section, candle-amber on dark vellum — a warning, not an alarm. */
+.disk-banner {
+  margin: 14px 0 0 0;
+  padding: 12px 18px;
+  background: rgb(60 38 12 / 0.55);
+  border: 1px solid var(--st-gold-500);
+  border-left: 4px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+}
+
+.disk-banner[hidden] {
+  display: none;
+}
+
+.disk-banner p {
+  margin: 0;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--st-gold-300);
+}
+
+/* ------------------------------------------------------------------ audiobook banner (write page) */
+
+.audiobook-banner {
+  margin: 0 0 18px 0;
+  padding: 14px 18px;
+  background: rgb(28 20 40 / 0.6);
+  border: 1px solid var(--st-border);
+  border-left: 4px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+}
+
+.audiobook-banner[hidden] {
+  display: none;
+}
+
+.audiobook-banner__text {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--st-vellum-100);
+}
+
+.progress-track {
+  height: 8px;
+  background: var(--st-ink-900);
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-track[hidden] {
+  display: none;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--st-gold-700), var(--st-gold-300));
+  transition: width 0.6s ease;
+}
+
+.audiobook-banner__actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.audiobook-banner__actions[hidden] {
+  display: none;
+}
+
+.audiobook-existing {
+  margin: 0 0 14px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--st-violet-300);
+}
+
+.audiobook-existing[hidden] {
+  display: none;
+}
+
+/* A blocked slider must look unable, not merely unwilling */
+input[type="range"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ bookshelf */
+
+.section-note {
+  max-width: var(--st-prose-max);
+  margin: 0 0 22px 0;
+  font-family: var(--st-font-ui);
+  color: var(--st-text-muted);
+}
+
+.bookshelf-list {
+  display: grid;
+  gap: 26px;
+}
+
+.bookshelf-entry {
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: clamp(16px, 2.5vw, 26px);
+}
+
+.bookshelf-entry h3 {
+  font-family: var(--st-font-display, var(--st-font-ui));
+  font-size: 1.3rem;
+  color: var(--st-gold-300);
+  margin: 0 0 14px 0;
+}
+
+.bookshelf-entry__none {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--st-text-muted);
+}
+
+.bookshelf-audio p {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  color: var(--st-vellum-100);
+}
+
+.bookshelf-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bookshelf-plates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.bookshelf-plate {
+  width: 150px;
+}
+
+.bookshelf-plate img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+}
+
+.bookshelf-plate p {
+  margin: 8px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.78rem;
+  color: var(--st-text-muted);
+  text-align: center;
+}
+
+.bookshelf-plate .bookshelf-entry__actions {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
 .nav-btn {
   min-height: var(--st-touch-min);
   padding: 10px 22px;
@@ -740,6 +917,19 @@ button:disabled {
   font-size: 0.8rem;
   font-style: italic;
   color: var(--st-violet-300);
+}
+
+/* A bound painting: the page IS the picture. Book-plate framing, centered
+   like the prose column, never wider than the reading measure. */
+.scene-plate {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 72vh;
+  margin: 0 auto 18px auto;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.45);
 }
 
 /* ------------------------------------------------------------------ writing interface */

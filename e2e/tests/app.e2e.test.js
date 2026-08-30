@@ -176,7 +176,7 @@ test.describe('ScribeTribe UI', () => {
     expect(proseBefore).not.toBe(proseAfter);
     expect(proseAfter).toContain('IBM Plex Mono');
   });
-});
+
   test('AI draft: flesh out a world, edit, and save it', async ({ page }) => {
     await page.goto('/');
     await page.waitForSelector('.container');
@@ -263,3 +263,27 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#worldEditCancelBtn').click();
     await expect(page.locator('#worldEditorModal')).toBeHidden();
   });
+
+  test('shows a persistent banner when storage runs low', async ({ page }) => {
+    await page.route('**/api/disk', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ free_bytes: 700 * 1024 * 1024, total_bytes: 64 * 1024 ** 3 }),
+      });
+    });
+
+    await page.goto('/');
+    await page.waitForSelector('.container');
+    const banner = page.locator('#diskBanner');
+    await expect(banner).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#diskBannerText')).toContainText('running low');
+    await expect(page.locator('#diskBannerText')).toContainText('700 MB');
+
+    // Persistent: it stays up across every section until space recovers
+    for (const section of ['write', 'settings', 'worlds']) {
+      await page.locator(`#${section}Btn`).click();
+      await expect(banner).toBeVisible();
+    }
+  });
+});

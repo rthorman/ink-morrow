@@ -501,4 +501,69 @@ test.describe('Scene image prompt', () => {
     await page.locator('#imagePromptCancelBtn').click();
     await expect(page.locator('#imagePromptModal')).toBeHidden();
   });
+
+  test('Add as page binds the painting after the illustrated page and closes both modals', async ({ page }) => {
+    // Only the paint itself is mocked; the binding POST, the plate GET and the
+    // export below all hit the real server against its in-memory database.
+    const PNG_1PX =
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+    await page.route('**/api/stories/*/pages/*/image-prompt', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ prompt: 'A candlelit gothic hall, frost on black stone.' }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/*/scene-image', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ image: PNG_1PX, media_type: 'image/png', cost_usd: 0.06, references: [] }),
+      });
+    });
+
+    const story = await createStoryViaUi(page, 'Image Page Test');
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'First prose page.' } });
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Second prose page.' } });
+    await page.selectOption('#currentStory', story.id);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
+
+    // Illustrate the FIRST page: the plate must land between the two prose pages
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
+    await page.locator('#imagePromptBtn').click();
+    await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
+    await page.locator('#imagePromptGenerateBtn').click();
+    await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
+
+    await page.locator('#sceneViewerAddPageBtn').click();
+    await expect(page.locator('#sceneImageViewerModal')).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('#imagePromptModal')).toBeHidden();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+
+    // The plate renders from the real image route, not a placeholder
+    const plate = page.locator('.scene-plate');
+    await expect(plate).toBeVisible();
+    await expect
+      .poll(() => plate.evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 5000 })
+      .toBe(true);
+    await expect(plate).toHaveAttribute('alt', 'A candlelit gothic hall, frost on black stone.');
+
+    // The old second page shifted to page 3; text tools sleep on the plate
+    await page.locator('#nextPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+    await expect(page.locator('#storyContent')).toContainText('Second prose page.');
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#readAloudBtn')).toBeDisabled();
+    await expect(page.locator('#imagePromptBtn')).toBeDisabled();
+
+    // The exported EPUB carries the plate inside the book
+    const exportRes = await page.request.get(`/api/stories/${story.id}/export`);
+    expect(exportRes.ok()).toBe(true);
+    const book = await exportRes.body();
+    const asText = book.toString('utf8');
+    expect(asText).toContain('<item id="img2" href="images/page-2.png" media-type="image/png"/>');
+    expect(asText).toContain('<img src="images/page-2.png"');
+    expect(asText).toContain('Second prose page.'); // the renumbered page survived
+  });
 });

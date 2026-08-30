@@ -39,8 +39,12 @@ function buildDom() {
       <button id="charactersBtn" class="nav-btn">Characters</button>
       <button id="storiesBtn" class="nav-btn">Stories</button>
       <button id="writeBtn" class="nav-btn">Write</button>
+      <button id="bookshelfBtn" class="nav-btn">Bookshelf</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
     </nav>
+    <div id="diskBanner" class="disk-banner" role="alert" hidden>
+      <p id="diskBannerText"></p>
+    </div>
     <main class="main-content">
       <section id="worldsSection" class="content-section active">
         <form id="worldForm">
@@ -101,11 +105,21 @@ function buildDom() {
         <button id="narrationStopBtn" type="button" aria-label="Stop playback" hidden>■</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
+        <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
+          <p id="audiobookBannerText" class="audiobook-banner__text"></p>
+          <div id="audiobookProgress" class="progress-track" hidden><div id="audiobookProgressFill" class="progress-fill"></div></div>
+          <div id="audiobookBannerActions" class="audiobook-banner__actions" hidden></div>
+        </div>
         <textarea id="userInput"></textarea>
         <button id="generateBtn">Generate Page</button>
         <button id="retryBtn">Retry Page</button>
         <button id="exportBtn">Export .epub</button>
+        <button id="audiobookBtn" type="button">Audiobook</button>
         <button id="deletePageBtn">Delete Page</button>
+      </section>
+      <section id="bookshelfSection" class="content-section">
+        <h2>Bookshelf</h2>
+        <div id="bookshelfList" class="bookshelf-list"></div>
       </section>
       <section id="settingsSection" class="content-section">
         <p id="currentModel" class="current-model"></p>
@@ -131,6 +145,21 @@ function buildDom() {
         <button id="burnCancelBtn" type="button" class="btn btn-secondary">Keep them</button>
       </div>
     </div>
+    <div id="audiobookModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="audiobookTitle" aria-describedby="audiobookModalBody">
+        <h2 id="audiobookTitle">Bind the tale into an audiobook</h2>
+        <div id="audiobookModalBody" class="burn-modal__body"></div>
+        <p id="audiobookExisting" class="audiobook-existing" hidden></p>
+        <div class="burn-slider">
+          <label class="sr-only" for="audiobookSlider">Slide all the way right to start the reading</label>
+          <input type="range" id="audiobookSlider" min="0" max="100" step="1" value="0">
+          <span class="burn-slider__hint" aria-hidden="true">slide to read →</span>
+        </div>
+        <div class="burn-modal__actions">
+          <button id="audiobookCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
     <div id="imagePromptModal" class="burn-modal" hidden>
       <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="imagePromptTitle" aria-describedby="imagePromptHint">
         <h2 id="imagePromptTitle">Scene image prompt</h2>
@@ -144,6 +173,7 @@ function buildDom() {
     </div>
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
       <img id="sceneViewerImg" alt="The painted scene">
+      <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Add as page</button>
       <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
       <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
     </div>

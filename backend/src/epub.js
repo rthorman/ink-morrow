@@ -109,6 +109,10 @@ function paragraphsOf(content) {
     .join('\n');
 }
 
+function extFor(mediaType) {
+  return mediaType === 'image/jpeg' ? 'jpg' : mediaType === 'image/webp' ? 'webp' : 'png';
+}
+
 function xhtmlDoc(title, body) {
   return `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
@@ -145,10 +149,20 @@ function buildEpub({ title, world, characters, pages }, uuid) {
     (credits.length ? `\n${credits.map((c) => `    <p class="credit">${escapeXml(c)}</p>`).join('\n')}` : '');
   const titlePage = xhtmlDoc(title, titleBody);
 
-  const pageFiles = pages.map((page) => ({
-    name: `OEBPS/page-${page.page_number}.xhtml`,
-    content: xhtmlDoc(`${title} — Page ${page.page_number}`, `    <h2>Page ${page.page_number}</h2>\n${paragraphsOf(page.content)}`),
-  }));
+  // A page may be a painted plate: {image: {data, mediaType}} rides along
+  // and becomes an embedded image plus its manifest entry.
+  const pageFiles = pages.map((page) => {
+    const plate = page.image && page.image.data ? page : null;
+    let body = `    <h2>Page ${page.page_number}</h2>\n${paragraphsOf(page.content)}`;
+    let imageFile = null;
+    if (plate) {
+      const ext = extFor(plate.image.mediaType);
+      imageFile = { name: `OEBPS/images/page-${page.page_number}.${ext}`, data: plate.image.data };
+      const alt = escapeXml(plate.image_prompt || `Painted scene plate for page ${page.page_number}`);
+      body = `    <div class="plate"><img src="images/page-${page.page_number}.${ext}" alt="${alt}"/></div>\n${body}`;
+    }
+    return { name: `OEBPS/page-${page.page_number}.xhtml`, content: xhtmlDoc(`${title} — Page ${page.page_number}`, body), imageFile };
+  });
 
   const navItems = [`      <li><a href="title.xhtml">Cover</a></li>`]
     .concat(pages.map((p) => `      <li><a href="page-${p.page_number}.xhtml">Page ${p.page_number}</a></li>`));
@@ -174,11 +188,20 @@ ${navItems.join('\n')}
     '    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>',
     '    <item id="css" href="style.css" media-type="text/css"/>',
     '    <item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>',
-  ].concat(
-    pages.map(
-      (p) => `    <item id="page${p.page_number}" href="page-${p.page_number}.xhtml" media-type="application/xhtml+xml"/>`
+  ]
+    .concat(
+      pages
+        .filter((p) => p.image && p.image.data)
+        .map(
+          (p) =>
+            `    <item id="img${p.page_number}" href="images/page-${p.page_number}.${extFor(p.image.mediaType)}" media-type="${p.image.mediaType}"/>`
+        )
     )
-  );
+    .concat(
+      pages.map(
+        (p) => `    <item id="page${p.page_number}" href="page-${p.page_number}.xhtml" media-type="application/xhtml+xml"/>`
+      )
+    );
   const spine = ['    <itemref idref="title"/>'].concat(
     pages.map((p) => `    <itemref idref="page${p.page_number}"/>`)
   );
@@ -206,6 +229,8 @@ h1 { font-size: 1.6em; }
 h2 { font-size: 1.2em; font-weight: normal; color: #444; }
 p { text-indent: 1.2em; margin: 0; }
 p.credit { font-style: italic; color: #555; text-indent: 0; }
+div.plate { margin: 1em 0; text-align: center; }
+div.plate img { max-width: 100%; }
 `;
 
   // `mimetype` MUST be the first entry and uncompressed.
@@ -222,7 +247,7 @@ p.credit { font-style: italic; color: #555; text-indent: 0; }
     { name: 'OEBPS/nav.xhtml', data: nav },
     { name: 'OEBPS/style.css', data: css },
     { name: 'OEBPS/title.xhtml', data: titlePage },
-    ...pageFiles.map((f) => ({ name: f.name, data: f.content })),
+    ...pageFiles.flatMap((f) => (f.imageFile ? [{ name: f.imageFile.name, data: f.imageFile.data }, { name: f.name, data: f.content }] : [{ name: f.name, data: f.content }])),
   ]);
 }
 

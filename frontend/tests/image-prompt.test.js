@@ -424,3 +424,162 @@ describe('Scene viewer zoom & pan', () => {
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
   });
 });
+
+describe('Add as page: binding a painting into the story', () => {
+  const PLATE_PAGE = {
+    page_number: 3,
+    content: '',
+    user_input: null,
+    cost_usd: 0.06,
+    image_media_type: 'image/png',
+    image_prompt: 'A frozen gothic hall, wide shot.',
+  };
+
+  function paintedFetch(imagePageResponse) {
+    return (url, options) => {
+      if (String(url).includes('/scene-image')) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            image: Buffer.from('painting').toString('base64'),
+            media_type: 'image/png',
+            cost_usd: 0.06,
+            references: [],
+          })
+        );
+      }
+      if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
+      if (String(url).includes('/image-page') && options.method === 'POST') {
+        return Promise.resolve(imagePageResponse);
+      }
+      if (String(url).endsWith('/pages') && (!options || options.method === 'GET')) {
+        return Promise.resolve(
+          jsonResponse(200, {
+            pages: [
+              { page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
+              { page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
+              PLATE_PAGE,
+            ],
+          })
+        );
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    };
+  }
+
+  async function paintAndOpenViewer(fw) {
+    document.getElementById('imagePromptBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    document.getElementById('imagePromptGenerateBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
+    expect(document.getElementById('imagePromptModal').hidden).toBe(false);
+    return fw;
+  }
+
+  let fw;
+
+  beforeEach(() => {
+    mockFetch();
+    fw = loadScript();
+    fw.__setStoryState(STORY_STATE);
+    fw.displayCurrentPage();
+  });
+
+  it('binds the painting after the current page, closes both modals, and turns to the plate', async () => {
+    fetch.mockImplementation(paintedFetch(jsonResponse(201, { page: PLATE_PAGE })));
+
+    await paintAndOpenViewer(fw);
+    document.getElementById('sceneViewerAddPageBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Sent exactly what was painted: raw base64, media type, prompt and cost
+    const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-page'));
+    expect(String(call[0])).toContain('/stories/s1/pages/2/image-page'); // after the current page
+    expect(JSON.parse(call[1].body)).toEqual({
+      image: Buffer.from('painting').toString('base64'),
+      media_type: 'image/png',
+      prompt: PROMPT_TEXT,
+      cost_usd: 0.06,
+    });
+
+    // Both modals close, the reader turns to the fresh plate
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
+    expect(document.getElementById('imagePromptModal').hidden).toBe(true);
+    expect(fw.state().currentPage).toBe(3);
+    expect(fw.state().storyPages).toHaveLength(3);
+    const plate = document.querySelector('.scene-plate');
+    expect(plate).toBeTruthy();
+    expect(plate.getAttribute('src')).toBe('/api/stories/s1/pages/3/image');
+    expect(plate.getAttribute('alt')).toBe('A frozen gothic hall, wide shot.');
+    expect(document.querySelector('.success-message').textContent).toContain('page 3');
+    // The paint was billed once at painting time; binding adds nothing
+    expect(fw.state().costs.session).toBeCloseTo(0.06);
+    expect(fw.state().costs.story).toBeCloseTo(0.06);
+  });
+
+  it('a failed binding keeps both modals open, floats the error above them, and restores the button', async () => {
+    fetch.mockImplementation((url, options) => {
+      if (String(url).includes('/image-page')) {
+        return Promise.resolve(jsonResponse(500, { error: 'The binding refused' }));
+      }
+      return paintedFetch(null)(url, options);
+    });
+
+    await paintAndOpenViewer(fw);
+    document.getElementById('sceneViewerAddPageBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
+    expect(document.getElementById('imagePromptModal').hidden).toBe(false);
+    const floating = document.querySelector('.error-message');
+    expect(floating.textContent).toContain('The binding refused');
+    expect(floating.classList.contains('message--floating')).toBe(true);
+    const btn = document.getElementById('sceneViewerAddPageBtn');
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe('Add as page');
+  });
+
+  it('an image page renders as a plate and silences the text tools on it', () => {
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0.06 },
+      storyPages: [
+        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { ...PLATE_PAGE, page_number: 2 },
+        { page_number: 3, content: 'More prose.', user_input: null, cost_usd: 0 },
+      ],
+      currentPage: 2,
+    });
+    fw.displayCurrentPage();
+
+    // The plate replaces prose; the direction note shows for image pages only
+    // when they carry a direction (a plate never does).
+    expect(document.querySelector('.scene-plate')).toBeTruthy();
+    expect(document.querySelector('#storyContent p')).toBeNull();
+    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 3');
+
+    // No text to narrate or condense on a plate
+    expect(document.getElementById('readAloudBtn').disabled).toBe(true);
+    expect(document.getElementById('narrationAutoBtn').disabled).toBe(true);
+    expect(document.getElementById('imagePromptBtn').disabled).toBe(true);
+
+    // An earlier text page wakes everything back up
+    fw.navigatePage(-1);
+    expect(document.getElementById('readAloudBtn').disabled).toBe(false);
+    expect(document.getElementById('imagePromptBtn').disabled).toBe(false);
+    expect(document.querySelector('.scene-plate')).toBeNull();
+  });
+
+  it('a plate as the last page cannot be retried, but writing continues after it', () => {
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2, total_cost_usd: 0.06 },
+      storyPages: [
+        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { ...PLATE_PAGE, page_number: 2 },
+      ],
+      currentPage: 2,
+    });
+    fw.displayCurrentPage();
+    expect(document.getElementById('retryBtn').disabled).toBe(true); // no prose to rewrite
+    expect(document.getElementById('userInput').disabled).toBe(false); // the tale continues
+  });
+});

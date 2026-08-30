@@ -11,6 +11,16 @@ const CONTEXT_WINDOW = parseInt(process.env.CONTEXT_WINDOW || '5', 10);
 
 const STATE_MARKER_TEXT = '<<<CHARACTER_STATE>>>';
 
+// A page is either prose or a bound painting (image_media_type set, content
+// empty). The model must still see where the illustration sits in the tale.
+function pageText(p) {
+  if (p.image_media_type) {
+    const note = p.image_prompt ? ` (painted from: ${p.image_prompt})` : '';
+    return `Page ${p.page_number}:\n[an inserted illustration${note}]`;
+  }
+  return `Page ${p.page_number}:\n${p.content}`;
+}
+
 function characterBlock(c, { withId = false } = {}) {
   const evolved = c.state && typeof c.state === 'object';
   const personality = evolved && c.state.personality ? `${c.state.personality} (as the story has reshaped them)` : (c.personality || '');
@@ -105,7 +115,7 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
     if (omitted > 0) {
       context += `[... ${omitted} earlier page(s) omitted for brevity. The tale so far began with: "${pages.firstContent}" ...]\n`;
     }
-    context += includedPages.map((p) => `Page ${p.page_number}:\n${p.content}`).join('\n\n');
+    context += includedPages.map(pageText).join('\n\n');
     parts.push(context);
   }
 
@@ -173,7 +183,7 @@ function buildImagePrompt({ story, world, characters, pages }) {
     if (omitted > 0) {
       context += `[... ${omitted} earlier page(s) omitted for brevity. The tale so far began with: "${pages.firstContent}" ...]\n`;
     }
-    context += includedPages.map((p) => `Page ${p.page_number}:\n${p.content}`).join('\n\n');
+    context += includedPages.map(pageText).join('\n\n');
     parts.push(context);
   }
 

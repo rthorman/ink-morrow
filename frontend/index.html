@@ -44,8 +44,13 @@
             <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
             <button id="storiesBtn" class="nav-btn" type="button">Stories</button>
             <button id="writeBtn" class="nav-btn" type="button">Write</button>
+            <button id="bookshelfBtn" class="nav-btn" type="button">Bookshelf</button>
             <button id="settingsBtn" class="nav-btn" type="button">Settings</button>
         </nav>
+
+        <div id="diskBanner" class="disk-banner" role="alert" hidden>
+            <p id="diskBannerText"></p>
+        </div>
 
         <main class="main-content" id="mainContent">
             <!-- Worlds Section (home / manuscript hall) -->
@@ -227,6 +232,14 @@
                             <button id="deleteAfterBtn" class="btn btn-danger" type="button">Delete everything after this page</button>
                         </div>
 
+                        <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
+                            <p id="audiobookBannerText" class="audiobook-banner__text"></p>
+                            <div id="audiobookProgress" class="progress-track" hidden>
+                                <div id="audiobookProgressFill" class="progress-fill"></div>
+                            </div>
+                            <div id="audiobookBannerActions" class="audiobook-banner__actions" hidden></div>
+                        </div>
+
                         <div class="writing-interface">
                             <label for="userInput">Direction for the next page</label>
                             <textarea id="userInput" placeholder="Enter your direction for the next page… (or leave empty to just continue)"></textarea>
@@ -234,11 +247,19 @@
                                 <button id="generateBtn" class="btn btn-primary" type="button">Generate Page</button>
                                 <button id="retryBtn" type="button" title="Regenerate the current (last) page with the same direction">Retry Page</button>
                                 <button id="exportBtn" type="button">Export .epub</button>
+                                <button id="audiobookBtn" type="button" title="Generate a whole-story audiobook with the narrator chosen in Settings">Audiobook</button>
                                 <button id="deletePageBtn" class="btn-danger" type="button" title="Delete the page you are viewing">Delete Page</button>
                             </div>
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <!-- Bookshelf Section -->
+            <section id="bookshelfSection" class="content-section" aria-label="Bookshelf">
+                <h2>Bookshelf</h2>
+                <p class="section-note">The kept things of every tale: bound audiobooks and painted plates. Download or let them go.</p>
+                <div id="bookshelfList" class="bookshelf-list"></div>
             </section>
 
             <!-- Settings Section -->
@@ -348,8 +369,25 @@
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
         <img id="sceneViewerImg" alt="The painted scene" draggable="false">
         <div class="scene-viewer__actions">
+            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Bind this painting into the story as a page after the one it illustrates">Add as page</button>
             <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
             <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
+        </div>
+    </div>
+
+    <div id="audiobookModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="audiobookTitle" aria-describedby="audiobookModalBody">
+            <h2 id="audiobookTitle">Bind the tale into an audiobook</h2>
+            <div id="audiobookModalBody" class="burn-modal__body"></div>
+            <p id="audiobookExisting" class="audiobook-existing" hidden></p>
+            <div class="burn-slider">
+                <label class="sr-only" for="audiobookSlider">Slide all the way right to start the reading</label>
+                <input type="range" id="audiobookSlider" min="0" max="100" step="1" value="0" autocomplete="off">
+                <span class="burn-slider__hint" aria-hidden="true">slide to read →</span>
+            </div>
+            <div class="burn-modal__actions">
+                <button id="audiobookCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
         </div>
     </div>
 

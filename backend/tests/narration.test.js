@@ -79,6 +79,7 @@ describe('GET /api/speech-models', () => {
       {
         id: 'or/voice-1',
         name: 'Voice One',
+        pcm: false,
         voices: [
           { id: 'amber', label: 'Amber' },
           { id: 'sapphire_blue', label: 'Sapphire Blue' },
@@ -88,10 +89,21 @@ describe('GET /api/speech-models', () => {
       {
         id: 'or/free-voice',
         name: 'Free Voice',
+        pcm: false,
         voices: [{ id: 'wind', label: 'Wind' }],
         pricing: { prompt_per_mchar: 0, completion_per_mtok: 0 },
       },
     ]);
+  });
+
+  it('flags Gemini-class (pcm-only) narrators so audiobooks can refuse them up front', async () => {
+    mockSpeechCatalog([
+      { id: 'google/gemini-2.5-flash-tts', name: 'Gemini TTS', supported_voices: ['sage'], pricing: { prompt: '0' } },
+      { id: 'or/voice-1', name: 'Voice One', supported_voices: ['amber'] },
+    ]);
+    const res = await request(app).get('/api/speech-models').expect(200);
+    expect(res.body.models[0].pcm).toBe(true);
+    expect(res.body.models[1].pcm).toBe(false);
   });
 
   it('caches the catalogue for subsequent calls', async () => {

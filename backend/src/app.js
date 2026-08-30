@@ -1,7 +1,9 @@
 'use strict';
 
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { buildEpub } = require('./epub');
@@ -65,11 +67,17 @@ function notFound(res, message) {
 
 function createApp(
   db,
-  { staticDir = path.join(__dirname, '../../frontend'), imageDir = path.join(__dirname, '../../database/images') } = {}
+  {
+    staticDir = path.join(__dirname, '../../frontend'),
+    imageDir = path.join(__dirname, '../../database/images'),
+    audioDir = path.join(__dirname, '../../database/audio'),
+  } = {}
 ) {
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '1mb' }));
+  // Base64 scene plates bound into the story can be several MB at 2K render
+  // quality - the body limit must let a painted page through.
+  app.use(express.json({ limit: '12mb' }));
 
   // Simple request log (skip static + health noise + test runs)
   app.use((req, res, next) => {
@@ -140,6 +148,12 @@ function createApp(
   // responds instantly, the portrait/scene lands when the model finishes.
 
   const imageStore = createImageStore(imageDir);
+  // Whole-story audiobooks live on disk next to the images; a pending row
+  // left behind by a server restart can never finish - fail it honestly.
+  fs.mkdirSync(audioDir, { recursive: true });
+  db.prepare(
+    "UPDATE audiobooks SET status = 'failed', error = 'Interrupted by a server restart. Start it again from the audiobook button.', updated_at = CURRENT_TIMESTAMP WHERE status = 'pending'"
+  ).run();
   const imageQueue = [];
   const imageInFlight = new Set(); // 'character:<id>' keys being generated
   let imageWorking = false;
@@ -472,6 +486,17 @@ function createApp(
   app.delete('/api/stories/:id', (req, res) => {
     const story = getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    // Stop any audiobook work for this tale before the row cascade kills it
+    // (the runner's per-page updates are guarded by status = 'pending').
+    const qi = audiobookQueue.indexOf(story.id);
+    if (qi >= 0) audiobookQueue.splice(qi, 1);
+    if (getAudiobook(story.id)?.status === 'pending') audiobookCancel.add(story.id);
+    for (const file of [audioFileFor(story.id), audioFileFor(story.id, true)]) {
+      try { fs.unlinkSync(file); } catch { /* never there */ }
+    }
+    for (const page of storyPages(story.id)) {
+      if (page.image_media_type) imageStore.deleteImage('page', page.id); // never leave orphans
+    }
     db.prepare('DELETE FROM story_pages WHERE story_id = ?').run(story.id);
     db.prepare('DELETE FROM stories WHERE id = ?').run(story.id);
     invalidatePreview(story.id);
@@ -507,10 +532,12 @@ function createApp(
   app.delete('/api/stories/:id/pages/:number', (req, res) => {
     const story = getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
-    const result = db
-      .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number = ?')
-      .run(story.id, parseInt(req.params.number, 10));
-    if (result.changes === 0) return notFound(res, 'Page not found');
+    const page = db
+      .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+      .get(story.id, parseInt(req.params.number, 10));
+    if (!page) return notFound(res, 'Page not found');
+    db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
+    if (page.image_media_type) imageStore.deleteImage('page', page.id);
     invalidatePreview(story.id);
     res.status(204).end();
   });
@@ -836,6 +863,100 @@ function createApp(
     }
   });
 
+  // -- painted scene plates (image pages) ------------------------------------
+  // A painted scene can be bound into the story as a page of its own, right
+  // after the page it illustrates. The bytes arrive from the client (it just
+  // painted them), land on disk keyed by the new page id, and every later
+  // page is renumbered to make room.
+
+  const IMAGE_MEDIA_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+
+  app.post('/api/stories/:id/pages/:number/image-page', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const after = parseInt(req.params.number, 10);
+    const page = db
+      .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+      .get(story.id, after);
+    if (!page) return notFound(res, 'Page not found');
+    const mediaType = asString(req.body.media_type);
+    if (!IMAGE_MEDIA_TYPES.includes(mediaType)) {
+      return badRequest(res, `"media_type" must be one of: ${IMAGE_MEDIA_TYPES.join(', ')}`);
+    }
+    const base64 = asString(req.body.image);
+    if (!base64) return badRequest(res, '"image" (base64) is required');
+    let buffer;
+    try {
+      buffer = Buffer.from(base64, 'base64');
+    } catch {
+      return badRequest(res, '"image" is not valid base64');
+    }
+    if (buffer.length === 0) return badRequest(res, '"image" is empty');
+    let imagePrompt = null;
+    if (req.body.prompt !== undefined && req.body.prompt !== null) {
+      imagePrompt = optionalText(req.body.prompt, { max: 4000 });
+      if (imagePrompt === undefined) return badRequest(res, '"prompt" must be text of at most 4000 characters');
+    }
+    const cost = req.body.cost_usd;
+    if (cost !== undefined && cost !== null && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0)) {
+      return badRequest(res, '"cost_usd" must be a non-negative number');
+    }
+
+    const id = uuidv4();
+    const insert = db.prepare(
+      'INSERT INTO story_pages (id, story_id, page_number, content, user_input, cost_usd, image_media_type, image_prompt) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)'
+    );
+    // Rows are bumped one at a time from the highest down so the
+    // UNIQUE(story_id, page_number) constraint never sees a collision.
+    const bump = db.prepare('UPDATE story_pages SET page_number = page_number + 1 WHERE id = ?');
+    const later = db
+      .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number DESC')
+      .all(story.id, after);
+    db.exec('BEGIN');
+    try {
+      for (const row of later) bump.run(row.id);
+      insert.run(id, story.id, after + 1, '', typeof cost === 'number' ? cost : null, mediaType, imagePrompt);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+    imageStore.writeImage('page', id, buffer, mediaType);
+    db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
+    invalidatePreview(story.id); // a live write: any speculative page is stale now
+    res.status(201).json({ page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id) });
+  });
+
+  app.get('/api/stories/:id/pages/:number/image', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const page = db
+      .prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?')
+      .get(story.id, parseInt(req.params.number, 10));
+    if (!page || !page.image_media_type) return notFound(res, 'Page image not found');
+    const image = imageStore.readImage('page', page.id);
+    if (!image) return notFound(res, 'Image file is missing');
+    res.setHeader('Content-Type', image.mediaType);
+    if (req.query.download === '1') {
+      const ext = image.mediaType === 'image/jpeg' ? 'jpg' : image.mediaType === 'image/webp' ? 'webp' : 'png';
+      const slug = story.title.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'story';
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}-page-${page.page_number}.${ext}"`);
+    }
+    res.send(image.buffer);
+  });
+
+  // Plates, portraits and the database all grow on the same filesystem. The
+  // frontend shows a persistent banner when free room runs low (nulls when
+  // the filesystem won't say).
+  app.get('/api/disk', (req, res) => {
+    try {
+      const stats = fs.statfsSync(imageDir);
+      res.json({ free_bytes: stats.bsize * stats.bavail, total_bytes: stats.bsize * stats.blocks });
+    } catch {
+      res.json({ free_bytes: null, total_bytes: null });
+    }
+  });
+
   // -- export --------------------------------------------------------------
 
   app.get('/api/stories/:id/export', (req, res) => {
@@ -851,11 +972,19 @@ function createApp(
       .filter(Boolean)
       .sort((a, b) => (a.role === 'mc' ? -1 : b.role === 'mc' ? 1 : 0));
 
+    // Painted plates travel inside the book: each image page contributes its
+    // bytes (a missing file degrades to a text-only page rather than a broken export).
+    const pages = storyPages(story.id).map((page) => {
+      if (!page.image_media_type) return page;
+      const image = imageStore.readImage('page', page.id);
+      return image ? { ...page, image: { data: image.buffer, mediaType: image.mediaType } } : page;
+    });
+
     const epub = buildEpub({
       title: story.title,
       world,
       characters,
-      pages: storyPages(story.id),
+      pages,
     });
 
     const filename = `${story.title.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'story'}.epub`;
@@ -1383,6 +1512,269 @@ function createApp(
     }
   });
 
+  // -- audiobooks (whole-story audio, one global queue) -----------------------
+  // The job narrates every text page in order (image pages are skipped),
+  // reuses the per-page narration cache (unchanged pages are free), appends
+  // the mp3 bytes to a temp file, and renames it into place when done. One job
+  // runs at a time globally - low-end devices, and nobody needs parallelism.
+
+  function audioFileFor(storyId, tmp = false) {
+    return path.join(audioDir, storyId + (tmp ? '.mp3.tmp' : '.mp3'));
+  }
+
+  function getAudiobook(storyId) {
+    return db.prepare('SELECT * FROM audiobooks WHERE story_id = ?').get(storyId);
+  }
+
+  function audiobookTextPages(storyId) {
+    return storyPages(storyId).filter((p) => !p.image_media_type && normalizeNarrationText(p.content));
+  }
+
+  function audiobookFingerprint(model, voice, pages) {
+    const hash = crypto.createHash('sha256');
+    hash.update(`${model}\n${voice}\n`);
+    for (const page of pages) hash.update(`${page.id}\n${normalizeNarrationText(page.content)}\n`);
+    return hash.digest('hex');
+  }
+
+  // The row plus derived metadata: staleness (the tale changed since it was
+  // read) and, while pending, the queue position (0 = reading right now).
+  function audiobookWithMeta(row, story) {
+    const pages = audiobookTextPages(story.id);
+    const meta = { ...row };
+    meta.stale = row.status === 'ready' && Boolean(row.fingerprint) &&
+      row.fingerprint !== audiobookFingerprint(row.model, row.voice, pages);
+    if (row.status === 'pending') {
+      meta.queue_position = audiobookCurrent === story.id ? 0 : Math.max(1, audiobookQueue.indexOf(story.id) + 1);
+    }
+    if (row.status === 'ready') {
+      // Legacy grace: a ready row without its file degrades, never 500s.
+      meta.file_missing = !fs.existsSync(audioFileFor(story.id));
+    }
+    return meta;
+  }
+
+  function writeAll(fd, buffer) {
+    let offset = 0;
+    while (offset < buffer.length) offset += fs.writeSync(fd, buffer, offset);
+  }
+
+  function collectStream(stream) {
+    return new Promise((resolve, reject) => {
+      const parts = [];
+      stream.on('data', (chunk) => parts.push(chunk));
+      stream.on('end', () => resolve(Buffer.concat(parts)));
+      stream.on('error', reject);
+    });
+  }
+
+  const audiobookQueue = []; // story ids waiting for the reader
+  const audiobookCancel = new Set(); // story ids asked to stop mid-tale
+  let audiobookCurrent = null; // the story being read right now
+  let audiobookWorking = false;
+
+  async function runAudiobookJob(storyId) {
+    const row = getAudiobook(storyId);
+    if (!row || row.status !== 'pending') return; // deleted/cancelled while queued
+    const pages = audiobookTextPages(storyId);
+    const tmp = audioFileFor(storyId, true);
+    const fd = fs.openSync(tmp, 'w');
+    let done = 0;
+    let cost = 0;
+    try {
+      for (const page of pages) {
+        if (audiobookCancel.has(storyId)) throw new Error('Cancelled.');
+        const text = normalizeNarrationText(page.content);
+        const key = narrationCacheKey(text, row.model, row.voice);
+        let buffer = narrationCache.get(key)?.buffer;
+        const generationIds = [];
+        if (!buffer) {
+          // Same discipline as the per-page endpoint: segment at sentence
+          // boundaries, bisect on provider refusals, remember for reuse.
+          const segments = splitNarrationSegments(text);
+          const results = [];
+          for (const segment of segments) {
+            await synthesizeNarration(row.model, row.voice, segment, results);
+          }
+          if (results[0].format === 'pcm') {
+            throw new Error('This narrator speaks WAV-only; audiobooks need an mp3 narrator. Pick another in Settings.');
+          }
+          const contentType = results[0].contentType || 'audio/mpeg';
+          const pieces = [];
+          for (const result of results) pieces.push(await collectStream(result.stream));
+          // A cancel that arrived mid-page must still land before the write.
+          if (audiobookCancel.has(storyId)) throw new Error('Cancelled.');
+          buffer = Buffer.concat(pieces);
+          for (const result of results) if (result.generationId) generationIds.push(result.generationId);
+          rememberNarration(key, buffer, contentType, generationIds.join(',') || null);
+        }
+        writeAll(fd, buffer);
+        // Authoritative cost, best-effort: replays (cache hits) cost nothing.
+        for (const id of generationIds) {
+          try {
+            const c = await fetchGenerationCost(id);
+            if (typeof c.cost_usd === 'number') cost += c.cost_usd;
+          } catch { /* metadata lag: the book still reads */ }
+        }
+        done++;
+        db.prepare(
+          "UPDATE audiobooks SET pages_done = ?, cost_usd = ?, updated_at = CURRENT_TIMESTAMP WHERE story_id = ? AND status = 'pending'"
+        ).run(done, cost, storyId);
+      }
+      fs.closeSync(fd);
+      const size = fs.statSync(tmp).size;
+      const words = pages.reduce((sum, p) => sum + normalizeNarrationText(p.content).split(/\s+/).length, 0);
+      fs.renameSync(tmp, audioFileFor(storyId));
+      db.prepare(
+        "UPDATE audiobooks SET status = 'ready', pages_done = ?, size_bytes = ?, duration_s = ?, updated_at = CURRENT_TIMESTAMP WHERE story_id = ? AND status = 'pending'"
+      ).run(pages.length, size, Math.round(words / 2.5), storyId);
+    } catch (error) {
+      try { fs.closeSync(fd); } catch { /* already closed */ }
+      try { fs.unlinkSync(tmp); } catch { /* nothing to clean */ }
+      const cancelled = audiobookCancel.has(storyId) || error.message === 'Cancelled.';
+      db.prepare(
+        "UPDATE audiobooks SET status = 'failed', error = ?, updated_at = CURRENT_TIMESTAMP WHERE story_id = ? AND status = 'pending'"
+      ).run(cancelled ? 'Cancelled.' : error.message || 'Audiobook generation failed.', storyId);
+      if (!cancelled) console.error('Audiobook job failed:', error.message);
+    } finally {
+      audiobookCancel.delete(storyId);
+    }
+  }
+
+  async function drainAudiobookQueue() {
+    if (audiobookWorking) return;
+    audiobookWorking = true;
+    try {
+      while (audiobookQueue.length > 0) {
+        audiobookCurrent = audiobookQueue.shift();
+        await runAudiobookJob(audiobookCurrent);
+      }
+    } finally {
+      audiobookCurrent = null;
+      audiobookWorking = false;
+    }
+  }
+
+  app.post('/api/stories/:id/audiobook', async (req, res, next) => {
+    try {
+      const story = getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const existing = getAudiobook(story.id);
+      if (existing && existing.status === 'pending') {
+        return res.status(409).json({ error: 'This tale is already being read aloud.' });
+      }
+      const model = asString(req.body.model);
+      const voice = asString(req.body.voice);
+      const catalogue = await listSpeechModels();
+      const entry = catalogue.find((m) => m.id === model);
+      if (!model || !voice || !entry || !entry.voices.some((v) => v.id === voice)) {
+        return res.status(400).json({ error: 'Narration is not configured with a valid model and voice. Choose both in Settings.' });
+      }
+      if (entry.pcm) {
+        return res.status(400).json({ error: 'This narrator speaks WAV-only; audiobooks need an mp3 narrator. Pick another in Settings.' });
+      }
+      const pages = audiobookTextPages(story.id);
+      if (pages.length === 0) return badRequest(res, 'This tale has no narratable pages yet.');
+      db.prepare(
+        'INSERT OR REPLACE INTO audiobooks (story_id, model, voice, status, pages_done, pages_total, cost_usd, fingerprint, updated_at) VALUES (?, ?, ?, ?, 0, ?, 0, ?, CURRENT_TIMESTAMP)'
+      ).run(story.id, model, voice, 'pending', pages.length, audiobookFingerprint(model, voice, pages));
+      // A fresh reading replaces the old one; never leave stale bytes behind.
+      for (const file of [audioFileFor(story.id), audioFileFor(story.id, true)]) {
+        try { fs.unlinkSync(file); } catch { /* nothing there */ }
+      }
+      audiobookQueue.push(story.id);
+      drainAudiobookQueue();
+      res.status(201).json({ audiobook: audiobookWithMeta(getAudiobook(story.id), story) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/api/stories/:id/audiobook', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const row = getAudiobook(story.id);
+    res.json({ audiobook: row ? audiobookWithMeta(row, story) : null });
+  });
+
+  app.post('/api/stories/:id/audiobook/cancel', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const row = getAudiobook(story.id);
+    if (!row || row.status !== 'pending') return badRequest(res, 'No audiobook is being generated for this tale.');
+    const queued = audiobookQueue.indexOf(story.id);
+    if (queued >= 0) {
+      audiobookQueue.splice(queued, 1);
+      db.prepare(
+        "UPDATE audiobooks SET status = 'failed', error = 'Cancelled.', updated_at = CURRENT_TIMESTAMP WHERE story_id = ?"
+      ).run(story.id);
+      audiobookCancel.delete(story.id);
+    } else {
+      // Reading right now: the runner checks the flag between pages.
+      audiobookCancel.add(story.id);
+    }
+    res.json({ audiobook: audiobookWithMeta(getAudiobook(story.id), story) });
+  });
+
+  app.get('/api/stories/:id/audiobook/audio', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const row = getAudiobook(story.id);
+    if (!row || row.status !== 'ready') return notFound(res, 'Audiobook not found');
+    const file = audioFileFor(story.id);
+    if (!fs.existsSync(file)) return notFound(res, 'Audiobook file is missing');
+    const slug = story.title.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'story';
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Content-Disposition', `attachment; filename="${slug}-audiobook.mp3"`);
+    fs.createReadStream(file).pipe(res);
+  });
+
+  app.delete('/api/stories/:id/audiobook', (req, res) => {
+    const story = getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const row = getAudiobook(story.id);
+    if (!row) return notFound(res, 'Audiobook not found');
+    if (row.status === 'pending') {
+      const queued = audiobookQueue.indexOf(story.id);
+      if (queued >= 0) audiobookQueue.splice(queued, 1);
+      audiobookCancel.add(story.id); // stop a running job too
+    }
+    db.prepare('DELETE FROM audiobooks WHERE story_id = ?').run(story.id);
+    for (const file of [audioFileFor(story.id), audioFileFor(story.id, true)]) {
+      try { fs.unlinkSync(file); } catch { /* nothing there */ }
+    }
+    res.status(204).end();
+  });
+
+  // -- storage page (per-story kept things) ----------------------------------
+
+  app.get('/api/storage', (req, res) => {
+    const stories = db.prepare('SELECT * FROM stories ORDER BY updated_at DESC').all();
+    const plateRows = db
+      .prepare('SELECT id, story_id, page_number, image_prompt FROM story_pages WHERE image_media_type IS NOT NULL ORDER BY story_id, page_number')
+      .all();
+    const platesByStory = new Map();
+    for (const plate of plateRows) {
+      let buffer;
+      try { buffer = imageStore.readImage('page', plate.id)?.buffer; } catch { buffer = null; }
+      const entry = { page_number: plate.page_number, image_prompt: plate.image_prompt || null, size_bytes: buffer ? buffer.length : null };
+      if (!platesByStory.has(plate.story_id)) platesByStory.set(plate.story_id, []);
+      platesByStory.get(plate.story_id).push(entry);
+    }
+    res.json({
+      stories: stories.map((story) => ({
+        id: story.id,
+        title: story.title,
+        updated_at: story.updated_at,
+        audiobook: (() => {
+          const row = getAudiobook(story.id);
+          return row ? audiobookWithMeta(row, story) : null;
+        })(),
+        plates: platesByStory.get(story.id) || [],
+      })),
+    });
+  });
+
   // -- truncation ----------------------------------------------------------
 
   // Delete every page AFTER the given page number, making it the last page.
@@ -1391,6 +1783,12 @@ function createApp(
     if (!story) return notFound(res, 'Story not found');
     const after = parseInt(req.query.after, 10);
     if (!Number.isFinite(after) || after < 1) return badRequest(res, '"after" must be a positive page number');
+    const doomed = db
+      .prepare('SELECT id, image_media_type FROM story_pages WHERE story_id = ? AND page_number > ?')
+      .all(story.id, after);
+    for (const page of doomed) {
+      if (page.image_media_type) imageStore.deleteImage('page', page.id);
+    }
     const result = db
       .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?')
       .run(story.id, after);

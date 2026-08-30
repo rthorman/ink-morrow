@@ -81,6 +81,9 @@ async function listSpeechModels() {
         const id = typeof v === 'string' ? v : String(v?.id || '');
         return { id, label: humanizeVoiceLabel(id) };
       }).filter((v) => v.id),
+      // Gemini-class narrators only speak pcm (delivered as WAV), which cannot
+      // be bound into a single-sound audiobook — flagged so clients can say why.
+      pcm: /gemini/i.test(m.id),
       // TTS pricing: prompt is USD per input character, completion USD per
       // output token (Gemini-style models). Exposed per 1M units.
       pricing: {

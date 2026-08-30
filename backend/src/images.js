@@ -101,8 +101,8 @@ function extFor(mediaType) {
 // Reference and scene images live on disk next to the database (never in the
 // DB itself); served through dedicated API routes with the stored media type.
 function createImageStore(rootDir) {
-  const kindDir = (kind) => path.join(rootDir, kind === 'world' ? 'worlds' : 'characters');
-  for (const kind of ['world', 'character']) {
+  const kindDir = (kind) => path.join(rootDir, kind === 'world' ? 'worlds' : kind === 'page' ? 'pages' : 'characters');
+  for (const kind of ['world', 'character', 'page']) {
     fs.mkdirSync(kindDir(kind), { recursive: true });
   }
 

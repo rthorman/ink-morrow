@@ -396,6 +396,8 @@ function initApp() {
   document.getElementById('charactersBtn').addEventListener('click', () => showSection('characters'));
   document.getElementById('storiesBtn').addEventListener('click', () => showSection('stories'));
   document.getElementById('writeBtn').addEventListener('click', () => showSection('write'));
+  const bookshelfBtn = document.getElementById('bookshelfBtn');
+  if (bookshelfBtn) bookshelfBtn.addEventListener('click', () => { showSection('bookshelf'); loadBookshelf(); });
 
   document.getElementById('worldForm').addEventListener('submit', handleWorldSubmit);
   document.getElementById('characterForm').addEventListener('submit', handleCharacterSubmit);
@@ -467,8 +469,10 @@ function initApp() {
   initSceneViewer(); // registered first so Escape dismisses the viewer before the prompt popup
   initImagePrompt();
   initEntityEditors();
+  initAudiobook();
 
   initAgeGate();
+  initDiskBanner();
 
   loadWorlds();
   loadCharacters();
@@ -1252,6 +1256,7 @@ async function loadStoryPages() {
     displayCurrentPage();
     resetStoryCost();
     maybeStartSpeculative();
+    refreshAudiobook(); // banner follows the tale (progress, or a fresh result once)
   } catch (error) {
     showError(error.message);
     storyPages = [];
@@ -1285,26 +1290,36 @@ function displayCurrentPage() {
     return;
   }
 
+  const page = storyPages.length > 0 ? storyPages.find((p) => p.page_number === currentPage) : null;
+
   if (storyPages.length === 0) {
     const placeholder = document.createElement('p');
     placeholder.className = 'placeholder';
     placeholder.textContent = 'This story has no pages yet. Give the scribe a direction below…';
     contentDiv.appendChild(placeholder);
-  } else {
-    const page = storyPages.find((p) => p.page_number === currentPage);
-    if (page) {
+  } else if (page) {
+    if (page.image_media_type) {
+      // A bound painting: the page IS the picture.
+      const plate = document.createElement('img');
+      plate.className = 'scene-plate';
+      plate.src = `/api/stories/${currentStory.id}/pages/${currentPage}/image`;
+      plate.alt = page.image_prompt || 'A painted scene plate';
+      contentDiv.appendChild(plate);
+    } else {
       const para = document.createElement('p');
       para.textContent = page.content;
-      const direction = document.createElement('div');
-      direction.className = 'page-direction';
-      direction.textContent = page.user_input ? `↳ direction: ${page.user_input}` : '';
-      contentDiv.append(para, direction);
+      contentDiv.appendChild(para);
     }
+    const direction = document.createElement('div');
+    direction.className = 'page-direction';
+    direction.textContent = page.user_input ? `↳ direction: ${page.user_input}` : '';
+    contentDiv.appendChild(direction);
   }
 
   prevBtn.disabled = currentPage <= 1;
   nextBtn.disabled = currentPage >= storyPages.length;
-  retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length;
+  // A plate has no prose to rewrite: retrying it would paint text over a picture.
+  retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length || Boolean(page && page.image_media_type);
   deletePageBtn.disabled = storyPages.length === 0 || currentPage > storyPages.length;
   updatePageActionButtons();
 
@@ -1330,12 +1345,15 @@ function setWritingEnabled(enabled) {
 }
 
 // Narration and illustration need a real page to work on, and hold still
-// while the scribe writes a new one.
+// while the scribe writes a new one. A bound plate has no text to narrate
+// or condense, so those buttons sleep on image pages.
 function updatePageActionButtons() {
+  const page = storyPages.length > 0 ? storyPages.find((p) => p.page_number === currentPage) : null;
   const usable = Boolean(currentStory) && storyPages.length > 0 && !generating;
+  const textual = usable && !(page && page.image_media_type);
   for (const id of ['readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn']) {
     const btn = document.getElementById(id);
-    if (btn) btn.disabled = !usable;
+    if (btn) btn.disabled = !textual;
   }
 }
 
@@ -2180,7 +2198,7 @@ async function generateSceneImage() {
     }
     sceneRefusals = 0;
     dropSceneReferences = false;
-    openSceneViewer(`data:${data.media_type};base64,${data.image}`, data.media_type);
+    openSceneViewer(`data:${data.media_type};base64,${data.image}`, data.media_type, { prompt, costUsd: data.cost_usd });
     if (costEl && typeof data.cost_usd === 'number') {
       const refs = Array.isArray(data.references) ? data.references.length : 0;
       costEl.textContent =
@@ -2204,6 +2222,9 @@ async function generateSceneImage() {
 // ---------------------------------------------------------------------------
 
 let sceneViewerDataUrl = null;
+let sceneViewerMediaType = null;
+let sceneViewerPrompt = null;
+let sceneViewerCostUsd = null;
 let sceneViewerFilename = 'scene.png';
 let viewerScale = 1;
 let viewerX = 0;
@@ -2221,11 +2242,14 @@ function resetSceneViewer() {
   applySceneViewerTransform();
 }
 
-function openSceneViewer(dataUrl, mediaType) {
+function openSceneViewer(dataUrl, mediaType, meta = {}) {
   const modal = document.getElementById('sceneImageViewerModal');
   const img = document.getElementById('sceneViewerImg');
   if (!modal || !img) return;
   sceneViewerDataUrl = dataUrl;
+  sceneViewerMediaType = mediaType || null;
+  sceneViewerPrompt = typeof meta.prompt === 'string' && meta.prompt.trim() ? meta.prompt.trim() : null;
+  sceneViewerCostUsd = typeof meta.costUsd === 'number' && Number.isFinite(meta.costUsd) ? meta.costUsd : null;
   const ext = mediaType === 'image/jpeg' ? 'jpg' : mediaType === 'image/webp' ? 'webp' : 'png';
   sceneViewerFilename = `scene-page-${currentStory ? currentPage : 0}.${ext}`;
   img.src = dataUrl;
@@ -2239,7 +2263,54 @@ function closeSceneViewer() {
   if (modal) modal.hidden = true;
   if (img) img.removeAttribute('src');
   sceneViewerDataUrl = null;
+  sceneViewerMediaType = null;
+  sceneViewerPrompt = null;
+  sceneViewerCostUsd = null;
   resetSceneViewer();
+}
+
+// Bind the painting on display into the story: a new image page lands right
+// after the one it illustrates (the viewer was opened on), both modals close,
+// and the reader turns to the fresh plate.
+async function addSceneAsPage() {
+  if (!sceneViewerDataUrl || !currentStory || currentPage < 1 || currentPage > storyPages.length) return;
+  const btn = document.getElementById('sceneViewerAddPageBtn');
+  // Capture everything BEFORE closing: closeSceneViewer wipes the viewer state.
+  const comma = sceneViewerDataUrl.indexOf(',');
+  const base64 = sceneViewerDataUrl.startsWith('data:') && comma > 0 ? sceneViewerDataUrl.slice(comma + 1) : sceneViewerDataUrl;
+  const mediaType = sceneViewerMediaType;
+  const prompt = sceneViewerPrompt;
+  const costUsd = sceneViewerCostUsd;
+  if (!mediaType || !base64) return;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Binding…';
+  }
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-page`, 'POST', {
+      image: base64,
+      media_type: mediaType,
+      ...(prompt ? { prompt } : {}),
+      ...(typeof costUsd === 'number' ? { cost_usd: costUsd } : {}),
+    });
+    closeSceneViewer();
+    const promptModal = document.getElementById('imagePromptModal');
+    if (promptModal) promptModal.hidden = true;
+    discardSpeculative(); // a live write: any prepared next page is stale now
+    const list = await apiCall(`/stories/${currentStory.id}/pages`);
+    storyPages = list.pages || [];
+    currentPage = Math.max(1, Math.min(storyPages.length, data.page.page_number));
+    displayCurrentPage();
+    showSuccess(`The painting is bound into the tale as page ${data.page.page_number}.`);
+    checkDiskSpace(); // a plate just landed on disk — the banner must know
+  } catch (error) {
+    showError(scribeErrorMessage(error.message)); // floats above the open modals
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Add as page';
+    }
+  }
 }
 
 function saveSceneViewer() {
@@ -2250,6 +2321,520 @@ function saveSceneViewer() {
   document.body.appendChild(a);
   a.click();
   a.remove();
+}
+
+// ---------------------------------------------------------------------------
+// Disk-space banner: plates, portraits and the database all grow on the same
+// filesystem. When free room runs low, a persistent banner above every
+// section warns the writer; it leaves only when space actually recovers.
+// ---------------------------------------------------------------------------
+
+const DISK_LOW_BYTES = 1024 * 1024 * 1024; // under 1 GB free…
+const DISK_LOW_RATIO = 0.05; // …or under 5% of the volume
+const DISK_CRITICAL_BYTES = 250 * 1024 * 1024; // almost full: escalate the wording
+
+function formatDiskBytes(bytes) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  return `${Math.max(1, Math.round(bytes / (1024 * 1024)))} MB`;
+}
+
+function updateDiskBanner(data) {
+  const banner = document.getElementById('diskBanner');
+  const text = document.getElementById('diskBannerText');
+  if (!banner || !text) return;
+  const free = typeof data?.free_bytes === 'number' && data.free_bytes >= 0 ? data.free_bytes : null;
+  const total = typeof data?.total_bytes === 'number' && data.total_bytes > 0 ? data.total_bytes : null;
+  const low = free !== null && (free < DISK_LOW_BYTES || (total !== null && free / total < DISK_LOW_RATIO));
+  banner.hidden = !low;
+  if (!low) return;
+  const freeLabel = formatDiskBytes(free);
+  text.textContent =
+    free < DISK_CRITICAL_BYTES
+      ? `Storage is almost full — ${freeLabel} free on this device. The scribe cannot save new pages or paintings until room is made.`
+      : `Storage is running low — ${freeLabel} free on this device. Painted plates and new pages still need room to breathe.`;
+}
+
+async function checkDiskSpace() {
+  try {
+    updateDiskBanner(await apiCall('/disk'));
+  } catch {
+    // Server unreachable is reported elsewhere; the banner keeps its last state.
+  }
+}
+
+function initDiskBanner() {
+  checkDiskSpace();
+  // Jest drives checks manually; only a live page keeps watching the disk.
+  if (typeof process === 'undefined' || !process.env.JEST_WORKER_ID) {
+    setInterval(checkDiskSpace, 30000);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Audiobooks: the whole tale read aloud as one mp3. A modal advertises the
+// narrator (or why it cannot be used), the estimate, and takes a slide-to-
+// confirm; a banner in the writing page carries the progress; the finished
+// book is downloadable here or from the Bookshelf at any later time.
+// ---------------------------------------------------------------------------
+
+const AUDIOBOOK_EST_WORDS_PER_MIN = 150; // measured speaking pace
+const AUDIOBOOK_EST_BYTES_PER_SECOND = 6 * 1024; // ~48 kbps mono mp3
+
+function audiobookTextPages() {
+  return storyPages.filter((p) => !p.image_media_type && String(p.content || '').trim());
+}
+
+// Same honest math as the per-page labels in Settings: chars priced per
+// million, audio tokens approximated at ~20 per word.
+function audiobookEstimate(modelEntry) {
+  const pages = audiobookTextPages();
+  let words = 0;
+  let chars = 0;
+  for (const page of pages) {
+    const text = String(page.content || '').trim();
+    words += text.split(/\s+/).filter(Boolean).length;
+    chars += text.length;
+  }
+  const durationS = Math.round((words / AUDIOBOOK_EST_WORDS_PER_MIN) * 60);
+  const p = modelEntry?.pricing || {};
+  const cost = (chars * (p.prompt_per_mchar || 0) + words * 20 * (p.completion_per_mtok || 0)) / 1e6;
+  return {
+    pages: pages.length,
+    words,
+    duration_s: durationS,
+    size_bytes: Math.round(durationS * AUDIOBOOK_EST_BYTES_PER_SECOND),
+    cost_usd: Number.isFinite(cost) ? cost : 0,
+  };
+}
+
+function formatMinutes(seconds) {
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
+function formatMb(bytes) {
+  if (bytes >= 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+  return `${(bytes / (1024 * 1024)).toFixed(0)} MB`;
+}
+
+// Why can (or cannot) the currently chosen narrator read a whole book?
+async function audiobookNarratorVerdict() {
+  const models = await loadSpeechModels();
+  const entry = models.find((m) => m.id === settings.narrationModel) || null;
+  if (!settings.narrationModel || !entry) {
+    return { entry: null, usable: false, reason: 'No narrator chosen — pick a speech model and voice in Settings first.' };
+  }
+  if (!settings.narrationVoice || !entry.voices.some((v) => v.id === settings.narrationVoice)) {
+    return { entry, usable: false, reason: 'Choose a voice in Settings first.' };
+  }
+  if (entry.pcm) {
+    return { entry, usable: false, reason: `${entry.name} speaks WAV-only, which cannot be bound into a single-sound audiobook. Choose an mp3 narrator in Settings.` };
+  }
+  const voiceLabel = (entry.voices.find((v) => v.id === settings.narrationVoice) || {}).label || settings.narrationVoice;
+  return { entry, usable: true, reason: `Narrator: ${entry.name} · voice ${voiceLabel}.` };
+}
+
+async function openAudiobookModal() {
+  const modal = document.getElementById('audiobookModal');
+  const body = document.getElementById('audiobookModalBody');
+  const existingEl = document.getElementById('audiobookExisting');
+  const slider = document.getElementById('audiobookSlider');
+  if (!modal || !body || !slider) return;
+  if (!currentStory) {
+    showError('Select a story first.');
+    return;
+  }
+  const verdict = await audiobookNarratorVerdict();
+  const estimate = audiobookEstimate(verdict.entry);
+  const lines = [verdict.reason];
+  if (verdict.usable && estimate.pages > 0) {
+    lines.push(
+      `${estimate.pages} page${estimate.pages === 1 ? '' : 's'} · ≈${formatMinutes(estimate.duration_s)} of listening · ` +
+        `≈${formatMb(estimate.size_bytes)} · ≈${formatUsd(estimate.cost_usd)} in narration.`
+    );
+    lines.push('Unchanged pages are remembered — regenerating after edits re-bills only what changed.');
+  } else if (verdict.usable && estimate.pages === 0) {
+    lines.push('This tale has no narratable pages yet.');
+  }
+  body.textContent = lines.join('\n');
+  body.style.whiteSpace = 'pre-line';
+
+  const row = await refreshAudiobook();
+  let blocked = !verdict.usable || estimate.pages === 0;
+  if (existingEl) {
+    if (row && row.status === 'pending') {
+      existingEl.textContent = 'This tale is already being read aloud — watch the banner below the story.';
+      existingEl.hidden = false;
+      blocked = true;
+    } else if (row && row.status === 'ready') {
+      const stale = row.stale ? ' The tale has changed since — the changed pages will be re-billed.' : '';
+      existingEl.textContent = `An audiobook already exists (≈${formatMinutes(row.duration_s || 0)}, ${formatUsd(row.cost_usd || 0)}). Generating again replaces it.${stale}`;
+      existingEl.hidden = false;
+    } else if (row && row.status === 'failed') {
+      existingEl.textContent = `The last reading failed: ${row.error || 'unknown error'}. Starting again retries it.`;
+      existingEl.hidden = false;
+    } else {
+      existingEl.hidden = true;
+    }
+  }
+
+  slider.disabled = blocked;
+  slider.value = 0;
+  updateBurnSliderFill(slider);
+  modal.hidden = false;
+  slider.focus();
+}
+
+function closeAudiobookModal() {
+  const modal = document.getElementById('audiobookModal');
+  if (modal) modal.hidden = true;
+}
+
+async function startAudiobook() {
+  if (!currentStory) return;
+  closeAudiobookModal();
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/audiobook`, 'POST', {
+      model: settings.narrationModel,
+      voice: settings.narrationVoice,
+    });
+    updateAudiobookBanner(data.audiobook);
+    startAudiobookPolling();
+  } catch (error) {
+    showError(scribeErrorMessage(error.message));
+  }
+}
+
+// The ready banner appears once per completed reading (the Bookshelf owns the
+// download afterwards); the pending banner always shows while reading.
+function audiobookSeenKey(storyId, row) {
+  return `st-ab-seen:${storyId}:${row.updated_at || row.created_at || ''}`;
+}
+
+function audiobookWasSeen(storyId, row) {
+  try {
+    return localStorage.getItem(audiobookSeenKey(storyId, row)) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function markAudiobookSeen(storyId, row) {
+  try {
+    localStorage.setItem(audiobookSeenKey(storyId, row), '1');
+  } catch {
+    /* private mode: just for this session */
+  }
+}
+
+function audiobookBannerRow(storyId, row) {
+  const show = row.status === 'pending' ||
+    (row.status === 'ready' && !audiobookWasSeen(storyId, row)) ||
+    row.status === 'failed';
+  return show ? row : null;
+}
+
+function updateAudiobookBanner(row) {
+  const banner = document.getElementById('audiobookBanner');
+  const textEl = document.getElementById('audiobookBannerText');
+  const progress = document.getElementById('audiobookProgress');
+  const fill = document.getElementById('audiobookProgressFill');
+  const actions = document.getElementById('audiobookBannerActions');
+  if (!banner || !textEl || !progress || !fill || !actions) return;
+  if (!currentStory || !row || !audiobookBannerRow(currentStory.id, row)) {
+    banner.hidden = true;
+    return;
+  }
+  actions.textContent = '';
+  if (row.status === 'pending') {
+    const reading = row.queue_position === 0 || row.queue_position === undefined;
+    if (reading) {
+      textEl.textContent = `The scribe reads the tale aloud — page ${row.pages_done || 0} of ${row.pages_total || 0}…`;
+      const total = row.pages_total || 1;
+      const pct = Math.round(((row.pages_done || 0) / total) * 100);
+      fill.style.width = `${pct}%`;
+      fill.setAttribute('aria-valuenow', String(pct));
+      progress.hidden = false;
+    } else {
+      const ahead = row.queue_position === 1 ? '1 tale is' : `${row.queue_position} tales are`;
+      textEl.textContent = `Waiting for the scribe — ${ahead} ahead in the queue.`;
+      progress.hidden = true; // nothing to measure yet while queued
+    }
+    const stop = document.createElement('button');
+    stop.type = 'button';
+    stop.className = 'ghost-btn';
+    stop.textContent = 'Stop';
+    stop.addEventListener('click', stopAudiobook);
+    actions.append(stop);
+    actions.hidden = false;
+    banner.hidden = false;
+    return;
+  }
+  progress.hidden = true;
+  if (row.status === 'ready') {
+    const stale = row.stale ? ' (the tale has changed since it was read)' : '';
+    const missing = row.file_missing ? ' — the file is missing, generate it again' : '';
+    textEl.textContent = `The audiobook is ready — ≈${formatMinutes(row.duration_s || 0)} · ${formatUsd(row.cost_usd || 0)}${stale}${missing}.`;
+    const download = document.createElement('a');
+    download.className = 'ghost-btn';
+    download.href = `${API_BASE_URL}/stories/${currentStory.id}/audiobook/audio`;
+    download.textContent = 'Download';
+    actions.append(download);
+    chargeAudiobookCost(currentStory.id, row);
+  } else if (row.status === 'failed') {
+    textEl.textContent = `The reading failed: ${row.error || 'unknown error'}.`;
+    const retry = document.createElement('button');
+    retry.type = 'button';
+    retry.className = 'ghost-btn';
+    retry.textContent = 'Open audiobook';
+    retry.addEventListener('click', openAudiobookModal);
+    actions.append(retry);
+  }
+  const hide = document.createElement('button');
+  hide.type = 'button';
+  hide.className = 'ghost-btn';
+  hide.textContent = 'Hide';
+  hide.addEventListener('click', () => {
+    markAudiobookSeen(currentStory.id, row);
+    banner.hidden = true;
+  });
+  actions.append(hide);
+  actions.hidden = false;
+  banner.hidden = false;
+}
+
+// Session + story tick exactly once per completed reading.
+const chargedAudiobooks = new Set();
+function chargeAudiobookCost(storyId, row) {
+  const key = `${storyId}@${row.updated_at || row.created_at || ''}`;
+  if (typeof row.cost_usd !== 'number' || row.cost_usd <= 0 || chargedAudiobooks.has(key)) return;
+  chargedAudiobooks.add(key);
+  addCost(row.cost_usd);
+}
+
+let audiobookPollTimer = null;
+
+function startAudiobookPolling() {
+  stopAudiobookPolling();
+  if (typeof process !== 'undefined' && process.env.JEST_WORKER_ID) return; // tests drive updates directly
+  audiobookPollTimer = setInterval(async () => {
+    if (!currentStory) return stopAudiobookPolling();
+    const row = await refreshAudiobook();
+    if (!row || row.status !== 'pending') stopAudiobookPolling();
+  }, 2000);
+}
+
+function stopAudiobookPolling() {
+  if (audiobookPollTimer) {
+    clearInterval(audiobookPollTimer);
+    audiobookPollTimer = null;
+  }
+}
+
+async function refreshAudiobook() {
+  if (!currentStory) return null;
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/audiobook`);
+    const row = data.audiobook || null;
+    updateAudiobookBanner(row);
+    if (row && row.status === 'pending') startAudiobookPolling();
+    if (row && row.status === 'ready') checkDiskSpace(); // megabytes just landed
+    return row;
+  } catch {
+    return null;
+  }
+}
+
+async function stopAudiobook() {
+  if (!currentStory) return;
+  try {
+    const data = await apiCall(`/stories/${currentStory.id}/audiobook/cancel`, 'POST');
+    updateAudiobookBanner(data.audiobook);
+    if (data.audiobook?.status !== 'pending') stopAudiobookPolling();
+  } catch (error) {
+    showError(scribeErrorMessage(error.message));
+  }
+}
+
+function initAudiobook() {
+  const btn = document.getElementById('audiobookBtn');
+  if (btn) btn.addEventListener('click', openAudiobookModal);
+  const modal = document.getElementById('audiobookModal');
+  const slider = document.getElementById('audiobookSlider');
+  const cancel = document.getElementById('audiobookCancelBtn');
+  if (!modal || !slider || !cancel) return;
+  cancel.addEventListener('click', closeAudiobookModal);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeAudiobookModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) closeAudiobookModal();
+  });
+  slider.addEventListener('input', () => {
+    updateBurnSliderFill(slider);
+    if (Number(slider.value) >= Number(slider.max) && !slider.disabled) {
+      closeAudiobookModal();
+      startAudiobook();
+    }
+  });
+  updateBurnSliderFill(slider);
+}
+
+// -- Bookshelf: every tale's kept things -------------------------------------
+
+async function loadBookshelf() {
+  const list = document.getElementById('bookshelfList');
+  if (!list) return;
+  let data;
+  try {
+    data = await apiCall('/storage');
+  } catch (error) {
+    list.textContent = '';
+    const p = document.createElement('p');
+    p.className = 'placeholder';
+    p.textContent = `Could not load the bookshelf (${error.message}).`;
+    list.appendChild(p);
+    return;
+  }
+  list.textContent = '';
+  const stories = data.stories || [];
+  if (stories.length === 0) {
+    const p = document.createElement('p');
+    p.className = 'placeholder';
+    p.textContent = 'No tales yet — their kept things will gather here.';
+    list.appendChild(p);
+    return;
+  }
+  for (const story of stories) {
+    list.appendChild(bookshelfEntry(story));
+  }
+}
+
+function bookshelfEntry(story) {
+  const card = document.createElement('div');
+  card.className = 'bookshelf-entry';
+
+  const head = document.createElement('h3');
+  head.textContent = story.title;
+  card.appendChild(head);
+
+  if (story.audiobook) {
+    card.appendChild(bookshelfAudioBlock(story));
+  } else {
+    const none = document.createElement('p');
+    none.className = 'bookshelf-entry__none';
+    none.textContent = 'No audiobook kept.';
+    card.appendChild(none);
+  }
+
+  if (story.plates && story.plates.length > 0) {
+    const plates = document.createElement('div');
+    plates.className = 'bookshelf-plates';
+    for (const plate of story.plates) {
+      plates.appendChild(bookshelfPlate(story, plate));
+    }
+    card.appendChild(plates);
+  } else {
+    const none = document.createElement('p');
+    none.className = 'bookshelf-entry__none';
+    none.textContent = 'No plates kept.';
+    card.appendChild(none);
+  }
+  return card;
+}
+
+function bookshelfAudioBlock(story) {
+  const row = story.audiobook;
+  const block = document.createElement('div');
+  block.className = 'bookshelf-audio';
+
+  const info = document.createElement('p');
+  if (row.status === 'ready') {
+    const stale = row.stale ? ' · stale (the tale changed)' : '';
+    const missing = row.file_missing ? ' · file missing' : '';
+    info.textContent = `Audiobook · ≈${formatMinutes(row.duration_s || 0)} · ${formatMb(row.size_bytes || 0)} · ${formatUsd(row.cost_usd || 0)}${stale}${missing}`;
+  } else if (row.status === 'pending') {
+    const queue = row.queue_position === 0 ? `reading — page ${row.pages_done || 0} of ${row.pages_total || 0}` : `waiting in queue (position ${row.queue_position})`;
+    info.textContent = `Audiobook · ${queue}`;
+  } else {
+    info.textContent = `Audiobook · failed: ${row.error || 'unknown error'}`;
+  }
+  block.appendChild(info);
+
+  const actions = document.createElement('div');
+  actions.className = 'bookshelf-entry__actions';
+  if (row.status === 'ready' && !row.file_missing) {
+    const download = document.createElement('a');
+    download.className = 'ghost-btn';
+    download.href = `${API_BASE_URL}/stories/${story.id}/audiobook/audio`;
+    download.textContent = 'Download';
+    actions.appendChild(download);
+  }
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'ghost-btn';
+  del.textContent = 'Delete';
+  del.addEventListener('click', async () => {
+    if (!confirm(`Delete the audiobook of "${story.title}"? The pages stay; only the kept reading goes.`)) return;
+    try {
+      await apiCall(`/stories/${story.id}/audiobook`, 'DELETE');
+      await loadBookshelf();
+      if (currentStory && currentStory.id === story.id) refreshAudiobook();
+    } catch (error) {
+      showError(scribeErrorMessage(error.message));
+    }
+  });
+  actions.appendChild(del);
+  block.appendChild(actions);
+  return block;
+}
+
+function bookshelfPlate(story, plate) {
+  const wrap = document.createElement('div');
+  wrap.className = 'bookshelf-plate';
+  const img = document.createElement('img');
+  img.src = `${API_BASE_URL}/stories/${story.id}/pages/${plate.page_number}/image`;
+  img.alt = plate.image_prompt || `Painted plate for page ${plate.page_number}`;
+  img.loading = 'lazy';
+  wrap.appendChild(img);
+
+  const caption = document.createElement('p');
+  caption.textContent = `Page ${plate.page_number}${plate.size_bytes ? ` · ${formatMb(plate.size_bytes)}` : ''}`;
+  wrap.appendChild(caption);
+
+  const actions = document.createElement('div');
+  actions.className = 'bookshelf-entry__actions';
+  const download = document.createElement('a');
+  download.className = 'ghost-btn';
+  download.href = `${API_BASE_URL}/stories/${story.id}/pages/${plate.page_number}/image?download=1`;
+  download.textContent = 'Save';
+  actions.appendChild(download);
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'ghost-btn';
+  del.textContent = 'Delete';
+  del.addEventListener('click', async () => {
+    const after = confirm(
+      `Delete the plate on page ${plate.page_number} of "${story.title}"?\n\nIt is a real page: the pages after it will renumber. There is no recovery.`
+    );
+    if (!after) return;
+    try {
+      await apiCall(`/stories/${story.id}/pages/${plate.page_number}`, 'DELETE');
+      await loadBookshelf();
+      // An open reader must not sit on renumbered pages
+      if (currentStory && currentStory.id === story.id) {
+        discardSpeculative();
+        stopNarration();
+        await loadStoryPages();
+      }
+    } catch (error) {
+      showError(scribeErrorMessage(error.message));
+    }
+  });
+  actions.appendChild(del);
+  wrap.appendChild(actions);
+  return wrap;
 }
 
 // Zoom by `factor`, keeping the screen point (clientX/clientY) under the
@@ -2324,6 +2909,7 @@ function initSceneViewer() {
   img.addEventListener('pointerup', endPointer);
   img.addEventListener('pointercancel', endPointer);
 
+  document.getElementById('sceneViewerAddPageBtn')?.addEventListener('click', addSceneAsPage);
   document.getElementById('sceneViewerSaveBtn')?.addEventListener('click', saveSceneViewer);
   document.getElementById('sceneViewerCloseBtn')?.addEventListener('click', closeSceneViewer);
   modal.addEventListener('click', (event) => {
@@ -2426,6 +3012,9 @@ function resetStoryReader() {
   currentPage = 1;
   displayCurrentPage();
   resetStoryCost();
+  stopAudiobookPolling();
+  const banner = document.getElementById('audiobookBanner');
+  if (banner) banner.hidden = true;
 }
 
 // ---------------------------------------------------------------------------
@@ -2496,6 +3085,20 @@ if (typeof module !== 'undefined' && module.exports) {
     openSceneViewer,
     closeSceneViewer,
     saveSceneViewer,
+    addSceneAsPage,
+    // Disk-space banner
+    updateDiskBanner,
+    checkDiskSpace,
+    // Audiobooks + Bookshelf
+    openAudiobookModal,
+    closeAudiobookModal,
+    updateAudiobookBanner,
+    refreshAudiobook,
+    stopAudiobook,
+    loadBookshelf,
+    audiobookEstimate,
+    audiobookNarratorVerdict,
+    markAudiobookSeen,
     __sceneViewerState: () => ({ scale: viewerScale, x: viewerX, y: viewerY, dataUrl: sceneViewerDataUrl }),
     // Entity editors
     openCharacterEditor,
