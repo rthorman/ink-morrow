@@ -106,7 +106,9 @@ describe('Characters and casting', () => {
 
     const memberOptions = [...document.getElementById('castCharSelect').options].map((o) => o.value);
     expect(memberOptions).toEqual(['', 'c2', 'c3']); // MC no longer offered
-    expect(document.querySelector('#castList .cast-list__row--mc .cast-list__name').textContent).toContain('Realm Knight — Lead');
+    const leadRow = document.querySelector('#castList .cast-list__row--mc');
+    expect(leadRow.querySelector('.cast-list__name').textContent).toBe('Realm Knight');
+    expect(leadRow.querySelector('.cast-list__role').textContent).toBe('Lead');
   });
 
   it('replacing the MC puts the old one back in the pool', async () => {
@@ -117,25 +119,50 @@ describe('Characters and casting', () => {
     expect([...document.getElementById('mcSelect').options].map((o) => o.value)).toContain('c1');
   });
 
-  it('adds supporting members one at a time with a relation', async () => {
+  it('adds supporting and background members through the real button with visible roles', async () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
 
     document.getElementById('castCharSelect').value = 'c2';
     document.getElementById('castTierSelect').value = 'supporting';
     document.getElementById('castRelation').value = 'owes her a life-debt from the war';
-    fw.addCastMember();
+    document.getElementById('castAddBtn').click();
 
     document.getElementById('castCharSelect').value = 'c3';
     document.getElementById('castTierSelect').value = 'background';
     document.getElementById('castRelation').value = '';
-    fw.addCastMember();
+    document.getElementById('castAddBtn').click();
 
     expect(fw.storyCast()).toEqual([
       { id: 'c1', role: 'mc', relation: null },
       { id: 'c2', role: 'supporting', relation: 'owes her a life-debt from the war' },
       { id: 'c3', role: 'background', relation: null },
     ]);
+    expect([...document.querySelectorAll('#castList .cast-list__role')].map((el) => el.textContent)).toEqual([
+      'Lead',
+      'Supporting',
+      'Background',
+    ]);
+  });
+
+  it('preserves an in-progress member across a passive character-catalog refresh', async () => {
+    document.getElementById('castCharSelect').value = 'c3';
+    document.getElementById('castTierSelect').value = 'background';
+    document.getElementById('castRelation').value = 'a witness the lead has not noticed';
+
+    // Portrait polling calls loadCharacters(), which used to clear all three
+    // controls and make a slow Add-to-cast interaction silently do nothing.
+    await fw.loadCharacters();
+
+    expect(document.getElementById('castCharSelect').value).toBe('c3');
+    expect(document.getElementById('castTierSelect').value).toBe('background');
+    expect(document.getElementById('castRelation').value).toBe('a witness the lead has not noticed');
+
+    document.getElementById('castAddBtn').click();
+    expect(fw.storyCast()).toEqual([
+      { id: 'c3', role: 'background', relation: 'a witness the lead has not noticed' },
+    ]);
+    expect(document.querySelector('#castList .cast-list__role').textContent).toBe('Background');
   });
 
   it('relation edits in the cast list update the entry', async () => {
@@ -160,8 +187,9 @@ describe('Characters and casting', () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
     document.getElementById('castCharSelect').value = 'c3';
+    document.getElementById('castTierSelect').value = 'supporting';
     document.getElementById('castRelation').value = 'her long-lost sister';
-    fw.addCastMember();
+    document.getElementById('castAddBtn').click();
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('storyForm').dispatchEvent(event);

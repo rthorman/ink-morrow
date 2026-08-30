@@ -190,6 +190,15 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     // possible moderation rewrite are all disclosed before the press costs.
     const variant = SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k';
     const paintEstimate = variant === 'medium_2k' ? 0.08 : 0.04;
+    const rewriteEstimate = estimatePageCost({
+      models: state.modelsCache,
+      model: settings.model,
+      wordsPerPage: 90,
+      pageChars: prompt.length,
+    });
+    const retryMaximum = typeof rewriteEstimate === 'number' && Number.isFinite(rewriteEstimate)
+      ? Math.max(paintEstimate, rewriteEstimate * 3)
+      : null;
     const refs = readyCastReferences();
     if (imageryReviewing) return;
     imageryReviewing = true;
@@ -204,8 +213,9 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
           : refs.length > 0
             ? `the prompt text and ${refs.length} cast portrait${refs.length === 1 ? '' : 's'} (${refs.join(', ')}) as identity reference${refs.length === 1 ? '' : 's'}`
             : 'the prompt text only (no cast portraits are ready)',
-        also: 'if the image model refuses, the scribe rewrites the prompt safely and that rewrite is billed',
+        also: `if the image model refuses, the scribe rewrites the prompt safely and that rewrite is billed (${approxCostText(rewriteEstimate)} before any retry)`,
         estimate: paintEstimate,
+        maximum: retryMaximum,
         note: 'A refusal paints nothing: image billing is all-or-nothing, only the rewrite costs.',
       },
       confirmLabel: `Paint it (${approxCostText(paintEstimate)})`,
@@ -251,6 +261,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         state.addCost(res.cost_usd); // scene images belong to the tale: session + story
       }
     } catch (error) {
+      state.addCost(error.costUsd); // a failed local rewrite may still have billed the tale
       showError(scribeErrorMessage(error.message));
     } finally {
       btn.disabled = false;
@@ -276,6 +287,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       wordsPerPage: 90, // a condensed scene prompt is short prose
       pageChars: String(page?.content || '').length,
     });
+    const retryMaximum = typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * 3 : null;
     if (imageryReviewing) return;
     imageryReviewing = true;
     const yes = await dialogs.confirmPaid({
@@ -287,7 +299,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         quantity: 'a short prompt draft (≈90 words)',
         sends: 'the text of this page to the writing model',
         estimate,
-        note: 'You review and may edit the prompt in the box before anything is painted.',
+        maximum: retryMaximum,
+        note: 'You review and may edit the prompt before anything is painted. A failed quality check can require up to three billable attempts.',
       },
       confirmLabel: estimate === null ? 'Condense it (price unavailable)' : `Condense it (${approxCostText(estimate)})`,
     });
@@ -303,6 +316,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
       });
       box.value = res.prompt || '';
+      state.addCost(res.cost_usd); // condensation is paid work for this story
       sceneRefusals = 0; // a fresh condense resets the moderation escalation
       dropSceneReferences = false;
       const costEl = document.getElementById('sceneImageCost');
@@ -319,6 +333,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       updatePaintButtonPrice();
       imagePromptModal.open(); // wired lifecycle: focus entry, scroll lock, opener
     } catch (error) {
+      state.addCost(error.costUsd);
       showError(scribeErrorMessage(error.message));
     } finally {
       if (btn) {

@@ -167,6 +167,7 @@ describe('Paid review (structured grammar)', () => {
         sends: 'your direction and the tale so far',
         also: 'prepare the next page (≈$0.01)',
         estimate: 0.03,
+        maximum: 0.09,
       },
       confirmLabel: 'Write it (≈$0.0300)',
     });
@@ -181,6 +182,8 @@ describe('Paid review (structured grammar)', () => {
     expect(body).toContain('prepare the next page (≈$0.01)');
     expect(body).toContain('Est. cost');
     expect(body).toContain('≈$0.0300');
+    expect(body).toContain('Retry ceiling');
+    expect(body).toContain('≈$0.0900');
     expect(body).not.toContain('price unavailable');
     const confirm = [...dlg.querySelectorAll('button')].find((b) => b.textContent === 'Write it (≈$0.0300)');
     expect(confirm).toBeTruthy();

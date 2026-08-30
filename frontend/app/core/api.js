@@ -23,7 +23,19 @@ export async function apiCall(endpoint, method = 'GET', data = null) {
   }
 
   if (!response.ok) {
-    throw new Error((body && body.error) || `Request failed (${response.status})`);
+    const error = new Error((body && body.error) || `Request failed (${response.status})`);
+    // Preserve optional billing metadata from failed paid requests. Feature
+    // flows decide whether the spend belongs to the session only or to the
+    // current story as well.
+    if (body && Object.prototype.hasOwnProperty.call(body, 'cost_usd')) {
+      error.costUsd = typeof body.cost_usd === 'number' && Number.isFinite(body.cost_usd)
+        ? body.cost_usd
+        : null;
+    }
+    if (body && Number.isInteger(body.billed_attempts) && body.billed_attempts > 0) {
+      error.billedAttempts = body.billed_attempts;
+    }
+    throw error;
   }
   return body;
 }

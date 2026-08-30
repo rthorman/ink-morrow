@@ -22,7 +22,7 @@ function createImageryRouter({ stories, imagery, imageStore, imageDir }) {
       const modelOverride = modelOverrideOf(req.body.model);
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
-      res.json({ prompt: await imagery.condensePrompt({ story, page, modelOverride, reasoningEffort }) });
+      res.json(await imagery.condensePrompt({ story, page, modelOverride, reasoningEffort }));
     } catch (error) {
       next(error);
     }

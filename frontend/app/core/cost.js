@@ -63,6 +63,15 @@ export function reviewBody(review) {
   dd.textContent = approxCostText(review.estimate);
   dl.append(dt, dd);
 
+  if (Object.prototype.hasOwnProperty.call(review, 'maximum')) {
+    const maxDt = document.createElement('dt');
+    maxDt.textContent = 'Retry ceiling';
+    const maxDd = document.createElement('dd');
+    maxDd.className = 'review-cost';
+    maxDd.textContent = approxCostText(review.maximum);
+    dl.append(maxDt, maxDd);
+  }
+
   if (review.note) {
     const p = document.createElement('p');
     p.className = 'review-note';

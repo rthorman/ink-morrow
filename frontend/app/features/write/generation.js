@@ -9,6 +9,8 @@
 import { SCRIBE_FLAVOR, SCRIBE_DONE, SCRIBE_ERROR } from '../../shell.js';
 import { approxCostText, estimatePageCost } from '../../core/cost.js';
 
+const QUALITY_ATTEMPTS_MAX = 3; // must match backend/src/ai.js
+
 export function createGeneration({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
   const { showError } = notify;
@@ -35,14 +37,25 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     });
   }
 
+  function multipliedEstimate(estimate, count) {
+    return typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * count : null;
+  }
+
+  function bookFailedSpend(error, { story = false } = {}) {
+    if (typeof error?.costUsd !== 'number' || !Number.isFinite(error.costUsd)) return;
+    if (story) state.addCost(error.costUsd);
+    else state.addSessionCost(error.costUsd);
+  }
+
   // The review every write shares: the page itself plus the follow-up
   // preparation, disclosed as one commitment.
   async function reviewWrite({ action, object, quantity, sends, also }) {
-    const estimate = pageEstimate();
-    const previewEstimate = pageEstimate();
-    const note = estimate === null
+    const singleEstimate = pageEstimate();
+    const estimate = multipliedEstimate(singleEstimate, 2); // live page + successor preview
+    const maximum = multipliedEstimate(singleEstimate, QUALITY_ATTEMPTS_MAX * 2);
+    const note = singleEstimate === null
       ? 'The price of the configured model is unknown to this client; the provider will bill it.'
-      : 'Longer tales cost slightly more: the whole recent context is sent with each write.';
+      : 'This estimate covers the page and its prepared successor. Each may need up to three billable quality attempts; longer tales also send more recent context.';
     const yes = await dialogs.confirmPaid({
       title: 'Send this to the paid scribe?',
       review: {
@@ -51,11 +64,12 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         model: settings.model || 'the scribe\u2019s default model',
         quantity,
         sends,
-        also: also ? `${also} (${approxCostText(previewEstimate)})` : null,
+        also: also ? `${also} (${approxCostText(singleEstimate)} before any retry)` : null,
         estimate,
+        maximum,
         note,
       },
-      confirmLabel: estimate === null ? 'Write it (price unavailable)' : `Write it (${approxCostText(estimate)})`,
+      confirmLabel: estimate === null ? 'Write it + prepare (price unavailable)' : `Write it + prepare (${approxCostText(estimate)})`,
     });
     return yes;
   }
@@ -75,7 +89,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     if (note) {
       if (previewUsable) {
         note.hidden = false;
-        note.textContent = 'Next page prepared. No cost is booked until you use it.';
+        note.textContent = 'Next page prepared. Its provider cost is already in Session; it joins Story when used.';
       } else if (previewReady && !inputEmpty) {
         note.hidden = false;
         note.textContent = 'A page is prepared — writing with this direction discards it.';
@@ -102,13 +116,16 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
       });
+      // Even a response made stale by a direction change consumed provider
+      // work. Book it before deciding whether it may affect the button.
+      state.addSessionCost(res.preview?.cost_usd);
       // Only the CURRENT attempt may turn the button green: a stale attempt
       // whose story slot got written in the meantime (a direction-generate
       // invalidated its server-side preview) must never masquerade as ready.
       if (!speculative || speculative.storyId !== storyId || speculative.token !== token) return;
       speculative = { storyId, ready: true, token };
-      state.addSessionCost(res.preview?.cost_usd); // honest: the tokens are spent now
-    } catch {
+    } catch (error) {
+      bookFailedSpend(error); // locally rejected provider replies can still bill
       if (speculative && speculative.storyId === storyId && speculative.token === token) speculative = null;
     }
     updateSpeculativeUi();
@@ -172,16 +189,20 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       // but preparing the SUCCESSOR is a fresh spend, so it is disclosed
       // here, before the commit releases it.
       const nextEstimate = pageEstimate();
+      const nextMaximum = multipliedEstimate(nextEstimate, QUALITY_ATTEMPTS_MAX);
       const yes = await dialogs.confirmPaid({
-        title: 'Use the prepared page?',
+        title: 'Use this page and prepare another?',
         review: {
           action: `Commit the prepared page ${storyPages.length + 1} of "${currentStory.title}". Its cost was already paid when it was prepared.`,
           quantity: `the prepared page ${storyPages.length + 1} (already spent)`,
           also: `then prepare the next page for what may follow (${approxCostText(nextEstimate)})`,
-          estimate: 0,
-          note: 'Using the prepared page itself bills nothing; only the follow-up preparation is new spend.',
+          estimate: nextEstimate,
+          maximum: nextMaximum,
+          note: 'Using the prepared page itself bills nothing new. The estimate is for its successor; a failed quality check can require up to three billable attempts.',
         },
-        confirmLabel: 'Use prepared page',
+        confirmLabel: nextEstimate === null
+          ? 'Use prepared page + prepare next (price unavailable)'
+          : `Use prepared page + prepare next (${approxCostText(nextEstimate)})`,
       });
       reviewing = false;
       if (!yes) return; // cancel: no commit, no follow-up, direction kept
@@ -238,6 +259,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         : userInput;
 
     setGenerating(true);
+    let written = false;
     try {
       const res = await apiCall(`/stories/${data.currentStory.id}/pages/generate`, 'POST', {
         user_input: direction || null,
@@ -251,13 +273,15 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       document.getElementById('userInput').value = '';
       document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
       features.write.displayCurrentPage();
+      written = true;
     } catch (error) {
+      bookFailedSpend(error);
       showError(error.message);
       document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
     } finally {
       setGenerating(false);
     }
-    maybeStartSpeculative(); // prepare the next one (generating has cleared)
+    if (written) maybeStartSpeculative(); // only a successful write earns its disclosed successor
   }
 
   async function retryLastPage() {
@@ -280,6 +304,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     if (!yes) return; // cancel: the existing page stands, nothing is sent
 
     setGenerating(true);
+    let rewritten = false;
     try {
       const oldCost = typeof storyPages[storyPages.length - 1]?.cost_usd === 'number'
         ? storyPages[storyPages.length - 1].cost_usd
@@ -291,17 +316,20 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       });
       data.storyPages[data.storyPages.length - 1] = res.page;
       const newCost = typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0;
-      state.addCost(newCost - oldCost);
+      state.addSessionCost(newCost); // the rewrite is a new provider spend in full
+      state.addStoryCost(newCost - oldCost); // persisted story replaces the old page
       document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
       discardSpeculative(); // the server dropped the old preview on regenerate
       features.write.displayCurrentPage();
+      rewritten = true;
     } catch (error) {
+      bookFailedSpend(error);
       showError(error.message);
       document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
     } finally {
       setGenerating(false);
     }
-    maybeStartSpeculative(); // prepare the next one (generating has cleared)
+    if (rewritten) maybeStartSpeculative(); // only a successful rewrite earns its disclosed successor
   }
 
   function init() {

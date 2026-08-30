@@ -128,19 +128,37 @@ function createWritingService({ db, catalog, stories, chatCompletion }) {
     // the UX stable. Both attempts are billed, so both costs are summed.
     let first = await attempt();
     let parsed = parseAiJson(first.content);
-    let cost = first.cost_usd || 0;
+    let billedAttempts = Number.isInteger(first.billed_attempts) ? first.billed_attempts : 1;
+    let costKnown = typeof first.cost_usd === 'number' && Number.isFinite(first.cost_usd);
+    let cost = costKnown ? first.cost_usd : 0;
     if (!parsed) {
-      const second = await attempt('Your previous answer was not a valid JSON object. This time return ONLY the JSON object.');
-      cost += second.cost_usd || 0;
+      let second;
+      try {
+        second = await attempt('Your previous answer was not a valid JSON object. This time return ONLY the JSON object.');
+      } catch (error) {
+        const secondAttempts = Number.isInteger(error.billedAttempts) ? error.billedAttempts : 0;
+        const secondCostKnown = typeof error.costUsd === 'number' && Number.isFinite(error.costUsd);
+        error.billedAttempts = billedAttempts + secondAttempts;
+        error.costUsd = secondAttempts === 0
+          ? (costKnown ? cost : null)
+          : (costKnown && secondCostKnown ? cost + error.costUsd : null);
+        throw error;
+      }
+      billedAttempts += Number.isInteger(second.billed_attempts) ? second.billed_attempts : 1;
+      const secondCostKnown = typeof second.cost_usd === 'number' && Number.isFinite(second.cost_usd);
+      if (secondCostKnown) cost += second.cost_usd;
+      costKnown = costKnown && secondCostKnown;
       parsed = parseAiJson(second.content);
       first = second;
     }
     if (!parsed) {
       const err = new Error('The scribe scribbled something illegible. Try again.');
       err.statusCode = 502;
+      err.billedAttempts = billedAttempts;
+      err.costUsd = costKnown ? cost : null;
       throw err;
     }
-    return { parsed, result: first, cost_usd: cost || null };
+    return { parsed, result: first, cost_usd: costKnown ? cost : null };
   }
 
   function draftLengthAndVariant(body) {

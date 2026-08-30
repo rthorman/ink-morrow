@@ -87,6 +87,7 @@ describe('Speculative next-page preparation', () => {
     // The button becomes a green Next Page; the preview cost hits the session ticker
     expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
+    expect(document.getElementById('preparedNote').textContent).toContain('already in Session');
     expect(fw.state().costs.session).toBeCloseTo(0.021, 8); // 0.02 write + 0.001 preview
     expect(fw.state().costs.story).toBeCloseTo(0.02, 8); // the written page; preview commits later
   });
@@ -237,6 +238,8 @@ describe('Speculative next-page preparation', () => {
     await tick();
     await tick();
     expect(btn.classList.contains('next-page')).toBe(true);
+    // Both previews were provider work even though the first became stale.
+    expect(fw.state().costs.session).toBeCloseTo(0.024, 8); // live .02 + stale .001 + fresh .003
 
     document.getElementById('userInput').value = '';
     const commit = fw.generateNextPage();
@@ -282,6 +285,85 @@ describe('Speculative next-page preparation', () => {
     expect(fw.state().storyPages).toHaveLength(2);
     expect(fw.state().storyPages[1].content).toBe('The live page.');
     expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+  });
+
+  it('discloses the two paid calls and their bounded retry ceiling', async () => {
+    fw.setSetting('model', 'priced/model');
+    fw.__setModelsCache([
+      {
+        id: 'priced/model',
+        name: 'Priced',
+        reasoning: false,
+        pricing: { prompt_per_mtok: 2, completion_per_mtok: 4 },
+      },
+    ]);
+    fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
+    fw.displayCurrentPage();
+    document.getElementById('userInput').value = 'go on';
+
+    const gen = fw.generateNextPage();
+    const review = document.querySelector('.dialog-manager__body').textContent;
+    expect(review).toContain('Also bills');
+    expect(review).toContain('prepare the next page');
+    expect(review).toContain('Retry ceiling');
+    expect(review).toContain('up to three billable quality attempts');
+    expect(await paidReview('cancel')).toBe(true);
+    await gen;
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/pages/generate'))).toBe(false);
+  });
+
+  it('does not start a successor preview after a failed live write and books known failed spend', async () => {
+    fetchMock.mockImplementation((url, options) => {
+      if (String(url).includes('/pages/generate') && options?.method === 'POST') {
+        return Promise.resolve(jsonResponse(502, {
+          error: 'The reply arrived cut off. Nothing was saved.',
+          cost_usd: 0.006,
+          billed_attempts: 3,
+        }));
+      }
+      if (String(url).includes('/pages/preview')) {
+        return Promise.resolve(jsonResponse(200, { preview: { cost_usd: 0.9 } }));
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+    fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
+    fw.displayCurrentPage();
+    document.getElementById('userInput').value = 'go on';
+
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
+    await tick();
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/pages/preview'))).toBe(false);
+    expect(fw.state().storyPages).toHaveLength(1);
+    expect(fw.state().costs.session).toBeCloseTo(0.006, 8);
+    expect(fw.state().costs.story).toBeCloseTo(0, 8);
+    expect(document.getElementById('userInput').value).toBe('go on');
+  });
+
+  it('does not start a successor preview after a failed rewrite and books known failed spend', async () => {
+    fetchMock.mockImplementation((url, options) => {
+      if (String(url).includes('/pages/regenerate') && options?.method === 'POST') {
+        return Promise.resolve(jsonResponse(502, {
+          error: 'The rewrite arrived cut off. Nothing was saved.',
+          cost_usd: 0.004,
+          billed_attempts: 2,
+        }));
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+    fw.__setStoryState(storyState([{ page_number: 1, content: 'Original.', user_input: null, cost_usd: 0.01 }]));
+    fw.displayCurrentPage();
+
+    const retry = fw.retryLastPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await retry;
+    await tick();
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/pages/preview'))).toBe(false);
+    expect(fw.state().storyPages[0].content).toBe('Original.');
+    expect(fw.state().costs.session).toBeCloseTo(0.004, 8);
   });
 
   it('does not prepare a page while viewing an old page', async () => {

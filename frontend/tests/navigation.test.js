@@ -61,6 +61,15 @@ describe('UI navigation (hash routes)', () => {
     expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
   });
 
+  it('a cold Write deep link paints the truthful disabled desk immediately', async () => {
+    await loadScript({ hash: '#/write' });
+    await flush();
+    expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
+    expect(document.getElementById('pageIndicator').textContent).toBe('No story selected');
+    expect(document.getElementById('generateBtn').disabled).toBe(true);
+    expect(document.getElementById('exportBtn').disabled).toBe(true);
+  });
+
   it('an invalid hash recovers to Home with a message', async () => {
     window.location.hash = '#/nonsense';
     await flush();

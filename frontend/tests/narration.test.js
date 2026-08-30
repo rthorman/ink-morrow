@@ -82,6 +82,16 @@ describe('Narration settings', () => {
     expect(JSON.parse(window.localStorage.getItem('st-settings')).narrationVoice).toBe('amber');
   });
 
+  it('refreshes the summary after the asynchronous catalogue resolves', async () => {
+    fw.setSetting('narrationModel', 'or/voice-1');
+    fw.setSetting('narrationVoice', 'amber');
+    expect(document.getElementById('narrationSummary').textContent).toBe('No narrator chosen');
+
+    await fw.loadSpeechModels();
+    fw.renderNarrationSettings();
+    expect(document.getElementById('narrationSummary').textContent).toBe('Voice One · amber');
+  });
+
   it('changing the model clears an incompatible saved voice', async () => {
     await fw.loadSpeechModels();
     fw.renderNarrationSettings();

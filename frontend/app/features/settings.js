@@ -213,6 +213,9 @@ export function createSettings({ api, state, notify, shell }) {
       }
     }
     populateNarrationVoices(selected, voiceSelect);
+    // Catalogue loading is asynchronous; refresh the collapsed summary only
+    // after the saved model can actually be resolved.
+    updateGroupSummaries();
   }
 
   let savedNoticeTimer = null;

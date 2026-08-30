@@ -79,6 +79,8 @@ describe('POST /api/stories/:id/pages/:n/image-prompt', () => {
     expect(res.body.prompt).toBe(
       'A candlelit gothic hall in wide shot, two figures by the far door, frost creeping over black stone while gold light pools across the flagstones from a handful of guttering candles.'
     ); // trimmed
+    expect(res.body.cost_usd).toBeNull();
+    expect(res.body.billed_attempts).toBe(1);
 
     const sent = axios.post.mock.calls[0];
     expect(sent[0]).toContain('/chat/completions');

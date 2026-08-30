@@ -81,6 +81,9 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
       wordsPerPage: 220, // a fleshed-out draft is a medium JSON document
       pageChars: seedChars,
     });
+    // There can be two JSON draft passes, and each provider completion can
+    // need up to three billable attempts before it yields usable text.
+    const retryMaximum = typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * 6 : null;
     // Initial draft and every regeneration pass the same paid review; the
     // draft stays editable and nothing is created until it is saved.
     const yes = await dialogs.confirmPaid({
@@ -89,10 +92,11 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
         action: `Write a ${DRAFT_LENGTH_LABELS[aiDraft.length].toLowerCase()} draft ${aiDraft.mode} from your seed fields.`,
         object: `a draft ${aiDraft.mode}${aiDraft.variant > 1 ? `, variant ${aiDraft.variant}` : ''}`,
         model: state.settings.model || 'the scribe\u2019s default model',
-        quantity: `one ${DRAFT_LENGTH_LABELS[aiDraft.length].toLowerCase()} draft`,
+        quantity: `one ${DRAFT_LENGTH_LABELS[aiDraft.length].toLowerCase()} draft (up to two JSON passes; each may take three billable quality attempts)`,
         sends: 'the seed fields you filled in (name and whatever else you wrote)',
         estimate,
-        note: 'The draft only becomes a real ' + aiDraft.mode + ' when you save it.',
+        maximum: retryMaximum,
+        note: 'The draft only becomes a real ' + aiDraft.mode + ' when you save it. An invalid first answer is corrected once and both completions are billed.',
       },
       confirmLabel: estimate === null ? 'Draft it (price unavailable)' : `Draft it (${approxCostText(estimate)})`,
     });
@@ -112,6 +116,7 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
       if (!aiDraft.data) aiDraft.error = 'The scribe offered nothing. Try again.';
       state.addSessionCost(res.cost_usd);
     } catch (error) {
+      state.addSessionCost(error.costUsd);
       aiDraft.error = scribeErrorMessage(error.message);
     } finally {
       aiDraft.generating = false;

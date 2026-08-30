@@ -49,6 +49,21 @@ describe('Scene image prompt button', () => {
     expect(document.getElementById('imagePromptBtn').disabled).toBe(false); // restored
   });
 
+  it('books the writing-model cost of a successful condensation', async () => {
+    fetch.mockImplementation((url) => {
+      if (String(url).includes('/image-prompt')) {
+        return Promise.resolve(jsonResponse(200, { prompt: PROMPT_TEXT, cost_usd: 0.003, billed_attempts: 1 }));
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(fw.state().costs.session).toBeCloseTo(0.003, 8);
+    expect(fw.state().costs.story).toBeCloseTo(0.003, 8);
+  });
+
   it('omits model and reasoning when no model override is chosen', async () => {
     document.getElementById('imagePromptBtn').click();
     expect(await paidReview('confirm')).toBe(true);
@@ -76,7 +91,11 @@ describe('Scene image prompt button', () => {
   });
 
   it('shows the scribe error and restores the button when the LLM fails', async () => {
-    fetch.mockImplementation(() => Promise.resolve(jsonResponse(500, { error: 'The muse is mute' })));
+    fetch.mockImplementation(() => Promise.resolve(jsonResponse(502, {
+      error: 'The muse is mute',
+      cost_usd: 0.002,
+      billed_attempts: 2,
+    })));
     document.getElementById('imagePromptBtn').click();
     expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
@@ -86,6 +105,8 @@ describe('Scene image prompt button', () => {
     const btn = document.getElementById('imagePromptBtn');
     expect(btn.disabled).toBe(false);
     expect(btn.textContent).toBe('Scene image');
+    expect(fw.state().costs.session).toBeCloseTo(0.002, 8);
+    expect(fw.state().costs.story).toBeCloseTo(0.002, 8);
   });
 
   it('complains politely when no story page is selected', async () => {

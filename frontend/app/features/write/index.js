@@ -35,7 +35,13 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   // Deep-link recovery: a story id that no longer exists falls back to the
   // Library with an honest message.
   async function enterFromRoute(params = {}) {
-    if (!params.storyId) return; // plain #/write keeps the reader as-is
+    if (!params.storyId) {
+      // A cold #/write boot starts from static HTML. Paint the truthful empty
+      // desk immediately instead of leaving the markup's fake Page 1 of 1 and
+      // enabled controls visible until some later interaction.
+      displayCurrentPage();
+      return;
+    }
     // Already open (a page turn wrote the hash): trust the reader's state.
     if (state.data.currentStory && state.data.currentStory.id === params.storyId) {
       if (params.pageNumber) {

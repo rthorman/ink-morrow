@@ -86,6 +86,12 @@ test.describe('ScribeTribe UI', () => {
     await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
 
+    // A third character lets the creation flow prove both non-lead tiers.
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
+    await page.fill('#characterName', 'The Witness');
+    await page.locator('#characterNoImageBtn').click();
+    await expect(page.locator('#charactersList .item-card', { hasText: 'The Witness' })).toBeVisible({ timeout: 5000 });
+
     // Every card carries reference-image controls (e2e key is a dummy, so
     // the portrait itself fails; the UI must still show the state honestly)
     const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
@@ -107,14 +113,52 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
     await selectByLabel(page, '#castCharSelect', 'The Drifter');
+    await page.selectOption('#castTierSelect', 'supporting');
     await page.fill('#castRelation', 'a debt of silence between them');
+
+    // Force the same passive catalogue reload that portrait polling performs.
+    // The in-progress add row must not be cleared before the user can press Add.
+    await page.locator('#charactersBtn').click();
+    await expect(page.locator('#charactersSection')).toHaveClass(/active/);
+    await page.locator('#libraryBtn').click();
+    await expect(page.locator('#storyCreateWrap')).toBeVisible();
+    await expect(page.locator('#castCharSelect')).toHaveValue(/.+/);
+    await expect(page.locator('#castTierSelect')).toHaveValue('supporting');
+    await expect(page.locator('#castRelation')).toHaveValue('a debt of silence between them');
     await page.locator('#castAddBtn').click();
-    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Lady Seraphina — Lead');
+    const leadRow = page.locator('#castList .cast-list__row--mc');
+    await expect(leadRow).toContainText('Lady Seraphina');
+    await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
+    const supportingRow = page.locator('#castList .cast-list__row', { hasText: 'The Drifter' });
+    await expect(supportingRow.locator('.cast-list__role')).toHaveText('Supporting');
+
+    await selectByLabel(page, '#castCharSelect', 'The Witness');
+    await page.selectOption('#castTierSelect', 'background');
+    await page.fill('#castRelation', 'saw what happened from the alley');
+    await page.locator('#castAddBtn').click();
+    const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
+    await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
     await page.locator('#storyForm button[type="submit"]').click();
 
     // Creating a story jumps to the write section with the story selected
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#currentStory option', { hasText: 'The Shadow and the Flame' })).toBeAttached({ timeout: 5000 });
+
+    // Browser state is not enough: the backend must hold both roles and notes.
+    const stories = (await (await page.request.get('/api/stories')).json()).stories;
+    const saved = stories.find((story) => story.title === 'The Shadow and the Flame');
+    expect(saved).toBeTruthy();
+    const full = (await (await page.request.get(`/api/stories/${saved.id}`)).json()).story;
+    const characters = (await (await page.request.get('/api/characters')).json()).characters;
+    const idFor = (name) => characters.find((character) => character.name === name).id;
+    expect(full.characters.find((entry) => entry.id === idFor('The Drifter'))).toMatchObject({
+      role: 'supporting',
+      relation: 'a debt of silence between them',
+    });
+    expect(full.characters.find((entry) => entry.id === idFor('The Witness'))).toMatchObject({
+      role: 'background',
+      relation: 'saw what happened from the alley',
+    });
   });
 
   test('blocks world deletion while referenced (409 surfaces as error)', async ({ page }) => {
