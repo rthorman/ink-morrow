@@ -359,27 +359,18 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       .expect(404);
   });
 
-  it('a moderation refusal (400) triggers one LLM rewrite and repaints that', async () => {
-    // First paint attempt is refused; the rewrite LLM softens it; the repaint lands.
-    // Background entity-portrait jobs share the mock: only the scene's own
-    // prompt gets refused (and counted).
+  it('a moderation refusal announces a rewritten prompt and WAITS - no silent repaint', async () => {
+    // Only the scene's own prompt gets refused; entity-portrait jobs pass.
     const SCENE_PROMPT = 'An explicitly unrenderable scene.';
     let sceneImageCalls = 0;
     axios.post.mockImplementation((url, body) => {
       if (String(url).includes('/images')) {
         if (body && body.prompt === SCENE_PROMPT) {
           sceneImageCalls++;
-          if (sceneImageCalls === 1) {
-            return Promise.reject({ response: { status: 400, data: '{"error":{"message":"refused by moderation"}}' } });
-          }
-          return Promise.resolve({
-            data: {
-              data: [{ b64_json: PNG_BYTES.toString('base64'), media_type: 'image/png' }],
-              usage: { cost: 0.06 },
-            },
+          return Promise.reject({
+            response: { status: 400, data: '{"error":{"message":"the nude figures offend moderation"}}' },
           });
         }
-        // Entity portrait jobs pass through untouched
         return Promise.resolve({
           data: {
             data: [{ b64_json: PNG_BYTES.toString('base64'), media_type: 'image/png' }],
@@ -389,7 +380,10 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       }
       if (String(url).includes('/chat/completions')) {
         return Promise.resolve({
-          data: { choices: [{ message: { content: ' A softened, renderable take on the scene. ' } }] },
+          data: {
+            choices: [{ message: { content: ' A fully clothed, safely composed take on the scene. ' } }],
+            usage: { prompt_tokens: 100, completion_tokens: 50 },
+          },
         });
       }
       return Promise.resolve({ data: {} });
@@ -400,36 +394,30 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       .send({ prompt: SCENE_PROMPT })
       .expect(200);
 
-    expect(res.body.prompt).toBe('A softened, renderable take on the scene.'); // the prompt actually painted
-    expect(Buffer.from(res.body.image, 'base64').equals(PNG_BYTES)).toBe(true);
-    expect(sceneImageCalls).toBe(1); // one refusal, then the repaint uses the rewritten prompt
-    const sceneBodies = axios.post.mock.calls
-      .filter(([url, body]) => String(url).includes('/images') && (body.prompt === SCENE_PROMPT || body.prompt === 'A softened, renderable take on the scene.'))
-      .map((c) => c[1]);
-    expect(sceneBodies).toHaveLength(2); // refused once, painted once
-    expect(sceneBodies[0].prompt).toBe(SCENE_PROMPT);
-    expect(sceneBodies[1].prompt).toBe('A softened, renderable take on the scene.');
-    expect(sceneBodies[1].input_references.length).toBe(2); // identity references survive the rewrite
+    // The refusal is announced, the rewritten prompt is handed back, and NO
+    // image is painted - the user reviews and presses Generate again.
+    expect(res.body).toEqual({
+      refused: true,
+      reason: 'the nude figures offend moderation',
+      sanitized_prompt: 'A fully clothed, safely composed take on the scene.',
+      rewrite_cost_usd: 0,
+    });
+    expect(res.body.image).toBeUndefined();
+    expect(sceneImageCalls).toBe(1); // exactly one attempt, no silent retry
     const rewritePrompt = axios.post.mock.calls.find(([url]) => String(url).includes('/chat/completions'))[1]
       .messages[1].content;
-    expect(rewritePrompt).toContain('strict moderation');
+    expect(rewritePrompt).toContain('the nude figures offend moderation'); // the actual reason steers the rewrite
+    expect(rewritePrompt).toContain('ZERO nudity');
     expect(rewritePrompt).toContain(SCENE_PROMPT);
   });
 
-  it('a refusal followed by another refusal still surfaces the honest failure', async () => {
-    axios.post.mockImplementation((url) => {
-      if (String(url).includes('/images')) {
-        return Promise.reject({ response: { status: 400, data: '{"error":{"message":"still refused"}}' } });
-      }
-      return Promise.resolve({
-        data: { choices: [{ message: { content: ' Softened but still refused. ' } }] },
-      });
-    });
-
+  it('drop_references paints without the cast portraits entirely', async () => {
     const res = await request(app)
       .post(`/api/stories/${story.id}/pages/1/scene-image`)
-      .send({ prompt: 'Something the moderator will never pass.' })
-      .expect(400);
-    expect(res.body.error).toContain('refused');
+      .send({ prompt: 'A quiet hall.', drop_references: true })
+      .expect(200);
+    expect(res.body.references).toEqual([]);
+    const body = axios.post.mock.calls[axios.post.mock.calls.length - 1][1];
+    expect(body.input_references).toBeUndefined(); // the portraits never ride along
   });
 });

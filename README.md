@@ -23,7 +23,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot and any image can be redone from its card
 - **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
 - **Canonical worlds** — stories reference the one live world: edit it and future pages follow; world-changing events persist because you decide when they happen. Characters are the opposite — stories hold their own mutable copies
-- **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references; the painting opens in a zoomable, pannable popup with ghost Save/Close buttons. Choose 1K·low (fast, ≈$0.04) or 2K·medium (finest, ≈$0.08) before painting. Prompts are composed renderable in every tone — even 18+ implies artfully, since the image model refuses explicit content wholesale — and a provider refusal triggers one automatic rewrite-and-repaint
+- **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references; the painting opens in a zoomable, pannable popup with ghost Save/Close buttons. Choose 1K·low (fast, ≈$0.04) or 2K·medium (finest, ≈$0.08) before painting. Prompts are composed renderable in every tone — even 18+ implies artfully, since the image model refuses explicit content wholesale. When the moderator refuses, nothing repaints silently: the scribe rewrites the prompt aggressively safe, announces it, puts it back in the box, and waits for your press — and a second refusal drops the cast portraits (paintings made from forced-nudity sheets offend moderation on their own, no matter how clean the text)
 - **Per-story tone setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+)
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — models that can reason before writing expose a reasoning level (low/medium/high) in Settings, with room in the token budget to think
@@ -34,7 +34,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 219 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 220 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -45,7 +45,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 219 Jest tests (118 backend + 101 frontend) pass on-device under Termux
+- All 220 Jest tests (118 backend + 102 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -131,7 +131,7 @@ scribe-tribe/
 │   ├── styles.css
 │   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
 │   ├── brand/             # production art assets (WebP + SVG)
-│   └── tests/             # Jest + jsdom (101 tests)
+│   └── tests/             # Jest + jsdom (102 tests)
 ├── e2e/                   # Playwright browser tests (chromium + mobile)
 ├── database/              # SQLite file lives here (gitignored)
 ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
@@ -160,7 +160,7 @@ scribe-tribe/
 | POST | `/api/stories/:id/pages/preview` | Silently prepare the next page (no direction, nothing saved) |
 | POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
 | POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
-| POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; moderation refusals trigger one rewrite+repaint) |
+| POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; drop_references=true omits them). A moderation refusal returns `{refused, reason, sanitized_prompt}` instead of repainting — the client announces and waits for a fresh press |
 | GET/POST | `/api/characters/:id/image` | Fetch the reference portrait / regenerate it in the background |
 | GET/POST | `/api/worlds/:id/image` | Fetch the world scene / regenerate it in the background |
 | GET | `/api/stories/:id/export` | Download the full story as an EPUB |
@@ -176,7 +176,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 ## Testing
 
 ```bash
-npm test             # backend (118) + frontend (101) Jest suites — runs on Termux too
+npm test             # backend (118) + frontend (102) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers

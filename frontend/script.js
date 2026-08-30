@@ -2122,6 +2122,11 @@ const IMAGE_PROMPT_BUTTON_LABEL = 'Scene image';
 // Paint the scene for real: the (user-edited) prompt drives Grok Imagine
 // through OpenRouter, with the cast's reference portraits riding along as
 // identity references. The bill lands in both the session and the story.
+// Moderation escalation: refused once -> rewrite + repaint; refused twice
+// in a row -> the cast portraits are probably what offends; drop them.
+let sceneRefusals = 0;
+let dropSceneReferences = false;
+
 async function generateSceneImage() {
   if (!currentStory || currentPage < 1 || currentPage > storyPages.length) {
     showError('Select a page to illustrate first.');
@@ -2145,14 +2150,27 @@ async function generateSceneImage() {
       render: SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k',
       ...(settings.model ? { model: settings.model } : {}),
       ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+      ...(dropSceneReferences ? { drop_references: true } : {}),
     });
-    openSceneViewer(`data:${data.media_type};base64,${data.image}`, data.media_type);
-    // The provider may have refused the first draft and the scribe repainted
-    // it renderable - show the prompt that was actually painted.
-    if (typeof data.prompt === 'string' && data.prompt && data.prompt !== prompt) {
-      box.value = data.prompt;
-      showSuccess('The image model refused the first draft; the scribe rewrote it and painted that instead.');
+    // The moderator refused. Do NOT repaint: announce, put the rewritten
+    // prompt in the box, and wait for the user to press Generate again.
+    if (data.refused) {
+      sceneRefusals++;
+      box.value = data.sanitized_prompt || prompt;
+      if (typeof data.rewrite_cost_usd === 'number' && data.rewrite_cost_usd > 0) {
+        addCost(data.rewrite_cost_usd); // the rewrite LLM billed either way
+      }
+      if (sceneRefusals >= 2) {
+        dropSceneReferences = true;
+        showSuccess('Refused again — the scribe suspects the cast portraits. The next painting drops them. Review the rewritten prompt and press Generate image.');
+      } else {
+        showSuccess('The image model refused this draft (' + (data.reason || 'no reason given') + '). The scribe rewrote it — review the prompt box and press Generate image again.');
+      }
+      return;
     }
+    sceneRefusals = 0;
+    dropSceneReferences = false;
+    openSceneViewer(`data:${data.media_type};base64,${data.image}`, data.media_type);
     if (costEl && typeof data.cost_usd === 'number') {
       const refs = Array.isArray(data.references) ? data.references.length : 0;
       costEl.textContent =
@@ -2329,6 +2347,8 @@ async function generateImagePrompt() {
       ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
     box.value = data.prompt || '';
+    sceneRefusals = 0; // a fresh condense resets the moderation escalation
+    dropSceneReferences = false;
     const costEl = document.getElementById('sceneImageCost');
     if (costEl) costEl.hidden = true;
     modal.hidden = false;
@@ -2461,8 +2481,8 @@ if (typeof module !== 'undefined' && module.exports) {
     __setModelsCache(models) { modelsCache = models; },
     // Scene image prompt + zoomable viewer
     generateImagePrompt,
-    setGenerating,
     generateSceneImage,
+    __sceneModerationState: () => ({ refusals: sceneRefusals, dropReferences: dropSceneReferences }),
     openSceneViewer,
     closeSceneViewer,
     saveSceneViewer,

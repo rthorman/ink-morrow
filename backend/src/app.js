@@ -774,47 +774,62 @@ function createApp(
         resolvedReferences.push(c.id);
       }
 
+      // The client may drop the identity references after repeated refusals:
+      // portraits painted from forced-nudity sheets offend moderation too.
+      const dropReferences = req.body.drop_references === true;
+      if (dropReferences) inputReferences.length = 0;
+
       const paintOptions = {
         aspectRatio: '2:3', // book-plate portrait
         resolution: RENDER_VARIANTS[variant].resolution,
         quality: RENDER_VARIANTS[variant].quality,
         inputReferences,
       };
-      let usedPrompt = prompt;
       let result;
       try {
         result = await generateImage({ prompt, ...paintOptions });
       } catch (error) {
-        // The provider's moderation refused the prompt (a hand-written prompt
-        // can force what the tone rules would have softened). One rewrite:
-        // the configured LLM renders the scene passable, then we paint that.
+        // The provider's moderation refused. Do NOT repaint silently: rewrite
+        // the prompt to be aggressively safe, then announce it back - the
+        // user reviews the textbox and presses Generate again themselves.
         if (error.statusCode !== 400) throw error;
+        const reason = (error.message.match(/refused this request: (.*)$/) || [, '(no reason given)'])[1];
         const rewrite = await chatCompletion(
           [
             {
               role: 'system',
-              content: 'You rewrite image prompts so a strict image moderator approves them, preserving the scene.',
+              content:
+                'You are a strict image-moderation compliance rewriter. You take refused image prompts and return ' +
+                'ONLY a fully SAFE version that will pass automatic moderation.',
             },
             {
               role: 'user',
               content:
-                'The following image prompt was refused by the image generator. Rewrite it so the SAME scene, drama ' +
-                'and tone survive under strict moderation: no explicit nudity or anatomy, no sexual acts, no graphic ' +
-                'gore - imply through shadow, drapery, framing, aftermath. Output ONLY the rewritten prompt.\n\n' +
-                `PROMPT:\n${prompt}`,
+                `An image generator refused this prompt, saying: "${reason}".\n\n` +
+                'Rewrite it so it will DEFINITELY pass strict content moderation:\n' +
+                '- Fully clothed or draped figures. ZERO nudity, zero explicit anatomy, zero sexual content or activity.\n' +
+                '- ZERO graphic violence: no wounds, blood, gore - stylized aftermath at most.\n' +
+                '- Keep the place, mood, composition and each character\'s recognisable identity, described safely.\n' +
+                '- When in doubt, remove more; a bland but passable prompt beats a vivid but refused one.\n' +
+                'Output ONLY the rewritten prompt, nothing else.\n\n' +
+                `REFUSED PROMPT:\n${prompt}`,
             },
           ],
           { model: modelOverride || undefined, reasoningEffort, maxTokens: 800 }
         );
-        usedPrompt = rewrite.content.trim();
-        result = await generateImage({ prompt: usedPrompt, ...paintOptions });
+        return res.json({
+          refused: true,
+          reason,
+          sanitized_prompt: rewrite.content.trim(),
+          rewrite_cost_usd: rewrite.cost_usd || 0,
+        });
       }
       res.json({
         image: result.buffer.toString('base64'),
         media_type: result.mediaType,
         cost_usd: result.cost,
-        references: resolvedReferences,
-        prompt: usedPrompt,
+        references: dropReferences ? [] : resolvedReferences,
+        prompt,
       });
     } catch (error) {
       next(error);

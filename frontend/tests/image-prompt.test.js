@@ -197,16 +197,15 @@ describe('Scene image prompt button', () => {
     expect(body.render).toBe('medium_2k');
   });
 
-  it('shows the repainted prompt when moderation forced a rewrite', async () => {
+  it('a refusal announces the rewrite, repopulates the box, and waits - no silent repaint', async () => {
     fetch.mockImplementation((url, options) => {
       if (String(url).includes('/scene-image')) {
         return Promise.resolve(
           jsonResponse(200, {
-            image: Buffer.from('painting').toString('base64'),
-            media_type: 'image/png',
-            cost_usd: 0.06,
-            references: [],
-            prompt: 'A softened, renderable take on the scene.',
+            refused: true,
+            reason: 'nudity not allowed',
+            sanitized_prompt: 'A fully clothed, safely composed take on the scene.',
+            rewrite_cost_usd: 0.002,
           })
         );
       }
@@ -219,8 +218,70 @@ describe('Scene image prompt button', () => {
     document.getElementById('imagePromptGenerateBtn').click();
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(document.getElementById('imagePromptText').value).toBe('A softened, renderable take on the scene.');
+    // Rewritten prompt back in the box, announced loudly, viewer stays shut
+    expect(document.getElementById('imagePromptText').value).toBe('A fully clothed, safely composed take on the scene.');
     expect(document.querySelector('.success-message').textContent).toContain('rewrote it');
+    expect(document.querySelector('.success-message').textContent).toContain('Generate image again');
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
+    // The rewrite LLM billed: session + story ticked
+    expect(fw.state().costs.session).toBeCloseTo(0.002);
+    expect(fw.state().costs.story).toBeCloseTo(0.002);
+    // No image was painted or billed
+    expect(document.getElementById('sceneImageCost').hidden).toBe(true);
+  });
+
+  it('a second refusal escalates: the next press drops the cast portraits', async () => {
+    let n = 0;
+    fetch.mockImplementation((url, options) => {
+      if (String(url).includes('/scene-image')) {
+        n++;
+        if (n <= 2) {
+          return Promise.resolve(jsonResponse(200, {
+            refused: true,
+            reason: 'still not passing',
+            sanitized_prompt: `Hardened attempt ${n}.`,
+            rewrite_cost_usd: 0,
+          }));
+        }
+        return Promise.resolve(jsonResponse(200, {
+          image: Buffer.from('painting').toString('base64'),
+          media_type: 'image/png',
+          cost_usd: 0.04,
+          references: [],
+          prompt: JSON.parse(options.body).prompt,
+        }));
+      }
+      if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+
+    document.getElementById('imagePromptBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    document.getElementById('imagePromptGenerateBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fw.__sceneModerationState().refusals).toBe(1);
+    expect(fw.__sceneModerationState().dropReferences).toBe(false);
+    const lastNotice = () => [...document.querySelectorAll('.success-message')].pop()?.textContent || '';
+    expect(lastNotice()).not.toContain('portraits');
+
+    document.getElementById('imagePromptGenerateBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    // Second refusal in a row: the portraits are suspected
+    expect(fw.__sceneModerationState().dropReferences).toBe(true);
+    expect(lastNotice()).toContain('portraits');
+
+    document.getElementById('imagePromptGenerateBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    // The escalated press sends drop_references and paints
+    const bodies = fetch.mock.calls
+      .filter(([url, options]) => String(url).includes('/scene-image'))
+      .map(([url, options]) => JSON.parse(options.body));
+    expect(bodies[2].drop_references).toBe(true);
+    expect(fw.state().costs.session).toBeCloseTo(0.04);
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
+    // Success clears the escalation
+    expect(fw.__sceneModerationState()).toEqual({ refusals: 0, dropReferences: false });
   });
 
   it('narration, autoplay and illustration buttons gray out without a page or mid-write', () => {
