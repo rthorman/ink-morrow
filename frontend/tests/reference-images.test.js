@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 function characterRow(overrides = {}) {
   return {
@@ -19,27 +19,27 @@ function characterRow(overrides = {}) {
 describe('Reference images on cards', () => {
   let fw;
 
-  function boot(characters, worlds = []) {
+  async function boot(characters, worlds = []) {
     mockFetch([
       { match: '/api/characters', response: jsonResponse(200, { characters }) },
       { match: '/api/worlds', response: jsonResponse(200, { worlds }) },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
   }
 
   it('shows the painted portrait for ready characters', async () => {
-    boot([characterRow({ id: 'c1', image_status: 'ready', image_media_type: 'image/png', image_cost_usd: 0.06, image_updated_at: '2026-08-29 20:00:00' })]);
+    await boot([characterRow({ id: 'c1', image_status: 'ready', image_media_type: 'image/png', image_cost_usd: 0.06, image_updated_at: '2026-08-29 20:00:00' })]);
     await fw.loadCharacters();
     const img = document.querySelector('#charactersList .item-card .card-image');
     expect(img).toBeTruthy();
     expect(img.tagName).toBe('IMG');
     expect(img.getAttribute('src')).toBe('/api/characters/c1/image');
     expect(img.getAttribute('alt')).toContain('Vesna');
-    expect(document.querySelector('#charactersList .card-image-redo').textContent).toBe('↻ Redo image');
+    expect(document.querySelector('#charactersList .card-more__item').textContent).toContain('Regenerate image (≈$0.06)');
   });
 
   it('shows placeholders while pending or after failure', async () => {
-    boot([
+    await boot([
       characterRow({ id: 'c1', image_status: 'pending' }),
       characterRow({ id: 'c2', name: 'Doomed', image_status: 'failed' }),
     ]);
@@ -47,19 +47,19 @@ describe('Reference images on cards', () => {
     const cards = document.querySelectorAll('#charactersList .item-card');
     expect(cards[0].querySelector('.card-image--pending').textContent).toContain('being painted');
     expect(cards[1].querySelector('.card-image--failed').textContent).toContain('failed');
-    // A never-painted character offers the first brush, ready ones offer a redo
-    expect(cards[0].querySelector('.card-image-redo').textContent).toBe('↻ Paint image');
+    // Regeneration always sits in the More menu with its approximate cost
+    expect(cards[0].querySelector('.card-more__item').textContent).toContain('Regenerate image (≈$0.06)');
   });
 
   it('world cards use the world image endpoint', async () => {
-    boot([], [{ id: 'w1', name: 'Emberfall', description: 'Brass and ash', image_status: 'ready', image_media_type: 'image/jpeg' }]);
+    await boot([], [{ id: 'w1', name: 'Emberfall', description: 'Brass and ash', image_status: 'ready', image_media_type: 'image/jpeg' }]);
     await fw.loadWorlds();
     const img = document.querySelector('#worldsList .item-card .card-image');
     expect(img.getAttribute('src')).toBe('/api/worlds/w1/image');
   });
 
   it('redo POSTs and refreshes the list', async () => {
-    boot([characterRow({ id: 'c1', image_status: 'ready' })]);
+    await boot([characterRow({ id: 'c1', image_status: 'ready' })]);
     await fw.loadCharacters();
     global.fetch.mockClear();
     global.fetch.mockImplementation((url, options) => {
@@ -69,7 +69,7 @@ describe('Reference images on cards', () => {
       return Promise.resolve(jsonResponse(200, { characters: [characterRow({ id: 'c1', image_status: 'pending' })] }));
     });
 
-    document.querySelector('#charactersList .card-image-redo').click();
+    document.querySelector('#charactersList .card-more__item').click();
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -80,7 +80,7 @@ describe('Reference images on cards', () => {
   });
 
   it('session cost ticks once per painted image, and again after a redo', async () => {
-    boot([characterRow({ id: 'c1', image_status: 'ready', image_cost_usd: 0.06, image_updated_at: 't1' })]);
+    await boot([characterRow({ id: 'c1', image_status: 'ready', image_cost_usd: 0.06, image_updated_at: 't1' })]);
     await fw.loadCharacters();
     expect(fw.state().costs.session).toBeCloseTo(0.06);
 
@@ -100,7 +100,7 @@ describe('Reference images on cards', () => {
   });
 
   it('world image costs tick the session too (stories stay untouched)', async () => {
-    boot([], [{ id: 'w1', name: 'E', image_status: 'ready', image_cost_usd: 0.04, image_updated_at: 't1' }]);
+    await boot([], [{ id: 'w1', name: 'E', image_status: 'ready', image_cost_usd: 0.04, image_updated_at: 't1' }]);
     await fw.loadWorlds();
     expect(fw.state().costs.session).toBeCloseTo(0.04);
     expect(fw.state().costs.story).toBeCloseTo(0); // no story involved

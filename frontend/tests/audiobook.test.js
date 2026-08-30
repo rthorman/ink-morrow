@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const MODELS = [
   { id: 'or/voice-1', name: 'Voice One', pcm: false, voices: [{ id: 'amber', label: 'Amber' }], pricing: { prompt_per_mchar: 15, completion_per_mtok: 0 } },
@@ -24,10 +24,10 @@ function pendingRow(overrides = {}) {
 describe('Audiobook modal', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch([{ match: '/speech-models', response: jsonResponse(200, { models: MODELS }) }]);
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
   });
@@ -46,12 +46,12 @@ describe('Audiobook modal', () => {
     return document.getElementById('audiobookModal');
   }
 
-  it('explains when no narrator is chosen, and the slider stays inert', async () => {
+  it('explains when no narrator is chosen, and the start button stays disabled', async () => {
     modalFetch(jsonResponse(200, { audiobook: null }));
     await openWith();
     expect(document.getElementById('audiobookModalBody').textContent).toContain('No narrator chosen');
     expect(document.getElementById('audiobookExisting').hidden).toBe(true);
-    expect(document.getElementById('audiobookSlider').disabled).toBe(true);
+    expect(document.getElementById('audiobookStartBtn').disabled).toBe(true);
     expect(document.getElementById('audiobookModal').hidden).toBe(false);
   });
 
@@ -61,10 +61,10 @@ describe('Audiobook modal', () => {
     modalFetch(jsonResponse(200, { audiobook: null }));
     await openWith();
     expect(document.getElementById('audiobookModalBody').textContent).toContain('WAV-only');
-    expect(document.getElementById('audiobookSlider').disabled).toBe(true);
+    expect(document.getElementById('audiobookStartBtn').disabled).toBe(true);
   });
 
-  it('advertises the narrator and honest estimates, and the slide starts the job', async () => {
+  it('advertises the narrator and honest estimates, and the button starts the job', async () => {
     fw.setSetting('narrationModel', 'or/voice-1');
     fw.setSetting('narrationVoice', 'amber');
     global.fetch.mockImplementation((url, options) => {
@@ -82,12 +82,11 @@ describe('Audiobook modal', () => {
     expect(body).toContain('2 pages'); // the plate is not narratable
     expect(body).toContain('≈2 min'); // 300 words at 150 wpm
     expect(body).toContain('≈$0.0090'); // 600 chars at $15 per 1M
-    expect(document.getElementById('audiobookSlider').disabled).toBe(false);
+    expect(document.getElementById('audiobookStartBtn').disabled).toBe(false);
 
-    // Slide to confirm: POST carries the chosen narrator, banner starts reading
-    const slider = document.getElementById('audiobookSlider');
-    slider.value = 100;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
+    // The explicit button carries the price; POST carries the chosen narrator
+    expect(document.getElementById('audiobookStartBtn').textContent).toContain('Create audiobook (≈$0.0090)');
+    document.getElementById('audiobookStartBtn').click();
     await new Promise((r) => setTimeout(r, 0));
 
     const call = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/audiobook') && options.method === 'POST');
@@ -101,24 +100,24 @@ describe('Audiobook modal', () => {
     expect(document.getElementById('audiobookProgress').hidden).toBe(false);
   });
 
-  it('shows the existing book in the modal and blocks the slider while one is being read', async () => {
+  it('shows the existing book in the modal and blocks the start button while one is being read', async () => {
     fw.setSetting('narrationModel', 'or/voice-1');
     fw.setSetting('narrationVoice', 'amber');
     modalFetch(jsonResponse(200, { audiobook: pendingRow() }));
     await openWith();
     expect(document.getElementById('audiobookExisting').hidden).toBe(false);
     expect(document.getElementById('audiobookExisting').textContent).toContain('already being read');
-    expect(document.getElementById('audiobookSlider').disabled).toBe(true);
+    expect(document.getElementById('audiobookStartBtn').disabled).toBe(true);
   });
 });
 
 describe('Audiobook banner', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
   });
@@ -176,7 +175,7 @@ describe('Audiobook banner', () => {
     expect(fw.state().costs.session).toBeCloseTo(0.7);
   });
 
-  it('flags a stale ready book and offers a retry after failure', () => {
+  it('flags a stale ready book and offers a retry after failure', async () => {
     fw.updateAudiobookBanner({ story_id: 's1', status: 'ready', duration_s: 60, cost_usd: 0, updated_at: 'x', stale: true });
     expect(document.getElementById('audiobookBannerText').textContent).toContain('tale has changed');
 
@@ -186,7 +185,7 @@ describe('Audiobook banner', () => {
     expect(actions().textContent).toContain('Hide');
   });
 
-  it('shows nothing without a story or a row', () => {
+  it('shows nothing without a story or a row', async () => {
     fw.updateAudiobookBanner(null);
     expect(document.getElementById('audiobookBanner').hidden).toBe(true);
     fw.__setStoryState({ currentStory: null, storyPages: [], currentPage: 1 });

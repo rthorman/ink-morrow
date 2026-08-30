@@ -102,7 +102,7 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('.error-message').first()).toContainText('no ink', { timeout: 5000 });
     // Buttons recover
     await expect(page.locator('#generateBtn')).toBeEnabled();
-    await expect(page.locator('#generateBtn')).toHaveText('Generate Page');
+    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
   });
 
   test('AI requests carry world, characters, tone and direction', async ({ page }) => {
@@ -128,22 +128,28 @@ test.describe('AI generation flows (mocked)', () => {
     // Build a full setup: world, character, story
     await page.goto('/');
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Context Realm');
-    await page.locator('#worldForm button[type="submit"]').click();
+    await page.locator('#worldForm .btn-primary').click();
     await expect(page.locator('#worldsList .item-card', { hasText: 'Context Realm' })).toBeVisible({ timeout: 5000 });
 
     await page.locator('#charactersBtn').click();
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Sir Context');
     await selectByLabel(page, '#characterWorld', 'Context Realm');
-    await page.locator('#characterForm button[type="submit"]').click();
+    await page.locator('#characterForm .btn-primary').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'Sir Context' })).toBeVisible({ timeout: 5000 });
 
-    await page.locator('#storiesBtn').click();
+    await page.locator('#libraryBtn').click();
     await page.fill('#storyTitle', 'Context Story');
     await selectByLabel(page, '#storyWorld', 'Context Realm');
     await page.selectOption('#storyTone', 'explicit');
+    // First explicit selection asks once; acknowledge it
+    const toneAck = page.locator('.dialog-manager button', { hasText: 'I am 18 or older' });
+    if (await toneAck.isVisible({ timeout: 1500 }).catch(() => false)) await toneAck.click();
+    await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Sir Context');
-    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Sir Context — Main Character');
+    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Sir Context — Lead');
     await page.locator('#storyForm button[type="submit"]').click();
 
     await page.fill('#userInput', 'Sir Context opens the tome');
@@ -214,29 +220,20 @@ test.describe('Reading old pages and burning the rest', () => {
     await expect(page.locator('#userInput')).toBeDisabled();
     await expect(page.locator('#pastPageBar')).toBeVisible();
 
-    // Burn modal: warning text, no-button keeps everything
+    // Burn dialog: warning text, Cancel keeps everything
     await page.locator('#deleteAfterBtn').click();
-    await expect(page.locator('#burnModal')).toBeVisible();
-    await expect(page.locator('#burnBody')).toContainText('no recovery');
-    await page.locator('#burnCancelBtn').click();
-    await expect(page.locator('#burnModal')).toBeHidden();
+    await expect(page.locator('.dialog-manager')).toBeVisible();
+    await expect(page.locator('.dialog-manager__title')).toContainText('Delete 1 later page?');
+    await expect(page.locator('.dialog-manager__body')).toContainText('permanently');
+    await page.locator('.dialog-manager button', { hasText: 'Cancel' }).click();
+    await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
-    // Slide all the way to yes
+    // Confirming the destructive dialog truncates
     await page.locator('#deleteAfterBtn').click();
-    await page.evaluate(() => {
-      const slider = document.getElementById('burnSlider');
-      slider.value = 40;
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-    });
-    await expect(page.locator('#burnModal')).toBeVisible(); // partial slide is not consent
-    await page.evaluate(() => {
-      const slider = document.getElementById('burnSlider');
-      slider.value = 100;
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    await page.locator('.dialog-manager button', { hasText: 'Delete 1 page' }).click();
 
-    await expect(page.locator('#burnModal')).toBeHidden();
+    await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
     await expect(page.locator('#userInput')).toBeEnabled(); // page 1 is the last page again
   });
@@ -277,11 +274,11 @@ test.describe('Speculative next-page preparation', () => {
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
 
     // The scribe prepares the next page on her own; Generate turns into a green Next Page
-    await expect(page.locator('#generateBtn')).toHaveText('Next Page', { timeout: 5000 });
+    await expect(page.locator('#generateBtn')).toHaveText('Use prepared page', { timeout: 5000 });
 
     // Typing a direction turns it back into Generate
     await page.fill('#userInput', 'a sudden storm');
-    await expect(page.locator('#generateBtn')).toHaveText('Generate Page');
+    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
     await page.fill('#userInput', '');
 
     // Empty direction -> instant commit of the prepared page
@@ -289,7 +286,7 @@ test.describe('Speculative next-page preparation', () => {
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(page.locator('#storyContent')).toContainText('The prepared continuation');
     // The scribe immediately prepares the next page (chained speculation)
-    await expect(page.locator('#generateBtn')).toHaveText('Next Page', { timeout: 5000 });
+    await expect(page.locator('#generateBtn')).toHaveText('Use prepared page', { timeout: 5000 });
   });
 });
 

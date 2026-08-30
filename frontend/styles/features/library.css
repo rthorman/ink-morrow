@@ -1,0 +1,612 @@
+/* ------------------------------------------------------------------ bookshelf */
+
+.section-note {
+  max-width: var(--st-prose-max);
+  margin: 0 0 22px 0;
+  font-family: var(--st-font-ui);
+  color: var(--st-text-muted);
+}
+
+.bookshelf-list {
+  display: grid;
+  gap: 26px;
+}
+
+.bookshelf-entry {
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: clamp(16px, 2.5vw, 26px);
+}
+
+.bookshelf-entry h3 {
+  font-family: var(--st-font-display, var(--st-font-ui));
+  font-size: 1.3rem;
+  color: var(--st-gold-300);
+  margin: 0 0 14px 0;
+}
+
+.bookshelf-entry__none {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+  font-style: italic;
+  color: var(--st-text-muted);
+}
+
+.bookshelf-audio p {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  color: var(--st-vellum-100);
+}
+
+.bookshelf-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bookshelf-plates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.bookshelf-plate {
+  width: 150px;
+}
+
+.bookshelf-plate img {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  display: block;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+}
+
+.bookshelf-plate p {
+  margin: 8px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.78rem;
+  color: var(--st-text-muted);
+  text-align: center;
+}
+
+.bookshelf-plate .bookshelf-entry__actions {
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+.nav-btn {
+  min-height: var(--st-touch-min);
+  padding: 10px 22px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0.03em;
+  color: var(--st-text-muted);
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  cursor: pointer;
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease,
+    transform var(--st-duration-fast) var(--st-ease-out);
+}
+
+.nav-btn:hover {
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border-color: var(--st-border-bright);
+}
+
+.nav-btn:active {
+  transform: scale(0.97);
+}
+
+.nav-btn.active {
+  background: var(--st-oxblood-700);
+  color: var(--st-vellum-100);
+  border-color: var(--st-gold-500);
+  box-shadow: 0 0 0 1px rgb(199 163 91 / 0.25), var(--st-shadow-raised);
+}
+
+
+/* ------------------------------------------------------------------ cast builder */
+
+.cast-mc {
+  margin-bottom: 16px;
+}
+
+.cast-mc select,
+.cast-add select {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background-color: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+}
+
+.cast-mc select:focus,
+.cast-add select:focus,
+.cast-list__relation:focus {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 2px;
+  border-color: var(--st-gold-500);
+}
+
+.cast-add input[type='text'] {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 1rem;
+}
+
+.cast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cast-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--st-surface-3);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+}
+
+.cast-list__row--mc {
+  border-color: var(--st-gold-500);
+  background: rgb(110 24 52 / 0.18);
+}
+
+.cast-list__name {
+  flex: 0 1 auto;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--st-vellum-100);
+}
+
+.cast-list__row--mc .cast-list__name {
+  color: var(--st-gold-300);
+}
+
+.cast-list__relation {
+  flex: 1 1 240px;
+  min-height: var(--st-touch-min);
+  padding: 8px 12px;
+  background: var(--st-surface-2);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 0.9rem;
+}
+
+.cast-list__remove {
+  flex: 0 0 auto;
+  min-height: var(--st-touch-min);
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--st-danger-500);
+  border: 1px solid rgb(214 75 88 / 0.45);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.cast-list__remove:hover {
+  background: rgb(214 75 88 / 0.16);
+  border-color: var(--st-danger-500);
+  color: #edaab1;
+}
+
+/* ------------------------------------------------------------------ story cast editor (Stories page modal) */
+
+.cast-panel {
+  width: min(760px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+}
+
+.cast-edit-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 18px;
+  text-align: left;
+}
+
+.cast-edit-member {
+  padding: 14px 16px;
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-left: 3px solid var(--st-violet-300);
+  border-radius: var(--st-radius-sm);
+}
+
+.cast-edit-member--mc {
+  border-left-color: var(--st-gold-500);
+}
+
+.cast-edit-member__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cast-edit-member__head .cast-list__name {
+  flex: 1 1 160px;
+}
+
+.cast-edit-member__role {
+  flex: 0 0 auto;
+  min-height: var(--st-touch-min);
+  padding: 8px 32px 8px 12px;
+  background-color: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.85rem;
+}
+
+.cast-edit-member__relation {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: var(--st-surface-2);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 0.9rem;
+}
+
+.cast-edit-member__sheet {
+  display: grid;
+  gap: 6px;
+}
+
+.cast-edit-member__sheet label {
+  font-family: var(--st-font-mono);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  color: var(--st-violet-300);
+}
+
+.cast-edit-member__sheet textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.cast-edit-member__sheet textarea::placeholder {
+  color: var(--st-ash-600);
+  font-style: italic;
+}
+
+.cast-edit-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 14px;
+  background: rgb(28 20 40 / 0.5);
+  border: 1px dashed var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+}
+
+.cast-edit-add select,
+.cast-edit-add input {
+  flex: 1 1 160px;
+  min-width: 0;
+}
+
+.cast-edit-note {
+  margin: 12px 0 0 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--st-gold-300);
+}
+
+.cast-edit-note[hidden] {
+  display: none;
+}
+
+.item-card .card-cast {
+  min-height: var(--st-touch-min);
+  padding: 8px 14px;
+  background: transparent;
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.item-card .card-cast:hover {
+  border-color: var(--st-gold-500);
+  color: var(--st-gold-300);
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Library tabs                                                         */
+/* ------------------------------------------------------------------ */
+
+.library-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin: 0.6rem 0 1.2rem;
+  border-bottom: 1px solid var(--st-gold-700);
+}
+
+.library-tab {
+  appearance: none;
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--st-vellum-200);
+  font-family: var(--st-font-ui, Inter, system-ui, sans-serif);
+  font-size: 1rem;
+  padding: 0.55rem 1rem 0.45rem;
+  cursor: pointer;
+}
+
+.library-tab:hover {
+  color: var(--st-vellum-50);
+}
+
+.library-tab--active {
+  color: var(--st-gold-300);
+  border-bottom-color: var(--st-gold-500);
+}
+
+.library-tab:focus-visible {
+  outline: 2px solid var(--st-focus);
+  outline-offset: -2px;
+}
+
+/* The utility Settings nav button reads quieter than the destinations. */
+.nav-btn--utility {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mid-story cast editor: roster/details                               */
+/* ------------------------------------------------------------------ */
+
+.cast-edit__head {
+  margin-bottom: 0.8rem;
+}
+
+.cast-edit__head h2 {
+  margin: 0 0 0.2rem;
+}
+
+.cast-edit__mode {
+  color: var(--st-gold-300);
+  font-size: 0.92rem;
+  margin: 0;
+}
+
+.cast-edit__status {
+  font-size: 0.85rem;
+  color: var(--st-vellum-200);
+  margin: 0.15rem 0 0;
+}
+
+.cast-edit__status:not(:empty)::before {
+  content: '● ';
+  color: var(--state-queued);
+}
+
+.cast-edit__body {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(260px, 1.4fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.cast-edit__roster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.cast-edit-member__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.35rem 0.45rem;
+  border-radius: 7px;
+  border: 1px solid transparent;
+}
+
+.cast-edit-member__row--selected {
+  border-color: var(--st-gold-700);
+  background: rgb(199 163 91 / 0.08);
+}
+
+.cast-edit-member__select {
+  appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--st-vellum-50);
+  font-family: var(--st-font-ui, Inter, system-ui, sans-serif);
+  font-size: 0.95rem;
+  text-align: left;
+  padding: 0.3rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.cast-edit-member__select:hover,
+.cast-edit-member__select:focus-visible {
+  background: rgb(142 99 216 / 0.14);
+}
+
+.cast-edit-member__rolelabel {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--st-gold-300);
+  border: 1px solid var(--st-gold-700);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+}
+
+.cast-edit-member__provenance {
+  font-size: 0.75rem;
+  color: var(--st-violet-300);
+}
+
+.cast-edit-member__modified {
+  font-size: 0.75rem;
+  color: var(--st-vellum-200);
+  font-style: italic;
+}
+
+.cast-edit__detail {
+  border-left: 1px solid var(--st-gold-700);
+  padding-left: 1.1rem;
+  min-width: 0;
+}
+
+.cast-edit-detail__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.cast-edit-detail__head h3 {
+  margin: 0;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: 1.15rem;
+  color: var(--st-vellum-50);
+}
+
+.cast-edit-detail__actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.cast-edit__detail label {
+  display: block;
+  font-size: 0.85rem;
+  color: var(--st-vellum-200);
+  margin: 0.5rem 0 0.2rem;
+}
+
+/* Tablet portrait / phone: the roster stacks above the detail sheet. */
+@media (max-width: 767px), (orientation: portrait) and (max-width: 1024px) {
+  .cast-edit__body {
+    grid-template-columns: 1fr;
+  }
+
+  .cast-edit__detail {
+    border-left: none;
+    border-top: 1px solid var(--st-gold-700);
+    padding-left: 0;
+    padding-top: 0.9rem;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Archive empty state (Moth) + cast-shape intro (Cinder)               */
+/* ------------------------------------------------------------------ */
+
+.empty-state--archive {
+  display: grid;
+  grid-template-columns: minmax(220px, 380px) 1fr;
+  gap: 1.4rem;
+  align-items: center;
+  border: 1px solid var(--st-violet-600);
+  border-radius: 10px;
+  background: var(--surface-archive);
+  padding: 1.1rem;
+  margin-top: 0.6rem;
+}
+
+.empty-state--archive img {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+.empty-state--archive p {
+  color: var(--st-vellum-100);
+  font-size: 1.02rem;
+  margin: 0 0 0.9rem;
+}
+
+@media (max-width: 767px) {
+  .empty-state--archive {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cast-mode {
+  border: 1px solid var(--st-gold-700);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+  margin: 0 0 0.8rem;
+}
+
+.cast-mode__art {
+  display: block;
+  width: min(100%, 430px);
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5rem auto 0.2rem;
+  pointer-events: none;
+}
+
+/* Cinder supports the cast work; she never sits behind the fields. */
+@media (max-width: 767px) {
+  .cast-mode__art {
+    width: 100%;
+  }
+}

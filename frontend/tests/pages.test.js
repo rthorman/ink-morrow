@@ -1,13 +1,13 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 describe('Reading old pages (read-only)', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0 },
       storyPages: [
@@ -19,7 +19,7 @@ describe('Reading old pages (read-only)', () => {
     });
   });
 
-  it('shows the past-page bar and disables writing on an old page', () => {
+  it('shows the past-page bar and disables writing on an old page', async () => {
     fw.displayCurrentPage();
     expect(document.getElementById('pastPageBar').hidden).toBe(false);
     expect(document.getElementById('pastPageBar').textContent).toContain('2 pages come after');
@@ -28,7 +28,7 @@ describe('Reading old pages (read-only)', () => {
     expect(document.getElementById('pageIndicator').textContent).toBe('Page 1 of 3');
   });
 
-  it('hides the bar and re-enables writing on the last page', () => {
+  it('hides the bar and re-enables writing on the last page', async () => {
     fw.__setStoryState({ currentPage: 3 });
     fw.displayCurrentPage();
     expect(document.getElementById('pastPageBar').hidden).toBe(true);
@@ -47,9 +47,9 @@ describe('Reading old pages (read-only)', () => {
 describe('Burn everything after this page', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0 },
       storyPages: [
@@ -62,34 +62,35 @@ describe('Burn everything after this page', () => {
     fw.displayCurrentPage();
   });
 
-  it('opens the modal with a clear warning, cancel keeps everything', () => {
+  it('opens the destructive dialog with a clear warning, cancel keeps everything', async () => {
     document.getElementById('deleteAfterBtn').click();
-    const modal = document.getElementById('burnModal');
-    expect(modal.hidden).toBe(false);
-    expect(document.getElementById('burnBody').textContent).toContain('2 pages come after Page 1');
-    expect(document.getElementById('burnBody').textContent).toContain('no recovery');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const dialog = document.querySelector('.dialog-manager');
+    expect(dialog.hidden).toBe(false);
+    expect(dialog.querySelector('.dialog-manager__title').textContent).toContain('Delete 2 later pages?');
+    expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('Pages 2–3');
+    expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('permanently');
 
-    document.getElementById('burnCancelBtn').click();
-    expect(modal.hidden).toBe(true);
+    // Cancel keeps every page and closes
+    const cancel = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Cancel');
+    cancel.click();
+    expect(dialog.hidden).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalledWith('/api/stories/s1/pages?after=1', expect.anything());
   });
 
-  it('slide-to-yes truncates and reloads; partial slides do nothing', async () => {
+  it('confirming the dialog truncates and reloads', async () => {
     fetchMock.mockImplementation((url) => {
-      if (String(url).includes('/pages?after=1') && arguments) return Promise.resolve(jsonResponse(200, { deleted: 2, remaining: 1 }));
+      if (String(url).includes('/pages?after=1')) return Promise.resolve(jsonResponse(200, { deleted: 2, remaining: 1 }));
       if (String(url).includes('/pages') && String(url).includes('/s1')) return Promise.resolve(jsonResponse(200, { pages: [{ page_number: 1, content: 'One.', user_input: null }] }));
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
 
     document.getElementById('deleteAfterBtn').click();
-    const slider = document.getElementById('burnSlider');
-
-    slider.value = 60;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('burnModal').hidden).toBe(false); // not far enough
-
-    slider.value = 100;
-    slider.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('burnModal').hidden).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const dialog = document.querySelector('.dialog-manager');
+    const confirmBtn = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Delete 2 pages');
+    confirmBtn.click();
+    expect(dialog.hidden).toBe(true);
 
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -100,10 +101,12 @@ describe('Burn everything after this page', () => {
     expect(document.getElementById('pageIndicator').textContent).toBe('Page 1 of 1');
   });
 
-  it('the button does nothing on the last page', () => {
+  it('the button does nothing on the last page', async () => {
     fw.__setStoryState({ currentPage: 3 });
     fw.displayCurrentPage();
     document.getElementById('deleteAfterBtn').click();
-    expect(document.getElementById('burnModal').hidden).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const dialog = document.querySelector('.dialog-manager');
+    expect(!dialog || dialog.hidden).toBe(true); // nothing opened
   });
 });

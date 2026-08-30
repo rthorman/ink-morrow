@@ -1,13 +1,13 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 describe('Disk-space banner', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   function banner() {
@@ -18,12 +18,12 @@ describe('Disk-space banner', () => {
     };
   }
 
-  it('stays hidden while storage is ample', () => {
+  it('stays hidden while storage is ample', async () => {
     fw.updateDiskBanner({ free_bytes: 23.7 * 1024 ** 3, total_bytes: 110 * 1024 ** 3 });
     expect(banner().hidden).toBe(true);
   });
 
-  it('warns persistently when free space drops below 1 GB', () => {
+  it('warns persistently when free space drops below 1 GB', async () => {
     fw.updateDiskBanner({ free_bytes: 812 * 1024 ** 2, total_bytes: 64 * 1024 ** 3 });
     const b = banner();
     expect(b.hidden).toBe(false);
@@ -36,14 +36,14 @@ describe('Disk-space banner', () => {
     expect(banner().hidden).toBe(true);
   });
 
-  it('flags a nearly-empty volume even when the absolute number is large', () => {
+  it('flags a nearly-empty volume even when the absolute number is large', async () => {
     fw.updateDiskBanner({ free_bytes: 100 * 1024 ** 3, total_bytes: 4 * 1024 ** 4 }); // 2.4% of 4 TB
     expect(banner().hidden).toBe(false);
     expect(banner().text).toContain('running low');
     expect(banner().text).toContain('100.0 GB');
   });
 
-  it('escalates the wording when the disk is almost full', () => {
+  it('escalates the wording when the disk is almost full', async () => {
     fw.updateDiskBanner({ free_bytes: 200 * 1024 ** 2, total_bytes: 64 * 1024 ** 3 });
     const b = banner();
     expect(b.hidden).toBe(false);
@@ -51,7 +51,7 @@ describe('Disk-space banner', () => {
     expect(b.text).toContain('200 MB');
   });
 
-  it('hides when the filesystem stays silent (nulls), never nags on unknowns', () => {
+  it('hides when the filesystem stays silent (nulls), never nags on unknowns', async () => {
     fw.updateDiskBanner({ free_bytes: null, total_bytes: null });
     expect(banner().hidden).toBe(true);
   });

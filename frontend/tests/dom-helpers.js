@@ -1,8 +1,9 @@
-'use strict';
+// Builds a DOM matching index.html and loads a fresh copy of the app's
+// bootstrap module. Each loadScript() call busts the ESM cache with a query
+// string, giving the new instance fresh closure state - the equivalent of
+// the old jest.isolateModules + require.
 
-// Builds a DOM matching index.html and loads a fresh copy of script.js.
-// Returns the module (initApp has already run, since readyState is 'complete'
-// in jsdom at require time).
+import { jest } from '@jest/globals';
 
 function installUrlStub() {
   if (typeof window.URL.createObjectURL !== 'function') {
@@ -29,31 +30,39 @@ function buildDom() {
   installAudioStub();
   installUrlStub();
   document.body.innerHTML = `
-    <div id="ageGate" class="age-gate" hidden>
-      <p>This tool is for adult fiction writing.
-        <button id="ageGateAccept" type="button">I am 18 or older — Enter</button>
-      </p>
-    </div>
     <nav class="main-nav">
-      <button id="worldsBtn" class="nav-btn active">Worlds</button>
-      <button id="charactersBtn" class="nav-btn">Characters</button>
-      <button id="storiesBtn" class="nav-btn">Stories</button>
+      <button id="homeBtn" class="nav-btn active">Home</button>
       <button id="writeBtn" class="nav-btn">Write</button>
-      <button id="bookshelfBtn" class="nav-btn">Bookshelf</button>
+      <button id="libraryBtn" class="nav-btn">Library</button>
+      <button id="worldsBtn" class="nav-btn">Worlds</button>
+      <button id="charactersBtn" class="nav-btn">Characters</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
     </nav>
     <div id="diskBanner" class="disk-banner" role="alert" hidden>
       <p id="diskBannerText"></p>
     </div>
     <main class="main-content">
-      <section id="worldsSection" class="content-section active">
+      <section id="homeSection" class="content-section active">
+        <div class="hero__actions">
+          <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
+          <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
+          <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
+        </div>
+        <div id="homeRecent" class="home-recent" hidden>
+          <h2>Recent manuscripts</h2>
+          <div id="homeRecentList" class="items-grid"></div>
+        </div>
+        <div id="homePath" class="home-path"><h2>Your scriptorium</h2></div>
+      </section>
+      <section id="worldsSection" class="content-section">
         <form id="worldForm">
           <input type="text" id="worldName" required>
           <textarea id="worldDescription"></textarea>
           <input type="text" id="worldGenre">
           <input type="text" id="worldSetting">
-          <button id="worldAiBtn" type="button">Flesh out with AI</button>
-          <button type="submit">Create World</button>
+          <button type="submit" class="btn btn-primary">Create and paint (≈$0.04)</button>
+          <button id="worldNoImageBtn" type="submit" class="btn btn-secondary">Create without image</button>
+          <button id="worldAiBtn" type="button" class="btn btn-secondary">Flesh out with AI</button>
         </form>
         <div id="worldsList" class="items-grid"></div>
       </section>
@@ -65,12 +74,18 @@ function buildDom() {
           <textarea id="characterAppearance"></textarea>
           <textarea id="characterBackground"></textarea>
           <select id="characterWorld"><option value="">No world</option></select>
-          <button id="characterAiBtn" type="button">Flesh out with AI</button>
-          <button type="submit">Create Character</button>
+          <button type="submit" class="btn btn-primary">Create and paint (≈$0.06)</button>
+          <button id="characterNoImageBtn" type="submit" class="btn btn-secondary">Create without image</button>
+          <button id="characterAiBtn" type="button" class="btn btn-secondary">Flesh out with AI</button>
         </form>
         <div id="charactersList" class="items-grid"></div>
       </section>
-      <section id="storiesSection" class="content-section">
+      <section id="librarySection" class="content-section">
+        <div class="library-tabs" role="tablist" aria-label="Library">
+          <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Stories</button>
+          <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
+        </div>
+        <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
         <form id="storyForm">
           <input type="text" id="storyTitle" required>
           <select id="storyWorld"><option value="">No world</option></select>
@@ -93,16 +108,21 @@ function buildDom() {
           <button type="submit">Create Story</button>
         </form>
         <div id="storiesList" class="items-grid"></div>
+        </div>
+        <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
+          <div id="bookshelfList" class="bookshelf-list"></div>
+        </div>
       </section>
       <section id="writeSection" class="content-section">
         <select id="currentStory"><option value="">Select or Create a Story</option></select>
+        <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
         <div id="costTicker" class="cost-ticker" hidden></div>
         <button id="prevPageBtn">← Previous</button>        <span id="pageIndicator">Page 1 of 1</span>
         <button id="nextPageBtn">Next →</button>
         <button id="readAloudBtn" type="button">Read aloud</button>
-        <button id="narrationAutoBtn" type="button" aria-pressed="false" aria-label="Autoplay narration">▶</button>
-        <button id="imagePromptBtn" type="button">Scene image</button>
-        <button id="narrationStopBtn" type="button" aria-label="Stop playback" hidden>■</button>
+        <button id="narrationAutoBtn" type="button" aria-pressed="false">Auto-read</button>
+        <button id="imagePromptBtn" type="button">Paint scene</button>
+        <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
         <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
@@ -110,53 +130,49 @@ function buildDom() {
           <div id="audiobookProgress" class="progress-track" hidden><div id="audiobookProgressFill" class="progress-fill"></div></div>
           <div id="audiobookBannerActions" class="audiobook-banner__actions" hidden></div>
         </div>
+        <p id="preparedNote" class="prepared-note" hidden></p>
         <textarea id="userInput"></textarea>
-        <button id="generateBtn">Generate Page</button>
-        <button id="retryBtn">Retry Page</button>
+        <button id="generateBtn">Write next page</button>
+        <button id="retryBtn">Rewrite last page</button>
         <button id="exportBtn">Export .epub</button>
         <button id="audiobookBtn" type="button">Audiobook</button>
         <button id="deletePageBtn">Delete Page</button>
       </section>
-      <section id="bookshelfSection" class="content-section">
-        <h2>Bookshelf</h2>
-        <div id="bookshelfList" class="bookshelf-list"></div>
-      </section>
       <section id="settingsSection" class="content-section">
-        <p id="currentModel" class="current-model"></p>
-        <input type="text" id="modelSearch">
-        <div id="modelList" class="model-list"></div>
-        <div id="fontList" class="font-list"></div>
-        <select id="fontSizeSelect"><option value="16">Small</option><option value="18">Medium</option><option value="20">Large</option><option value="22">Extra large</option></select>
-        <button id="modelResetBtn" type="button">Use the server default model</button>
-        <input type="number" id="wordsPerPageInput" value="400">
-        <input type="checkbox" id="scriptoriumBgToggle">
-        <input type="checkbox" id="costTickerToggle" checked>
-        <select id="narrationModelSelect"></select>
-        <select id="reasoningSelect" hidden><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
-        <div id="reasoningBlock" hidden></div>
-        <select id="narrationVoiceSelect"></select>
+        <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
+        <details class="settings-group" open><summary><h3>Writing AI</h3><span id="writingAiSummary" class="settings-group__summary"></span></summary>
+          <p id="currentModel" class="current-model"></p>
+          <details class="model-disclosure"><summary>Choose another model</summary>
+            <input type="text" id="modelSearch">
+            <div id="modelList" class="model-list"></div>
+            <button id="modelResetBtn" type="button">Use the server default model</button>
+          </details>
+          <div id="reasoningBlock" hidden></div>
+          <select id="reasoningSelect" hidden><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+          <input type="number" id="wordsPerPageInput" value="400">
+        </details>
+        <details class="settings-group" open><summary><h3>Narration</h3><span id="narrationSummary" class="settings-group__summary"></span></summary>
+          <select id="narrationModelSelect"></select>
+          <select id="narrationVoiceSelect"></select>
+        </details>
+        <details class="settings-group" open><summary><h3>Reading appearance</h3><span id="readingSummary" class="settings-group__summary"></span></summary>
+          <div id="fontList" class="font-list"></div>
+          <select id="fontSizeSelect"><option value="16">Small</option><option value="18">Medium</option><option value="20">Large</option><option value="22">Extra large</option></select>
+          <input type="checkbox" id="scriptoriumBgToggle">
+        </details>
+        <details class="settings-group" open><summary><h3>Costs &amp; storage</h3></summary>
+          <input type="checkbox" id="costTickerToggle" checked>
+        </details>
       </section>
     </main>
-    <div id="burnModal" class="burn-modal" hidden>
-      <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="burnTitle" aria-describedby="burnBody">
-        <h2 id="burnTitle">Burn the following pages?</h2>
-        <p id="burnBody" class="burn-modal__body"></p>
-        <input type="range" id="burnSlider" min="0" max="100" step="1" value="0">
-        <button id="burnCancelBtn" type="button" class="btn btn-secondary">Keep them</button>
-      </div>
-    </div>
     <div id="audiobookModal" class="burn-modal" hidden>
       <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="audiobookTitle" aria-describedby="audiobookModalBody">
         <h2 id="audiobookTitle">Bind the tale into an audiobook</h2>
         <div id="audiobookModalBody" class="burn-modal__body"></div>
         <p id="audiobookExisting" class="audiobook-existing" hidden></p>
-        <div class="burn-slider">
-          <label class="sr-only" for="audiobookSlider">Slide all the way right to start the reading</label>
-          <input type="range" id="audiobookSlider" min="0" max="100" step="1" value="0">
-          <span class="burn-slider__hint" aria-hidden="true">slide to read →</span>
-        </div>
         <div class="burn-modal__actions">
           <button id="audiobookCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+          <button id="audiobookStartBtn" type="button" class="btn btn-primary">Create audiobook</button>
         </div>
       </div>
     </div>
@@ -211,14 +227,22 @@ function buildDom() {
     </div>
     <div id="storyCastModal" class="burn-modal" hidden>
       <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
-        <h2 id="storyCastTitle">Story cast</h2>
-        <p class="burn-modal__body">Add or remove members while the tale runs.</p>
-        <div id="storyCastList" class="cast-edit-list"></div>
-        <div class="cast-edit-add">
-          <select id="storyCastAddSelect"></select>
-          <select id="storyCastAddRole"><option value="supporting">Supporting</option><option value="background">Background</option></select>
-          <input type="text" id="storyCastAddRelation" maxlength="2000">
-          <button id="storyCastAddBtn" type="button" class="btn">Add to cast</button>
+        <div class="cast-edit__head">
+          <h2 id="storyCastTitle">Story cast</h2>
+          <p id="storyCastMode" class="cast-edit__mode"></p>
+          <p id="storyCastStatus" class="cast-edit__status" role="status"></p>
+        </div>
+        <div class="cast-edit__body">
+          <div class="cast-edit__roster">
+            <div id="storyCastList" class="cast-edit-list" role="list"></div>
+            <div class="cast-edit-add">
+              <select id="storyCastAddSelect"></select>
+              <select id="storyCastAddRole"><option value="supporting">Supporting</option><option value="background">Background</option><option value="mc">Lead</option></select>
+              <input type="text" id="storyCastAddRelation" maxlength="2000" placeholder="starting connection…">
+              <button id="storyCastAddBtn" type="button" class="btn">Add to cast</button>
+            </div>
+          </div>
+          <div id="storyCastDetail" class="cast-edit__detail"></div>
         </div>
         <p id="storyCastNote" class="cast-edit-note" hidden></p>
         <div class="burn-modal__actions">
@@ -226,6 +250,7 @@ function buildDom() {
           <button id="storyCastCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
         </div>
       </div>
+    </div>
     </div>
     <div id="aiDraftModal" class="burn-modal" hidden>
       <div class="burn-modal__panel draft-panel" role="dialog" aria-modal="true" aria-labelledby="aiDraftTitle">
@@ -237,13 +262,22 @@ function buildDom() {
   `;
 }
 
-function loadScript() {
+let loadCounter = 0;
+
+// opts.hash: boot the app at that hash (deep-link); default is a clean '#/home'.
+async function loadScript(opts = {}) {
   buildDom();
-  let module;
-  jest.isolateModules(() => {
-    module = require('../script.js');
-  });
-  return module;
+  // A fresh app boot: the hash is whatever the caller asked for. Stale
+  // routers from earlier loads are dead (boot-token liveness), so no
+  // replaceState event games are needed.
+  const wanted = opts.hash === undefined ? '' : opts.hash;
+  const current = window.location.hash || '';
+  if (current !== wanted) {
+    window.history.replaceState(null, '', window.location.href.split('#')[0] + wanted);
+  }
+  loadCounter += 1;
+  const mod = await import(`../app/bootstrap.js?run=${loadCounter}`);
+  return mod.fw;
 }
 
 // Deterministic fake fetch helper: pass an array of {match, response} handlers
@@ -263,4 +297,16 @@ function jsonResponse(status, body) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) };
 }
 
-module.exports = { buildDom, loadScript, mockFetch, jsonResponse };
+export { buildDom, loadScript, mockFetch, jsonResponse, dialogAction };
+
+// Drives the shared dialog manager: waits a tick for the dialog to open,
+// clicks the action button with the given label, waits for the flow to settle.
+async function dialogAction(label) {
+  await new Promise((r) => setTimeout(r, 0));
+  const dlg = document.querySelector('.dialog-manager');
+  const btn = dlg && [...dlg.querySelectorAll('button')].find((b) => b.textContent === label);
+  if (btn) btn.click();
+  await new Promise((r) => setTimeout(r, 0));
+  return Boolean(btn);
+}
+

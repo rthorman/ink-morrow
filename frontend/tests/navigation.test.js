@@ -1,68 +1,97 @@
 'use strict';
 
-const { loadScript, mockFetch } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
-describe('UI navigation', () => {
-  let fw;
+function flush() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
 
-  beforeEach(() => {
+describe('UI navigation (hash routes)', () => {
+  beforeEach(async () => {
     mockFetch(); // loads on init return empty objects - fine for nav
-    fw = loadScript();
+    await loadScript();
   });
 
-  it('starts on the worlds section', () => {
-    expect(document.getElementById('worldsSection').classList.contains('active')).toBe(true);
-    expect(document.getElementById('worldsBtn').classList.contains('active')).toBe(true);
+  it('starts on Home with the hash set', async () => {
+    expect(window.location.hash).toBe('#/home');
+    expect(document.getElementById('homeSection').classList.contains('active')).toBe(true);
+    expect(document.getElementById('homeBtn').classList.contains('active')).toBe(true);
+    expect(document.getElementById('homeBtn').getAttribute('aria-current')).toBe('page');
   });
 
-  it('switches sections exclusively when nav buttons are clicked', () => {
-    const sections = ['worlds', 'characters', 'stories', 'write'];
-
-    for (const section of sections) {
-      document.getElementById(`${section}Btn`).click();
-
-      for (const other of sections) {
-        expect(document.getElementById(`${other}Section`).classList.contains('active')).toBe(other === section);
-        expect(document.getElementById(`${other}Btn`).classList.contains('active')).toBe(other === section);
+  it('switches destinations exclusively when nav buttons are clicked', async () => {
+    const destinations = [
+      ['write', 'writeSection'],
+      ['library', 'librarySection'],
+      ['worlds', 'worldsSection'],
+      ['characters', 'charactersSection'],
+    ];
+    for (const [btn, section] of destinations) {
+      document.getElementById(`${btn}Btn`).click();
+      await flush(); // hashchange dispatches async
+      expect(document.getElementById(section).classList.contains('active')).toBe(true);
+      expect(document.getElementById(`${btn}Btn`).classList.contains('active')).toBe(true);
+      for (const [otherBtn, otherSection] of destinations) {
+        if (otherBtn === btn) continue;
+        expect(document.getElementById(otherSection).classList.contains('active')).toBe(false);
       }
     }
+    expect(window.location.hash).toBe('#/characters');
   });
 
-  it('reverts to worlds via the exported showSection', () => {
-    document.getElementById('writeBtn').click();
-    fw.showSection('worlds');
-    expect(document.getElementById('worldsSection').classList.contains('active')).toBe(true);
+  it('Library tabs follow the route and restore on tab clicks', async () => {
+    document.getElementById('libraryBtn').click();
+    await flush();
+    expect(window.location.hash).toBe('#/library/stories');
+    expect(document.getElementById('storiesPanel').hidden).toBe(false);
+    expect(document.getElementById('bookshelfPanel').hidden).toBe(true);
+    expect(document.getElementById('libraryStoriesTab').getAttribute('aria-selected')).toBe('true');
+
+    document.getElementById('libraryBookshelfTab').click();
+    await flush();
+    expect(window.location.hash).toBe('#/library/bookshelf');
+    expect(document.getElementById('bookshelfPanel').hidden).toBe(false);
+    expect(document.getElementById('storiesPanel').hidden).toBe(true);
+    expect(document.getElementById('libraryBookshelfTab').getAttribute('aria-selected')).toBe('true');
   });
-});
 
-describe('Age gate', () => {
-  it('shows once and hides on acceptance', () => {
-    window.localStorage.clear();
-    mockFetch();
-    loadScript();
+  it('a deep link restores the surface on load', async () => {
+    await loadScript({ hash: '#/settings' });
+    expect(window.location.hash).toBe('#/settings');
+    expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
+  });
 
-    const gate = document.getElementById('ageGate');
-    expect(gate.hidden).toBe(false);
+  it('an invalid hash recovers to Home with a message', async () => {
+    window.location.hash = '#/nonsense';
+    await flush();
+    await flush();
+    expect(window.location.hash).toBe('#/home');
+    expect(document.getElementById('homeSection').classList.contains('active')).toBe(true);
+  });
 
-    document.getElementById('ageGateAccept').click();
-    expect(gate.hidden).toBe(true);
-    expect(window.localStorage.getItem('fw-age-ok')).toBe('1');
-
-    // second load: stays hidden
-    loadScript();
-    expect(document.getElementById('ageGate').hidden).toBe(true);
+  it('an unknown story deep-link recovers to the Library with an honest message', async () => {
+    mockFetch([
+      { match: '/api/stories', response: jsonResponse(200, { stories: [] }) },
+    ]);
+    window.location.hash = '#/write/does-not-exist';
+    await flush();
+    await flush();
+    await flush();
+    expect(window.location.hash).toBe('#/library/stories');
+    expect(document.querySelector('.error-message')).toBeTruthy();
+    expect(document.querySelector('.error-message').textContent).toContain('could not be found');
   });
 });
 
 describe('Generation loading state', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
-  it('disables buttons and animates scribe flavor while generating', () => {
+  it('disables buttons and animates scribe flavor while generating', async () => {
     expect(document.getElementById('generateBtn').disabled).toBe(false);
     fw.setGenerating(true);
 
@@ -75,19 +104,19 @@ describe('Generation loading state', () => {
     fw.setGenerating(false);
     expect(fw.state().generating).toBe(false);
     expect(document.getElementById('generateBtn').disabled).toBe(false);
-    expect(document.getElementById('generateBtn').textContent).toBe('Generate Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
   });
 });
 
 describe('Page display and navigation', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
-  it('shows a placeholder when no story is selected', () => {
+  it('shows a placeholder when no story is selected', async () => {
     fw.resetStoryReader();
     const content = document.getElementById('storyContent');
     expect(content.querySelector('.placeholder')).toBeTruthy();
@@ -123,5 +152,7 @@ describe('Page display and navigation', () => {
     expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
     expect(document.getElementById('retryBtn').disabled).toBe(false); // on last page now
     expect(document.getElementById('nextPageBtn').disabled).toBe(true);
+    // The hash follows the reader
+    expect(window.location.hash).toBe('#/write/s1/page/2');
   });
 });

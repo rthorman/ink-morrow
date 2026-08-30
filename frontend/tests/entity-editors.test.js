@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const CHARACTER = {
   id: 'c1',
@@ -38,19 +38,21 @@ async function flush(ms = 0) {
 describe('Entity editors', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch([
       { match: '/api/characters', response: jsonResponse(200, { characters: [CHARACTER] }) },
       { match: '/api/worlds', response: jsonResponse(200, { worlds: [WORLD] }) },
       { match: '/api/stories', response: jsonResponse(200, { stories: [] }) },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   it('opens the character editor on card click, but not from its buttons', async () => {
     await fw.loadCharacters();
     const card = document.querySelector('#charactersList .item-card');
-    card.querySelector('.card-delete').click(); // buttons keep their own jobs
+    card.querySelector('.card-edit').click(); // the explicit Edit button opens it
+    expect(document.getElementById('characterEditorModal').hidden).toBe(false);
+    document.getElementById('charEditCancelBtn').click(); // clean (not dirty) close
     expect(document.getElementById('characterEditorModal').hidden).toBe(true);
 
     card.click();
@@ -130,6 +132,6 @@ describe('Entity editors', () => {
     expect(img.tagName).toBe('IMG');
     img.dispatchEvent(new Event('error')); // the server 404s (legacy copy without files)
     expect(document.querySelector('#charactersList .card-image--failed').textContent).toContain('missing');
-    expect(document.querySelector('#charactersList .card-image-redo')).toBeTruthy(); // redo still offered
+    expect(document.querySelector('#charactersList .card-more__item')).toBeTruthy(); // regeneration still offered
   });
 });

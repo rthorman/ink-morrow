@@ -1,11 +1,12 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { jest } from '@jest/globals';
+import { loadScript, mockFetch, jsonResponse, dialogAction } from './dom-helpers.js';
 
 describe('Worlds components', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch([
       {
         match: '/api/worlds',
@@ -18,7 +19,7 @@ describe('Worlds components', () => {
         }),
       },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   it('renders world cards with safe text and delete buttons', async () => {
@@ -27,7 +28,8 @@ describe('Worlds components', () => {
     expect(cards).toHaveLength(2);
     expect(cards[0].querySelector('h4').textContent).toBe('Gothic Vale');
     expect(cards[0].querySelector('.item-meta').textContent).toBe('Gothic · Victorian');
-    expect(cards[0].querySelector('.card-delete')).toBeTruthy();
+    expect(cards[0].querySelector('.card-edit')).toBeTruthy();
+    expect(cards[0].querySelector('.card-more__item--danger')).toBeTruthy();
   });
 
   it('populates world selects and preserves selection', async () => {
@@ -81,19 +83,19 @@ describe('Characters and casting', () => {
         }),
       },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
     await fw.loadWorlds();
     await fw.loadCharacters();
   });
 
-  it('offers uncast characters in the pickers, world-mates first', () => {
+  it('offers uncast characters in the pickers, world-mates first', async () => {
     document.getElementById('storyWorld').value = 'w1';
     fw.renderCastBuilder();
     const mcOptions = [...document.getElementById('mcSelect').options].map((o) => o.textContent);
-    expect(mcOptions).toEqual(['— Choose who the story follows (optional) —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
+    expect(mcOptions).toEqual(['— Choose who the story follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
   });
 
-  it('locks the MC once chosen and removes them from the member pool', () => {
+  it('locks the MC once chosen and removes them from the member pool', async () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
 
@@ -102,10 +104,10 @@ describe('Characters and casting', () => {
 
     const memberOptions = [...document.getElementById('castCharSelect').options].map((o) => o.value);
     expect(memberOptions).toEqual(['', 'c2', 'c3']); // MC no longer offered
-    expect(document.querySelector('#castList .cast-list__row--mc .cast-list__name').textContent).toContain('Realm Knight — Main Character');
+    expect(document.querySelector('#castList .cast-list__row--mc .cast-list__name').textContent).toContain('Realm Knight — Lead');
   });
 
-  it('replacing the MC puts the old one back in the pool', () => {
+  it('replacing the MC puts the old one back in the pool', async () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
     document.querySelector('#castList .cast-list__remove').click();
@@ -113,7 +115,7 @@ describe('Characters and casting', () => {
     expect([...document.getElementById('mcSelect').options].map((o) => o.value)).toContain('c1');
   });
 
-  it('adds supporting members one at a time with a relation', () => {
+  it('adds supporting members one at a time with a relation', async () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
 
@@ -134,7 +136,7 @@ describe('Characters and casting', () => {
     ]);
   });
 
-  it('relation edits in the cast list update the entry', () => {
+  it('relation edits in the cast list update the entry', async () => {
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
     document.getElementById('castCharSelect').value = 'c2';
@@ -179,12 +181,18 @@ describe('Characters and casting', () => {
   it('creates a story with no Main Character (an ensemble tale)', async () => {
     const fetchMock = global.fetch;
     fetchMock.mockClear();
-    // Return any POST /stories to a created story; capture the sent body
-    fetchMock.mockImplementationOnce(() => Promise.resolve(jsonResponse(201, { story: { id: 's9', title: 'Tale' } })));
+    // Return any POST /stories to a created story; the list includes it so
+    // the post-create navigation to the writing desk can resolve the tale.
+    fetchMock.mockImplementation((url, options) => {
+      if (options && options.method === 'POST') return Promise.resolve(jsonResponse(201, { story: { id: 's9', title: 'Tale', page_count: 0 } }));
+      if (String(url).endsWith('/stories')) return Promise.resolve(jsonResponse(200, { stories: [{ id: 's9', title: 'Tale', page_count: 0 }] }));
+      return Promise.resolve(jsonResponse(200, {}));
+    });
     document.getElementById('storyTitle').value = 'Tale';
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('storyForm').dispatchEvent(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const call = fetchMock.mock.calls.find(([url, options]) => String(url).includes('/stories') && options.method === 'POST');
@@ -198,9 +206,9 @@ describe('Characters and casting', () => {
 describe('Generation and export flows', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'My Tale', tone: 'romantic', page_count: 1 },
       storyPages: [{ page_number: 1, content: 'Existing.', user_input: 'go' }],
@@ -297,7 +305,7 @@ describe('Generation and export flows', () => {
 describe('Delete page flow', () => {
   it('deletes the currently viewed page and reloads', async () => {
     const fetchMock = mockFetch();
-    const fw = loadScript();
+    const fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2 },
       storyPages: [
@@ -311,8 +319,9 @@ describe('Delete page flow', () => {
     fetchMock.mockResolvedValueOnce({ ok: true, status: 204, json: () => Promise.reject(new Error('no body')) });
     fetchMock.mockResolvedValueOnce(jsonResponse(200, { pages: [{ page_number: 1, content: 'One', user_input: null }] }));
 
-    window.confirm = () => true;
-    await fw.deleteCurrentPage();
+    const deleting = fw.deleteCurrentPage();
+    expect(await dialogAction('Delete page 2')).toBe(true);
+    await deleting;
 
     const called = fetchMock.mock.calls.map((c) => c[0]);
     expect(called).toContain('/api/stories/s1/pages/2');

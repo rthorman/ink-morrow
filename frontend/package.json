@@ -1,22 +1,34 @@
 {
   "name": "scribe-tribe-frontend",
-  "version": "2.4.0",
+  "version": "3.0.0",
   "description": "Frontend for ScribeTribe (served by the backend)",
   "scripts": {
-    "test": "node node_modules/jest/bin/jest.js",
-    "test:watch": "node node_modules/jest/bin/jest.js --watch",
-    "test:coverage": "node node_modules/jest/bin/jest.js --coverage"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage"
   },
   "devDependencies": {
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"
   },
-  "keywords": ["fiction", "frontend", "gothic"],
+  "keywords": [
+    "fiction",
+    "frontend",
+    "gothic"
+  ],
   "author": "ScribeTribe",
   "license": "MIT",
   "jest": {
     "testEnvironment": "jsdom",
-    "testMatch": ["**/tests/**/*.test.js"],
-    "collectCoverageFrom": ["script.js"]
-  }
+    "setupFiles": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "app/**/*.js"
+    ]
+  },
+  "type": "module"
 }

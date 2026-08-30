@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -15,10 +15,10 @@ function storyState(pages, currentPage) {
 describe('Speculative next-page preparation', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   function mockPreviewAndCommit() {
@@ -56,7 +56,7 @@ describe('Speculative next-page preparation', () => {
     expect(JSON.parse(previewCall[1].body).words).toBe(400);
 
     // The button becomes a green Next Page; the preview cost hits the session ticker
-    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
     expect(fw.state().costs.session).toBeCloseTo(0.001, 8);
     expect(fw.state().costs.story).toBeCloseTo(0, 8); // story total untouched until commit
@@ -67,17 +67,17 @@ describe('Speculative next-page preparation', () => {
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
     await tick();
-    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
 
     const input = document.getElementById('userInput');
     input.value = 'she opens the door';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('generateBtn').textContent).toBe('Generate Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(false);
 
     input.value = '';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('generateBtn').textContent).toBe('Next Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
   });
 
@@ -228,7 +228,7 @@ describe('Speculative next-page preparation', () => {
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(true);
     expect(fw.state().storyPages).toHaveLength(2);
     expect(fw.state().storyPages[1].content).toBe('The live page.');
-    expect(document.getElementById('generateBtn').textContent).toBe('Generate Page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
   });
 
   it('does not prepare a page while viewing an old page', async () => {

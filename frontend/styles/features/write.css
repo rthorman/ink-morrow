@@ -1,0 +1,551 @@
+/* ------------------------------------------------------------------ audiobook banner (write page) */
+
+.audiobook-banner {
+  margin: 0 0 18px 0;
+  padding: 14px 18px;
+  background: rgb(28 20 40 / 0.6);
+  border: 1px solid var(--st-border);
+  border-left: 4px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+}
+
+.audiobook-banner[hidden] {
+  display: none;
+}
+
+.audiobook-banner__text {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--st-vellum-100);
+}
+
+.progress-track {
+  height: 8px;
+  background: var(--st-ink-900);
+  border: 1px solid var(--st-border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-track[hidden] {
+  display: none;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--st-gold-700), var(--st-gold-300));
+  transition: width 0.6s ease;
+}
+
+.audiobook-banner__actions {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.audiobook-banner__actions[hidden] {
+  display: none;
+}
+
+.audiobook-existing {
+  margin: 0 0 14px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--st-violet-300);
+}
+
+.audiobook-existing[hidden] {
+  display: none;
+}
+
+/* A blocked slider must look unable, not merely unwilling */
+input[type="range"]:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+
+/* ------------------------------------------------------------------ story reader */
+
+.story-reader {
+  background: rgb(23 16 31 / 0.72);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: clamp(16px, 2.5vw, 26px);
+}
+
+.story-selector {
+  margin-bottom: 20px;
+}
+
+.story-selector select {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  margin-bottom: 0;
+  background-color: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 10px 14px;
+  font-family: var(--st-font-ui);
+  font-size: 1.05rem;
+}
+
+.page-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 12px 14px;
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+}
+
+.page-navigation button {
+  min-height: var(--st-touch-min);
+  padding: 8px 16px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  cursor: pointer;
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease;
+}
+
+.page-navigation button:hover:not(:disabled) {
+  background: var(--st-oxblood-700);
+  color: var(--st-vellum-100);
+  border-color: var(--st-gold-500);
+}
+
+.page-indicator {
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--st-gold-300);
+}
+
+.story-content {
+  background: var(--st-ink-900);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: clamp(20px, 3vw, 34px);
+  min-height: 300px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.story-content p {
+  max-width: var(--st-prose-max);
+  margin: 0 auto 16px auto;
+  font-family: var(--st-prose-family, var(--st-font-reading));
+  font-size: var(--st-prose-size, 1.12rem);
+  line-height: 1.75;
+  color: var(--st-vellum-100);
+}
+
+.page-direction {
+  max-width: var(--st-prose-max);
+  margin: -6px auto 16px auto;
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+  font-style: italic;
+  color: var(--st-violet-300);
+}
+
+/* A bound painting: the page IS the picture. Book-plate framing, centered
+   like the prose column, never wider than the reading measure. */
+.scene-plate {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  max-height: 72vh;
+  margin: 0 auto 18px auto;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  box-shadow: 0 10px 32px rgb(0 0 0 / 0.45);
+}
+
+/* ------------------------------------------------------------------ writing interface */
+
+.writing-interface {
+  background: rgb(23 16 31 / 0.55);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: clamp(14px, 2vw, 22px);
+}
+
+.writing-interface textarea {
+  min-height: 100px;
+  margin-bottom: 14px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.action-buttons button {
+  min-height: var(--st-touch-min);
+  padding: 10px 20px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  border-radius: var(--st-radius-md);
+  cursor: pointer;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border-bright);
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease,
+    transform var(--st-duration-fast) var(--st-ease-out);
+}
+
+.action-buttons button:hover:not(:disabled) {
+  background: var(--st-ink-700);
+  border-color: var(--st-gold-500);
+  color: var(--st-vellum-50);
+}
+
+.action-buttons button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* Prepared next page: the same button, same dimensions - a gothic deep
+   forest green with tarnished-gold edging and vellum lettering. */
+.action-buttons button.next-page {
+  background: linear-gradient(170deg, var(--st-success-700), var(--st-ink-900) 140%);
+  border-color: var(--st-success-600);
+  color: var(--st-vellum-100);
+  font-weight: 600;
+  box-shadow: 0 0 0 1px rgb(199 163 91 / 0.18) inset;
+}
+
+.action-buttons button.next-page:hover:not(:disabled) {
+  background: linear-gradient(170deg, var(--st-success-600), var(--st-success-700) 130%);
+  border-color: var(--st-gold-500);
+  color: var(--st-vellum-50);
+}
+
+#generateBtn.busy {
+  animation: quillPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes quillPulse {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 1; }
+}
+
+
+
+/* ------------------------------------------------------------------ narration */
+
+.narrate-btn {
+  min-height: var(--st-touch-min);
+  padding: 8px 16px;
+  background: var(--st-surface-3);
+  color: var(--st-witchlight-400);
+  border: 1px solid rgb(105 217 203 / 0.45);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease;
+}
+
+.narrate-btn:hover {
+  background: var(--st-ink-700);
+  color: var(--st-witchlight-400);
+  border-color: var(--st-witchlight-400);
+}
+
+#readAloudBtn[aria-label*='playing'] {
+  background: rgb(105 217 203 / 0.14);
+}
+
+#narrationAutoBtn.active {
+  background: rgb(105 217 203 / 0.18);
+  border-color: var(--st-witchlight-400);
+  color: var(--st-vellum-100);
+}
+
+#narrationStopBtn {
+  color: var(--st-danger-500);
+  border-color: rgb(214 75 88 / 0.45);
+}
+
+#narrationStopBtn:hover {
+  background: rgb(214 75 88 / 0.16);
+  color: #edaab1;
+  border-color: var(--st-danger-500);
+}
+
+/* ------------------------------------------------------------------ cost ticker */
+
+.cost-ticker {
+  margin-top: 10px;
+  text-align: right;
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  color: var(--st-gold-300);
+}
+
+.cost-ticker[hidden] {
+  display: none;
+}
+
+/* ------------------------------------------------------------------ scriptorium writing background */
+
+/* Optional toned-down scriptorium art behind the writing desk. The art sits
+   under heavy ink, is desaturated and never captures pointer events; the
+   prose surface stays opaque so readability is unchanged. */
+#writeSection.scriptorium-bg {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--st-radius-md);
+  padding: clamp(10px, 1.5vw, 18px);
+  margin: calc(clamp(10px, 1.5vw, 18px) * -1);
+}
+
+#writeSection.scriptorium-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
+    url('brand/hero-scriptorium-tablet-landscape.webp') center / cover no-repeat;
+  filter: saturate(0.65);
+  pointer-events: none;
+}
+
+/* With the scriptorium background on, the art shows through behind the prose
+   itself (not just the page edges). The ink veil stays dark enough that the
+   vellum text keeps AA contrast. */
+#writeSection.scriptorium-bg .story-content {
+  background: rgb(16 10 22 / 0.6);
+  border-color: var(--st-border-bright);
+}
+
+@media (min-width: 1200px) {
+  #writeSection.scriptorium-bg::before {
+    background:
+      linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
+      url('brand/hero-scriptorium-desktop.webp') center / cover no-repeat;
+  }
+}
+
+@media (max-width: 767px) {
+  #writeSection.scriptorium-bg::before {
+    background:
+      linear-gradient(180deg, rgb(9 6 13 / 0.88), rgb(9 6 13 / 0.94)),
+      url('brand/vesper-quill.webp') top center / cover no-repeat;
+  }
+}
+
+/* ------------------------------------------------------------------ past-page bar + read-only */
+
+.past-page-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -6px 0 20px 0;
+  padding: 12px 16px;
+  background: rgb(110 24 52 / 0.16);
+  border: 1px solid rgb(199 163 91 / 0.35);
+  border-left: 3px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+}
+
+.past-page-bar p {
+  margin: 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+  color: var(--st-vellum-200);
+}
+
+.past-page-bar[hidden] {
+  display: none;
+}
+
+.writing-interface.read-only {
+  opacity: 0.55;
+}
+
+.writing-interface.read-only label {
+  color: var(--st-text-muted);
+}
+
+
+/* ------------------------------------------------------------------ scene image prompt modal */
+
+#imagePromptModal .burn-modal__panel {
+  width: min(720px, 100%);
+  border-color: var(--st-border-bright);
+}
+
+/* The render-quality picker sits in the modal flow like the prompt box */
+#imagePromptModal select {
+  display: block;
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+#imagePromptModal .burn-modal__panel h2 {
+  color: var(--st-gold-300);
+}
+
+#imagePromptText {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  margin: 0 0 20px 0;
+  padding: 10px 12px;
+  background: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-reading);
+  font-size: 1rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+#imagePromptText:focus {
+  border-color: var(--st-gold-500);
+  outline: none;
+}
+
+/* ------------------------------------------------------------------ scene viewer (zoomable popup) */
+
+.scene-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 120; /* above the modals (100) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(5 3 8 / 0.93);
+}
+
+.scene-viewer[hidden] {
+  display: none;
+}
+
+.scene-viewer img {
+  max-width: 92vw;
+  max-height: 82vh;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none; /* the viewer owns every gesture */
+  cursor: grab;
+  will-change: transform;
+}
+
+.scene-viewer__actions {
+  position: absolute;
+  bottom: 26px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Writing desk groups: navigation, media, management, composer        */
+/* ------------------------------------------------------------------ */
+
+.desk-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.7rem;
+}
+
+.desk-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.desk-group--pages {
+  background: rgb(9 6 13 / 0.5);
+  border: 1px solid var(--st-gold-700);
+  border-radius: 9px;
+  padding: 0.35rem 0.6rem;
+}
+
+.desk-group--media {
+  padding: 0.35rem 0;
+}
+
+.desk-group--management {
+  margin-top: 0.8rem;
+  padding-top: 0.7rem;
+  border-top: 1px dashed var(--st-gold-700);
+  gap: 0.7rem;
+}
+
+.story-context {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+
+.story-context__mode {
+  color: var(--st-gold-300);
+  font-size: 0.88rem;
+}
+
+.composer-head {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.composer-head label {
+  margin: 0;
+}
+
+.composer-hint {
+  margin: 0;
+}
+
+.prepared-note {
+  width: 100%;
+  margin: 0.15rem 0 0;
+  font-size: 0.88rem;
+  color: var(--state-prepared);
+  border-left: 3px solid var(--state-prepared);
+  padding-left: 0.6rem;
+}

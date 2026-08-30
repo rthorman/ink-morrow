@@ -42,12 +42,12 @@ module.exports = [
   },
 
   {
-    // Frontend: the app script runs in the browser AND under jest/jsdom, so
-    // it carries both worlds' globals (module/process are guarded).
-    files: ['frontend/script.js'],
+    // Frontend app: native browser ES modules (they also load under
+    // jest/jsdom, so both worlds' globals apply; process is guarded).
+    files: ['frontend/app/**/*.js'],
     languageOptions: {
       ecmaVersion: 2024,
-      sourceType: 'commonjs',
+      sourceType: 'module',
       globals: { ...globals.browser, ...globals.node },
     },
   },
@@ -56,7 +56,7 @@ module.exports = [
     files: ['frontend/tests/**/*.js'],
     languageOptions: {
       ecmaVersion: 2024,
-      sourceType: 'commonjs',
+      sourceType: 'module',
       globals: { ...globals.browser, ...globals.node, ...globals.jest },
     },
   },
@@ -84,7 +84,7 @@ module.exports = [
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'commonjs',
-      globals: { ...globals.node },
+      globals: { ...globals.node, ...globals.browser }, // page.evaluate callbacks run in the page
     },
   },
 

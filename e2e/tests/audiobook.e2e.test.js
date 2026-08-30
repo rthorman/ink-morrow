@@ -83,12 +83,9 @@ test.describe('Audiobook', () => {
     await expect(page.locator('#audiobookModalBody')).toContainText('2 pages');
     await expect(page.locator('#audiobookModalBody')).toContainText('$');
 
-    // Slide all the way right to start the reading
-    await page.evaluate(() => {
-      const slider = document.getElementById('audiobookSlider');
-      slider.value = 100;
-      slider.dispatchEvent(new Event('input', { bubbles: true }));
-    });
+    // The explicit paid-review button starts the reading
+    await expect(page.locator('#audiobookStartBtn')).toContainText('Create audiobook (≈$');
+    await page.locator('#audiobookStartBtn').click();
     await expect(page.locator('#audiobookModal')).toBeHidden();
     await expect(page.locator('#audiobookBanner')).toBeVisible();
     await expect(page.locator('#audiobookBannerText')).toContainText('page 0 of 2');
@@ -116,8 +113,9 @@ test.describe('Audiobook', () => {
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
 
-    await page.locator('#bookshelfBtn').click();
-    await expect(page.locator('#bookshelfSection')).toHaveClass(/active/);
+    await page.locator('#libraryBtn').click();
+    await page.locator('#libraryBookshelfTab').click();
+    await expect(page.locator('#librarySection')).toHaveClass(/active/);
     const entry = page.locator('.bookshelf-entry', { hasText: 'Bookshelf Test' });
     await expect(entry).toBeVisible({ timeout: 5000 });
     await expect(entry).toContainText('No audiobook kept'); // nothing read yet
@@ -126,8 +124,12 @@ test.describe('Audiobook', () => {
       .poll(() => entry.locator('.bookshelf-plate img').evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 5000 })
       .toBe(true);
 
-    // Deleting the plate is deleting a real page: the open reader renumbers
+    // Deleting the plate is deleting a real page: confirm the shared
+    // destructive dialog, then the open reader renumbers
     await entry.locator('.bookshelf-plate button', { hasText: 'Delete' }).click();
+    await expect(page.locator('.dialog-manager')).toBeVisible();
+    await expect(page.locator('.dialog-manager__body')).toContainText('renumbers');
+    await page.locator('.dialog-manager button', { hasText: 'Delete page 2' }).click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(entry.locator('.bookshelf-plate')).toHaveCount(0);
     await expect(entry).toContainText('No plates kept');

@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const SPEECH_MODELS = [
   {
@@ -49,15 +49,15 @@ function narrateResponse({ ok = true, status = 200, generationId = 'gen-n01', ca
 describe('Narration settings', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch([
       { match: '/api/speech-models', response: jsonResponse(200, { models: SPEECH_MODELS }) },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
   });
 
-  it('defaults to unconfigured narration', () => {
+  it('defaults to unconfigured narration', async () => {
     expect(fw.state().settings.narrationModel).toBeNull();
     expect(fw.state().settings.narrationVoice).toBeNull();
   });
@@ -131,15 +131,15 @@ describe('Narration settings', () => {
 describe('Narration player', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState(storyState(PAGES));
     fw.displayCurrentPage();
   });
 
-  it('explains and points to Settings when unconfigured', () => {
+  it('explains and points to Settings when unconfigured', async () => {
     document.getElementById('readAloudBtn').click();
     expect(document.querySelector('.error-message').textContent).toContain('not configured');
     expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
@@ -269,10 +269,10 @@ describe('Narration player', () => {
 describe('Narration autoplay', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.setSetting('narrationModel', 'or/voice-1');
     fw.setSetting('narrationVoice', 'amber');
   });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse, dialogAction } from './dom-helpers.js';
 
 const STORAGE = {
   stories: [
@@ -38,10 +38,10 @@ const STORAGE = {
 describe('Bookshelf page', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch([{ match: '/storage', response: jsonResponse(200, STORAGE) }]);
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({ currentStory: null, storyPages: [], currentPage: 1 });
   });
 
@@ -77,7 +77,6 @@ describe('Bookshelf page', () => {
   });
 
   it('deleting the audiobook asks, then clears it from the shelf', async () => {
-    window.confirm = () => true;
     global.fetch.mockImplementation((url, options) => {
       if (String(url).includes('/audiobook') && options.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) });
       if (String(url).includes('/storage')) return Promise.resolve(jsonResponse(200, STORAGE));
@@ -88,7 +87,7 @@ describe('Bookshelf page', () => {
     await new Promise((r) => setTimeout(r, 0));
     const deleteBtn = entries()[0].querySelector('.bookshelf-audio button');
     deleteBtn.click();
-    await new Promise((r) => setTimeout(r, 0));
+    expect(await dialogAction('Delete audiobook')).toBe(true);
 
     const call = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/audiobook') && options.method === 'DELETE');
     expect(String(call[0])).toContain('/stories/s1/audiobook');
@@ -97,7 +96,6 @@ describe('Bookshelf page', () => {
   });
 
   it('deleting a plate warns about renumbering and refreshes an open reader', async () => {
-    window.confirm = () => true;
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'The Kept Tale', tone: 'romantic', page_count: 3, total_cost_usd: 0 },
       storyPages: [
@@ -117,8 +115,8 @@ describe('Bookshelf page', () => {
 
     await fw.loadBookshelf();
     await new Promise((r) => setTimeout(r, 0));
-    entries()[0].querySelectorAll('.bookshelf-plate button').forEach((b) => b.click());
-    await new Promise((r) => setTimeout(r, 0));
+    entries()[0].querySelectorAll('.bookshelf-plate button')[0].click();
+    expect(await dialogAction('Delete page 2')).toBe(true);
 
     const delCall = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/pages/2') && options.method === 'DELETE');
     expect(delCall).toBeTruthy();
@@ -127,12 +125,11 @@ describe('Bookshelf page', () => {
     expect(fw.state().currentPage).toBe(2);
   });
 
-  it('a refused confirm deletes nothing', async () => {
-    window.confirm = () => false;
+  it('a refused confirmation deletes nothing', async () => {
     await fw.loadBookshelf();
     await new Promise((r) => setTimeout(r, 0));
     entries()[0].querySelector('.bookshelf-audio button').click();
-    await new Promise((r) => setTimeout(r, 0));
+    expect(await dialogAction('Cancel')).toBe(true);
     expect(global.fetch.mock.calls.some(([url, options]) => options && options.method === 'DELETE')).toBe(false);
   });
 

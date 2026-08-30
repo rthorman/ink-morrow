@@ -2,6 +2,8 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
+**v3.0.0** is a ground-up reorganization: a modular backend (feature routers + stores), a native-ES-module frontend with hash routing and a shared dialog system, a Home/Library/Write information architecture, explicit centered/ensemble cast shapes, and honest cost-bearing buttons everywhere — with every API route, data schema, and cost guarantee preserved.
+
 **ScribeTribe is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
 
 > [!WARNING]
@@ -11,17 +13,31 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 >
 > The only real safety is upstream of this app: **create a dedicated OpenRouter API key and set a hard spend limit on it** (OpenRouter lets you cap a key's credit) before you put it in `backend/.env`. Treat anything this app reports as a good-faith tally, not an invoice.
 
+## Screenshots
+
+| Home (desktop) | Writing desk (desktop) |
+|---|---|
+| ![Home — the manuscript hall, hero art and recent manuscripts](docs/screenshots/home-desktop.png) | ![The writing desk — calm vellum, grouped controls](docs/screenshots/write-desktop.png) |
+
+| Home (tablet portrait) | Writing desk (tablet portrait) |
+|---|---|
+| ![Home on a tall tablet — dedicated portrait hero](docs/screenshots/home-tablet-portrait.png) | ![The desk on a tall tablet — sticky composer](docs/screenshots/write-tablet-portrait.png) |
+
+| Library | Worlds |
+|---|---|
+| ![The Library — Stories and Bookshelf tabs](docs/screenshots/library-desktop.png) | ![The Worlds catalog — collection-first with New world](docs/screenshots/worlds-desktop.png) |
+
 ## Features
 
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
-- **Prepared next page** — while you read, the next page is quietly prepared; an empty Generate lands instantly, and cost is booked only when you take it
+- **Prepared next page** — while you read, the next page is quietly prepared; the composer says so plainly ("Next page prepared. No cost is booked until you use it."), an empty Write lands instantly, and a direction states that it discards the prepared page. Cost is booked only when you take it
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
-- **Three-tier casts** — one optional Main Character (with one, the scribe keeps the tale centered on them; without one, she writes an ensemble), supporting cast (each carrying a free-text relation to the lead) and loose background figures
-- **Cast editing mid-story** — every story card on the Stories page opens a cast editor: add or remove members while the tale runs, change roles (promoting a new lead demotes the old), and edit the in-story character sheets exactly as the tale has reshaped them — the base sheets stay untouched
+- **Explicit cast shapes** — every story declares itself *Centered on a lead* or an *Ensemble* up front, in creation and mid-story editing alike; relation labels follow the named lead (and never mention one that does not exist), the mid-story editor offers direct **Make lead / Switch to ensemble** actions, and an empty cast can add a lead directly — never add-then-promote
+- **Cast editing mid-story** — the Library's story cards open a roster/details editor: the roster lists members with roles, cross-world provenance and story-changed markers; the selected member's sheet edits role, starting connection, and the in-story state exactly as the tale has reshaped them. Dirty drafts guard every close, role changes never dump focus or discard local edits, and the base sheets stay untouched
 - **Living characters** — per-story mutable state: personality, appearance, and relationships evolve book-paced as pages deal injuries, revelations and betrayals; the base character sheets stay untouched
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
-- **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot and any image can be redone from its card
+- **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot, regeneration (with its approximate cost) sits in each card's **More** menu, and creation offers both *Create and paint (≈$…)* and *Create without image*
 - **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
 - **Canonical worlds** — stories reference the one live world: edit it and future pages follow; world-changing events persist because you decide when they happen. Characters are the opposite — stories hold their own mutable copies
 - **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references; the painting opens in a zoomable, pannable popup with ghost Save/Close buttons. Choose 1K·low (fast, ≈$0.04) or 2K·medium (finest, ≈$0.08) before painting. Prompts are composed renderable in every tone — even 18+ implies artfully, since the image model refuses explicit content wholesale. When the moderator refuses, nothing repaints silently: the scribe rewrites the prompt aggressively safe, announces it, puts it back in the box, and waits for your press — and a second refusal drops the cast portraits (paintings made from forced-nudity sheets offend moderation on their own, no matter how clean the text). **Add as page** binds any painting into the story as an image page right after the one it illustrates — a book plate among the prose, later pages renumber, and it travels inside the EPUB export
@@ -32,14 +48,16 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
 - **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
-- **Read-only history** — earlier pages can't be edited; "delete everything after this page" trims the tale with a slide-to-confirm burn
+- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
-- **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; a slide-to-confirm starts a single-file background reading whose banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
+- **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; a single explicit **Create audiobook (≈$…)** button starts the reading — a slider is not a price tag. The reading whose banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Bookshelf** — a shelf of every tale's kept things: bound audiobooks and painted scene plates, downloadable or deletable at any later time
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
-- **Full test suite** — 298 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
+- **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one paid-action review (price on the button) across the whole app; every dialog traps focus, restores its opener, and guards dirty drafts on Escape and backdrop
+- **Full test suite** — 321 Jest tests (163 backend + 158 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -50,7 +68,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 298 Jest tests (163 backend + 135 frontend) pass on-device under Termux
+- All 321 Jest tests (163 backend + 158 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -122,21 +140,39 @@ npm start               # http://localhost:3000
 ```
 scribe-tribe/
 ├── backend/
-│   ├── server.js          # entry: config, listen, graceful shutdown
+│   ├── server.js              # entry: config, listen, graceful shutdown
 │   ├── src/
-│   │   ├── db.js          # node:sqlite schema, WAL, FK enforcement, migrations
-│   │   ├── app.js         # all routes (injectable db for test isolation)
-│   │   ├── ai.js          # OpenAI-compatible client with retry/backoff + model catalog
-│   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
-│   │   ├── epub.js        # dependency-free EPUB/ZIP writer
-│   │   ├── images.js     # OpenRouter Image API client (Grok Imagine) + disk store
-│   └── tests/             # Jest + supertest (163 tests)
+│   │   ├── app.js             # composer: middleware, runtime, router mounting, disposal
+│   │   ├── db.js              # node:sqlite schema, WAL, FK enforcement, migrations
+│   │   ├── ai.js              # OpenAI-compatible client with retry/backoff + catalogs
+│   │   ├── prompt.js          # prompt builder (tone, cast tiers, relations, state)
+│   │   ├── quality.js         # reply quality guards (empty/truncated/language)
+│   │   ├── epub.js            # dependency-free EPUB/ZIP writer
+│   │   ├── images.js          # OpenRouter Image API client (Grok Imagine) + disk store
+│   │   ├── core/              # http + validation helpers shared by all routers
+│   │   └── modules/           # feature routers/stores/services:
+│   │       ├── catalog/       #   worlds + characters CRUD, generate_image field
+│   │       ├── stories/       #   story/page/preview SQL, cast contract
+│   │       ├── writing/       #   drafts, generate/regenerate/preview orchestration
+│   │       ├── imagery/       #   scene painting, moderation flow, entity queue
+│   │       ├── audio/         #   narration cache/segments, audiobook queue
+│   │       ├── library/       #   storage aggregation + EPUB download
+│   │       └── auth/          #   disabled adapter seam (security deferred)
+│   └── tests/                 # Jest + supertest (163 tests)
 ├── frontend/
- │   ├── index.html         # gothic UI + catgirl scribe SVG
- │   ├── styles.css
- │   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
- │   ├── brand/             # production art assets (WebP + SVG)
- │   └── tests/             # Jest + jsdom (126 tests)
+│   ├── index.html             # semantic shell, mount points, dialog templates
+│   ├── app/                   # native ES modules — no build step
+│   │   ├── bootstrap.js       # one context, feature composition, startup
+│   │   ├── core/              # api, router (hash), state, dom, dialogs, notifications
+│   │   ├── components/        # shared catalog card anatomy
+│   │   ├── shell.js           # section switching, scribe status, disk banner
+│   │   └── features/          # home, worlds, characters, settings, ai-drafts,
+│   │                          #   library/ (tabs, stories, story-editor, bookshelf),
+│   │                          #   write/ (index, generation, narration, imagery, audiobook),
+│   │                          #   auth/ (disabled adapter + dormant gate)
+│   ├── styles/                # tokens, base, shell, components, features
+│   ├── brand/                 # production art assets (WebP + SVG only)
+│   └── tests/                 # Jest + jsdom (158 tests, native ESM)
  ├── e2e/                   # Playwright browser tests (chromium + mobile)
  ├── database/              # runtime storage, gitignored: SQLite file,
  │                          #   images/ (portraits + scene plates), audio/ (audiobooks)
@@ -190,9 +226,10 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (163) + frontend (135) Jest suites — runs on Termux too
+npm test             # lint + backend (163) + frontend (158) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
+# frontend Jest runs native ESM: cd frontend && npm test (uses --experimental-vm-modules)
 # first run on a new machine: cd e2e && npm install && npm run install-browsers
 ```
 

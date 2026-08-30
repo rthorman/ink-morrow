@@ -1,0 +1,224 @@
+'use strict';
+
+// Writing service: prompt/context orchestration, quality expectations,
+// character-state handling, and speculative previews. The AI adapter
+// (ai.js), prompt builder (prompt.js) and quality rules (quality.js) stay
+// the domain modules they already were.
+
+const { buildPrompt, CONTEXT_WINDOW } = require('../../prompt');
+const { normalizeCast, splitStateBlock, applyStateUpdate } = require('../stories/cast');
+
+// Rough token budget for a target length (words + instructions + headroom).
+function tokensForWords(words) {
+  return words * 2 + 250;
+}
+
+// Quality expectations for story pages: when the writer asked for a
+// specific length, hold the scribe to at least a quarter of it (floor 15
+// words - "a little under" is fine, a tenth is not). A target-less
+// (legacy) request is only checked for emptiness, truncation and language.
+function pageQuality(wordTarget) {
+  return wordTarget ? { minWords: Math.max(15, Math.round(wordTarget * 0.25)) } : {};
+}
+
+function parseAiJson(content) {
+  const cleaned = String(content).replace(/```json|```/g, '').trim();
+  const start = cleaned.indexOf('{');
+  const end = cleaned.lastIndexOf('}');
+  if (start === -1 || end === -1 || end <= start) return null;
+  try {
+    return JSON.parse(cleaned.slice(start, end + 1));
+  } catch {
+    return null;
+  }
+}
+
+function createWritingService({ db, catalog, stories, chatCompletion }) {
+  function castCharacters(story) {
+    return normalizeCast(JSON.parse(story.characters || '[]'))
+      .map((entry) => {
+        const character = catalog.getCharacter(entry.id);
+        return character ? { ...character, role: entry.role, relation: entry.relation, state: entry.state } : null;
+      })
+      .filter(Boolean);
+  }
+
+  function loadContext(story, { excludeLast = false } = {}) {
+    const world = story.world_id ? catalog.getWorld(story.world_id) : null;
+    const characters = castCharacters(story);
+    const allPages = stories.storyPages(story.id);
+    if (excludeLast) allPages.pop();
+    const included = allPages.slice(-CONTEXT_WINDOW);
+    return {
+      world,
+      characters,
+      pages: {
+        total: allPages.length,
+        included,
+        firstContent: allPages.length > 0 ? allPages[0].content.slice(0, 500) : null,
+      },
+    };
+  }
+
+  function generationMessages(story, ctx, userInput, wordTarget) {
+    return [
+      { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
+      { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput, wordTarget }) },
+    ];
+  }
+
+  // Splits the state block, applies character-state updates, and rejects
+  // empty prose with an honest 502.
+  function consumeStoryText(story, rawContent) {
+    const { prose, stateJson } = splitStateBlock(rawContent);
+    if (!prose) {
+      const err = new Error('AI returned an empty response');
+      err.statusCode = 502;
+      throw err;
+    }
+    if (stateJson) {
+      const stateObj = parseAiJson(stateJson);
+      if (stateObj) applyStateUpdate(db, story, stateObj);
+    }
+    return prose;
+  }
+
+  // One shared generation call shape for generate/regenerate/preview.
+  function completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort, excludeLast = false }) {
+    const ctx = loadContext(story, { excludeLast });
+    return chatCompletion(
+      generationMessages(story, ctx, userInput, wordTarget),
+      {
+        model: modelOverride || undefined,
+        reasoningEffort,
+        quality: pageQuality(wordTarget),
+        ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}),
+      }
+    );
+  }
+
+  // -- AI drafts (world / character fleshing-out) -----------------------------
+
+  const DRAFT_LENGTHS = {
+    short: { label: 'short', world: 'Keep the description to 2-3 vivid sentences.', character: 'Keep each field to 1-2 sentences except the description (2-3 sentences).' },
+    medium: { label: 'medium', world: 'Aim for roughly 120-180 words of description.', character: 'Aim for roughly 25-50 words per field.' },
+    long: { label: 'long', world: 'Aim for roughly 300-450 words of description, rich but disciplined.', character: 'Aim for roughly 60-110 words per field.' },
+  };
+
+  function draftVariantLine(variant) {
+    return variant > 1
+      ? `This is take ${variant}: the user rejected earlier drafts. Produce a DISTINCTLY different interpretation - different central tension, texture and emphasis. Do not recycle the previous ideas.`
+      : '';
+  }
+
+  async function runDraft(buildPrompt, modelOverride) {
+    const SYSTEM_BASE =
+      'You are a precise creative assistant for an interactive-fiction tool. You always answer with a single strict JSON object and nothing else - no markdown fences, no commentary.';
+
+    const attempt = (extraNote) =>
+      chatCompletion(
+        [
+          { role: 'system', content: extraNote ? `${SYSTEM_BASE} ${extraNote}` : SYSTEM_BASE },
+          { role: 'user', content: buildPrompt() },
+        ],
+        { model: modelOverride || undefined, temperature: 0.95 }
+      );
+
+    // Unseeded drafts make some models ramble; one corrective retry keeps
+    // the UX stable. Both attempts are billed, so both costs are summed.
+    let first = await attempt();
+    let parsed = parseAiJson(first.content);
+    let cost = first.cost_usd || 0;
+    if (!parsed) {
+      const second = await attempt('Your previous answer was not a valid JSON object. This time return ONLY the JSON object.');
+      cost += second.cost_usd || 0;
+      parsed = parseAiJson(second.content);
+      first = second;
+    }
+    if (!parsed) {
+      const err = new Error('The scribe scribbled something illegible. Try again.');
+      err.statusCode = 502;
+      throw err;
+    }
+    return { parsed, result: first, cost_usd: cost || null };
+  }
+
+  function draftLengthAndVariant(body) {
+    const length = DRAFT_LENGTHS[body.length] ? body.length : 'medium';
+    const variant = Math.min(Math.max(parseInt(body.variant, 10) || 1, 1), 50);
+    return { length, variant };
+  }
+
+  async function draftWorld(body, modelOverride) {
+    const seeds = {
+      name: body.name,
+      description: body.description,
+      genre: body.genre,
+      setting: body.setting,
+    };
+    const { length, variant } = draftLengthAndVariant(body);
+    const { parsed, result, cost_usd } = await runDraft(() => {
+      const seedLines = Object.entries(seeds)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`);
+      return [
+        'Flesh out a fictional world for interactive fiction. It must feel consistent and believable: an internal logic that holds, a history that explains the present, and one striking central tension a story could grow from.',
+        'Genre and setting must cohere with the description.',
+        seedLines.length ? `THE USER'S SEED (honor it; keep any given name unless it is empty, and build outward from these hints):\n${seedLines.join('\n')}` : 'The user gave no seed - invent freely.',
+        DRAFT_LENGTHS[length].world,
+        draftVariantLine(variant),
+        'Return strict JSON with exactly these keys: {"name": string, "description": string, "genre": string (a short phrase, max ~40 chars), "setting": string (a short phrase, max ~60 chars)}',
+      ].filter(Boolean).join('\n\n');
+    });
+    return {
+      world: parsed,
+      model: result.model,
+      cost_usd,
+      seeds,
+    };
+  }
+
+  async function draftCharacter(body, modelOverride, world) {
+    const seeds = {
+      name: body.name,
+      description: body.description,
+      personality: body.personality,
+      appearance: body.appearance,
+      background: body.background,
+    };
+    const { length, variant } = draftLengthAndVariant(body);
+    const { parsed, result, cost_usd } = await runDraft(() => {
+      const seedLines = Object.entries(seeds)
+        .filter(([, v]) => v)
+        .map(([k, v]) => `${k}: ${v}`);
+      return [
+        'Flesh out a fictional character for interactive fiction. The character should be statistically unusual - someone you do not meet in every story - yet NEVER a caricature. Psychological believability is the highest law: real motives, a specific internal contradiction, coping habits, and things they avoid. Avoid stock clichés (the chosen one, the amnesiac, the brooding loner, the quirky manic pixie) unless you subvert them with fresh, concrete specifics. Appearance serves character, not a character sheet.',
+        world ? `THE WORLD they live in (stay consistent with it):\nName: ${world.name}\nDescription: ${world.description || '(none)'}\nGenre: ${world.genre || '(any)'}\nSetting: ${world.setting || '(any)'}` : '',
+        seedLines.length ? `THE USER'S SEED (honor it; keep any given name unless it is empty, and build outward from these hints):\n${seedLines.join('\n')}` : 'The user gave no seed - invent freely.',
+        DRAFT_LENGTHS[length].character,
+        draftVariantLine(variant),
+        'Return strict JSON with exactly these keys: {"name": string, "description": string, "personality": string, "appearance": string, "background": string}',
+      ].filter(Boolean).join('\n\n');
+    });
+    return {
+      character: parsed,
+      model: result.model,
+      cost_usd,
+      seeds,
+    };
+  }
+
+  return {
+    castCharacters,
+    loadContext,
+    generationMessages,
+    consumeStoryText,
+    completePage,
+    parseAiJson,
+    draftWorld,
+    draftCharacter,
+    DRAFT_LENGTHS,
+  };
+}
+
+module.exports = { createWritingService, tokensForWords, pageQuality, parseAiJson };

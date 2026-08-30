@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const AI_WORLD = {
   name: 'The Ashen Marches',
@@ -12,12 +12,12 @@ const AI_WORLD = {
 describe('AI world drafts', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch([
       { match: '/api/ai/world', response: jsonResponse(200, { world: AI_WORLD, cost_usd: 0.001, model: 'x' }) },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   it('seeds from the form, renders editable fields, and saves on request', async () => {
@@ -126,7 +126,7 @@ describe('AI character drafts', () => {
       return Promise.resolve(jsonResponse(200, { characters: [], stories: [] }));
     });
 
-    const fw = loadScript();
+    const fw = await loadScript();
     // Let the app's boot loads (worlds/characters/stories) settle first
     await new Promise((resolve) => setTimeout(resolve, 0));
     document.getElementById('characterName').value = 'locksmith';
@@ -157,8 +157,8 @@ describe('AI character drafts', () => {
   });
 });
 describe('Scribe-voiced errors', () => {
-  it('wraps dependency failures without hiding the reason', () => {
-    const fw = loadScript();
+  it('wraps dependency failures without hiding the reason', async () => {
+    const fw = await loadScript();
     fw.showError('World is referenced by 2 character(s) and 1 story(ies). Delete or reassign them first.');
     const el = document.querySelector('.error-message');
     expect(el.textContent).toContain('The scribe refuses');
@@ -166,8 +166,8 @@ describe('Scribe-voiced errors', () => {
     expect(el.textContent).toContain('Delete or reassign');
   });
 
-  it('translates connectivity and key failures into scriptorium terms', () => {
-    const fw = loadScript();
+  it('translates connectivity and key failures into scriptorium terms', async () => {
+    const fw = await loadScript();
     fw.showError('Cannot reach the server - is it running?');
     expect(document.querySelector('.error-message').textContent).toContain('scriptorium has gone dark');
     fw.showError('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
@@ -182,7 +182,7 @@ describe('Scribe-voiced errors', () => {
       }
       return Promise.resolve(jsonResponse(200, { worlds: [] }));
     });
-    const fw = loadScript();
+    const fw = await loadScript();
     fw.openAiDraft('world');
     const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
     genBtn.click();

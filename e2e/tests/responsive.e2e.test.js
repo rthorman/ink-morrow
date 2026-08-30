@@ -33,11 +33,6 @@ for (const spec of SPECS) {
     await page.goto('/');
     await page.waitForSelector('.container');
 
-    const gate = page.locator('#ageGate');
-    if (await gate.isVisible()) {
-      await page.locator('#ageGateAccept').click();
-      await expect(gate).toBeHidden();
-    }
 
     // The pagination + narration controls live in the Write section.
     await page.locator('#writeBtn').click();

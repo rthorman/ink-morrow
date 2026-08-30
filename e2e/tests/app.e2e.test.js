@@ -21,27 +21,29 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('.cat-scribe svg')).toBeVisible();
     await expect(page.locator('#scribeStatus')).toBeVisible();
 
-    // Age gate appears on first visit and dismisses
-    const gate = page.locator('#ageGate');
-    if (await gate.isVisible()) {
-      await page.locator('#ageGateAccept').click();
-      await expect(gate).toBeHidden();
-    }
-
-    // Cycle every section
-    for (const section of ['characters', 'stories', 'write', 'settings', 'worlds']) {
-      await page.locator(`#${section}Btn`).click();
-      await expect(page.locator(`#${section}Section`)).toHaveClass(/active/);
+    // Cycle every destination (Library covers the Stories surface)
+    for (const [btn, section] of [
+      ['characters', 'charactersSection'],
+      ['library', 'librarySection'],
+      ['write', 'writeSection'],
+      ['settings', 'settingsSection'],
+      ['worlds', 'worldsSection'],
+      ['home', 'homeSection'],
+    ]) {
+      await page.locator(`#${btn}Btn`).click();
+      await expect(page.locator(`#${section}`)).toHaveClass(/active/);
+      await expect(page.locator(`#${btn}Btn`)).toHaveAttribute('aria-current', 'page');
     }
   });
 
   test('creates a world through the form', async ({ page }) => {
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Gothic Castle Realm');
     await page.fill('#worldDescription', 'A dark world of ancient castles');
     await page.fill('#worldGenre', 'Dark Fantasy');
     await page.fill('#worldSetting', 'Gothic Medieval');
-    await page.locator('#worldForm button[type="submit"]').click();
+    await page.locator('#worldForm .btn-primary').click();
 
     await expect(page.locator('#worldName')).toHaveValue('');
     const card = page.locator('#worldsList .item-card', { hasText: 'Gothic Castle Realm' });
@@ -51,40 +53,46 @@ test.describe('ScribeTribe UI', () => {
   test('creates a character bound to a world, then casts both into a story', async ({ page }) => {
     // World
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'E2E Realm');
-    await page.locator('#worldForm button[type="submit"]').click();
+    await page.locator('#worldForm .btn-primary').click();
     await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' })).toBeVisible({ timeout: 5000 });
 
     // Character in that world (select by visible label, not by guessed value)
     await page.locator('#charactersBtn').click();
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Lady Seraphina');
     await page.fill('#characterDescription', 'A mysterious noblewoman');
     await selectByLabel(page, '#characterWorld', 'E2E Realm');
-    await page.locator('#characterForm button[type="submit"]').click();
+    await page.locator('#characterForm .btn-primary').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' })).toBeVisible({ timeout: 5000 });
 
     // Free-roaming second character
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Drifter');
-    await page.locator('#characterForm button[type="submit"]').click();
+    await page.locator('#characterForm .btn-primary').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
 
     // Every card carries reference-image controls (e2e key is a dummy, so
     // the portrait itself fails; the UI must still show the state honestly)
     const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
-    await expect(drifterCard.locator('.card-image-redo')).toBeVisible({ timeout: 5000 });
-    await drifterCard.locator('.card-image-redo').click();
+    // Regeneration lives in the More menu with its approximate cost
+    await drifterCard.locator('.card-more summary').click();
+    await expect(drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' })).toBeVisible();
+    await drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' }).click();
     await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
 
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
-    await page.locator('#storiesBtn').click();
+    await page.locator('#libraryBtn').click();
     await page.fill('#storyTitle', 'The Shadow and the Flame');
     await selectByLabel(page, '#storyWorld', 'E2E Realm');
     await page.selectOption('#storyTone', 'romantic');
+    await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
     await selectByLabel(page, '#castCharSelect', 'The Drifter');
     await page.fill('#castRelation', 'a debt of silence between them');
     await page.locator('#castAddBtn').click();
-    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Lady Seraphina — Main Character');
+    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Lady Seraphina — Lead');
     await page.locator('#storyForm button[type="submit"]').click();
 
     // Creating a story jumps to the write section with the story selected
@@ -94,21 +102,26 @@ test.describe('ScribeTribe UI', () => {
 
   test('blocks world deletion while referenced (409 surfaces as error)', async ({ page }) => {
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Busy Realm');
-    await page.locator('#worldForm button[type="submit"]').click();
+    await page.locator('#worldForm .btn-primary').click();
     const card = page.locator('#worldsList .item-card', { hasText: 'Busy Realm' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
     await page.locator('#charactersBtn').click();
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Busy Body');
     await selectByLabel(page, '#characterWorld', 'Busy Realm');
-    await page.locator('#characterForm button[type="submit"]').click();
+    await page.locator('#characterForm .btn-primary').click();
     await expect(page.locator('#charactersList .item-card', { hasText: 'Busy Body' })).toBeVisible({ timeout: 5000 });
 
-    // Deleting the in-use world should surface the 409 error message
-    page.on('dialog', (dialog) => dialog.accept());
+    // Deleting the in-use world: confirm the shared destructive dialog, then
+    // the 409 error surfaces with the reason.
     await page.locator('#worldsBtn').click();
-    await card.locator('.card-delete').click();
+    await card.locator('.card-more summary').click();
+    await card.locator('.card-more__item--danger', { hasText: 'Delete' }).click();
+    await expect(page.locator('.dialog-manager')).toBeVisible();
+    await page.locator('.dialog-manager button', { hasText: 'Delete world' }).click();
     await expect(page.locator('.error-message').first()).toBeVisible({ timeout: 5000 });
     await expect(page.locator('.error-message').first()).toContainText(/referenced/);
   });
@@ -117,6 +130,7 @@ test.describe('ScribeTribe UI', () => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.locator('#charactersBtn').click();
     await expect(page.locator('#charactersSection')).toHaveClass(/active/);
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Mobile Character');
     await expect(page.locator('#characterName')).toHaveValue('Mobile Character');
   });
@@ -144,25 +158,28 @@ test.describe('ScribeTribe UI', () => {
     await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'The tale is already running.' } });
 
     await page.goto('/');
-    await page.locator('#storiesBtn').click();
+    await page.locator('#libraryBtn').click();
     const card = page.locator('#storiesList .item-card', { hasText: 'Cast Edit Test' });
     await expect(card).toBeVisible({ timeout: 5000 });
     await card.locator('.card-cast').click();
 
     const modal = page.locator('#storyCastModal');
     await expect(modal).toBeVisible({ timeout: 5000 });
-    // The in-story sheet shows as it stands; the base sheet is only a hint
-    const leadBlock = modal.locator('.cast-edit-member', { hasText: 'The Lead' });
-    await expect(leadBlock.locator('.cast-edit-member__sheet textarea').first()).toHaveValue('Colder now, hungrier');
+    // Roster/details: the Lead is selected by default; the in-story sheet
+    // shows as it stands; the base sheet is only a hint.
+    await expect(modal.locator('#storyCastDetail h3')).toHaveText('The Lead');
+    await expect(modal.locator('#storyCastDetail .cast-edit-member__sheet textarea').first()).toHaveValue('Colder now, hungrier');
+    await expect(modal.locator('#storyCastMode')).toContainText('Centered on The Lead');
 
     // Edit the Lead's in-story appearance, add the latecomer to the running cast
-    const [, appearance] = await leadBlock.locator('.cast-edit-member__sheet textarea').all();
+    const [, appearance] = await modal.locator('#storyCastDetail .cast-edit-member__sheet textarea').all();
     await appearance.fill('Cloak burned to rags');
     await modal.locator('#storyCastAddSelect').selectOption({ label: 'The Latecomer' });
     await modal.locator('#storyCastAddRole').selectOption('background');
     await modal.locator('#storyCastAddRelation').fill('a shadow at the edge of the tale');
     await modal.locator('#storyCastAddBtn').click();
-    await expect(modal.locator('.cast-edit-member', { hasText: 'The Latecomer' })).toBeVisible();
+    // The fresh member's sheet opens selected
+    await expect(modal.locator('#storyCastDetail h3')).toHaveText('The Latecomer');
 
     await modal.locator('#storyCastSaveBtn').click();
     await expect(modal).toBeHidden({ timeout: 5000 });
@@ -196,6 +213,7 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#settingsSection')).toHaveClass(/active/);
 
     // Search + per-model cost are visible
+    await page.locator('.model-disclosure summary').click();
     await page.fill('#modelSearch', 'other');
     await expect(page.locator('#modelList .model-item')).toHaveCount(1);
     await expect(page.locator('#modelList .model-item')).toContainText('$10.00');
@@ -258,6 +276,7 @@ test.describe('ScribeTribe UI', () => {
     );
 
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Ashen');
     await page.locator('#worldAiBtn').click();
     await expect(page.locator('#aiDraftModal')).toBeVisible();
@@ -283,8 +302,9 @@ test.describe('ScribeTribe UI', () => {
     await page.goto('/');
     await page.waitForSelector('.container');
     await page.locator('#charactersBtn').click();
+    if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Editable Soul');
-    await page.locator('#characterForm button[type="submit"]').click();
+    await page.locator('#characterForm .btn-primary').click();
     const card = page.locator('#charactersList .item-card', { hasText: 'Editable Soul' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
@@ -305,8 +325,9 @@ test.describe('ScribeTribe UI', () => {
     await page.goto('/');
     await page.waitForSelector('.container');
     await page.locator('#worldsBtn').click();
+    if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Lorebook Realm');
-    await page.locator('#worldForm button[type="submit"]').click();
+    await page.locator('#worldForm .btn-primary').click();
     const card = page.locator('#worldsList .item-card', { hasText: 'Lorebook Realm' });
     await expect(card).toBeVisible({ timeout: 5000 });
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const STORY_STATE = {
   currentStory: { id: 's1', title: 'T', tone: 'explicit', page_count: 2, total_cost_usd: 0 },
@@ -20,12 +20,12 @@ function imagePromptResponse() {
 describe('Scene image prompt button', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch([
       { match: '/image-prompt', response: imagePromptResponse() },
     ]);
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
   });
@@ -83,7 +83,7 @@ describe('Scene image prompt button', () => {
     expect(btn.textContent).toBe('Scene image');
   });
 
-  it('complains politely when no story page is selected', () => {
+  it('complains politely when no story page is selected', async () => {
     fw.__setStoryState({ currentStory: null, storyPages: [], currentPage: 1 });
     document.getElementById('imagePromptBtn').click();
     expect(document.querySelector('.error-message').textContent).toContain('Select a page');
@@ -284,7 +284,7 @@ describe('Scene image prompt button', () => {
     expect(fw.__sceneModerationState()).toEqual({ refusals: 0, dropReferences: false });
   });
 
-  it('narration, autoplay and illustration buttons gray out without a page or mid-write', () => {
+  it('narration, autoplay and illustration buttons gray out without a page or mid-write', async () => {
     const readAloud = document.getElementById('readAloudBtn');
     const auto = document.getElementById('narrationAutoBtn');
     const scene = document.getElementById('imagePromptBtn');
@@ -344,9 +344,9 @@ describe('Scene viewer zoom & pan', () => {
 
   const DATA_URL = 'data:image/png;base64,iVBORw0KGgo=';
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 1, total_cost_usd: 0 },
       storyPages: [{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0 }],
@@ -359,7 +359,7 @@ describe('Scene viewer zoom & pan', () => {
     return document.getElementById('sceneViewerImg');
   }
 
-  it('opens with the image centered at scale 1 and reopens reset', () => {
+  it('opens with the image centered at scale 1 and reopens reset', async () => {
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
     expect(fw.__sceneViewerState()).toEqual({ scale: 1, x: 0, y: 0, dataUrl: DATA_URL });
     expect(viewerImg().style.transform).toContain('scale(1)');
@@ -372,7 +372,7 @@ describe('Scene viewer zoom & pan', () => {
     expect(fw.__sceneViewerState()).toEqual({ scale: 1, x: 0, y: 0, dataUrl: DATA_URL });
   });
 
-  it('wheel zooms in and out, clamped to a sane range', () => {
+  it('wheel zooms in and out, clamped to a sane range', async () => {
     const img = viewerImg();
     for (let i = 0; i < 5; i++) img.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true }));
     expect(fw.__sceneViewerState().scale).toBeGreaterThan(1);
@@ -380,7 +380,7 @@ describe('Scene viewer zoom & pan', () => {
     expect(fw.__sceneViewerState().scale).toBeGreaterThanOrEqual(0.25); // clamped floor
   });
 
-  it('drag pans the image; double-click toggles zoom', () => {
+  it('drag pans the image; double-click toggles zoom', async () => {
     const img = viewerImg();
     const down = new Event('pointerdown', { bubbles: true, cancelable: true });
     Object.defineProperty(down, 'clientX', { value: 0 });
@@ -403,7 +403,7 @@ describe('Scene viewer zoom & pan', () => {
     expect(reset.y).toBe(0);
   });
 
-  it('Escape closes only the viewer; the ghost buttons do their jobs', () => {
+  it('Escape closes only the viewer; the ghost buttons do their jobs', async () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
 
@@ -478,9 +478,9 @@ describe('Add as page: binding a painting into the story', () => {
 
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
   });
@@ -539,7 +539,7 @@ describe('Add as page: binding a painting into the story', () => {
     expect(btn.textContent).toBe('Add as page');
   });
 
-  it('an image page renders as a plate and silences the text tools on it', () => {
+  it('an image page renders as a plate and silences the text tools on it', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0.06 },
       storyPages: [
@@ -569,7 +569,7 @@ describe('Add as page: binding a painting into the story', () => {
     expect(document.querySelector('.scene-plate')).toBeNull();
   });
 
-  it('a plate as the last page cannot be retried, but writing continues after it', () => {
+  it('a plate as the last page cannot be retried, but writing continues after it', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2, total_cost_usd: 0.06 },
       storyPages: [

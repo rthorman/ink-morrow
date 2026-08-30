@@ -42,6 +42,16 @@ in ChatGPT](https://openai.com/codex/)** (GPT‑5‑based), under the project
 author's direction, August 2026. Visual assets were created using OpenAI
 image-generation tools.
 
+Generated brand assets (OpenAI image generation, reference-led; production
+WebP in `frontend/brand/`, PNG masters in the instruction packages):
+
+- `vesper-threshold.webp` — Vesper Quill at the locked threshold (future
+  login/first-password surface, dormant until real security exists)
+- `moth-archive.webp` — Moth, Archivist of Forgotten Things (Bookshelf and
+  archive empty states)
+- `cinder-cast.webp` — Cinder, the Inkbreaker (story-creation cast-shape
+  introduction)
+
 ## Original Code Structure
 
 - **Backend**: Node.js + Express + SQLite (built-in `node:sqlite`, no native builds)

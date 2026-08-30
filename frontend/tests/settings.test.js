@@ -1,6 +1,6 @@
 'use strict';
 
-const { loadScript, mockFetch, jsonResponse } = require('./dom-helpers');
+import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const MODELS = [
   { id: 'z-ai/glm-5.1', name: 'GLM 5.1', context_length: 128000, pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 } },
@@ -14,21 +14,21 @@ function mockModels() {
 }
 
 describe('Settings defaults and persistence', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch();
   });
 
-  it('defaults: server model, no scriptorium bg, ticker on', () => {
-    const fw = loadScript();
+  it('defaults: server model, no scriptorium bg, ticker on', async () => {
+    const fw = await loadScript();
     expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null, reasoningEffort: null, storyFontSize: 18, sceneRenderQuality: 'low_1k' });
     expect(document.getElementById('costTicker').hidden).toBe(false);
     expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--st-prose-family')).toContain('Literata');
   });
 
-  it('toggles persist to localStorage and apply immediately', () => {
-    const fw = loadScript();
+  it('toggles persist to localStorage and apply immediately', async () => {
+    const fw = await loadScript();
 
     document.getElementById('costTickerToggle').checked = false;
     document.getElementById('costTickerToggle').dispatchEvent(new Event('change'));
@@ -44,13 +44,13 @@ describe('Settings defaults and persistence', () => {
 });
 
 describe('Model picker', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
   });
 
   it('renders the catalog, filters by search, and selects a model', async () => {
     mockModels();
-    const fw = loadScript();
+    const fw = await loadScript();
 
     await fw.loadModels();
     fw.renderModelList();
@@ -76,7 +76,7 @@ describe('Model picker', () => {
 
   it('sends the selected model with generate requests', async () => {
     const fetchMock = mockModels();
-    const fw = loadScript();
+    const fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 0 },
       storyPages: [],
@@ -97,7 +97,7 @@ describe('Model picker', () => {
 
   it('omits the model field when the server default is used', async () => {
     const fetchMock = mockModels();
-    const fw = loadScript();
+    const fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 0 },
       storyPages: [],
@@ -115,21 +115,21 @@ describe('Model picker', () => {
 });
 
 describe('Story font selector', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch();
   });
 
-  it('renders all presets with the selected one marked', () => {
-    const fw = loadScript();
+  it('renders all presets with the selected one marked', async () => {
+    const fw = await loadScript();
     const items = document.querySelectorAll('#fontList .font-item');
     expect(items).toHaveLength(Object.keys(fw.STORY_FONTS).length);
     expect(items[0].classList.contains('selected')).toBe(true); // literata default
     expect(items[0].style.fontFamily).toContain('Literata');
   });
 
-  it('sets the prose CSS variable and persists the choice', () => {
-    const fw = loadScript();
+  it('sets the prose CSS variable and persists the choice', async () => {
+    const fw = await loadScript();
     const mono = [...document.querySelectorAll('#fontList .font-item')].find((b) =>
       b.textContent.includes('IBM Plex Mono')
     );
@@ -146,10 +146,10 @@ describe('Story font selector', () => {
 describe('Cost ticker', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 1, total_cost_usd: 0.01 },
       storyPages: [{ page_number: 1, content: 'Existing.', user_input: null, cost_usd: 0.01 }],
@@ -195,10 +195,10 @@ describe('Cost ticker', () => {
 describe('Words per page setting', () => {
   let fw, fetchMock;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     fetchMock = mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 0, total_cost_usd: 0 },
       storyPages: [],
@@ -216,7 +216,7 @@ describe('Words per page setting', () => {
     expect(body.words).toBe(400);
   });
 
-  it('clamps and persists edited values', () => {
+  it('clamps and persists edited values', async () => {
     const input = document.getElementById('wordsPerPageInput');
     input.value = '5000';
     input.dispatchEvent(new Event('change'));
@@ -246,10 +246,10 @@ describe('Words per page setting', () => {
 describe('Reasoning level selector', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
   it('appears with a medium default when a reasoning model is selected', async () => {
@@ -325,19 +325,19 @@ describe('Reasoning level selector', () => {
 describe('Story font size picker', () => {
   let fw;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     window.localStorage.clear();
     mockFetch();
-    fw = loadScript();
+    fw = await loadScript();
   });
 
-  it('defaults to 18px and sets the prose size variable', () => {
+  it('defaults to 18px and sets the prose size variable', async () => {
     expect(fw.state().settings.storyFontSize).toBe(18);
     expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('18px');
     expect(document.getElementById('fontSizeSelect').value).toBe('18');
   });
 
-  it('changes persist and update the variable, clamped to a readable range', () => {
+  it('changes persist and update the variable, clamped to a readable range', async () => {
     const select = document.getElementById('fontSizeSelect');
     select.value = '22';
     select.dispatchEvent(new Event('change', { bubbles: true }));

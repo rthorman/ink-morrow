@@ -10,8 +10,16 @@ const { createApp } = require('../src/app');
  */
 function createTestApp() {
   const db = createDb(':memory:');
-  const app = createApp(db, { staticDir: null });
-  return { db, app, close: () => db.close() };
+  // Collect logger output instead of spilling stderr; tests that care about
+  // expected provider/quality failures assert against these entries.
+  const logEntries = [];
+  const logger = {
+    log: (msg) => logEntries.push({ level: 'log', msg }),
+    error: (msg) => logEntries.push({ level: 'error', msg }),
+  };
+  const app = createApp(db, { staticDir: null, logger });
+  app.locals.logEntries = logEntries;
+  return { db, app, logEntries, close: () => db.close() };
 }
 
 /** Clear all rows between tests within a file (keeps schema + open handle). */

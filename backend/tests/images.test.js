@@ -115,6 +115,31 @@ describe('Character & world reference images', () => {
     await request(app).get(`/api/worlds/${res.body.world.id}/image`).expect(200);
   });
 
+  it('generate_image:false creates without painting; omitted/true preserves old-client behavior', async () => {
+    // Explicit false: no image work at all
+    const quiet = await request(app).post('/api/characters').send({ name: 'Quiet One', generate_image: false }).expect(201);
+    expect(quiet.body.character.image_status).toBe("none");
+    const callsAfterQuiet = axios.post.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(axios.post.mock.calls.length).toBe(callsAfterQuiet);
+
+    const quietWorld = await request(app).post('/api/worlds').send({ name: 'Quiet Vale', generate_image: false }).expect(201);
+    expect(quietWorld.body.world.image_status).toBe("none");
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(axios.post.mock.calls.length).toBe(callsAfterQuiet);
+
+    // Omitted (old clients) and explicit true both keep create-and-paint
+    const chatty = await request(app).post('/api/characters').send({ name: 'Painted One' }).expect(201);
+    expect(chatty.body.character.image_status).toBe('pending');
+    await waitForImageStatus('characters', chatty.body.character.id, 'ready');
+    const paintedCalls = axios.post.mock.calls.length;
+    expect(paintedCalls).toBeGreaterThan(callsAfterQuiet);
+
+    const explicit = await request(app).post('/api/worlds').send({ name: 'Loud Vale', generate_image: true }).expect(201);
+    expect(explicit.body.world.image_status).toBe('pending');
+    await waitForImageStatus('worlds', explicit.body.world.id, 'ready');
+  });
+
   it('redo regenerates the portrait, and only one job per entity queues', async () => {
     const character = await createCharacter(app, null, { name: 'Rex' });
     await waitForImageStatus('characters', character.id, 'ready');
