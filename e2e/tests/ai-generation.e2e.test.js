@@ -165,7 +165,9 @@ test.describe('AI generation flows (mocked)', () => {
     if (await toneAck.isVisible({ timeout: 1500 }).catch(() => false)) await toneAck.click();
     await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Sir Context');
-    await expect(page.locator('#castList .cast-list__row--mc')).toContainText('Sir Context — Lead');
+    const leadRow = page.locator('#castList .cast-list__row--mc');
+    await expect(leadRow.locator('.cast-list__name')).toHaveText('Sir Context');
+    await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
     await page.locator('#storyForm button[type="submit"]').click();
 
     await page.fill('#userInput', 'Sir Context opens the tome');
