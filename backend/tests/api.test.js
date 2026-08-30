@@ -138,6 +138,43 @@ describe('Characters API', () => {
     expect(res.body.character.personality).toBe('Now grumpy');
     expect(res.body.character.name).toBe('Sir Gideon');
   });
+
+  it('reassigns and unassigns a character world via PUT', async () => {
+    const firstWorld = await createWorld(app, { name: 'First Realm' });
+    const secondWorld = await createWorld(app, { name: 'Second Realm' });
+    const character = await createCharacter(app, firstWorld.id);
+    const story = await createStory(app, firstWorld.id, [{
+      id: character.id,
+      role: 'supporting',
+      relation: 'already part of this tale',
+      state: null,
+    }]);
+
+    const reassigned = await request(app)
+      .put(`/api/characters/${character.id}`)
+      .send({ world_id: secondWorld.id })
+      .expect(200);
+    expect(reassigned.body.character.world_id).toBe(secondWorld.id);
+    const unchangedStory = await request(app).get(`/api/stories/${story.id}`).expect(200);
+    expect(unchangedStory.body.story.characters).toEqual([{
+      id: character.id,
+      role: 'supporting',
+      relation: 'already part of this tale',
+      state: null,
+    }]);
+
+    const unassigned = await request(app)
+      .put(`/api/characters/${character.id}`)
+      .send({ world_id: null })
+      .expect(200);
+    expect(unassigned.body.character.world_id).toBeNull();
+
+    const invalid = await request(app)
+      .put(`/api/characters/${character.id}`)
+      .send({ world_id: 'missing-world' })
+      .expect(400);
+    expect(invalid.body.error).toContain('world_id');
+  });
 });
 
 // ---------------------------------------------------------------------------
