@@ -383,6 +383,9 @@ select optgroup {
 
 .burn-modal__panel {
   width: min(520px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: clamp(22px, 4vw, 34px);
   background: linear-gradient(170deg, var(--st-ink-850), var(--st-ink-900));
   border: 1px solid var(--st-danger-500);

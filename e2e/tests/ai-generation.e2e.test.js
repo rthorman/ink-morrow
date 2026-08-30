@@ -39,7 +39,7 @@ async function createStoryViaUi(page, title) {
   await page.goto('/');
   await page.locator('#writeBtn').click();
   await page.selectOption('#currentStory', story.id);
-  await expect(page.locator('#currentStory option', { hasText: title })).toBeAttached({ timeout: 5000 });
+  await expect(page.locator(`#currentStory option[value="${story.id}"]`)).toBeAttached({ timeout: 5000 });
   await expect(page.locator('#writeSection')).toHaveClass(/active/);
   return story;
 }
