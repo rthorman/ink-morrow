@@ -242,4 +242,5 @@ module.exports = {
   IMAGE_TONE_INSTRUCTIONS,
   castSections,
   stateUpdateInstruction,
+  STATE_MARKER_TEXT,
 };

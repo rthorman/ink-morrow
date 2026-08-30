@@ -37,7 +37,8 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Bookshelf** — a shelf of every tale's kept things: bound audiobooks and painted scene plates, downloadable or deletable at any later time
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 272 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
+- **Full test suite** — 284 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -48,7 +49,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 272 Jest tests (146 backend + 126 frontend) pass on-device under Termux
+- All 284 Jest tests (158 backend + 126 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -128,7 +129,7 @@ scribe-tribe/
 │   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
 │   │   ├── epub.js        # dependency-free EPUB/ZIP writer
 │   │   ├── images.js     # OpenRouter Image API client (Grok Imagine) + disk store
-│   └── tests/             # Jest + supertest (146 tests)
+│   └── tests/             # Jest + supertest (158 tests)
 ├── frontend/
  │   ├── index.html         # gothic UI + catgirl scribe SVG
  │   ├── styles.css
@@ -187,7 +188,8 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 ## Testing
 
 ```bash
-npm test             # backend (146) + frontend (126) Jest suites — runs on Termux too
+npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
+npm test             # lint + backend (158) + frontend (126) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers
@@ -198,6 +200,7 @@ npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 - E2E tests run against a real server with the AI endpoint mocked at the network layer
 - Transient AI failures are covered by retry/backoff tests
 - The Jest and Playwright suites were developed and verified on Android/Termux (e2e via the native Chromium package)
+- All commands invoke their tools as `node node_modules/…/bin/…`, sidestepping Termux's broken `.bin` shebangs
 
 ## Creator's Note
 

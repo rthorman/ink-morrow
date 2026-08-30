@@ -1,6 +1,7 @@
 'use strict';
 
 const axios = require('axios');
+const { checkReply } = require('./quality');
 
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const RETRY_ATTEMPTS = 3;
@@ -249,8 +250,17 @@ async function computeCostUsd(model, usage) {
  * Call an OpenAI-compatible chat completions API with retry/backoff
  * on transient failures (429, 5xx, network errors).
  * Returns { content, model, usage, cost_usd }.
+ *
+ * `quality` opts in to output checks the provider does NOT flag as errors:
+ * empty or clearly truncated replies, and replies in a language the user's
+ * own material contradicts. Bad replies are retried (a language slip gets one
+ * explicit "reply in English" nudge); if the last attempt is still bad, the
+ * call fails with a clear message instead of delivering garbage.
  */
-async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, reasoningEffort } = {}) {
+async function chatCompletion(
+  messages,
+  { temperature = 0.85, model, maxTokens, reasoningEffort, quality } = {}
+) {
   const cfg = aiConfig();
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
@@ -265,7 +275,12 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, 
     useMaxTokens = Math.max(useMaxTokens, 6000);
   }
 
+  // The user's own prompt material anchors the expected language.
+  const languageReference = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  let attemptMessages = messages;
+  let languageNudgeSent = false;
   let lastError = null;
+  let lastQualityProblem = null;
   for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await sleep(cfg.retryBaseDelay * attempt);
@@ -275,7 +290,7 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, 
         `${cfg.baseUrl}/chat/completions`,
         {
           model: useModel,
-          messages,
+          messages: attemptMessages,
           temperature,
           max_tokens: useMaxTokens,
           ...(useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
@@ -292,6 +307,30 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, 
       if (!content || !content.trim()) {
         throw new Error('AI returned an empty response');
       }
+      if (quality) {
+        const problem = checkReply(content, quality, languageReference);
+        if (problem) {
+          // A wrong language earns one explicit instruction before the
+          // remaining attempts are burned on the same mistake.
+          if (problem === 'language' && !languageNudgeSent) {
+            languageNudgeSent = true;
+            attemptMessages = [
+              ...messages,
+              { role: 'system', content: 'Important: write your reply in English only.' },
+            ];
+          }
+          const qErr = new Error(
+            problem === 'empty'
+              ? 'AI returned an empty response'
+              : problem === 'truncated'
+                ? 'The reply arrived clearly truncated'
+                : 'The reply arrived in the wrong language'
+          );
+          qErr.qualityProblem = problem;
+          qErr.retryable = true;
+          throw qErr;
+        }
+      }
       const rawUsage = response.data?.usage;
       const usage = rawUsage
         ? {
@@ -303,12 +342,25 @@ async function chatCompletion(messages, { temperature = 0.85, model, maxTokens, 
       return { content: content.trim(), model: useModel, usage, cost_usd };
     } catch (error) {
       lastError = error;
+      lastQualityProblem = error.qualityProblem || null;
       const status = error.response?.status;
-      const retryable = !status || RETRYABLE.has(status);
+      const retryable = !status || RETRYABLE.has(status) || error.retryable === true;
       if (!retryable || attempt === RETRY_ATTEMPTS - 1) {
         break;
       }
     }
+  }
+
+  if (lastQualityProblem) {
+    const err = new Error(
+      lastQualityProblem === 'empty'
+        ? 'The scribe returned nothing but silence. Try again.'
+        : lastQualityProblem === 'truncated'
+          ? 'The scribe\u2019s reply arrived cut off mid-sentence (the model hit its limits). Nothing was saved \u2014 try again, or lower the words-per-page setting.'
+          : 'The scribe kept answering in a different language. Nothing was saved \u2014 try again.'
+    );
+    err.statusCode = 502;
+    throw err;
   }
 
   const err = new Error(

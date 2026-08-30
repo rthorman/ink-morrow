@@ -28,7 +28,9 @@ beforeEach(() => {
 
 afterAll(() => close());
 
-function mockAi(content = 'A candlelit hall, wide shot, gold on black.') {
+function mockAi(
+  content = 'A candlelit gothic hall in wide shot, two figures by the far door, frost creeping over black stone while gold light pools across the flagstones from a handful of guttering candles.'
+) {
   axios.post.mockResolvedValue({
     data: { choices: [{ message: { content: ` ${content} ` } }] },
   });
@@ -74,7 +76,9 @@ describe('POST /api/stories/:id/pages/:n/image-prompt', () => {
     await addPage(story.id, 'The ember gate opened. Her cloak caught fire and burned away.');
 
     const res = await promptFor(story.id, 2).expect(200);
-    expect(res.body.prompt).toBe('A candlelit hall, wide shot, gold on black.'); // trimmed
+    expect(res.body.prompt).toBe(
+      'A candlelit gothic hall in wide shot, two figures by the far door, frost creeping over black stone while gold light pools across the flagstones from a handful of guttering candles.'
+    ); // trimmed
 
     const sent = axios.post.mock.calls[0];
     expect(sent[0]).toContain('/chat/completions');

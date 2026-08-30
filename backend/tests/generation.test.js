@@ -34,6 +34,12 @@ function mockAi(content = 'Generated story text.') {
   });
 }
 
+// A compliant English page for tests that send an explicit words target
+// (quality checks hold the reply to a quarter of it).
+function longEnglishPage(sentences = 40) {
+  return ('The cat sat on the mat and the quiet hall held its breath. ').repeat(sentences);
+}
+
 async function generatePage(storyId, userInput) {
   const res = await request(app).post(`/api/stories/${storyId}/pages/generate`).send({ user_input: userInput });
   return res;
@@ -334,7 +340,7 @@ describe('Model selection, usage and cost accounting', () => {
 describe('Words-per-page target', () => {
   it('puts the requested target in the prompt and scales the token budget', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
-    mockAi('A longer page.');
+    mockAi(longEnglishPage(45));
     const story = await createStory(app);
 
     const res = await request(app)
@@ -360,7 +366,7 @@ describe('Words-per-page target', () => {
 
   it('clamps out-of-range targets', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
-    mockAi('Clamped.');
+    mockAi(longEnglishPage(120));
     const story = await createStory(app);
 
     const res = await request(app)
@@ -650,14 +656,16 @@ describe('Speculative next-page preview', () => {
       data: {
         choices: [{
           message: {
-            content: 'She changed.\n\n<<<CHARACTER_STATE>>>\n' + JSON.stringify({ [mc.id]: { personality: 'Colder now' } }),
+            content:
+              'She changed everything about the hall, its guards, its quiet hours and its stale air.\n\n<<<CHARACTER_STATE>>>\n' +
+              JSON.stringify({ [mc.id]: { personality: 'Colder now' } }),
           },
         }],
       },
     });
-    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({ model: 'vendor/x', words: 800 }).expect(200);
+    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({ model: 'vendor/x', words: 50 }).expect(200);
     expect(axios.post.mock.calls[0][1].model).toBe('vendor/x');
-    expect(axios.post.mock.calls[0][1].max_tokens).toBe(800 * 2 + 250);
+    expect(axios.post.mock.calls[0][1].max_tokens).toBe(50 * 2 + 250);
 
     await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
     const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
@@ -677,7 +685,7 @@ describe('Speculative next-page preview', () => {
     await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
 
     await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
-    const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
   });
 });
 

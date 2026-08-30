@@ -48,11 +48,6 @@ function optionalText(value, { max = 10000 } = {}) {
   return s || null;
 }
 
-function requiredText(value, { max = 200 } = {}) {
-  const s = optionalText(value, { max });
-  return s === null || s === undefined ? s : s; // caller checks null/undefined
-}
-
 function badRequest(res, message) {
   return res.status(400).json({ error: message });
 }
@@ -569,6 +564,14 @@ function createApp(
     return words * 2 + 250;
   }
 
+  // Quality expectations for story pages: when the writer asked for a
+  // specific length, hold the scribe to at least a quarter of it (floor 15
+  // words - "a little under" is fine, a tenth is not). A target-less
+  // (legacy) request is only checked for emptiness, truncation and language.
+  function pageQuality(wordTarget) {
+    return wordTarget ? { minWords: Math.max(15, Math.round(wordTarget * 0.25)) } : {};
+  }
+
   function castCharacters(story) {
     const cast = normalizeCast(JSON.parse(story.characters || '[]'));
     return cast
@@ -666,7 +669,7 @@ function createApp(
       const ctx = loadContext(story);
       const result = await chatCompletion(
         generationMessages(story, ctx, userInput, wordTarget),
-        { model: modelOverride || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverride || undefined, reasoningEffort, quality: pageQuality(wordTarget), ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
       const prose = consumeStoryText(story, result.content);
 
@@ -701,7 +704,7 @@ function createApp(
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
       const result = await chatCompletion(
         generationMessages(story, ctx, last.user_input || 'Continue the story.', wordTarget),
-        { model: modelOverrideOf(req.body.model) || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverrideOf(req.body.model) || undefined, reasoningEffort, quality: pageQuality(wordTarget), ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
       const prose = consumeStoryText(story, result.content);
 
@@ -749,7 +752,7 @@ function createApp(
           { role: 'system', content: 'You are a precise, disciplined art director.' },
           { role: 'user', content: buildImagePrompt({ story, world, characters, pages }) },
         ],
-        { model: modelOverride || undefined, reasoningEffort, maxTokens: 800 }
+        { model: modelOverride || undefined, reasoningEffort, maxTokens: 800, quality: { minWords: 30 } }
       );
       res.json({ prompt: String(result.content || '').trim() });
     } catch (error) {
@@ -820,7 +823,7 @@ function createApp(
         // the prompt to be aggressively safe, then announce it back - the
         // user reviews the textbox and presses Generate again themselves.
         if (error.statusCode !== 400) throw error;
-        const reason = (error.message.match(/refused this request: (.*)$/) || [, '(no reason given)'])[1];
+        const reason = (error.message.match(/refused this request: (.*)$/) || [null, '(no reason given)'])[1];
         const rewrite = await chatCompletion(
           [
             {
@@ -842,7 +845,7 @@ function createApp(
                 `REFUSED PROMPT:\n${prompt}`,
             },
           ],
-          { model: modelOverride || undefined, reasoningEffort, maxTokens: 800 }
+          { model: modelOverride || undefined, reasoningEffort, maxTokens: 800, quality: { minWords: 20 } }
         );
         return res.json({
           refused: true,
@@ -1181,7 +1184,7 @@ function createApp(
       const ctx = loadContext(story);
       const result = await chatCompletion(
         generationMessages(story, ctx, 'Continue the story.', wordTarget),
-        { model: modelOverride || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
+        { model: modelOverride || undefined, reasoningEffort, quality: pageQuality(wordTarget), ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
       upsertPreview.run(
         story.id,
@@ -1237,7 +1240,6 @@ function createApp(
   // WAV-wrapped pcm) so an in-session replay never triggers (or bills) a
   // second upstream generation.
   const narrationCache = new Map();
-  const crypto = require('crypto');
 
   function narrationCacheKey(text, model, voice) {
     return crypto.createHash('sha256').update(text).digest('hex') + '|' + model + '|' + voice;
@@ -1808,7 +1810,6 @@ function createApp(
 
   app.use((req, res) => notFound(res, 'Not found'));
 
-  // eslint-disable-next-line no-unused-vars
   app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
     if (status >= 500) console.error('Unhandled error:', error.message);

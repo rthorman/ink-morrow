@@ -381,7 +381,14 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       if (String(url).includes('/chat/completions')) {
         return Promise.resolve({
           data: {
-            choices: [{ message: { content: ' A fully clothed, safely composed take on the scene. ' } }],
+            choices: [
+              {
+                message: {
+                  content:
+                    ' A fully clothed and draped take on the same scene: the hall keeps its place and mood, the figures keep their identity, everything composed safely for strict moderation. ',
+                },
+              },
+            ],
             usage: { prompt_tokens: 100, completion_tokens: 50 },
           },
         });
@@ -399,7 +406,8 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     expect(res.body).toEqual({
       refused: true,
       reason: 'the nude figures offend moderation',
-      sanitized_prompt: 'A fully clothed, safely composed take on the scene.',
+      sanitized_prompt:
+        'A fully clothed and draped take on the same scene: the hall keeps its place and mood, the figures keep their identity, everything composed safely for strict moderation.',
       rewrite_cost_usd: 0,
     });
     expect(res.body.image).toBeUndefined();
