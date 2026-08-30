@@ -170,7 +170,11 @@
                             <option value="explicit">Tone: Explicit (18+)</option>
                         </select>
                         <div class="character-selection">
-                            <p class="character-selection__label">Cast — every story needs one Main Character; add the rest one at a time with their tie to them.</p>
+                            <p class="character-selection__label">Cast — optional. Add the members one at a time, each with their tie to the lead.</p>
+                            <p class="setting-hint">
+                                With a Main Character, the scribe keeps the tale centered on them — their voice, goals and perception.
+                                Without one, she writes an ensemble that follows your directions wherever they point.
+                            </p>
                             <div class="cast-mc">
                                 <label for="mcSelect">Main Character</label>
                                 <select id="mcSelect">
@@ -437,6 +441,34 @@
                 <button id="worldEditSaveBtn" type="submit" form="worldEditorForm" class="btn">Save</button>
                 <button id="worldEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
                 <button id="worldEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storyCastModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
+            <h2 id="storyCastTitle">Story cast</h2>
+            <p class="burn-modal__body">
+                Add or remove members while the tale runs. The in-story sheets show each character
+                as the story has reshaped them; empty fields fall back to the character's base sheet.
+                One Main Character keeps the tale centered on them; without one, the scribe writes an ensemble.
+            </p>
+            <div id="storyCastList" class="cast-edit-list"></div>
+            <div class="cast-edit-add">
+                <label class="sr-only" for="storyCastAddSelect">Character to add</label>
+                <select id="storyCastAddSelect"></select>
+                <label class="sr-only" for="storyCastAddRole">Role for the new member</label>
+                <select id="storyCastAddRole">
+                    <option value="supporting">Supporting</option>
+                    <option value="background">Background</option>
+                </select>
+                <input type="text" id="storyCastAddRelation" maxlength="2000" placeholder="their tie to the Main Character at the start…">
+                <button id="storyCastAddBtn" type="button" class="btn">Add to cast</button>
+            </div>
+            <p id="storyCastNote" class="cast-edit-note" hidden></p>
+            <div class="burn-modal__actions">
+                <button id="storyCastSaveBtn" type="button" class="btn">Save cast</button>
+                <button id="storyCastCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </div>

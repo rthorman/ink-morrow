@@ -90,7 +90,7 @@ describe('Characters and casting', () => {
     document.getElementById('storyWorld').value = 'w1';
     fw.renderCastBuilder();
     const mcOptions = [...document.getElementById('mcSelect').options].map((o) => o.textContent);
-    expect(mcOptions).toEqual(['— Choose the character the story follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
+    expect(mcOptions).toEqual(['— Choose who the story follows (optional) —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
   });
 
   it('locks the MC once chosen and removes them from the member pool', () => {
@@ -176,17 +176,21 @@ describe('Characters and casting', () => {
     expect(fw.storyCast()).toEqual([]);
   });
 
-  it('refuses to create a story without a Main Character', async () => {
+  it('creates a story with no Main Character (an ensemble tale)', async () => {
     const fetchMock = global.fetch;
     fetchMock.mockClear();
+    // Return any POST /stories to a created story; capture the sent body
+    fetchMock.mockImplementationOnce(() => Promise.resolve(jsonResponse(201, { story: { id: 's9', title: 'Tale' } })));
     document.getElementById('storyTitle').value = 'Tale';
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('storyForm').dispatchEvent(event);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(fetchMock).not.toHaveBeenCalledWith('/api/stories', expect.anything());
-    expect(document.querySelector('.error-message').textContent).toContain('Main Character');
+    const call = fetchMock.mock.calls.find(([url, options]) => String(url).includes('/stories') && options.method === 'POST');
+    const body = JSON.parse(call[1].body);
+    expect(body.characters).toEqual([]); // the scribe takes an ensemble as willingly as a lead
+    expect(document.querySelector('.error-message')).toBeNull();
   });
 });
 

@@ -17,7 +17,8 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Prepared next page** — while you read, the next page is quietly prepared; an empty Generate lands instantly, and cost is booked only when you take it
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
-- **Three-tier casts** — every story follows one Main Character, with supporting cast (each carrying a free-text relation to them) and loose background figures
+- **Three-tier casts** — one optional Main Character (with one, the scribe keeps the tale centered on them; without one, she writes an ensemble), supporting cast (each carrying a free-text relation to the lead) and loose background figures
+- **Cast editing mid-story** — every story card on the Stories page opens a cast editor: add or remove members while the tale runs, change roles (promoting a new lead demotes the old), and edit the in-story character sheets exactly as the tale has reshaped them — the base sheets stay untouched
 - **Living characters** — per-story mutable state: personality, appearance, and relationships evolve book-paced as pages deal injuries, revelations and betrayals; the base character sheets stay untouched
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot and any image can be redone from its card
@@ -38,7 +39,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
-- **Full test suite** — 284 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 298 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -49,7 +50,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 284 Jest tests (158 backend + 126 frontend) pass on-device under Termux
+- All 298 Jest tests (163 backend + 135 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -129,7 +130,7 @@ scribe-tribe/
 │   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
 │   │   ├── epub.js        # dependency-free EPUB/ZIP writer
 │   │   ├── images.js     # OpenRouter Image API client (Grok Imagine) + disk store
-│   └── tests/             # Jest + supertest (158 tests)
+│   └── tests/             # Jest + supertest (163 tests)
 ├── frontend/
  │   ├── index.html         # gothic UI + catgirl scribe SVG
  │   ├── styles.css
@@ -189,7 +190,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (158) + frontend (126) Jest suites — runs on Termux too
+npm test             # lint + backend (163) + frontend (135) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers

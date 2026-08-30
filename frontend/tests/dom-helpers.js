@@ -209,6 +209,24 @@ function buildDom() {
         <button id="worldEditCancelBtn" type="button">Cancel</button>
       </div>
     </div>
+    <div id="storyCastModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
+        <h2 id="storyCastTitle">Story cast</h2>
+        <p class="burn-modal__body">Add or remove members while the tale runs.</p>
+        <div id="storyCastList" class="cast-edit-list"></div>
+        <div class="cast-edit-add">
+          <select id="storyCastAddSelect"></select>
+          <select id="storyCastAddRole"><option value="supporting">Supporting</option><option value="background">Background</option></select>
+          <input type="text" id="storyCastAddRelation" maxlength="2000">
+          <button id="storyCastAddBtn" type="button" class="btn">Add to cast</button>
+        </div>
+        <p id="storyCastNote" class="cast-edit-note" hidden></p>
+        <div class="burn-modal__actions">
+          <button id="storyCastSaveBtn" type="button" class="btn">Save cast</button>
+          <button id="storyCastCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
+    </div>
     <div id="aiDraftModal" class="burn-modal" hidden>
       <div class="burn-modal__panel draft-panel" role="dialog" aria-modal="true" aria-labelledby="aiDraftTitle">
         <h2 id="aiDraftTitle">The scribe offers a draft</h2>

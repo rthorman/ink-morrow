@@ -121,6 +121,65 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#characterName')).toHaveValue('Mobile Character');
   });
 
+  test('the cast editor on the Stories page reshapes a running story\u2019s cast', async ({ page }) => {
+    // Build a running tale with a two-member cast through the API
+    const worldRes = await page.request.post('/api/worlds', { data: { name: 'Cast Realm' } });
+    const world = (await worldRes.json()).world;
+    const mk = async (name) =>
+      (await (await page.request.post('/api/characters', { data: { name, world_id: world.id } })).json()).character;
+    const lead = await mk('The Lead');
+    const ally = await mk('The Ally');
+    const latecomer = await mk('The Latecomer');
+    const storyRes = await page.request.post('/api/stories', {
+      data: {
+        title: 'Cast Edit Test',
+        world_id: world.id,
+        characters: [
+          { id: lead.id, role: 'mc', relation: null, state: { personality: 'Colder now, hungrier' } },
+          { id: ally.id, role: 'supporting', relation: 'owes the Lead a life-debt', state: null },
+        ],
+      },
+    });
+    const story = (await storyRes.json()).story;
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'The tale is already running.' } });
+
+    await page.goto('/');
+    await page.locator('#storiesBtn').click();
+    const card = page.locator('#storiesList .item-card', { hasText: 'Cast Edit Test' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+    await card.locator('.card-cast').click();
+
+    const modal = page.locator('#storyCastModal');
+    await expect(modal).toBeVisible({ timeout: 5000 });
+    // The in-story sheet shows as it stands; the base sheet is only a hint
+    const leadBlock = modal.locator('.cast-edit-member', { hasText: 'The Lead' });
+    await expect(leadBlock.locator('.cast-edit-member__sheet textarea').first()).toHaveValue('Colder now, hungrier');
+
+    // Edit the Lead's in-story appearance, add the latecomer to the running cast
+    const [, appearance] = await leadBlock.locator('.cast-edit-member__sheet textarea').all();
+    await appearance.fill('Cloak burned to rags');
+    await modal.locator('#storyCastAddSelect').selectOption({ label: 'The Latecomer' });
+    await modal.locator('#storyCastAddRole').selectOption('background');
+    await modal.locator('#storyCastAddRelation').fill('a shadow at the edge of the tale');
+    await modal.locator('#storyCastAddBtn').click();
+    await expect(modal.locator('.cast-edit-member', { hasText: 'The Latecomer' })).toBeVisible();
+
+    await modal.locator('#storyCastSaveBtn').click();
+    await expect(modal).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('.success-message').last()).toContainText('Cast Edit Test');
+
+    // The server now holds the edited sheet and the new member, as-is
+    const after = await (await page.request.get(`/api/stories/${story.id}`)).json();
+    expect(after.story.characters.find((c) => c.id === lead.id).state).toEqual({
+      personality: 'Colder now, hungrier',
+      appearance: 'Cloak burned to rags',
+    });
+    expect(after.story.characters.find((c) => c.id === latecomer.id)).toMatchObject({
+      role: 'background',
+      relation: 'a shadow at the edge of the tale',
+    });
+  });
+
   test('settings: model picker with cost, scriptorium background, cost ticker', async ({ page }) => {
     await page.route('**/api/models', (route) =>
       route.fulfill({

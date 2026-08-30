@@ -469,6 +469,7 @@ function initApp() {
   initImagePrompt();
   initEntityEditors();
   initAudiobook();
+  initStoryCastEditor();
 
   initAgeGate();
   initDiskBanner();
@@ -1025,6 +1026,13 @@ function renderStories() {
     open.textContent = '✎ Write';
     open.addEventListener('click', () => openStory(story.id));
 
+    const cast = document.createElement('button');
+    cast.className = 'card-cast';
+    cast.type = 'button';
+    cast.title = 'Edit this story\u2019s cast and its in-story character sheets';
+    cast.textContent = '☰ Cast';
+    cast.addEventListener('click', () => openStoryCastEditor(story));
+
     const del = document.createElement('button');
     del.className = 'card-delete';
     del.type = 'button';
@@ -1044,8 +1052,249 @@ function renderStories() {
       }
     });
 
-    card.append(title, desc, meta, open, del);
+    card.append(title, desc, meta, open, cast, del);
     container.appendChild(card);
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Story cast editor: add and remove members while the tale runs, and edit
+// the in-story sheets exactly as they stand (the story's own copies, never
+// the base character sheets). Opened from a story card on the Stories page.
+// ---------------------------------------------------------------------------
+
+const CAST_EDIT_FIELDS = [
+  { key: 'personality', label: 'In-story personality' },
+  { key: 'appearance', label: 'In-story appearance' },
+  { key: 'relationship_to_mc', label: 'Relationship to the Main Character', mc: false },
+];
+
+let castEdit = null; // { storyId, title, worldId, entries: [{id, role, relation, state}] }
+
+async function openStoryCastEditor(story) {
+  const modal = document.getElementById('storyCastModal');
+  if (!modal) return;
+  try {
+    // Fresh truth: generation may have evolved the sheets since the list loaded
+    const data = await apiCall(`/stories/${story.id}`);
+    const fresh = data.story;
+    castEdit = {
+      storyId: fresh.id,
+      title: fresh.title,
+      worldId: fresh.world_id,
+      entries: (fresh.characters || []).map((e) => ({
+        id: e.id,
+        role: e.role,
+        relation: e.relation ?? null,
+        state: e.state && typeof e.state === 'object' && !Array.isArray(e.state) ? { ...e.state } : null,
+      })),
+    };
+    renderStoryCastEditor();
+    modal.hidden = false;
+  } catch (error) {
+    showError(scribeErrorMessage(error.message));
+  }
+}
+
+function closeStoryCastEditor() {
+  const modal = document.getElementById('storyCastModal');
+  if (modal) modal.hidden = true;
+  castEdit = null;
+}
+
+function castEditCharacter(id) {
+  return characters.find((c) => c.id === id) || null;
+}
+
+function renderStoryCastEditor() {
+  const list = document.getElementById('storyCastList');
+  const note = document.getElementById('storyCastNote');
+  if (!list || !castEdit) return;
+  list.textContent = '';
+
+  if (castEdit.entries.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'placeholder';
+    empty.textContent = 'No cast. Add a Main Character below so the tale has someone to follow.';
+    list.appendChild(empty);
+  }
+
+  castEdit.entries.forEach((entry) => {
+    const character = castEditCharacter(entry.id);
+    const member = document.createElement('div');
+    member.className = 'cast-edit-member' + (entry.role === 'mc' ? ' cast-edit-member--mc' : '');
+    member.dataset.characterId = entry.id;
+
+    const head = document.createElement('div');
+    head.className = 'cast-edit-member__head';
+    const name = document.createElement('span');
+    name.className = 'cast-list__name';
+    name.textContent = character ? character.name : entry.id;
+
+    const role = document.createElement('select');
+    role.className = 'cast-edit-member__role';
+    role.setAttribute('aria-label', `Role of ${character ? character.name : entry.id}`);
+    for (const value of ['mc', 'supporting', 'background']) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = value === 'mc' ? 'Main Character' : value === 'supporting' ? 'Supporting' : 'Background';
+      role.appendChild(option);
+    }
+    role.value = entry.role;
+    // A second MC demotes the current one - the scribe follows one lead.
+    role.addEventListener('change', () => {
+      entry.role = role.value;
+      if (role.value === 'mc') {
+        for (const other of castEdit.entries) if (other.id !== entry.id && other.role === 'mc') other.role = 'supporting';
+      }
+      renderStoryCastEditor();
+    });
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'cast-list__remove';
+    remove.textContent = '✕ Remove';
+    remove.setAttribute('aria-label', `Remove ${character ? character.name : entry.id} from the cast`);
+    remove.addEventListener('click', () => {
+      castEdit.entries = castEdit.entries.filter((e) => e.id !== entry.id);
+      renderStoryCastEditor();
+    });
+    head.append(name, role, remove);
+    member.appendChild(head);
+
+    if (entry.role !== 'mc') {
+      const relation = document.createElement('input');
+      relation.type = 'text';
+      relation.className = 'cast-edit-member__relation';
+      relation.maxLength = 2000;
+      relation.value = entry.relation || '';
+      relation.placeholder = 'relation to the Main Character at the start…';
+      relation.setAttribute('aria-label', `Relation of ${character ? character.name : entry.id} to the Main Character`);
+      relation.addEventListener('input', () => {
+        entry.relation = relation.value.trim() || null;
+      });
+      member.appendChild(relation);
+    }
+
+    // The in-story sheet, exactly as the tale has it. Empty = inherited from
+    // the base sheet (shown as the placeholder).
+    const sheet = document.createElement('div');
+    sheet.className = 'cast-edit-member__sheet';
+    for (const field of CAST_EDIT_FIELDS) {
+      if (field.mc === false && entry.role === 'mc') continue;
+      const label = document.createElement('label');
+      label.textContent = field.label;
+      const input = document.createElement('textarea');
+      input.rows = 2;
+      input.maxLength = 2000;
+      input.value = entry.state?.[field.key] || '';
+      const base = character?.[field.key] ? `base: ${String(character[field.key]).slice(0, 120)}` : 'base sheet is empty here';
+      input.placeholder = base;
+      input.setAttribute('aria-label', `${field.label} of ${character ? character.name : entry.id} in this story`);
+      input.addEventListener('input', () => {
+        const value = input.value.trim();
+        if (!entry.state) entry.state = {};
+        if (value) entry.state[field.key] = value;
+        else delete entry.state[field.key];
+      });
+      sheet.append(label, input);
+    }
+    member.appendChild(sheet);
+    list.appendChild(member);
+  });
+
+  // The add row: everyone not yet cast, the story's own world first
+  const addSelect = document.getElementById('storyCastAddSelect');
+  const addBtn = document.getElementById('storyCastAddBtn');
+  if (addSelect) {
+    const chosen = new Set(castEdit.entries.map((e) => e.id));
+    const available = [
+      ...characters.filter((c) => c.world_id === castEdit.worldId),
+      ...characters.filter((c) => c.world_id !== castEdit.worldId),
+    ].filter((c) => !chosen.has(c.id));
+    addSelect.textContent = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = available.length ? '— Choose a character —' : '— Everyone is already cast —';
+    addSelect.appendChild(placeholder);
+    available.forEach((c) => {
+      const option = document.createElement('option');
+      option.value = c.id;
+      const otherWorld = Boolean(c.worldId) && c.world_id !== castEdit.worldId;
+      option.textContent = c.name + (otherWorld ? ' (other world)' : '');
+      addSelect.appendChild(option);
+    });
+    addSelect.disabled = available.length === 0;
+    if (addBtn) addBtn.disabled = available.length === 0;
+    const relation = document.getElementById('storyCastAddRelation');
+    if (relation) relation.value = '';
+    const roleSelect = document.getElementById('storyCastAddRole');
+    if (roleSelect) roleSelect.value = 'supporting';
+  }
+
+  if (note) {
+    const hasMc = castEdit.entries.some((e) => e.role === 'mc');
+    note.hidden = hasMc || castEdit.entries.length === 0;
+    if (!note.hidden) note.textContent = 'No Main Character — the tale no longer centers anyone. The scribe will write an ensemble until one is chosen.';
+  }
+}
+
+function addCastEditorMember() {
+  if (!castEdit) return;
+  const addSelect = document.getElementById('storyCastAddSelect');
+  if (!addSelect || !addSelect.value) return;
+  const roleSelect = document.getElementById('storyCastAddRole');
+  const relationInput = document.getElementById('storyCastAddRelation');
+  const role = roleSelect && roleSelect.value === 'background' ? 'background' : 'supporting';
+  const relation = relationInput && relationInput.value.trim() ? relationInput.value.trim() : null;
+  castEdit.entries.push({ id: addSelect.value, role, relation, state: null });
+  renderStoryCastEditor();
+}
+
+async function saveStoryCastEditor() {
+  if (!castEdit) return;
+  const btn = document.getElementById('storyCastSaveBtn');
+  const storyId = castEdit.storyId;
+  const title = castEdit.title;
+  const entries = castEdit.entries;
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Saving…';
+  }
+  try {
+    await apiCall(`/stories/${storyId}`, 'PUT', { characters: entries });
+    closeStoryCastEditor();
+    await loadStories();
+    // An open reader keeps its pages; only the cast (and totals) moved
+    if (currentStory && currentStory.id === storyId) {
+      currentStory = stories.find((s) => s.id === storyId) || currentStory;
+      resetStoryCost();
+    }
+    showSuccess(`The cast of "${title}" is bound.`);
+  } catch (error) {
+    showError(scribeErrorMessage(error.message)); // floats above the modal
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Save cast';
+    }
+  }
+}
+
+function initStoryCastEditor() {
+  const modal = document.getElementById('storyCastModal');
+  const save = document.getElementById('storyCastSaveBtn');
+  const cancel = document.getElementById('storyCastCancelBtn');
+  const add = document.getElementById('storyCastAddBtn');
+  if (!modal || !save || !cancel) return;
+  save.addEventListener('click', saveStoryCastEditor);
+  cancel.addEventListener('click', closeStoryCastEditor);
+  if (add) add.addEventListener('click', addCastEditorMember);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeStoryCastEditor();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) closeStoryCastEditor();
   });
 }
 
@@ -1097,7 +1346,7 @@ function renderCastBuilder() {
   // MC picker: offers everyone not yet cast; locks once a MC is chosen.
   const mcOptions = currentMc ? [] : available;
   populateSelectOptions(mcSelect, mcOptions, {
-    placeholder: available.length > 0 ? '— Choose the character the story follows —' : '— No characters available —',
+    placeholder: available.length > 0 ? '— Choose who the story follows (optional) —' : '— No characters available —',
   });
   mcSelect.disabled = Boolean(currentMc) || available.length === 0;
 
@@ -1119,7 +1368,8 @@ function renderCastBuilder() {
   if (storyCast.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'placeholder';
-    empty.textContent = 'No cast yet. A story cannot begin without a Main Character.';
+    empty.textContent =
+      'No cast yet. Choose a Main Character below to center the tale on them — or add anyone and let the scribe write an ensemble.';
     list.appendChild(empty);
     return;
   }
@@ -1199,10 +1449,9 @@ function updateStorySelect() {
 async function handleStorySubmit(event) {
   event.preventDefault();
   const form = event.target;
-  if (!storyCast.some((entry) => entry.role === 'mc')) {
-    showError('A story must have a Main Character before the scribe can begin.');
-    return;
-  }
+  // A Main Character is optional: with one, the scribe keeps the tale
+  // centered on them; without one, she writes an ensemble that follows
+  // wherever the writer's directions point.
   const cast = storyCast.map((entry) => ({ ...entry, state: null }));
   try {
     const data = await apiCall('/stories', 'POST', {
@@ -3102,6 +3351,16 @@ if (typeof module !== 'undefined' && module.exports) {
     saveCharacterEditor,
     openWorldEditor,
     saveWorldEditor,
+    // Story cast editor
+    openStoryCastEditor,
+    closeStoryCastEditor,
+    renderStoryCastEditor,
+    addCastEditorMember,
+    saveStoryCastEditor,
+    __castEditState: () =>
+      castEdit
+        ? { ...castEdit, entries: castEdit.entries.map((e) => ({ ...e, state: e.state ? { ...e.state } : null })) }
+        : null,
     // Settings + cost ticker
     loadSettings,
     setSetting,
