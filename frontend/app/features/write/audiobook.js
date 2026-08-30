@@ -1,10 +1,11 @@
 // Audiobooks: the whole tale read aloud as one mp3 through the single
 // global queue. A modal advertises the narrator verdict + estimate; the final
-// start passes the shared paid review; the pending banner carries progress;
+// start passes the shared paid-consent gate; the pending banner carries progress;
 // the ready banner shows once per completed reading; the Bookshelf owns
 // downloads afterwards.
 
 import { formatUsd, formatMinutes, formatMb } from '../../core/dom.js';
+import { ROUGH_NARRATION_PAGE_ESTIMATE } from '../../core/cost.js';
 import { wireModal } from '../../core/dialogs.js';
 
 export function createAudiobook({ api, state, notify, shell, features, dialogs }) {
@@ -37,13 +38,17 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
     }
     const durationS = Math.round((words / AUDIOBOOK_EST_WORDS_PER_MIN) * 60);
     const p = modelEntry?.pricing || {};
-    const cost = (chars * (p.prompt_per_mchar || 0) + words * 20 * (p.completion_per_mtok || 0)) / 1e6;
+    const hasCataloguePrice = Number.isFinite(p.prompt_per_mchar) || Number.isFinite(p.completion_per_mtok);
+    const pricedCost = (chars * (p.prompt_per_mchar || 0) + words * 20 * (p.completion_per_mtok || 0)) / 1e6;
+    const cost = modelEntry && !hasCataloguePrice
+      ? pages.length * ROUGH_NARRATION_PAGE_ESTIMATE
+      : pricedCost;
     return {
       pages: pages.length,
       words,
       duration_s: durationS,
       size_bytes: Math.round(durationS * AUDIOBOOK_EST_BYTES_PER_SECOND),
-      cost_usd: Number.isFinite(cost) ? cost : 0,
+      cost_usd: Number.isFinite(cost) ? cost : pages.length * ROUGH_NARRATION_PAGE_ESTIMATE,
     };
   }
 
@@ -108,7 +113,7 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
       }
     }
 
-    // The paid review: price on the button, reason in text when blocked.
+    // Price on the button, with the blocking reason kept in the modal copy.
     startBtn.textContent = verdict.entry && estimate.cost_usd > 0
       ? `Create audiobook (≈${formatUsd(estimate.cost_usd)})`
       : 'Create audiobook';
@@ -123,12 +128,12 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
 
   async function startAudiobook() {
     if (!data.currentStory) return;
-    // The final commitment goes through the shared paid review: narrator,
-    // page count, duration, size, and estimate in one place, price on the
-    // confirm button. Cancel keeps the modal flow intact (nothing is sent).
+    // The final commitment goes through the shared consent gate. Its first
+    // review includes narrator, page count, duration, size, and estimate.
+    // Cancel keeps the modal flow intact (nothing is sent).
     const verdict = await audiobookNarratorVerdict();
     const estimate = audiobookEstimate(verdict.entry);
-    const price = verdict.entry && estimate.cost_usd > 0 ? estimate.cost_usd : null;
+    const price = verdict.entry ? estimate.cost_usd : null;
     closeAudiobookModal();
     const yes = await dialogs.confirmPaid({
       title: 'Read the whole tale aloud?',
@@ -141,7 +146,9 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
         estimate: price,
         note: 'Unchanged pages are remembered - regenerating after edits re-bills only what changed.',
       },
-      confirmLabel: price !== null ? `Create audiobook (≈${formatUsd(price)})` : 'Create audiobook',
+      confirmLabel: price !== null
+        ? `Create audiobook (${price === 0 ? 'free' : `≈${formatUsd(price)}`})`
+        : 'Create audiobook',
     });
     if (!yes) {
       openAudiobookModal();

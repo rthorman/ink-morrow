@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "Interactive fiction writing tool with gothic frontend, world/character reuse, and full test suite",
   "scripts": {
     "start": "cd backend && npm start",

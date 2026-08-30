@@ -18,7 +18,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   // twice in a row -> the cast portraits are probably what offends; drop them.
   let sceneRefusals = 0;
   let dropSceneReferences = false;
-  let imageryReviewing = false; // a cost review is open: no second submission
+  let imageryReviewing = false; // a paid-consent check is running: no second submission
   let imagePromptModal = null; // wired lifecycle controllers
   let sceneViewerModal = null;
 
@@ -279,7 +279,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     const modal = document.getElementById('imagePromptModal');
     const box = document.getElementById('imagePromptText');
     if (!modal || !box) return;
-    // The condensation itself is paid writing-model work: reviewed first.
+    // The condensation is paid writing-model work: pass the remembered
+    // consent gate before sending it.
     const page = storyPages.find((p) => p.page_number === currentPage);
     const estimate = estimatePageCost({
       models: state.modelsCache,
@@ -302,7 +303,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         maximum: retryMaximum,
         note: 'You review and may edit the prompt before anything is painted. A failed quality check can require up to three billable attempts.',
       },
-      confirmLabel: estimate === null ? 'Condense it (price unavailable)' : `Condense it (${approxCostText(estimate)})`,
+      confirmLabel: `Condense it (${approxCostText(estimate)})`,
     });
     imageryReviewing = false;
     if (!yes) return; // cancel: no condensation, no modal

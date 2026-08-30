@@ -11,7 +11,7 @@ const WORLD_IMAGE_ESTIMATE = IMAGE_COST_ESTIMATE.world;
 export function createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
-  let imageReviewing = false; // an image cost review is open: no second submission
+  let imageReviewing = false; // a paid-consent check is running: no second submission
   let worldEditorModal = null; // wired lifecycle controller
   let editingWorldId = null;
 
@@ -147,7 +147,7 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
     const withoutImage = event.submitter && event.submitter.id === 'worldNoImageBtn';
     if (!withoutImage) {
       // Creating a world paints its reference scene by default: the paid
-      // half is reviewed first; cancel keeps every filled field.
+      // half passes the consent gate; a first-review cancel keeps every field.
       if (imageReviewing) return;
       imageReviewing = true;
       const yes = await dialogs.confirmPaid({
@@ -270,8 +270,8 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
         (async () => {
           const id = editingWorldId;
           if (!id) return;
-          // Save is free; the repaint is paid and reviewed. Cancel keeps the
-          // editor open with every field as it is.
+          // Save is free; the repaint passes the paid-consent gate. A
+          // first-review cancel keeps the editor open with every field intact.
           if (imageReviewing) return;
           imageReviewing = true;
           const yes = await dialogs.confirmPaid({

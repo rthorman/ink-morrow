@@ -66,7 +66,7 @@ describe('Shared dialog manager', () => {
   it('a disabled paid action cannot confirm', async () => {
     const pending = fw.dialogs.confirmPaid({
       title: 'Create audiobook?',
-      body: 'Price unavailable.',
+      body: 'Approximate cost: $0.05.',
       confirmLabel: 'Create audiobook',
       disabled: true,
     });
@@ -153,7 +153,7 @@ describe('Shared dialog manager', () => {
 });
 
 describe('Paid review (structured grammar)', () => {
-  it('renders the shared rows, carries the estimate, and says price unavailable honestly', async () => {
+  it('renders left-structured rows, carries the estimate, and explains one-time consent', async () => {
     window.localStorage.clear();
     mockFetch();
     const fw = await loadScript();
@@ -184,21 +184,65 @@ describe('Paid review (structured grammar)', () => {
     expect(body).toContain('≈$0.0300');
     expect(body).toContain('Retry ceiling');
     expect(body).toContain('≈$0.0900');
-    expect(body).not.toContain('price unavailable');
+    expect(body).toContain('Approve once');
+    expect(body).toContain('Future paid actions run without another approval');
+    expect(dlg.querySelectorAll('.review-list dt')).toHaveLength(7);
+    expect(dlg.querySelectorAll('.review-list dd')).toHaveLength(7);
     const confirm = [...dlg.querySelectorAll('button')].find((b) => b.textContent === 'Write it (≈$0.0300)');
     expect(confirm).toBeTruthy();
     confirm.click();
     expect(await pending).toBe(true);
+    expect(window.localStorage.getItem('st-paid-consent-v1')).toBe('1');
+  });
 
-    // Unknown pricing is spelled out, never $0.00
-    const unknown = fw.dialogs.confirmPaid({
+  it('uses a rough ballpark when catalogue pricing is missing', async () => {
+    window.localStorage.clear();
+    mockFetch();
+    const fw = await loadScript();
+    const pending = fw.dialogs.confirmPaid({
       title: 'Draft it?',
       review: { action: 'Draft a world.', estimate: null },
-      confirmLabel: 'Draft it (price unavailable)',
+      confirmLabel: 'Draft it (rough estimate)',
     });
     await new Promise((r) => setTimeout(r, 0));
-    expect(document.querySelector('.dialog-manager__body').textContent).toContain('price unavailable');
+    const body = document.querySelector('.dialog-manager__body').textContent;
+    expect(body).toContain('≈$0.0500 (rough ballpark)');
+    expect(body).not.toMatch(/unknown|unavailable/i);
     document.querySelector('.dialog-manager .btn-secondary').click();
-    expect(await unknown).toBe(false);
+    expect(await pending).toBe(false);
+    expect(window.localStorage.getItem('st-paid-consent-v1')).toBeNull();
+  });
+
+  it('bypasses every later review, including after a fresh app boot', async () => {
+    window.localStorage.clear();
+    mockFetch();
+    let fw = await loadScript();
+    const first = fw.dialogs.confirmPaid({
+      title: 'First paid action?',
+      review: { action: 'Write a page.', estimate: 0.02 },
+      confirmLabel: 'Write it',
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    document.querySelector('.dialog-manager .btn-primary').click();
+    expect(await first).toBe(true);
+
+    const second = fw.dialogs.confirmPaid({
+      title: 'Second paid action?',
+      review: { action: 'Write another page.', estimate: 0.02 },
+      confirmLabel: 'Write it',
+    });
+    expect(await second).toBe(true);
+    expect(document.querySelector('.dialog-manager').hidden).toBe(true);
+
+    mockFetch();
+    fw = await loadScript({ preservePaidConsent: true });
+    expect(fw.dialogs.hasPaidConsent()).toBe(true);
+    const afterReload = fw.dialogs.confirmPaid({
+      title: 'Paid action after reload?',
+      review: { action: 'Write again.', estimate: 0.02 },
+      confirmLabel: 'Write it',
+    });
+    expect(await afterReload).toBe(true);
+    expect(document.querySelector('.dialog-manager')).toBeNull();
   });
 });

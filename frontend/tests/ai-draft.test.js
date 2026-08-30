@@ -96,7 +96,7 @@ describe('AI world drafts', () => {
 
     const regenBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Regenerate'));
     regenBtn.click();
-    expect(await paidReview('confirm')).toBe(true); // every regeneration is reviewed too
+    expect(await paidReview('confirm')).toBe(true); // remembered consent: no second interruption
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const draftCall = fetchMock.mock.calls.find((c) => c[0].includes('/api/ai/world'));

@@ -2,9 +2,9 @@
 // preview survives server restarts server-side; on this side a per-attempt
 // token guarantees a stale in-flight response can never turn the button
 // green, and a direction-generate always discards first so a FRESH preview
-// fires after it. Paid boundaries: every write/rewrite/commit that will also
-// prepare the next page goes through the shared cost review first; a story
-// selection alone never spends anything.
+// fires after it. Paid boundaries: every write/rewrite/commit passes the
+// shared paid-consent gate; only the first accepted action opens its review.
+// A story selection alone never spends anything.
 
 import { SCRIBE_FLAVOR, SCRIBE_DONE, SCRIBE_ERROR } from '../../shell.js';
 import { approxCostText, estimatePageCost } from '../../core/cost.js';
@@ -19,7 +19,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
   let speculative = null; // { storyId, ready, token }
   let speculativeToken = 0; // in-flight responses must match their own token
   let flavorTimer = null;
-  let reviewing = false; // a cost review is open: no second submission path
+  let reviewing = false; // a paid-consent check is running: no second submission path
 
   // Rough context size (the provider bills prompt tokens for it): the last
   // CONTEXT_WINDOW pages are sent verbatim.
@@ -53,9 +53,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     const singleEstimate = pageEstimate();
     const estimate = multipliedEstimate(singleEstimate, 2); // live page + successor preview
     const maximum = multipliedEstimate(singleEstimate, QUALITY_ATTEMPTS_MAX * 2);
-    const note = singleEstimate === null
-      ? 'The price of the configured model is unknown to this client; the provider will bill it.'
-      : 'This estimate covers the page and its prepared successor. Each may need up to three billable quality attempts; longer tales also send more recent context.';
+    const note = 'This rough estimate covers the page and its prepared successor. Each may need up to three billable quality attempts; longer tales also send more recent context.';
     const yes = await dialogs.confirmPaid({
       title: 'Send this to the paid scribe?',
       review: {
@@ -69,7 +67,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         maximum,
         note,
       },
-      confirmLabel: estimate === null ? 'Write it + prepare (price unavailable)' : `Write it + prepare (${approxCostText(estimate)})`,
+      confirmLabel: `Write it + prepare (${approxCostText(estimate)})`,
     });
     return yes;
   }
@@ -200,9 +198,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
           maximum: nextMaximum,
           note: 'Using the prepared page itself bills nothing new. The estimate is for its successor; a failed quality check can require up to three billable attempts.',
         },
-        confirmLabel: nextEstimate === null
-          ? 'Use prepared page + prepare next (price unavailable)'
-          : `Use prepared page + prepare next (${approxCostText(nextEstimate)})`,
+        confirmLabel: `Use prepared page + prepare next (${approxCostText(nextEstimate)})`,
       });
       reviewing = false;
       if (!yes) return; // cancel: no commit, no follow-up, direction kept
