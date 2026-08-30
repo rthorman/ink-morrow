@@ -14,6 +14,9 @@ const { createCatalogStore } = require('./modules/catalog/store');
 const { createCatalogRouter } = require('./modules/catalog/routes');
 const { createStoriesStore } = require('./modules/stories/store');
 const { createStoriesRouter } = require('./modules/stories/routes');
+const { createContinuityStore } = require('./modules/continuity/store');
+const { createContinuityService } = require('./modules/continuity/service');
+const { createContinuityRouter } = require('./modules/continuity/routes');
 const { createWritingService } = require('./modules/writing/service');
 const { createWritingRouter } = require('./modules/writing/routes');
 const { createImageQueue } = require('./modules/imagery/queue');
@@ -55,13 +58,20 @@ function createApp(
   const catalog = createCatalogStore(db);
   const stories = createStoriesStore(db, { getWorld: catalog.getWorld });
   const ai = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost };
-  const writing = createWritingService({ db, catalog, stories, chatCompletion });
+  // Automatic continuity is silenced in ordinary unit tests so old one-call
+  // provider mocks remain deterministic. Dedicated continuity tests opt in.
+  const autoContinuityEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_CONTINUITY_EXTRACTION === '1';
+  const continuityStore = createContinuityStore(db);
+  const continuity = createContinuityService({
+    db, stories, store: continuityStore, chatCompletion, autoEnabled: autoContinuityEnabled,
+  });
+  const writing = createWritingService({ db, catalog, stories, continuity, chatCompletion });
   const imageStore = createImageStore(imageDir);
   // Auto-generation (creation + boot backfill) can be silenced in tests so it
   // never steals mocked upstream calls; explicit redo always works.
   const autoImagesEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_BACKGROUND_IMAGES === '1';
-  const imageQueue = createImageQueue({ db, generateImage, imageStore, logger, autoImagesEnabled });
-  const imagery = createImageryService({ catalog, stories, chatCompletion, generateImage, imageStore });
+  const imageQueue = createImageQueue({ db, continuity, generateImage, imageStore, logger, autoImagesEnabled });
+  const imagery = createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore });
   const narration = createNarration({ createSpeech });
   // Whole-story audiobooks live on disk next to the images; a pending row
   // left behind by a server restart can never finish - fail it honestly.
@@ -76,10 +86,11 @@ function createApp(
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
   app.use(createStoriesRouter({ store: stories, imageStore, imageQueue, audio }));
-  app.use(createWritingRouter({ db, catalog, stories, writing, ai }));
+  app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
+  app.use(createWritingRouter({ catalog, stories, writing, continuity, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger }));
-  app.use(createLibraryRouter({ db, catalog, stories, imageStore, audiobooks }));
+  app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }));
 
   // Boot backfill of entity reference images (no-op without an API key or
   // in silenced test runs).

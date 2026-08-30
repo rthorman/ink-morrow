@@ -6,9 +6,8 @@
 const express = require('express');
 const { notFound } = require('../../core/http');
 const { buildEpub } = require('../../epub');
-const { normalizeCast } = require('../stories/cast');
 
-function createLibraryRouter({ db, catalog, stories, imageStore, audiobooks }) {
+function createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }) {
   const router = express.Router();
 
   router.get('/api/storage', (req, res) => {
@@ -67,13 +66,7 @@ function createLibraryRouter({ db, catalog, stories, imageStore, audiobooks }) {
     const story = stories.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
     const world = story.world_id ? catalog.getWorld(story.world_id) : null;
-    const cast = normalizeCast(JSON.parse(story.characters || '[]'));
-    const characters = cast
-      .map(({ id, role }) => {
-        const character = catalog.getCharacter(id);
-        return character ? { ...character, role } : null;
-      })
-      .filter(Boolean)
+    const characters = continuity.contextForPrompt(story).characters
       .sort((a, b) => (a.role === 'mc' ? -1 : b.role === 'mc' ? 1 : 0));
 
     // Painted plates travel inside the book: each image page contributes its

@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe-backend",
-  "version": "3.0.5",
+  "version": "3.1.0",
   "description": "Backend API for ScribeTribe",
   "main": "server.js",
   "scripts": {

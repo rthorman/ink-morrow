@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse, dialogAction } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, dialogAction, paidReview } from './dom-helpers.js';
 
 const STORAGE = {
   stories: [
@@ -126,6 +126,64 @@ describe('Bookshelf page', () => {
     expect(coverDeleted).toBe(true);
     expect(document.getElementById('storyAssetsBody').textContent).toContain('No cover is stored');
     expect(modal.hidden).toBe(false);
+  });
+
+  it('inspects continuity and builds missing pages sequentially from the asset interface', async () => {
+    const story = {
+      id: 's1', title: 'The Kept Tale', tone: 'romantic', page_count: 2,
+      image_status: 'ready', characters: [], total_cost_usd: 0,
+    };
+    let complete = false;
+    const continuity = () => ({
+      characters: [{
+        id: 'c1', name: 'Mara', role: 'mc', current: {
+          location: 'the bell tower', condition: 'tired', knowledge: ['the bell is false'], possessions: [],
+        },
+      }],
+      goals: [{ id: 'g1', text: 'Find the real bell', status: 'active' }],
+      threads: [], events: [{ page_number: 1, text: 'Mara reached the tower.' }],
+      history_counts: { events: 1, summaries: 1 },
+      overrides: { characters: {}, goals: {}, threads: {} },
+      coverage: {
+        total: 2, ready: complete ? 2 : 1, memory_cost_usd: complete ? 0.003 : 0,
+        pages: [
+          { page_id: 'p1', page_number: 1, status: 'ready' },
+          { page_id: 'p2', page_number: 2, status: complete ? 'ready' : 'pending' },
+        ],
+        failed: [], pending_page_ids: complete ? [] : ['p2'],
+      },
+    });
+    global.fetch.mockImplementation((url, options) => {
+      const value = String(url);
+      if (value.endsWith('/storage')) return Promise.resolve(jsonResponse(200, STORAGE));
+      if (value.endsWith('/stories/s1/continuity') && options?.method === 'GET') {
+        return Promise.resolve(jsonResponse(200, { continuity: continuity() }));
+      }
+      if (value.includes('/continuity/pages/p2/sync')) {
+        complete = true;
+        return Promise.resolve(jsonResponse(200, {
+          memory: { page_id: 'p2', status: 'ready', cost_usd: 0.003 },
+          continuity: continuity(),
+        }));
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [story] }));
+    });
+
+    await fw.openStoryAssets(story);
+    const section = document.getElementById('storyContinuitySection');
+    expect(section.textContent).toContain('1 of 2 text pages remembered');
+    expect(section.textContent).toContain('Mara');
+    expect(section.textContent).toContain('Find the real bell');
+    expect(section.querySelector('[data-continuity-character="c1"]').placeholder).toBe('the bell tower');
+
+    const build = [...section.querySelectorAll('button')].find((button) => button.textContent === 'Build 1 missing');
+    build.click();
+    expect(await paidReview('confirm')).toBe(true);
+    for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/continuity/pages/p2/sync'))).toBe(true);
+    expect(document.getElementById('storyContinuitySection').textContent).toContain('2 of 2 text pages remembered');
+    expect(fw.state().costs).toMatchObject({ session: 0.003, story: 0.003 });
   });
 
   it('deleting the audiobook asks, then clears it from the shelf', async () => {

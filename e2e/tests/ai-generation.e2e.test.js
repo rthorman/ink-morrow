@@ -123,7 +123,7 @@ test.describe('AI generation flows (mocked)', () => {
 
     const review = page.locator('.dialog-manager');
     await expect(review).toBeVisible({ timeout: 5000 });
-    await expect(review.locator('.dialog-manager__body')).toContainText('≈$0.0400');
+    await expect(review.locator('.dialog-manager__body')).toContainText('≈$0.0500');
     await expect(review.locator('.dialog-manager__body')).not.toContainText(/unknown|unavailable/i);
     await expect(review.locator('.review-consent')).toContainText('Approve once');
     expect(await review.locator('.dialog-manager__body').evaluate((el) => getComputedStyle(el).textAlign)).toBe('left');

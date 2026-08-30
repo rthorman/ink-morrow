@@ -279,7 +279,7 @@ async function computeCostUsd(model, usage) {
  */
 async function chatCompletion(
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, quality } = {}
+  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts } = {}
 ) {
   const cfg = aiConfig();
   if (!cfg.apiKey) {
@@ -312,6 +312,9 @@ async function chatCompletion(
   let sawUsage = false;
   let totalCostUsd = 0;
   let allCostsKnown = true;
+  const billableAttemptLimit = Number.isInteger(maxBillableAttempts) && maxBillableAttempts > 0
+    ? maxBillableAttempts
+    : Number.POSITIVE_INFINITY;
 
   const accruedUsage = () =>
     sawUsage ? { prompt_tokens: promptTokens, completion_tokens: completionTokens } : null;
@@ -339,6 +342,7 @@ async function chatCompletion(
           temperature,
           max_tokens: useMaxTokens,
           ...(useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
+          ...(responseFormat ? { response_format: responseFormat } : {}),
         },
         {
           headers: {
@@ -404,7 +408,10 @@ async function chatCompletion(
       lastQualityProblem = error.qualityProblem || null;
       const status = error.response?.status;
       const retryable = !status || RETRYABLE.has(status) || error.retryable === true;
-      if (!retryable || attempt === RETRY_ATTEMPTS - 1) {
+      // Some consumers advertise an exact paid retry ceiling. They may still
+      // retry transport/429 failures before any completion is returned, but a
+      // successfully billed empty/rejected output must respect that ceiling.
+      if (!retryable || billedAttempts >= billableAttemptLimit || attempt === RETRY_ATTEMPTS - 1) {
         break;
       }
     }
@@ -427,6 +434,9 @@ async function chatCompletion(
       ? `AI API error ${lastError.response.status}: ${JSON.stringify(lastError.response.data).slice(0, 300)}`
       : `AI API request failed: ${lastError?.message || 'unknown error'}`
   );
+  // Callers with a capability fallback (for example JSON Schema → strict
+  // plain JSON) need the provider status without parsing our friendly text.
+  err.upstreamStatus = lastError?.response?.status || null;
   err.statusCode = lastError?.response?.status && !RETRYABLE.has(lastError.response.status) ? 502 : 504;
   throw attachSpend(err);
 }

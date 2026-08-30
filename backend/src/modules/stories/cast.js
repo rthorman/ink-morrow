@@ -4,12 +4,12 @@
 // state}. role is mc|supporting|background (zero or one MC - zero means an
 // ensemble tale); relation is free text (a tie to the MC at the story's
 // start, or a starting note for ensemble tales); state holds the per-story
-// mutable instance of a character as the story reshapes them.
+// explicit author overrides for that story. AI-derived evolution lives in
+// page-provenanced continuity rows, never in this JSON blob.
 
 const { CAST_ROLES, optionalText, asString } = require('../../core/validation');
 
 const STATE_MARKER = '<<<CHARACTER_STATE>>>';
-const STATE_FIELDS = ['personality', 'appearance', 'relationship_to_mc'];
 
 function normalizeCastEntry(entry) {
   if (entry && typeof entry === 'object' && typeof entry.id === 'string' && entry.id.trim()) {
@@ -66,30 +66,6 @@ function splitStateBlock(content) {
   };
 }
 
-// Applies a model-emitted state update to the story's cast JSON.
-function applyStateUpdate(db, story, stateObj) {
-  if (!stateObj || typeof stateObj !== 'object' || Array.isArray(stateObj)) return false;
-  const cast = parseCastJson(story.characters);
-  let changed = false;
-  for (const entry of cast) {
-    const upd = stateObj[entry.id];
-    if (!upd || typeof upd !== 'object' || Array.isArray(upd)) continue;
-    const state = entry.state && typeof entry.state === 'object' ? { ...entry.state } : {};
-    for (const field of STATE_FIELDS) {
-      const value = upd[field];
-      if (typeof value === 'string' && value.trim()) {
-        state[field] = value.trim().slice(0, 2000);
-        changed = true;
-      }
-    }
-    if (Object.keys(state).length > 0) entry.state = state;
-  }
-  if (changed) {
-    db.prepare('UPDATE stories SET characters = ? WHERE id = ?').run(JSON.stringify(cast), story.id);
-  }
-  return changed;
-}
-
 module.exports = {
   STATE_MARKER,
   normalizeCast,
@@ -97,5 +73,4 @@ module.exports = {
   validateCastPayload,
   parseCastJson,
   splitStateBlock,
-  applyStateUpdate,
 };

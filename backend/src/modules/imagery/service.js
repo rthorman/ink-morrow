@@ -6,21 +6,21 @@
 
 const { buildImagePrompt, CONTEXT_WINDOW } = require('../../prompt');
 const { optionalText, asString, modelOverrideOf, parseReasoningEffort } = require('../../core/validation');
-const { normalizeCast } = require('../stories/cast');
 
 const RENDER_VARIANTS = {
   low_1k: { quality: 'low', resolution: '1K' },
   medium_2k: { quality: 'medium', resolution: '2K' },
 };
 
-function createImageryService({ catalog, stories, chatCompletion, generateImage, imageStore }) {
-  function castCharacters(story) {
-    return normalizeCast(JSON.parse(story.characters || '[]'))
-      .map((entry) => {
-        const character = catalog.getCharacter(entry.id);
-        return character ? { ...character, role: entry.role, relation: entry.relation, state: entry.state } : null;
-      })
-      .filter(Boolean);
+function createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore }) {
+  function castCharacters(story, throughPageNumber = null) {
+    return continuity.contextForPrompt(story, { throughPageNumber }).characters.map((character) => {
+      // Portrait readiness is operational catalogue metadata, not character
+      // identity. Keep using the latest file/status while prose fields stay
+      // frozen to the story snapshot.
+      const catalogue = catalog.getCharacter(character.id);
+      return { ...character, image_status: catalogue?.image_status || 'none' };
+    });
   }
 
   // Pages up to and including the target page, windowed like generation.
@@ -38,7 +38,7 @@ function createImageryService({ catalog, stories, chatCompletion, generateImage,
   // prompt an image-generation AI can consume.
   async function condensePrompt({ story, page, modelOverride, reasoningEffort }) {
     const world = story.world_id ? catalog.getWorld(story.world_id) : null;
-    const characters = castCharacters(story);
+    const characters = castCharacters(story, page.page_number);
     const pages = pagesUpTo(story, page);
     const result = await chatCompletion(
       [

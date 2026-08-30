@@ -1,7 +1,8 @@
 'use strict';
 
 // Catalog store: worlds and characters SQL. Worlds are canonical (stories
-// reference the live row); characters are copied into story cast state.
+// reference the live row); characters receive immutable per-story snapshots
+// when cast, with later evolution held by the continuity ledger.
 
 const { v4: uuidv4 } = require('uuid');
 const { optionalText, asString } = require('../../core/validation');

@@ -1,12 +1,12 @@
 'use strict';
 
 // Writing service: prompt/context orchestration, quality expectations,
-// character-state handling, and speculative previews. The AI adapter
+// continuity-ledger retrieval, and speculative previews. The AI adapter
 // (ai.js), prompt builder (prompt.js) and quality rules (quality.js) stay
 // the domain modules they already were.
 
 const { buildPrompt, CONTEXT_WINDOW } = require('../../prompt');
-const { normalizeCast, splitStateBlock, applyStateUpdate } = require('../stories/cast');
+const { splitStateBlock } = require('../stories/cast');
 
 // Rough token budget for a target length (words + instructions + headroom).
 function tokensForWords(words) {
@@ -33,29 +33,30 @@ function parseAiJson(content) {
   }
 }
 
-function createWritingService({ db, catalog, stories, chatCompletion }) {
+function createWritingService({ catalog, stories, continuity, chatCompletion }) {
   function castCharacters(story) {
-    return normalizeCast(JSON.parse(story.characters || '[]'))
-      .map((entry) => {
-        const character = catalog.getCharacter(entry.id);
-        return character ? { ...character, role: entry.role, relation: entry.relation, state: entry.state } : null;
-      })
-      .filter(Boolean);
+    return continuity.contextForPrompt(story).characters;
   }
 
-  function loadContext(story, { excludeLast = false } = {}) {
+  function loadContext(story, { excludeLast = false, userInput = '' } = {}) {
     const world = story.world_id ? catalog.getWorld(story.world_id) : null;
-    const characters = castCharacters(story);
     const allPages = stories.storyPages(story.id);
+    const excluded = excludeLast && allPages.length ? [allPages[allPages.length - 1].id] : [];
     if (excludeLast) allPages.pop();
     const included = allPages.slice(-CONTEXT_WINDOW);
+    const memory = continuity.contextForPrompt(story, {
+      userInput,
+      excludePageIds: excluded,
+      throughPageNumber: excludeLast && allPages.length ? allPages[allPages.length - 1].page_number : null,
+      recentPageIds: included.map((page) => page.id),
+    });
     return {
       world,
-      characters,
+      characters: memory.characters,
+      continuity: memory,
       pages: {
         total: allPages.length,
         included,
-        firstContent: allPages.length > 0 ? allPages[0].content.slice(0, 500) : null,
       },
     };
   }
@@ -63,29 +64,29 @@ function createWritingService({ db, catalog, stories, chatCompletion }) {
   function generationMessages(story, ctx, userInput, wordTarget) {
     return [
       { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
-      { role: 'user', content: buildPrompt({ story, world: ctx.world, characters: ctx.characters, pages: ctx.pages, userInput, wordTarget }) },
+      { role: 'user', content: buildPrompt({
+        story, world: ctx.world, characters: ctx.characters, continuity: ctx.continuity,
+        pages: ctx.pages, userInput, wordTarget,
+      }) },
     ];
   }
 
-  // Splits the state block, applies character-state updates, and rejects
-  // empty prose with an honest 502.
-  function consumeStoryText(story, rawContent) {
-    const { prose, stateJson } = splitStateBlock(rawContent);
+  // Old providers/previews can still carry the pre-3.1 marker. Strip it so it
+  // never leaks into prose, but never trust it as state: only the independent
+  // page-linked extractor may change continuity now.
+  function consumeStoryText(rawContent) {
+    const { prose } = splitStateBlock(rawContent);
     if (!prose) {
       const err = new Error('AI returned an empty response');
       err.statusCode = 502;
       throw err;
-    }
-    if (stateJson) {
-      const stateObj = parseAiJson(stateJson);
-      if (stateObj) applyStateUpdate(db, story, stateObj);
     }
     return prose;
   }
 
   // One shared generation call shape for generate/regenerate/preview.
   function completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort, excludeLast = false }) {
-    const ctx = loadContext(story, { excludeLast });
+    const ctx = loadContext(story, { excludeLast, userInput });
     return chatCompletion(
       generationMessages(story, ctx, userInput, wordTarget),
       {

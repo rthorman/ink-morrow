@@ -8,7 +8,7 @@ const express = require('express');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText, modelOverrideOf, parseReasoningEffort, parseWordTarget, asString } = require('../../core/validation');
 
-function createWritingRouter({ db, catalog, stories, writing, ai }) {
+function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
   const router = express.Router();
 
   // Public OpenRouter catalog proxy for the settings page (no key needed).
@@ -101,8 +101,8 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
       }
 
       const result = await writing.completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort });
-      const prose = writing.consumeStoryText(story, result.content);
-      const page = stories.insertGeneratedPage(story.id, {
+      const prose = writing.consumeStoryText(result.content);
+      let page = stories.insertGeneratedPage(story.id, {
         content: prose,
         userInput,
         model: result.model,
@@ -111,6 +111,8 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
         costUsd: result.cost_usd,
       });
       stories.invalidatePreview(story.id);
+      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: result.model });
+      page = synced.page || page;
       res.status(201).json({ page });
     } catch (error) {
       next(error);
@@ -125,6 +127,7 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
       const pages = stories.storyPages(story.id);
       if (pages.length === 0) return badRequest(res, 'Story has no pages to regenerate');
       const last = pages[pages.length - 1];
+      if (last.image_media_type) return badRequest(res, 'The last page is a painted plate and has no prose to regenerate');
 
       const wordTarget = parseWordTarget(req.body.words);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
@@ -136,17 +139,18 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
         reasoningEffort,
         excludeLast: true,
       });
-      const prose = writing.consumeStoryText(story, result.content);
+      const prose = writing.consumeStoryText(result.content);
 
-      db.prepare(
-        'UPDATE story_pages SET content = ?, created_at = CURRENT_TIMESTAMP, model = ?, prompt_tokens = ?, completion_tokens = ?, cost_usd = ? WHERE id = ?'
-      ).run(
-        prose, result.model,
-        result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, result.cost_usd,
-        last.id
-      );
-      stories.invalidatePreview(story.id);
-      res.json({ page: stories.getPageById(last.id) });
+      let page = stories.replaceGeneratedPage(last.id, {
+        content: prose,
+        model: result.model,
+        promptTokens: result.usage?.prompt_tokens ?? null,
+        completionTokens: result.usage?.completion_tokens ?? null,
+        costUsd: result.cost_usd,
+      });
+      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: result.model });
+      page = synced.page || page;
+      res.json({ page });
     } catch (error) {
       next(error);
     }
@@ -194,8 +198,8 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
         return res.status(409).json({ error: 'The prepared page has gone stale - the story moved on without it.' });
       }
 
-      const prose = writing.consumeStoryText(story, preview.raw_content); // applies character-state updates
-      const page = stories.insertGeneratedPage(story.id, {
+      const prose = writing.consumeStoryText(preview.raw_content);
+      let page = stories.insertGeneratedPage(story.id, {
         content: prose,
         userInput: null,
         model: preview.model,
@@ -205,6 +209,8 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
         pageNumber: preview.expected_page,
       });
       stories.invalidatePreview(story.id);
+      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: preview.model });
+      page = synced.page || page;
       res.status(201).json({ page });
     } catch (error) {
       next(error);
