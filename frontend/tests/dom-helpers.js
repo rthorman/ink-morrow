@@ -201,6 +201,7 @@ function buildDom() {
         <h2 id="characterEditorTitle">Edit character</h2>
         <form id="characterEditorForm">
           <input type="text" id="charEditName">
+          <select id="charEditWorld"><option value="">No world (free-roaming character)</option></select>
           <textarea id="charEditDescription"></textarea>
           <textarea id="charEditPersonality"></textarea>
           <textarea id="charEditAppearance"></textarea>
@@ -333,4 +334,3 @@ async function dialogAction(label) {
   await new Promise((r) => setTimeout(r, 0));
   return Boolean(btn);
 }
-

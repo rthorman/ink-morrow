@@ -457,6 +457,11 @@
             <form id="characterEditorForm" class="create-form editor-form">
                 <label for="charEditName">Name</label>
                 <input type="text" id="charEditName" maxlength="200" autocomplete="off">
+                <label for="charEditWorld">World</label>
+                <select id="charEditWorld">
+                    <option value="">No world (free-roaming character)</option>
+                </select>
+                <p class="setting-hint">Moving a character changes their catalogue home, not existing story casts. Saving alone never repaints the portrait.</p>
                 <label for="charEditDescription">Description</label>
                 <textarea id="charEditDescription" rows="3" maxlength="10000"></textarea>
                 <label for="charEditPersonality">Personality</label>

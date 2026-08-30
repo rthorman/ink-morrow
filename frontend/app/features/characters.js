@@ -163,8 +163,35 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
 
   // -- character editor (dirty-guarded) -----------------------------------------
 
-  const CHARACTER_EDITOR_FIELDS = ['charEditName', 'charEditDescription', 'charEditPersonality', 'charEditAppearance', 'charEditBackground', 'charEditImagePrompt'];
+  const CHARACTER_EDITOR_FIELDS = ['charEditName', 'charEditWorld', 'charEditDescription', 'charEditPersonality', 'charEditAppearance', 'charEditBackground', 'charEditImagePrompt'];
   let editorSnapshot = null; // values as loaded; any drift means "dirty"
+
+  function populateCharacterEditorWorlds(selectedWorldId) {
+    const select = document.getElementById('charEditWorld');
+    if (!select) return;
+    select.textContent = '';
+    const worldless = document.createElement('option');
+    worldless.value = '';
+    worldless.textContent = 'No world (free-roaming character)';
+    select.appendChild(worldless);
+    for (const world of state.data.worlds) {
+      const option = document.createElement('option');
+      option.value = world.id;
+      option.textContent = world.name;
+      select.appendChild(option);
+    }
+    const wanted = selectedWorldId || '';
+    if (wanted && ![...select.options].some((option) => option.value === wanted)) {
+      // World and character catalogues load independently at boot. Preserve
+      // the existing association even if the world names arrive a moment
+      // after the character card was opened.
+      const pending = document.createElement('option');
+      pending.value = wanted;
+      pending.textContent = 'Current world (loading…)';
+      select.appendChild(pending);
+    }
+    select.value = wanted;
+  }
 
   function editorValues() {
     const values = {};
@@ -194,6 +221,7 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
     if (!modal) return;
     editingCharacterId = character.id;
     document.getElementById('charEditName').value = character.name || '';
+    populateCharacterEditorWorlds(character.world_id);
     document.getElementById('charEditDescription').value = character.description || '';
     document.getElementById('charEditPersonality').value = character.personality || '';
     document.getElementById('charEditAppearance').value = character.appearance || '';
@@ -217,6 +245,7 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
       personality: document.getElementById('charEditPersonality').value,
       appearance: document.getElementById('charEditAppearance').value,
       background: document.getElementById('charEditBackground').value,
+      world_id: document.getElementById('charEditWorld').value || null,
       image_prompt: document.getElementById('charEditImagePrompt').value,
     });
     closeCharacterEditor();

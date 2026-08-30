@@ -6,6 +6,7 @@ const CHARACTERS = [
   { id: 'mc1', name: 'The Lead', world_id: 'w1', description: 'A haunted knight', personality: 'Steadfast and cold', appearance: 'Grey cloak, tired eyes', background: 'A former guard' },
   { id: 'ally1', name: 'The Ally', world_id: 'w1', description: 'A cheerful smuggler', personality: 'Chatty and brave', appearance: 'Red scarf', background: 'Owes everyone money' },
   { id: 'outsider', name: 'The Stranger', world_id: 'w2', description: 'From another world', personality: 'Quiet', appearance: 'Unremarkable', background: 'Unknown' },
+  { id: 'witness', name: 'The Witness', world_id: 'w2', description: 'Always nearby', personality: 'Watchful', appearance: 'Ink-stained gloves', background: 'Records what others forget' },
 ];
 
 const STORY = {
@@ -102,19 +103,32 @@ describe('Story cast editor', () => {
     expect(strangerRow.textContent).toContain('other world');
   });
 
-  it('adds a new member with role and relation; the sheet starts empty and selected', async () => {
+  it('adds both supporting and background members with their chosen roles', async () => {
     await openEditor(fw);
     document.getElementById('storyCastAddSelect').value = 'outsider';
-    document.getElementById('storyCastAddRole').value = 'background';
+    document.getElementById('storyCastAddRole').value = 'supporting';
     document.getElementById('storyCastAddRelation').value = 'a shadow from another world';
     document.getElementById('storyCastAddBtn').click();
 
     expect(rosterRows()).toHaveLength(3);
     expect(detail().querySelector('h3').textContent).toBe('The Stranger');
-    expect(detail().querySelector('select').value).toBe('background');
+    expect(detail().querySelector('select').value).toBe('supporting');
     expect(detail().querySelector('input[type="text"]').value).toBe('a shadow from another world');
     // Add-row reset: the picker no longer offers the Stranger
     expect([...document.getElementById('storyCastAddSelect').options].some((o) => o.value === 'outsider')).toBe(false);
+
+    document.getElementById('storyCastAddSelect').value = 'witness';
+    document.getElementById('storyCastAddRole').value = 'background';
+    document.getElementById('storyCastAddRelation').value = 'records the tale from the gallery';
+    document.getElementById('storyCastAddBtn').click();
+
+    expect(rosterRows()).toHaveLength(4);
+    expect(detail().querySelector('h3').textContent).toBe('The Witness');
+    expect(detail().querySelector('select').value).toBe('background');
+    expect(fw.__castEditState().entries).toEqual(expect.arrayContaining([
+      expect.objectContaining({ id: 'outsider', role: 'supporting', relation: 'a shadow from another world' }),
+      expect.objectContaining({ id: 'witness', role: 'background', relation: 'records the tale from the gallery' }),
+    ]));
   });
 
   it('an empty cast can add a lead directly - never add-then-promote', async () => {

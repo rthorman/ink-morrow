@@ -122,7 +122,7 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
   }
 
   function updateWorldSelects() {
-    for (const selectId of ['characterWorld', 'storyWorld']) {
+    for (const selectId of ['characterWorld', 'storyWorld', 'charEditWorld']) {
       const select = document.getElementById(selectId);
       if (!select) continue;
       const keep = select.value;

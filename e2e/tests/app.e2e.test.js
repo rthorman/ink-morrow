@@ -206,6 +206,7 @@ test.describe('ScribeTribe UI', () => {
       (await (await page.request.post('/api/characters', { data: { name, world_id: world.id } })).json()).character;
     const lead = await mk('The Lead');
     const ally = await mk('The Ally');
+    const supporter = await mk('The Supporter');
     const latecomer = await mk('The Latecomer');
     const storyRes = await page.request.post('/api/stories', {
       data: {
@@ -234,9 +235,16 @@ test.describe('ScribeTribe UI', () => {
     await expect(modal.locator('#storyCastDetail .cast-edit-member__sheet textarea').first()).toHaveValue('Colder now, hungrier');
     await expect(modal.locator('#storyCastMode')).toContainText('Centered on The Lead');
 
-    // Edit the Lead's in-story appearance, add the latecomer to the running cast
+    // Edit the Lead's in-story appearance, then add both non-lead tiers to
+    // the running cast through the real controls.
     const [, appearance] = await modal.locator('#storyCastDetail .cast-edit-member__sheet textarea').all();
     await appearance.fill('Cloak burned to rags');
+    await modal.locator('#storyCastAddSelect').selectOption(supporter.id);
+    await modal.locator('#storyCastAddRole').selectOption('supporting');
+    await modal.locator('#storyCastAddRelation').fill('keeps the lantern lit');
+    await modal.locator('#storyCastAddBtn').click();
+    await expect(modal.locator('#storyCastDetail h3')).toHaveText('The Supporter');
+
     await modal.locator('#storyCastAddSelect').selectOption({ label: 'The Latecomer' });
     await modal.locator('#storyCastAddRole').selectOption('background');
     await modal.locator('#storyCastAddRelation').fill('a shadow at the edge of the tale');
@@ -253,6 +261,10 @@ test.describe('ScribeTribe UI', () => {
     expect(after.story.characters.find((c) => c.id === lead.id).state).toEqual({
       personality: 'Colder now, hungrier',
       appearance: 'Cloak burned to rags',
+    });
+    expect(after.story.characters.find((c) => c.id === supporter.id)).toMatchObject({
+      role: 'supporting',
+      relation: 'keeps the lantern lit',
     });
     expect(after.story.characters.find((c) => c.id === latecomer.id)).toMatchObject({
       role: 'background',
@@ -363,24 +375,37 @@ test.describe('ScribeTribe UI', () => {
   });
 
   test('edits a character through the card editor, no AI assists involved', async ({ page }) => {
+    const targetWorld = (await (await page.request.post('/api/worlds', {
+      data: { name: 'Character Edit Realm', generate_image: false },
+    })).json()).world;
     await page.goto('/');
     await page.waitForSelector('.container');
     await page.locator('#charactersBtn').click();
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Editable Soul');
-    await page.locator('#characterForm .btn-primary').click();
-    await confirmPaidReview(page, /Create & paint/);
+    await page.locator('#characterNoImageBtn').click();
     const card = page.locator('#charactersList .item-card', { hasText: 'Editable Soul' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
     await card.click(); // the card itself opens the editor
     await expect(page.locator('#characterEditorModal')).toBeVisible();
     await expect(page.locator('#charEditName')).toHaveValue('Editable Soul');
+    await page.locator('#charEditWorld').selectOption(targetWorld.id);
     await page.fill('#charEditDescription', 'Rewritten by hand.');
     await page.fill('#charEditImagePrompt', 'A lone figure in ink.');
+    const repaintRequests = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && /\/api\/characters\/[^/]+\/image(?:\?|$)/.test(request.url())) {
+        repaintRequests.push(request.url());
+      }
+    });
     await page.locator('#charEditSaveBtn').click();
     await expect(page.locator('#characterEditorModal')).toBeHidden();
     await expect(card).toContainText('Rewritten by hand.');
+    await expect(card).toContainText('World: Character Edit Realm');
+    const characters = (await (await page.request.get('/api/characters')).json()).characters;
+    expect(characters.find((character) => character.name === 'Editable Soul').world_id).toBe(targetWorld.id);
+    expect(repaintRequests).toEqual([]);
 
     // The editor is plain fields only: exactly Save / Save & redo image / Cancel
     expect(await page.locator('#characterEditorModal button').count()).toBe(3);

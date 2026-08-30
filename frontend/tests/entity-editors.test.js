@@ -9,7 +9,7 @@ const CHARACTER = {
   personality: 'Wry',
   appearance: 'Grey cloak',
   background: 'Debt to the guild',
-  world_id: null,
+  world_id: 'w1',
   image_status: 'ready',
   image_media_type: 'image/png',
   image_cost_usd: 0.06,
@@ -31,6 +31,13 @@ const WORLD = {
   image_prompt: null,
 };
 
+const WORLD_TWO = {
+  ...WORLD,
+  id: 'w2',
+  name: 'Nightglass',
+  description: 'A city beneath a black aurora',
+};
+
 async function flush(ms = 0) {
   await new Promise((r) => setTimeout(r, ms));
 }
@@ -41,7 +48,7 @@ describe('Entity editors', () => {
   beforeEach(async () => {
     mockFetch([
       { match: '/api/characters', response: jsonResponse(200, { characters: [CHARACTER] }) },
-      { match: '/api/worlds', response: jsonResponse(200, { worlds: [WORLD] }) },
+      { match: '/api/worlds', response: jsonResponse(200, { worlds: [WORLD, WORLD_TWO] }) },
       { match: '/api/stories', response: jsonResponse(200, { stories: [] }) },
     ]);
     fw = await loadScript();
@@ -59,6 +66,7 @@ describe('Entity editors', () => {
     const modal = document.getElementById('characterEditorModal');
     expect(modal.hidden).toBe(false);
     expect(document.getElementById('charEditName').value).toBe('Vesna');
+    expect(document.getElementById('charEditWorld').value).toBe('w1');
     expect(document.getElementById('charEditAppearance').value).toBe('Grey cloak');
     expect(document.getElementById('charEditImagePrompt').value).toBe('A courier in rain, ink style.');
 
@@ -84,10 +92,25 @@ describe('Entity editors', () => {
       personality: 'Wry',
       appearance: 'Grey cloak',
       background: 'Debt to the guild',
+      world_id: 'w1',
       image_prompt: 'A courier in snow, charcoal.',
     });
+    expect(fetch.mock.calls.some(([url, options]) => String(url).endsWith('/image') && options.method === 'POST')).toBe(false);
     expect(document.getElementById('characterEditorModal').hidden).toBe(true);
     expect(document.querySelector('.success-message').textContent).toContain('saved');
+  });
+
+  it('moves a character to another world without regenerating the portrait', async () => {
+    await fw.loadCharacters();
+    document.querySelector('#charactersList .item-card').click();
+    document.getElementById('charEditWorld').value = 'w2';
+    document.getElementById('characterEditorForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    await flush(0);
+    await flush(0);
+
+    const put = fetch.mock.calls.find(([url, options]) => String(url).includes('/api/characters') && options.method === 'PUT');
+    expect(JSON.parse(put[1].body).world_id).toBe('w2');
+    expect(fetch.mock.calls.some(([url, options]) => String(url).endsWith('/image') && options.method === 'POST')).toBe(false);
   });
 
   it('"Save & redo image" saves first, then regenerates the portrait', async () => {
@@ -101,6 +124,7 @@ describe('Entity editors', () => {
 
     const put = fetch.mock.calls.find(([url, options]) => String(url).includes('/api/characters') && options.method === 'PUT');
     expect(JSON.parse(put[1].body).image_prompt).toBe('A stained-glass saint.');
+    expect(JSON.parse(put[1].body).world_id).toBe('w1');
     const redo = fetch.mock.calls.find(([url, options]) => String(url).endsWith('/image') && options.method === 'POST');
     expect(String(redo[0])).toBe('/api/characters/c1/image');
     expect(document.getElementById('characterEditorModal').hidden).toBe(true);
