@@ -25,19 +25,6 @@ export function createLibrary({ features }) {
   }
 
   function init() {
-    // New story reveals the existing Manuscript/Cast/Review form (no wizard)
-    // and focuses Title; it collapses exactly as deliberately.
-    const newStoryBtn = document.getElementById('storyNewBtn');
-    if (newStoryBtn) {
-      newStoryBtn.addEventListener('click', () => {
-        const wrap = document.getElementById('storyCreateWrap');
-        const opening = wrap.hidden;
-        wrap.hidden = !opening;
-        newStoryBtn.setAttribute('aria-expanded', String(opening));
-        if (opening) document.getElementById('storyTitle').focus();
-        else wrap.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      });
-    }
     const storiesTab = document.getElementById('libraryStoriesTab');
     const bookshelfTab = document.getElementById('libraryBookshelfTab');
     if (storiesTab) storiesTab.addEventListener('click', () => router.navigate('library-stories'));

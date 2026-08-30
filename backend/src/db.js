@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS stories (
   characters TEXT NOT NULL DEFAULT '[]',
   tone TEXT NOT NULL DEFAULT 'fade-to-black'
     CHECK (tone IN ('fade-to-black', 'romantic', 'explicit')),
+  image_status TEXT NOT NULL DEFAULT 'none',
+  image_media_type TEXT,
+  image_cost_usd REAL,
+  image_updated_at TEXT,
+  image_prompt TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
@@ -136,6 +141,14 @@ function createDb(dbPath) {
   // bytes live on disk keyed by the page id, so renumbering never orphans them.
   ensureColumn(db, 'story_pages', 'image_media_type', 'image_media_type TEXT');
   ensureColumn(db, 'story_pages', 'image_prompt', 'image_prompt TEXT');
+  // v8: story-cover paintings live on disk alongside the other reference
+  // images. Status/cost/prompt mirror worlds and characters so one queue can
+  // own every catalogue painting without storing large blobs in SQLite.
+  ensureColumn(db, 'stories', 'image_status', "image_status TEXT NOT NULL DEFAULT 'none'");
+  ensureColumn(db, 'stories', 'image_media_type', 'image_media_type TEXT');
+  ensureColumn(db, 'stories', 'image_cost_usd', 'image_cost_usd REAL');
+  ensureColumn(db, 'stories', 'image_updated_at', 'image_updated_at TEXT');
+  ensureColumn(db, 'stories', 'image_prompt', 'image_prompt TEXT');
   return db;
 }
 

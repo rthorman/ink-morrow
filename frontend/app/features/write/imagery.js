@@ -230,7 +230,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         prompt,
         render: variant,
         ...(settings.model ? { model: settings.model } : {}),
-        ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+        ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
         ...(dropSceneReferences ? { drop_references: true } : {}),
       });
       // The moderator refused. Do NOT repaint: announce, put the rewritten
@@ -314,7 +314,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     try {
       const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-prompt`, 'POST', {
         ...(settings.model ? { model: settings.model } : {}),
-        ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+        ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       box.value = res.prompt || '';
       state.addCost(res.cost_usd); // condensation is paid work for this story

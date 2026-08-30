@@ -1,8 +1,7 @@
 'use strict';
 
-// Library collection-first behavior (D10): returning users see the story
-// collection before the long creation form; New story reveals it and
-// focuses Title; a genuinely empty library opens the form with guidance.
+// 3.0.5 separation: Library manages stories/assets; the complete creation
+// form (including maturity) lives at the writing desk.
 
 import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
@@ -14,7 +13,7 @@ function storiesResponse(...stories) {
   });
 }
 
-describe('Library story creation disclosure', () => {
+describe('Library management and Write story creation', () => {
   let fw, fetchMock;
 
   beforeEach(async () => {
@@ -23,48 +22,44 @@ describe('Library story creation disclosure', () => {
     fw = await loadScript();
   });
 
-  it('with stories present, the collection comes first and the form waits behind New story', async () => {
+  it('shows existing stories in Library while creation remains at Write', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse({ id: 's1', title: 'Existing Tale', page_count: 1 })));
     await fw.loadStories();
     const wrap = document.getElementById('storyCreateWrap');
     const btn = document.getElementById('storyNewBtn');
-    expect(wrap.hidden).toBe(true); // collection-first
+    expect(wrap.closest('#writeSection')).toBeTruthy();
+    expect(wrap.hidden).toBe(true);
     expect(btn.getAttribute('aria-expanded')).toBe('false');
     expect(document.getElementById('storiesList').textContent).toContain('Existing Tale');
 
-    // Activating New story reveals the form and focuses the first field
+    // The Write control reveals the form and focuses its first field.
     btn.click();
     expect(wrap.hidden).toBe(false);
     expect(btn.getAttribute('aria-expanded')).toBe('true');
     expect(document.activeElement).toBe(document.getElementById('storyTitle'));
 
-    // The choice survives a re-render (renderStories never re-collapses)
+    // Library re-rendering never closes a draft at the writing desk.
     fw.renderStories?.();
     await new Promise((r) => setTimeout(r, 0));
     expect(wrap.hidden).toBe(false);
   });
 
-  it('an empty library opens the form for the novice, with honest guidance', async () => {
+  it('an empty Library points to Write without duplicating the creation form', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
-    await fw.loadStories();
-    expect(document.getElementById('storyCreateWrap').hidden).toBe(false);
-    // The empty state does not claim the user pressed anything: the button
-    // still reads collapsed, the form is simply open.
-    expect(document.getElementById('storyNewBtn').getAttribute('aria-expanded')).toBe('false');
-    expect(document.getElementById('storiesList').textContent).toContain('shelves are bare');
-  });
-
-  it('after a story is created the library is collection-first again', async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
-    await fw.loadStories();
-    expect(document.getElementById('storyCreateWrap').hidden).toBe(false);
-
-    // A story now exists (e.g. created in another window): the form folds
-    document.getElementById('storyNewBtn').setAttribute('aria-expanded', 'false');
-    fetchMock.mockImplementation(() => Promise.resolve(storiesResponse({ id: 's2', title: 'New Tale', page_count: 0 })));
     await fw.loadStories();
     expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
-    expect(document.getElementById('storiesList').textContent).toContain('New Tale');
+    expect(document.getElementById('storyNewBtn').getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('storiesList').textContent).toContain('No manuscripts are bound');
+    expect(document.querySelector('#storiesList a').getAttribute('href')).toBe('#/write');
+  });
+
+  it('opens the complete form automatically at Write for a first story', async () => {
+    window.history.replaceState(null, '', window.location.href.split('#')[0] + '#/write');
+    fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
+    await fw.loadStories();
+    expect(document.getElementById('storyCreateWrap').hidden).toBe(false);
+    expect(document.getElementById('storyTone').options).toHaveLength(3);
+    expect(document.getElementById('storyTone').value).toBe('fade-to-black');
   });
 });
 

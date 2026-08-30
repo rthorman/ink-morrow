@@ -36,18 +36,38 @@ async function listModels() {
   }
   const cfg = aiConfig();
   const response = await axios.get(`${cfg.baseUrl}/models`, { timeout: 15000 });
+  const effortVocabulary = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
   const models = (response.data?.data || [])
-    .map((m) => ({
-      id: m.id,
-      name: m.name || m.id,
-      context_length: typeof m.context_length === 'number' ? m.context_length : null,
-      reasoning: Array.isArray(m.supported_parameters) && m.supported_parameters.includes('reasoning'),
-      // OpenRouter prices are USD-per-token strings; expose USD per 1M tokens.
-      pricing: {
-        prompt_per_mtok: (parseFloat(m.pricing?.prompt) || 0) * 1e6,
-        completion_per_mtok: (parseFloat(m.pricing?.completion) || 0) * 1e6,
-      },
-    }))
+    .map((m) => {
+      const detail = m.reasoning && typeof m.reasoning === 'object' ? m.reasoning : {};
+      const declared = Array.isArray(detail.supported_efforts)
+        ? detail.supported_efforts.filter((effort) => effortVocabulary.has(effort))
+        : [];
+      const reasoning =
+        (Array.isArray(m.supported_parameters) && m.supported_parameters.includes('reasoning')) ||
+        declared.length > 0 || Boolean(detail.mandatory) || Boolean(detail.default_effort);
+      // Older catalogue responses only carried the boolean supported
+      // parameter. Preserve their established three-level UI as fallback.
+      const efforts = reasoning ? (declared.length ? declared : ['low', 'medium', 'high']) : [];
+      const defaultEffort = efforts.includes(detail.default_effort)
+        ? detail.default_effort
+        : efforts.includes('medium') ? 'medium' : efforts[0] || null;
+      return {
+        id: m.id,
+        name: m.name || m.id,
+        context_length: typeof m.context_length === 'number' ? m.context_length : null,
+        reasoning,
+        reasoning_efforts: efforts,
+        reasoning_default: defaultEffort,
+        reasoning_mandatory: Boolean(detail.mandatory),
+        is_default: m.id === cfg.model,
+        // OpenRouter prices are USD-per-token strings; expose USD per 1M tokens.
+        pricing: {
+          prompt_per_mtok: (parseFloat(m.pricing?.prompt) || 0) * 1e6,
+          completion_per_mtok: (parseFloat(m.pricing?.completion) || 0) * 1e6,
+        },
+      };
+    })
     .filter((m) => m.id);
   modelsCache = { at: Date.now(), models };
   return models;
@@ -268,9 +288,11 @@ async function chatCompletion(
     throw err;
   }
   const useModel = (typeof model === 'string' && model.trim()) || cfg.model;
-  const useReasoningEffort = ['low', 'medium', 'high'].includes(reasoningEffort) ? reasoningEffort : null;
+  const useReasoningEffort = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(reasoningEffort)
+    ? reasoningEffort
+    : null;
   let useMaxTokens = Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(Math.round(maxTokens), 16000) : cfg.maxTokens;
-  if (useReasoningEffort) {
+  if (useReasoningEffort && useReasoningEffort !== 'none') {
     // Reasoning tokens come out of the same budget: give the model room to think.
     useMaxTokens = Math.max(useMaxTokens, 6000);
   }

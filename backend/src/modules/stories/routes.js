@@ -7,7 +7,7 @@ const express = require('express');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText } = require('../../core/validation');
 
-function createStoriesRouter({ store, imageStore, audio }) {
+function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   const router = express.Router();
 
   router.get('/api/stories', (req, res) => {
@@ -24,7 +24,9 @@ function createStoriesRouter({ store, imageStore, audio }) {
   router.post('/api/stories', (req, res) => {
     const payload = store.validateStoryPayload(req.body);
     if (payload.error) return badRequest(res, payload.error);
-    res.status(201).json({ story: store.storyWithMeta(store.createStory(payload)) });
+    const story = store.createStory(payload);
+    if (req.body.generate_image === true) imageQueue.enqueue('story', story.id, { auto: true });
+    res.status(201).json({ story: store.storyWithMeta(store.getStory(story.id)) });
   });
 
   router.put('/api/stories/:id', (req, res) => {
@@ -44,8 +46,40 @@ function createStoriesRouter({ store, imageStore, audio }) {
     for (const page of store.storyPages(story.id)) {
       if (page.image_media_type) imageStore.deleteImage('page', page.id); // never leave orphans
     }
+    imageStore.deleteImage('story', story.id);
     store.deleteStoryCascade(story.id);
     store.invalidatePreview(story.id);
+    res.status(204).end();
+  });
+
+  router.get('/api/stories/:id/cover', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    if (story.image_status !== 'ready') return notFound(res, 'Story cover not found');
+    const image = imageStore.readImage('story', story.id);
+    if (!image) return notFound(res, 'Story cover file is missing');
+    res.setHeader('Content-Type', image.mediaType);
+    res.setHeader('Cache-Control', 'no-cache'); // repaint keeps the same URL
+    if (req.query.download === '1') {
+      const ext = image.mediaType === 'image/jpeg' ? 'jpg' : image.mediaType === 'image/webp' ? 'webp' : 'png';
+      const slug = story.title.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'story';
+      res.setHeader('Content-Disposition', `attachment; filename="${slug}-cover.${ext}"`);
+    }
+    res.send(image.buffer);
+  });
+
+  router.post('/api/stories/:id/cover', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    imageQueue.enqueue('story', story.id);
+    res.status(202).json({ story: store.storyWithMeta(store.getStory(story.id)) });
+  });
+
+  router.delete('/api/stories/:id/cover', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    imageStore.deleteImage('story', story.id);
+    store.setImageDeleted(story.id);
     res.status(204).end();
   });
 

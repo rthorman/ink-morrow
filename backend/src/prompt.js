@@ -232,11 +232,45 @@ function buildWorldImagePrompt(world) {
   return lines.join('\n');
 }
 
+// A story cover: a vertical key illustration of this tale's cast inside its
+// world. Portraits/world art can be supplied as input references by the queue;
+// the prose remains useful when one of those source paintings is absent.
+function buildStoryCoverPrompt({ story, world, characters }) {
+  const ordered = [...(characters || [])].sort((a, b) => {
+    const rank = (c) => (c.role === 'mc' ? 0 : c.role === 'supporting' ? 1 : 2);
+    return rank(a) - rank(b);
+  });
+  const lines = [
+    'Vertical illustrated storybook cover art, dramatic gothic composition, rich atmospheric light, polished painterly finish.',
+    `Story: ${story.title}.`,
+    `CONTENT RULES: ${IMAGE_TONE_INSTRUCTIONS[story.tone] || IMAGE_TONE_INSTRUCTIONS['fade-to-black']}`,
+  ];
+  if (world) {
+    lines.push(`World: ${world.name}. ${world.description || ''}`.trim());
+    if (world.genre || world.setting) lines.push(`Genre and setting: ${[world.genre, world.setting].filter(Boolean).join(', ')}.`);
+  } else {
+    lines.push('The world is unbound: invent one coherent setting that fits the cast and title.');
+  }
+  if (ordered.length) {
+    lines.push('Cast to depict (identity references, when supplied, appear in this same order):');
+    for (const character of ordered.slice(0, 5)) {
+      const role = character.role === 'mc' ? 'lead' : character.role || 'supporting';
+      lines.push(`- ${character.name} (${role}): ${character.appearance || character.description || 'appearance unspecified'}`);
+    }
+    lines.push('Give the lead visual priority; supporting and background figures remain clearly subordinate. Preserve referenced faces, hair, clothing, and silhouettes.');
+  } else {
+    lines.push('No fixed cast: make the world and an evocative story symbol the focus.');
+  }
+  lines.push('Leave breathing room for a title to be overlaid later, but generate NO text, lettering, logo, caption, border, or watermark.');
+  return lines.join('\n');
+}
+
 module.exports = {
   buildPrompt,
   buildImagePrompt,
   buildCharacterImagePrompt,
   buildWorldImagePrompt,
+  buildStoryCoverPrompt,
   CONTEXT_WINDOW,
   TONE_INSTRUCTIONS,
   IMAGE_TONE_INSTRUCTIONS,

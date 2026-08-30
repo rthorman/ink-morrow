@@ -108,7 +108,7 @@ test.describe('ScribeTribe UI', () => {
     await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
 
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
-    await page.locator('#libraryBtn').click();
+    await page.locator('#writeBtn').click();
     // Parallel workers share the in-memory server: another test may already
     // have created stories, which folds the form - reveal it on demand.
     if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
@@ -125,7 +125,7 @@ test.describe('ScribeTribe UI', () => {
     // The in-progress add row must not be cleared before the user can press Add.
     await page.locator('#charactersBtn').click();
     await expect(page.locator('#charactersSection')).toHaveClass(/active/);
-    await page.locator('#libraryBtn').click();
+    await page.locator('#writeBtn').click();
     await expect(page.locator('#storyCreateWrap')).toBeVisible();
     await expect(page.locator('#castCharSelect')).toHaveValue(/.+/);
     await expect(page.locator('#castTierSelect')).toHaveValue('supporting');
@@ -143,7 +143,7 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#castAddBtn').click();
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
-    await page.locator('#storyForm button[type="submit"]').click();
+    await page.locator('#storyNoImageBtn').click();
 
     // Creating a story jumps to the write section with the story selected
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
@@ -153,6 +153,7 @@ test.describe('ScribeTribe UI', () => {
     const stories = (await (await page.request.get('/api/stories')).json()).stories;
     const saved = stories.find((story) => story.title === 'The Shadow and the Flame');
     expect(saved).toBeTruthy();
+    expect(saved.tone).toBe('romantic');
     const full = (await (await page.request.get(`/api/stories/${saved.id}`)).json()).story;
     const characters = (await (await page.request.get('/api/characters')).json()).characters;
     const idFor = (name) => characters.find((character) => character.name === name).id;
@@ -282,7 +283,17 @@ test.describe('ScribeTribe UI', () => {
       route.fulfill({
         json: {
           models: [
-            { id: 'z-ai/glm-5.1', name: 'GLM 5.1', context_length: 128000, reasoning: true, pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 } },
+            {
+              id: 'z-ai/glm-5.1',
+              name: 'GLM 5.1',
+              context_length: 128000,
+              reasoning: true,
+              reasoning_efforts: ['max', 'high', 'low'],
+              reasoning_default: 'max',
+              reasoning_mandatory: true,
+              is_default: true,
+              pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 },
+            },
             { id: 'a/other-model', name: 'Other Model', context_length: 64000, reasoning: false, pricing: { prompt_per_mtok: 10, completion_per_mtok: 30 } },
           ],
         },
@@ -291,6 +302,14 @@ test.describe('ScribeTribe UI', () => {
 
     await page.locator('#settingsBtn').click();
     await expect(page.locator('#settingsSection')).toHaveClass(/active/);
+
+    // The server default is a reasoning model, so its real effort ladder is
+    // visible before the user explicitly chooses another model.
+    await expect(page.locator('#reasoningBlock')).toBeVisible();
+    await expect(page.locator('#reasoningSelect')).toHaveValue('max');
+    await expect(page.locator('#reasoningSelect option')).toHaveCount(3);
+    expect(await page.locator('#reasoningSelect option').evaluateAll((options) => options.map((option) => option.value)))
+      .toEqual(['max', 'high', 'low']);
 
     // Search + per-model cost are visible
     await page.locator('.model-disclosure summary').click();
@@ -302,14 +321,14 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#modelList .model-item').click();
     await expect(page.locator('#currentModel')).toContainText('a/other-model');
 
-    // Reasoning level appears only for a model that can think first
+    // Reasoning level appears only for a model that can think first.
     await expect(page.locator('#reasoningBlock')).toBeHidden();
     await page.fill('#modelSearch', 'glm');
     await page.locator('#modelList .model-item').click();
     await expect(page.locator('#reasoningBlock')).toBeVisible();
-    await expect(page.locator('#reasoningSelect')).toHaveValue('medium');
-    await page.selectOption('#reasoningSelect', 'high');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).reasoningEffort)).toBe('high');
+    await expect(page.locator('#reasoningSelect')).toHaveValue('max');
+    await page.selectOption('#reasoningSelect', 'low');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).reasoningEffort)).toBe('low');
 
     // Scriptorium background toggle applies on the writing page
     await page.locator('#scriptoriumBgToggle').check();
@@ -463,21 +482,33 @@ test.describe('ScribeTribe UI', () => {
     }
   });
 
-  test('library is collection-first; New story reveals the form and focuses Title', async ({ page }) => {
-    // A story exists: the collection shows first, the long form is folded
+  test('Library manages stories while Write owns creation and maturity', async ({ page }) => {
+    // A story exists: Library is the catalogue and opens its per-story assets.
     const worldRes = await page.request.post('/api/worlds', { data: { name: 'Disclosure Realm' } });
     const world = (await worldRes.json()).world;
     await page.request.post('/api/stories', { data: { title: 'A Tale That Exists', world_id: world.id, characters: [] } });
 
     await page.locator('#libraryBtn').click();
     await expect(page.locator('#librarySection')).toHaveClass(/active/);
-    await expect(page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' })).toBeVisible({ timeout: 5000 });
+    const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+    await expect(card).toContainText('0 KB media on disk');
     await expect(page.locator('#storyCreateWrap')).toBeHidden();
 
-    // New story reveals the form and focuses the first logical field
+    await card.click();
+    await expect(page.locator('#storyAssetsModal')).toBeVisible();
+    await expect(page.locator('#storyAssetsTitle')).toHaveText('A Tale That Exists');
+    await expect(page.locator('#storyAssetsBody')).toContainText('No cover is stored.');
+    await expect(page.locator('#storyAssetsBody')).toContainText('Download EPUB');
+    await page.locator('#storyAssetsCloseBtn').click();
+
+    // Creation is at Write; its first logical field and maturity choice are clear.
+    await page.locator('#writeBtn').click();
     await page.locator('#storyNewBtn').click();
     await expect(page.locator('#storyCreateWrap')).toBeVisible();
     await expect(page.locator('#storyTitle')).toBeFocused();
+    await expect(page.locator('label[for="storyTone"]')).toHaveText('Maturity level');
+    await expect(page.locator('#storyTone option')).toHaveCount(3);
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {

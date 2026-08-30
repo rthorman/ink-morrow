@@ -75,7 +75,7 @@ function createApp(
   // -- feature routers (unchanged paths) ---------------------------------------
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
-  app.use(createStoriesRouter({ store: stories, imageStore, audio }));
+  app.use(createStoriesRouter({ store: stories, imageStore, imageQueue, audio }));
   app.use(createWritingRouter({ db, catalog, stories, writing, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger }));

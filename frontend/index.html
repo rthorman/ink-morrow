@@ -200,12 +200,35 @@
                     <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
                 </div>
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
-                    <div class="list-container">
-                        <button id="storyNewBtn" class="btn btn-primary new-story-btn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
-                        <div id="storiesList" class="items-grid"></div>
+                    <div class="catalog-head library-story-head">
+                        <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
+                        <a class="btn btn-primary" href="#/write">Create at the writing desk</a>
                     </div>
-                    <div id="storyCreateWrap" class="create-form" hidden>
+                    <div id="storiesList" class="items-grid stories-grid"></div>
+                </div>
+                <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
+                    <p class="section-note">Every kept audiobook and painted plate across the whole scriptorium. Download or let them go.</p>
+                    <div id="bookshelfList" class="bookshelf-list"></div>
+                </div>
+            </section>
+
+            <!-- Write Section -->
+            <section id="writeSection" class="content-section" aria-label="Write">
+                <h2 class="sr-only">Writing desk</h2>
+                <div class="write-container">
+                    <div class="story-context" aria-label="Story context">
+                        <label class="sr-only" for="currentStory">Select or create a story</label>
+                        <select id="currentStory">
+                            <option value="">Select a story</option>
+                        </select>
+                        <button id="storyNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
+                        <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
+                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
+                    </div>
+
+                    <div id="storyCreateWrap" class="create-form story-create-at-desk" hidden>
                         <h3>Create New Story</h3>
+                        <p class="setting-hint">Bind the manuscript before writing its first page. The cast is copied into this tale so it can evolve independently.</p>
                         <form id="storyForm">
                             <label for="storyTitle">Title</label>
                             <input type="text" id="storyTitle" placeholder="Give the manuscript a name" maxlength="300" required>
@@ -213,12 +236,13 @@
                             <select id="storyWorld">
                                 <option value="">No world</option>
                             </select>
-                            <label for="storyTone">Tone</label>
+                            <label for="storyTone">Maturity level</label>
                             <select id="storyTone">
-                                <option value="fade-to-black">Tone: Tasteful (fades to black)</option>
-                                <option value="romantic">Tone: Romantic / sensual</option>
-                                <option value="explicit">Tone: Explicit (18+)</option>
+                                <option value="fade-to-black">Tasteful — intimate moments fade to black</option>
+                                <option value="romantic">Romantic — sensual, not graphic</option>
+                                <option value="explicit">Explicit — adult prose (18+)</option>
                             </select>
+                            <p class="setting-hint">This guides every generated page. Cover artwork remains non-explicit at every level so image providers can render it.</p>
                             <div class="character-selection">
                                 <fieldset class="cast-mode">
                                     <legend>Cast shape</legend>
@@ -231,9 +255,7 @@
                                 </fieldset>
                                 <div class="cast-mc" id="castLeadRow" hidden>
                                     <label for="mcSelect">Lead</label>
-                                    <select id="mcSelect">
-                                        <option value="">— Choose who the story follows —</option>
-                                    </select>
+                                    <select id="mcSelect"><option value="">— Choose who the story follows —</option></select>
                                 </div>
                                 <div class="cast-add">
                                     <label for="castCharSelect">Add cast member</label>
@@ -250,27 +272,11 @@
                                 <div id="castList" class="cast-list" aria-label="Story cast"></div>
                                 <div id="storyReview" class="story-review" aria-live="polite"></div>
                             </div>
-                            <button type="submit" class="btn btn-primary">Create story and open writing desk</button>
+                            <div class="form-actions">
+                                <button id="storyWithCoverBtn" type="submit" class="btn btn-primary">Create &amp; paint cover (≈$0.06)</button>
+                                <button id="storyNoImageBtn" type="submit" class="btn btn-secondary">Create without cover</button>
+                            </div>
                         </form>
-                    </div>
-                </div>
-                <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
-                    <p class="section-note">The kept things of every tale: bound audiobooks and painted plates. Download or let them go.</p>
-                    <div id="bookshelfList" class="bookshelf-list"></div>
-                </div>
-            </section>
-
-            <!-- Write Section -->
-            <section id="writeSection" class="content-section" aria-label="Write">
-                <h2 class="sr-only">Writing desk</h2>
-                <div class="write-container">
-                    <div class="story-context" aria-label="Story context">
-                        <label class="sr-only" for="currentStory">Select or create a story</label>
-                        <select id="currentStory">
-                            <option value="">Select or Create a Story</option>
-                        </select>
-                        <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
-                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
                     </div>
 
                     <div class="story-reader">
@@ -344,11 +350,7 @@
                     </details>
                     <div id="reasoningBlock" hidden>
                         <label for="reasoningSelect">Reasoning level (this model thinks before writing)</label>
-                        <select id="reasoningSelect">
-                            <option value="low">Low — quick thoughts</option>
-                            <option value="medium">Medium — balanced</option>
-                            <option value="high">High — deepest thought</option>
-                        </select>
+                        <select id="reasoningSelect"></select>
                     </div>
                     <label for="wordsPerPageInput">Target words per generated page (approximate)</label>
                     <input type="number" id="wordsPerPageInput" min="50" max="2000" step="50" value="400" inputmode="numeric">
@@ -448,6 +450,24 @@
             <div class="burn-modal__actions">
                 <button id="audiobookCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
                 <button id="audiobookStartBtn" type="button" class="btn btn-primary">Create audiobook</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storyAssetsModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel story-assets-panel" role="dialog" aria-modal="true" aria-labelledby="storyAssetsTitle">
+            <div class="story-assets__head">
+                <div>
+                    <p class="hero__kicker">The kept things</p>
+                    <h2 id="storyAssetsTitle">Story assets</h2>
+                </div>
+                <p id="storyAssetsTotal" class="story-assets__total"></p>
+            </div>
+            <div id="storyAssetsBody" class="story-assets__body"></div>
+            <div class="burn-modal__actions">
+                <button id="storyAssetsWriteBtn" type="button" class="btn btn-primary">Open writing desk</button>
+                <button id="storyAssetsCastBtn" type="button" class="btn btn-secondary">Edit cast</button>
+                <button id="storyAssetsCloseBtn" type="button" class="btn btn-secondary">Close</button>
             </div>
         </div>
     </div>

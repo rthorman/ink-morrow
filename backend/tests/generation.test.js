@@ -320,8 +320,48 @@ describe('Model selection, usage and cost accounting', () => {
     ]);
     const res = await request(app).get('/api/models').expect(200);
     expect(res.body.models).toEqual([
-      { id: 'a/b', name: 'B Model', context_length: 8, reasoning: false, pricing: { prompt_per_mtok: 1, completion_per_mtok: 2 } },
+      {
+        id: 'a/b',
+        name: 'B Model',
+        context_length: 8,
+        reasoning: false,
+        reasoning_efforts: [],
+        reasoning_default: null,
+        reasoning_mandatory: false,
+        is_default: false,
+        pricing: { prompt_per_mtok: 1, completion_per_mtok: 2 },
+      },
     ]);
+  });
+
+  it('exposes the default model and its exact reasoning-effort ladder', async () => {
+    process.env.OPENROUTER_MODEL = 'vendor/deep-thinker';
+    mockModels([
+      {
+        id: 'vendor/deep-thinker',
+        name: 'Deep Thinker',
+        supported_parameters: ['reasoning'],
+        reasoning: {
+          mandatory: true,
+          supported_efforts: ['max', 'high', 'low'],
+          default_effort: 'max',
+        },
+        pricing: {},
+      },
+    ]);
+    try {
+      const res = await request(app).get('/api/models').expect(200);
+      expect(res.body.models[0]).toMatchObject({
+        id: 'vendor/deep-thinker',
+        is_default: true,
+        reasoning: true,
+        reasoning_efforts: ['max', 'high', 'low'],
+        reasoning_default: 'max',
+        reasoning_mandatory: true,
+      });
+    } finally {
+      delete process.env.OPENROUTER_MODEL;
+    }
   });
 
   it('rejects an empty model override', async () => {
@@ -706,6 +746,20 @@ describe('Reasoning effort', () => {
     const body = axios.post.mock.calls[0][1];
     expect(body.reasoning).toEqual({ effort: 'high' });
     expect(body.max_tokens).toBeGreaterThanOrEqual(6000); // room to think
+  });
+
+  it.each(['minimal', 'xhigh', 'max', 'none'])('accepts the full OpenRouter effort vocabulary: %s', async (effort) => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi('A calibrated page.');
+    const story = await createStory(app);
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', reasoning_effort: effort });
+    expect(res.status).toBe(201);
+    const body = axios.post.mock.calls[0][1];
+    expect(body.reasoning).toEqual({ effort });
+    if (effort === 'none') expect(body.max_tokens).toBe(1500);
+    else expect(body.max_tokens).toBeGreaterThanOrEqual(6000);
   });
 
   it('rejects unknown efforts', async () => {

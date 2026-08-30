@@ -59,7 +59,7 @@ export function initApp() {
   features.characters = createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.home = createHome({ state, notify, router: null, features });
   features.library = createLibrary({ router: null, features });
-  features.stories = createStories({ api, state, notify, features, dialogs });
+  features.stories = createStories({ api, state, notify, features, dialogs, entityCard });
   features.storyEditor = createStoryEditor({ api, state, notify, features, dialogs });
   features.bookshelf = createBookshelf({ api, state, notify, features, dialogs });
   features.write = createWrite({ api, state, notify, shell, features, dialogs });
@@ -104,7 +104,7 @@ export function initApp() {
     if (route.name === 'home') features.home.enter();
     if (route.name === 'library-stories' || route.name === 'library-bookshelf') {
       features.library.enter(route);
-      if (route.name === 'library-stories') features.stories.loadStories(); // the shelf is fresh on arrival
+      if (route.name === 'library-stories') features.stories.loadStories();
     }
     if (route.name === 'settings') {
       features.settings.loadModels().then(features.settings.renderModelList);
@@ -162,6 +162,7 @@ export function initApp() {
   features.worlds.init(); // entity editors
   features.characters.init();
   features.audiobook.init();
+  features.bookshelf.init();
   features.storyEditor.init();
   features.generation.init();
   features.settings.init(); // registers the applySettings re-render hooks...
@@ -261,6 +262,8 @@ function buildFacade(ctx) {
     refreshAudiobook: audiobook.refreshAudiobook,
     stopAudiobook: audiobook.stopAudiobook,
     loadBookshelf: bookshelf.loadBookshelf,
+    openStoryAssets: bookshelf.openStoryAssets,
+    closeStoryAssets: bookshelf.closeStoryAssets,
     audiobookEstimate: audiobook.audiobookEstimate,
     audiobookNarratorVerdict: audiobook.audiobookNarratorVerdict,
     markAudiobookSeen: audiobook.markAudiobookSeen,

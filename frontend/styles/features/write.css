@@ -472,6 +472,14 @@
   margin-bottom: 0.8rem;
 }
 
+.story-context > select {
+  flex: 1 1 280px;
+}
+
+.story-create-at-desk {
+  margin: 0 0 1rem;
+}
+
 .story-context__mode {
   color: var(--st-gold-300);
   font-size: 0.88rem;

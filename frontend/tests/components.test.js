@@ -230,6 +230,33 @@ describe('Characters and casting', () => {
     expect(body.characters).toEqual([]); // the scribe takes an ensemble as willingly as a lead
     expect(document.querySelector('.error-message')).toBeNull();
   });
+
+  it('creates from Write with the chosen maturity and an optional paid cover', async () => {
+    window.localStorage.removeItem('st-paid-consent-v1');
+    const fetchMock = global.fetch;
+    fetchMock.mockClear();
+    fetchMock.mockImplementation((url, options) => {
+      if (String(url).endsWith('/api/stories') && options?.method === 'POST') {
+        return Promise.resolve(jsonResponse(201, { story: { id: 's-cover', title: 'Veiled', page_count: 0 } }));
+      }
+      if (String(url).endsWith('/api/stories')) {
+        return Promise.resolve(jsonResponse(200, { stories: [{ id: 's-cover', title: 'Veiled', page_count: 0 }] }));
+      }
+      if (String(url).endsWith('/api/storage')) return Promise.resolve(jsonResponse(200, { stories: [] }));
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    document.getElementById('storyTitle').value = 'Veiled';
+    document.getElementById('storyTone').value = 'romantic';
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'submitter', { value: document.getElementById('storyWithCoverBtn') });
+    document.getElementById('storyForm').dispatchEvent(event);
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const call = fetchMock.mock.calls.find(([url, options]) => String(url).endsWith('/api/stories') && options?.method === 'POST');
+    const body = JSON.parse(call[1].body);
+    expect(body).toMatchObject({ title: 'Veiled', tone: 'romantic', generate_image: true });
+  });
 });
 
 

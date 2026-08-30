@@ -40,7 +40,7 @@ beforeAll(() => {
 beforeEach(async () => {
   resetDb(db);
   // Stored image files must not leak between tests
-  for (const kind of ['characters', 'worlds']) {
+  for (const kind of ['characters', 'worlds', 'covers']) {
     const dir = path.join(imageDir, kind);
     for (const f of fs.existsSync(dir) ? fs.readdirSync(dir) : []) fs.unlinkSync(path.join(dir, f));
   }
@@ -289,6 +289,76 @@ describe('Character & world reference images', () => {
     await request(app).post(`/api/worlds/${world.id}/image`).expect(200); // redo with lore in place
     const call = await waitForImageCall('Ashfall district');
     expect(call[1].prompt).toContain('NO people'); // lore never smuggles creatures in
+  });
+});
+
+describe('Story covers', () => {
+  it('paints a vertical cover from the world and ordered cast references', async () => {
+    const world = await createWorld(app, { name: 'Cover Realm', description: 'A drowned gothic city' });
+    const lead = await createCharacter(app, world.id, { name: 'Lead Ink', appearance: 'Silver braid and red coat' });
+    const support = await createCharacter(app, world.id, { name: 'Second Ink', appearance: 'Black veil and brass lantern' });
+    await waitForImageStatus('worlds', world.id, 'ready');
+    await waitForImageStatus('characters', lead.id, 'ready');
+    await waitForImageStatus('characters', support.id, 'ready');
+    axios.post.mockClear();
+
+    const res = await request(app).post('/api/stories').send({
+      title: 'The Cover Tale',
+      world_id: world.id,
+      tone: 'romantic',
+      generate_image: true,
+      characters: [
+        { id: lead.id, role: 'mc', relation: null, state: null },
+        { id: support.id, role: 'supporting', relation: 'rival', state: null },
+      ],
+    }).expect(201);
+    expect(res.body.story.image_status).toBe('pending');
+    await waitForImageStatus('stories', res.body.story.id, 'ready');
+
+    const call = await waitForImageCall('The Cover Tale');
+    expect(call[1].aspect_ratio).toBe('2:3');
+    expect(call[1].quality).toBe('medium');
+    expect(call[1].prompt).toContain('Cover Realm');
+    expect(call[1].prompt).toContain('Lead Ink (lead)');
+    expect(call[1].prompt).toContain('Second Ink (supporting)');
+    expect(call[1].input_references).toHaveLength(3); // two portraits + world
+
+    const cover = await request(app).get(`/api/stories/${res.body.story.id}/cover?download=1`).expect(200);
+    expect(cover.headers['content-disposition']).toContain('the_cover_tale-cover.png');
+    expect(cover.headers['cache-control']).toBe('no-cache');
+    expect(cover.body.equals(PNG_BYTES)).toBe(true);
+
+    await request(app)
+      .post(`/api/stories/${res.body.story.id}/pages`)
+      .send({ content: 'The drowned bells rang beneath the city.' })
+      .expect(201);
+
+    const storage = await request(app).get('/api/storage').expect(200);
+    expect(storage.body.stories[0]).toMatchObject({
+      id: res.body.story.id,
+      excerpt: 'The drowned bells rang beneath the city.',
+      asset_count: 1,
+      disk_bytes: PNG_BYTES.length,
+      cover: { status: 'ready', size_bytes: PNG_BYTES.length, file_missing: false },
+    });
+  });
+
+  it('deletes and explicitly repaints only the cover, then removes it with the story', async () => {
+    const story = await createStory(app, null, [], { title: 'Disposable Cover', generate_image: true });
+    await waitForImageStatus('stories', story.id, 'ready');
+    expect(fs.readdirSync(path.join(imageDir, 'covers'))).toHaveLength(1);
+
+    await request(app).delete(`/api/stories/${story.id}/cover`).expect(204);
+    expect(db.prepare('SELECT image_status FROM stories WHERE id = ?').get(story.id).image_status).toBe('deleted');
+    expect(fs.readdirSync(path.join(imageDir, 'covers'))).toHaveLength(0);
+    await request(app).get(`/api/stories/${story.id}/cover`).expect(404);
+
+    await request(app).post(`/api/stories/${story.id}/cover`).expect(202);
+    await waitForImageStatus('stories', story.id, 'ready');
+    expect(fs.readdirSync(path.join(imageDir, 'covers'))).toHaveLength(1);
+
+    await request(app).delete(`/api/stories/${story.id}`).expect(204);
+    expect(fs.readdirSync(path.join(imageDir, 'covers'))).toHaveLength(0);
   });
 });
 

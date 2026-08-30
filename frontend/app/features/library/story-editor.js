@@ -1,5 +1,5 @@
-// Story editor: the creation cast builder + the mid-story cast editor.
-// Opened from a story card; edits roles, relations, and the in-story state
+// Story editor: the Write-desk creation/cast builder plus the mid-story cast
+// editor opened from Library. It edits roles, relations, and in-story state
 // copies exactly as the tale has them (never the base sheets).
 
 const CAST_EDIT_FIELDS = [
@@ -9,6 +9,10 @@ const CAST_EDIT_FIELDS = [
 ];
 
 import { wireModal } from '../../core/dialogs.js';
+import { approxCostText } from '../../core/cost.js';
+import { IMAGE_COST_ESTIMATE } from '../../components/entity-card.js';
+
+const STORY_COVER_ESTIMATE = IMAGE_COST_ESTIMATE.story;
 
 export function createStoryEditor({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
@@ -18,6 +22,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   // or an ensemble - then members one at a time with starting connections.
   let storyCast = []; // [{id, role, relation}]
   let castMode = 'ensemble'; // 'centered' | 'ensemble'
+  let coverReviewing = false;
 
   // Mid-story editor state.
   let castEdit = null; // { storyId, title, worldId, entries: [{id, role, relation, state}] }
@@ -237,12 +242,32 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   async function handleStorySubmit(event) {
     event.preventDefault();
     const form = event.target;
+    const withCover = event.submitter?.id === 'storyWithCoverBtn';
+    if (withCover) {
+      if (coverReviewing) return;
+      coverReviewing = true;
+      const yes = await dialogs.confirmPaid({
+        title: 'Create this story and paint its cover?',
+        review: {
+          action: 'Create the story, then paint a vertical cover in the background.',
+          object: `story "${document.getElementById('storyTitle').value.trim() || '(untitled)'}"`,
+          quantity: 'one 1K cover painting',
+          sends: 'the title, maturity level, world description, cast appearance details, and available reference paintings',
+          estimate: STORY_COVER_ESTIMATE,
+          note: '"Create without cover" binds the same story without sending an image request.',
+        },
+        confirmLabel: `Create & paint (${approxCostText(STORY_COVER_ESTIMATE)})`,
+      });
+      coverReviewing = false;
+      if (!yes) return;
+    }
     // A Main Character is optional: with one, the scribe keeps the tale
     // centered on them; without one, she writes an ensemble that follows
     // wherever the writer's directions point.
     const cast = storyCast.map((entry) => ({ ...entry, state: null }));
     try {
       const data = await apiCall('/stories', 'POST', {
+        generate_image: withCover,
         title: document.getElementById('storyTitle').value,
         world_id: document.getElementById('storyWorld').value || null,
         tone: document.getElementById('storyTone').value,
@@ -252,14 +277,11 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       storyCast = [];
       renderCastBuilder({ resetAddDraft: true });
       document.getElementById('storyTone').value = 'fade-to-black';
-      // The tale exists now: the library is collection-first again.
-      const wrap = document.getElementById('storyCreateWrap');
-      if (wrap) wrap.hidden = true;
-      const newBtn = document.getElementById('storyNewBtn');
-      if (newBtn) newBtn.setAttribute('aria-expanded', 'false');
+      // The tale exists now; fold the creation desk before opening it.
+      closeCreator();
       await features.stories.loadStories();
       features.write.openStory(data.story.id);
-      showSuccess('Story created.');
+      showSuccess(withCover ? 'Story created — the cover is being painted.' : 'Story created.');
     } catch (error) {
       showError(error.message);
     }
@@ -677,6 +699,19 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
 
   function init() {
     document.getElementById('storyForm').addEventListener('submit', handleStorySubmit);
+    // Story creation lives at the writing desk. Keep its disclosure behavior
+    // with the editor rather than making Library own a control on another route.
+    const newStoryBtn = document.getElementById('storyNewBtn');
+    if (newStoryBtn) {
+      newStoryBtn.addEventListener('click', () => {
+        const wrap = document.getElementById('storyCreateWrap');
+        const opening = wrap.hidden;
+        wrap.hidden = !opening;
+        newStoryBtn.setAttribute('aria-expanded', String(opening));
+        if (opening) document.getElementById('storyTitle').focus();
+        else wrap.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+      });
+    }
     document.getElementById('storyWorld').addEventListener('change', () => {
       renderCastBuilder();
       renderStoryReview();
@@ -707,7 +742,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         dialogs
           .openDialog({
             title: 'Explicit tone',
-            body: 'The explicit tone asks the scribe for 18+ prose. Only you will read it, and you can change the tone at any time.',
+            body: 'The explicit maturity level asks the scribe for 18+ prose. Only you will read it. Choose another level before creating if that is not what you want.',
             variant: 'cost',
             actions: [
               {
@@ -746,6 +781,22 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     if (add) add.addEventListener('click', addCastEditorMember);
   }
 
+  function openCreator() {
+    const wrap = document.getElementById('storyCreateWrap');
+    const button = document.getElementById('storyNewBtn');
+    if (!wrap) return;
+    wrap.hidden = false;
+    if (button) button.setAttribute('aria-expanded', 'true');
+    document.getElementById('storyTitle')?.focus();
+  }
+
+  function closeCreator() {
+    const wrap = document.getElementById('storyCreateWrap');
+    const button = document.getElementById('storyNewBtn');
+    if (wrap) wrap.hidden = true;
+    if (button) button.setAttribute('aria-expanded', 'false');
+  }
+
   return {
     renderCastBuilder,
     addCastMember,
@@ -763,5 +814,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         ? { ...castEdit, entries: castEdit.entries.map((e) => ({ ...e, state: e.state ? { ...e.state } : null })) }
         : null,
     init,
+    openCreator,
+    closeCreator,
   };
 }

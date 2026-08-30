@@ -13,7 +13,8 @@
 }
 
 .card-image--pending,
-.card-image--failed {
+.card-image--failed,
+.card-image--missing {
   aspect-ratio: 3 / 4;
   max-width: 260px;
   display: flex;
@@ -30,6 +31,17 @@
 
 .card-image--failed {
   color: var(--st-danger-500);
+}
+
+.card-image--missing {
+  color: var(--st-violet-300);
+}
+
+.story-card .card-image {
+  width: min(100%, 280px);
+  max-width: 280px;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
 }
 
 .card-image-redo {

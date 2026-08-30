@@ -112,7 +112,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
-        ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+        ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       // Even a response made stale by a direction change consumed provider
       // work. Book it before deciding whether it may affect the button.
@@ -261,7 +261,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         user_input: direction || null,
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
-        ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+        ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       data.storyPages.push(res.page);
       data.currentPage = data.storyPages.length;
@@ -308,7 +308,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       const res = await apiCall(`/stories/${currentStory.id}/pages/regenerate`, 'POST', {
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
-        ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+        ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       data.storyPages[data.storyPages.length - 1] = res.page;
       const newCost = typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0;

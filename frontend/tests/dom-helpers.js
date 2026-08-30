@@ -86,30 +86,6 @@ function buildDom() {
           <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
         </div>
         <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
-        <button id="storyNewBtn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
-        <div id="storyCreateWrap" hidden>
-        <form id="storyForm">
-          <input type="text" id="storyTitle" required>
-          <select id="storyWorld"><option value="">No world</option></select>
-          <select id="storyTone">
-            <option value="fade-to-black">Tasteful</option>
-            <option value="romantic">Romantic</option>
-            <option value="explicit">Explicit</option>
-          </select>
-          <div class="character-selection">
-            <select id="mcSelect"></select>
-            <select id="castCharSelect"></select>
-            <select id="castTierSelect">
-              <option value="supporting">Supporting</option>
-              <option value="background">Background</option>
-            </select>
-            <input type="text" id="castRelation">
-            <button id="castAddBtn" type="button">Add to cast</button>
-            <div id="castList" class="cast-list"></div>
-          </div>
-          <button type="submit">Create Story</button>
-        </form>
-        </div>
         <div id="storiesList" class="items-grid"></div>
         </div>
         <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
@@ -117,6 +93,36 @@ function buildDom() {
         </div>
       </section>
       <section id="writeSection" class="content-section">
+        <button id="storyNewBtn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
+        <div id="storyCreateWrap" hidden>
+          <form id="storyForm">
+            <input type="text" id="storyTitle" required>
+            <select id="storyWorld"><option value="">No world</option></select>
+            <select id="storyTone">
+              <option value="fade-to-black">Tasteful</option>
+              <option value="romantic">Romantic</option>
+              <option value="explicit">Explicit</option>
+            </select>
+            <div class="character-selection">
+              <button type="button" id="castModeCentered" role="radio" aria-checked="false">Centered</button>
+              <button type="button" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
+              <p id="castModeHint"></p>
+              <div id="castLeadRow" hidden><select id="mcSelect"></select></div>
+              <select id="castCharSelect"></select>
+              <select id="castTierSelect">
+                <option value="supporting">Supporting</option>
+                <option value="background">Background</option>
+              </select>
+              <label id="castRelationLabel"></label>
+              <input type="text" id="castRelation">
+              <button id="castAddBtn" type="button">Add to cast</button>
+              <div id="castList" class="cast-list"></div>
+              <div id="storyReview"></div>
+            </div>
+            <button id="storyWithCoverBtn" type="submit">Create &amp; paint cover</button>
+            <button id="storyNoImageBtn" type="submit">Create without cover</button>
+          </form>
+        </div>
         <select id="currentStory"><option value="">Select or Create a Story</option></select>
         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
         <div id="costTicker" class="cost-ticker" hidden></div>
@@ -150,8 +156,7 @@ function buildDom() {
             <div id="modelList" class="model-list"></div>
             <button id="modelResetBtn" type="button">Use the server default model</button>
           </details>
-          <div id="reasoningBlock" hidden></div>
-          <select id="reasoningSelect" hidden><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select>
+          <div id="reasoningBlock" hidden><select id="reasoningSelect"></select></div>
           <input type="number" id="wordsPerPageInput" value="400">
         </details>
         <details class="settings-group" open><summary><h3>Narration</h3><span id="narrationSummary" class="settings-group__summary"></span></summary>
@@ -188,6 +193,16 @@ function buildDom() {
         <p id="sceneImageCost" class="scene-image-cost" hidden></p>
         <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
         <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+      </div>
+    </div>
+    <div id="storyAssetsModal" class="burn-modal" hidden>
+      <div class="burn-modal__panel story-assets-panel" role="dialog" aria-modal="true" aria-labelledby="storyAssetsTitle">
+        <h2 id="storyAssetsTitle">Story assets</h2>
+        <p id="storyAssetsTotal"></p>
+        <div id="storyAssetsBody"></div>
+        <button id="storyAssetsWriteBtn" type="button">Open writing desk</button>
+        <button id="storyAssetsCastBtn" type="button">Edit cast</button>
+        <button id="storyAssetsCloseBtn" type="button">Close</button>
       </div>
     </div>
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>

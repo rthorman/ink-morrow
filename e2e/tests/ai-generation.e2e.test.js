@@ -210,7 +210,7 @@ test.describe('AI generation flows (mocked)', () => {
     await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'Sir Context' })).toBeVisible({ timeout: 5000 });
 
-    await page.locator('#libraryBtn').click();
+    await page.locator('#writeBtn').click();
     if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
     await page.fill('#storyTitle', 'Context Story');
     await selectByLabel(page, '#storyWorld', 'Context Realm');
@@ -223,7 +223,7 @@ test.describe('AI generation flows (mocked)', () => {
     const leadRow = page.locator('#castList .cast-list__row--mc');
     await expect(leadRow.locator('.cast-list__name')).toHaveText('Sir Context');
     await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
-    await page.locator('#storyForm button[type="submit"]').click();
+    await page.locator('#storyNoImageBtn').click();
 
     await page.fill('#userInput', 'Sir Context opens the tome');
     await page.locator('#generateBtn').click();

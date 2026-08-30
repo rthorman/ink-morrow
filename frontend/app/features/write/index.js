@@ -14,7 +14,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     select.textContent = '';
     const placeholder = document.createElement('option');
     placeholder.value = '';
-    placeholder.textContent = 'Select or Create a Story';
+    placeholder.textContent = 'Select a story';
     select.appendChild(placeholder);
     state.data.stories.forEach((story) => {
       const option = document.createElement('option');
@@ -28,18 +28,25 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   function openStory(storyId) {
     // Route-driven: the hash change lands in enterFromRoute, which loads the
     // tale. Direct fallback keeps old entry points working pre-router.
+    features.storyEditor.closeCreator();
     if (router) router.navigate('write', { storyId });
     else enterFromRoute({ storyId });
   }
 
   // Deep-link recovery: a story id that no longer exists falls back to the
-  // Library with an honest message.
+  // Stories shelf with an honest message.
   async function enterFromRoute(params = {}) {
     if (!params.storyId) {
       // A cold #/write boot starts from static HTML. Paint the truthful empty
       // desk immediately instead of leaving the markup's fake Page 1 of 1 and
       // enabled controls visible until some later interaction.
       displayCurrentPage();
+      // Home can reveal the creator just before the hash transition. Now that
+      // Write is actually visible, complete the hand-off by placing focus at
+      // the first field (focusing it while its section was hidden is ignored).
+      if (!document.getElementById('storyCreateWrap')?.hidden) {
+        document.getElementById('storyTitle')?.focus();
+      }
       return;
     }
     // Already open (a page turn wrote the hash): trust the reader's state.
@@ -128,7 +135,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       const placeholder = document.createElement('p');
       placeholder.className = 'placeholder';
       placeholder.textContent =
-        'No story selected. Choose a tale from the picker above, or create one from the Library — every writing control sleeps until then.';
+        'No story selected. Choose a tale above, or bind a new one here — every writing control sleeps until then.';
       contentDiv.appendChild(placeholder);
       prevBtn.disabled = true;
       nextBtn.disabled = true;

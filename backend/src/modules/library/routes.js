@@ -1,7 +1,7 @@
 'use strict';
 
-// Library routes: read-only aggregation for kept media (Bookshelf) and the
-// EPUB export. No creation queues or story editing live here.
+// Story-storage aggregation and EPUB export. Large media stays on disk; this
+// route reports its real footprint so the Stories surface can manage it.
 
 const express = require('express');
 const { notFound } = require('../../core/http');
@@ -25,16 +25,41 @@ function createLibraryRouter({ db, catalog, stories, imageStore, audiobooks }) {
       platesByStory.get(plate.story_id).push(entry);
     }
     res.json({
-      stories: storyRows.map((story) => ({
-        id: story.id,
-        title: story.title,
-        updated_at: story.updated_at,
-        audiobook: (() => {
+      stories: storyRows.map((story) => {
+        let coverImage;
+        try { coverImage = imageStore.readImage('story', story.id); } catch { coverImage = null; }
+        const audiobook = (() => {
           const row = audiobooks.getAudiobook(story.id);
           return row ? audiobooks.audiobookWithMeta(row, story) : null;
-        })(),
-        plates: platesByStory.get(story.id) || [],
-      })),
+        })();
+        const plates = platesByStory.get(story.id) || [];
+        const firstPage = db.prepare(
+          "SELECT SUBSTR(content, 1, 1200) AS content FROM story_pages WHERE story_id = ? AND image_media_type IS NULL AND TRIM(content) <> '' ORDER BY page_number LIMIT 1"
+        ).get(story.id);
+        const diskBytes =
+          (coverImage ? coverImage.buffer.length : 0) +
+          plates.reduce((sum, plate) => sum + (plate.size_bytes || 0), 0) +
+          (audiobook && audiobook.status === 'ready' && !audiobook.file_missing ? audiobook.size_bytes || 0 : 0);
+        return {
+          id: story.id,
+          title: story.title,
+          updated_at: story.updated_at,
+          excerpt: firstPage?.content || null,
+          disk_bytes: diskBytes,
+          asset_count:
+            (coverImage ? 1 : 0) +
+            plates.filter((plate) => plate.size_bytes !== null).length +
+            (audiobook && audiobook.status === 'ready' && !audiobook.file_missing ? 1 : 0),
+          cover: {
+            status: story.image_status || 'none',
+            size_bytes: coverImage ? coverImage.buffer.length : null,
+            cost_usd: story.image_cost_usd,
+            file_missing: story.image_status === 'ready' && !coverImage,
+          },
+          audiobook,
+          plates,
+        };
+      }),
     });
   });
 
