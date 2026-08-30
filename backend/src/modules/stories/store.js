@@ -117,8 +117,28 @@ function createStoriesStore(db, { getWorld }) {
     return getPageById(id);
   }
 
+  // Delete one page and renumber every later page DOWN one slot inside a
+  // single transaction, so numbering stays contiguous 1..N. Later rows are
+  // decremented one-by-one in page_number ASC order — a bulk UPDATE's row
+  // order can violate UNIQUE(story_id, page_number). Surviving page IDs (and
+  // the plate files keyed by them) keep their identity; only the deleted
+  // page's plate file is removed (by the route, after this commits).
   function deletePage(page) {
-    db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
+    const later = db
+      .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number ASC')
+      .all(page.story_id, page.page_number);
+    const bump = db.prepare('UPDATE story_pages SET page_number = page_number - 1 WHERE id = ?');
+    db.exec('BEGIN');
+    try {
+      db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
+      for (const row of later) bump.run(row.id);
+      deletePreview.run(page.story_id);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
   }
 
   // Delete every page AFTER the given page number. Plate files are cleaned

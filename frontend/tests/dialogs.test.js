@@ -151,3 +151,51 @@ describe('Shared dialog manager', () => {
     expect(document.documentElement.style.overflow).toBe('');
   });
 });
+
+describe('Paid review (structured grammar)', () => {
+  it('renders the shared rows, carries the estimate, and says price unavailable honestly', async () => {
+    window.localStorage.clear();
+    mockFetch();
+    const fw = await loadScript();
+    const pending = fw.dialogs.confirmPaid({
+      title: 'Send this to the paid scribe?',
+      review: {
+        action: 'Write page 2.',
+        object: '"T", new page 2',
+        model: 'x-model',
+        quantity: '≈400 words',
+        sends: 'your direction and the tale so far',
+        also: 'prepare the next page (≈$0.01)',
+        estimate: 0.03,
+      },
+      confirmLabel: 'Write it (≈$0.0300)',
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    const dlg = document.querySelector('.dialog-manager');
+    expect(dlg.hidden).toBe(false);
+    const body = dlg.querySelector('.dialog-manager__body').textContent;
+    expect(body).toContain('Write page 2.');
+    expect(body).toContain('"T", new page 2');
+    expect(body).toContain('x-model');
+    expect(body).toContain('≈400 words');
+    expect(body).toContain('prepare the next page (≈$0.01)');
+    expect(body).toContain('Est. cost');
+    expect(body).toContain('≈$0.0300');
+    expect(body).not.toContain('price unavailable');
+    const confirm = [...dlg.querySelectorAll('button')].find((b) => b.textContent === 'Write it (≈$0.0300)');
+    expect(confirm).toBeTruthy();
+    confirm.click();
+    expect(await pending).toBe(true);
+
+    // Unknown pricing is spelled out, never $0.00
+    const unknown = fw.dialogs.confirmPaid({
+      title: 'Draft it?',
+      review: { action: 'Draft a world.', estimate: null },
+      confirmLabel: 'Draft it (price unavailable)',
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.querySelector('.dialog-manager__body').textContent).toContain('price unavailable');
+    document.querySelector('.dialog-manager .btn-secondary').click();
+    expect(await unknown).toBe(false);
+  });
+});

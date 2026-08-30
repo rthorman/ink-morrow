@@ -19,14 +19,21 @@ const axios = require('axios');
 
 const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
 
-let app, db, close, imageDir;
+let app, db, close, imageDir, logEntries;
 
 beforeAll(() => {
   process.env.ENABLE_BACKGROUND_IMAGES = '1'; // opt into auto-enqueue in this suite
   process.env.OPENROUTER_API_KEY = 'test-key';
   imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-images-'));
   db = createDb(':memory:');
-  app = createApp(db, { staticDir: null, imageDir });
+  // Expected provider failures assert against the injected logger instead
+  // of spilling console.error noise into an otherwise passing run.
+  logEntries = [];
+  const logger = {
+    log: (msg) => logEntries.push({ level: 'log', msg }),
+    error: (msg) => logEntries.push({ level: 'error', msg }),
+  };
+  app = createApp(db, { staticDir: null, imageDir, logger });
   close = () => db.close();
 });
 
@@ -170,10 +177,16 @@ describe('Character & world reference images', () => {
   });
 
   it('marks failed when the upstream image call fails, and redo can recover', async () => {
+    logEntries.length = 0;
     axios.post.mockRejectedValue({ response: { status: 401, data: '{"error":{"message":"bad key"}}' } });
     const character = await createCharacter(app, null, { name: 'Doomed' });
     await waitForImageStatus('characters', character.id, 'failed');
     await request(app).get(`/api/characters/${character.id}/image`).expect(404);
+    // The expected failure was reported through the injected logger - one
+    // honest entry, not a console spill.
+    expect(logEntries).toHaveLength(1);
+    expect(logEntries[0].level).toBe('error');
+    expect(logEntries[0].msg).toContain('failed: The image model refused this request: bad key');
 
     mockImageOk();
     await request(app).post(`/api/characters/${character.id}/image`).expect(200);

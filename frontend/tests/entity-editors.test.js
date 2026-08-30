@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const CHARACTER = {
   id: 'c1',
@@ -95,7 +95,7 @@ describe('Entity editors', () => {
     document.querySelector('#charactersList .item-card').click();
     document.getElementById('charEditImagePrompt').value = 'A stained-glass saint.';
     document.getElementById('charEditRedoImageBtn').click();
-    await flush(0);
+    expect(await paidReview('confirm')).toBe(true); // the repaint half is reviewed
     await flush(0);
     await flush(0);
 

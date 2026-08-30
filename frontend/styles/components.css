@@ -9,6 +9,11 @@
   letter-spacing: 0.02em;
   border-radius: var(--st-radius-md);
   cursor: pointer;
+  /* Base fallback: a bare .btn must never fall back to the browser's native
+     grey control. Variants (primary/secondary/danger) override these. */
+  background: var(--st-surface-3);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border-bright);
   transition:
     background-color var(--st-duration-fast) ease,
     border-color var(--st-duration-fast) ease,
@@ -235,6 +240,16 @@ select optgroup {
   opacity: 1;
 }
 
+/* Catalog card previews are BOUNDED: long prose clamps to a consistent
+   band. The full text stays in the DOM (assistive tech reads it all) and
+   stays fully editable in the entity editors. */
+.item-card__desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .item-card h4 {
   margin: 0 0 10px 0;
   font-family: var(--st-font-display);
@@ -392,81 +407,6 @@ select optgroup {
   color: var(--st-vellum-200);
 }
 
-.burn-slider {
-  position: relative;
-  margin: 0 0 24px 0;
-  padding: 16px 14px;
-  background: var(--st-ink-950);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
-}
-
-.burn-slider input[type='range'] {
-  width: 100%;
-  height: 44px;
-  margin: 0;
-  cursor: ew-resize;
-  appearance: none;
-  -webkit-appearance: none;
-  background: transparent;
-}
-
-.burn-slider input[type='range']:focus-visible {
-  outline: 2px solid var(--st-focus);
-  outline-offset: 4px;
-}
-
-/* Track: dark trough that fills with fire as the slider moves right. */
-.burn-slider input[type='range']::-webkit-slider-runnable-track {
-  height: 14px;
-  border-radius: 7px;
-  background:
-    linear-gradient(90deg, var(--st-danger-500), var(--st-oxblood-500) var(--burn-fill, 0%), rgb(33 20 43) var(--burn-fill, 0%));
-  border: 1px solid var(--st-border);
-}
-
-.burn-slider input[type='range']::-webkit-slider-thumb {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 34px;
-  height: 34px;
-  margin-top: -11px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--st-vellum-100), var(--st-oxblood-500) 70%);
-  border: 2px solid var(--st-danger-500);
-  box-shadow: 0 4px 14px rgb(0 0 0 / 0.5);
-}
-
-.burn-slider input[type='range']::-moz-range-track {
-  height: 14px;
-  border-radius: 7px;
-  background: rgb(33 20 43);
-  border: 1px solid var(--st-border);
-}
-
-.burn-slider input[type='range']::-moz-range-progress {
-  height: 14px;
-  border-radius: 7px;
-  background: linear-gradient(90deg, var(--st-danger-500), var(--st-oxblood-500));
-}
-
-.burn-slider input[type='range']::-moz-range-thumb {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, var(--st-vellum-100), var(--st-oxblood-500) 70%);
-  border: 2px solid var(--st-danger-500);
-}
-
-.burn-slider__hint {
-  display: block;
-  margin-top: 8px;
-  font-family: var(--st-font-mono);
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--st-danger-500);
-}
 
 .burn-modal__actions {
   display: flex;

@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
@@ -45,10 +45,39 @@ describe('Speculative next-page preparation', () => {
     });
   }
 
-  it('prepares a page when idling on the last page with no direction', async () => {
+  it('selecting a story alone sends NO paid preview (consent gate)', async () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
+    await tick();
+    await tick();
+
+    // Nothing fires until an explicitly confirmed paid action starts it.
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/preview'))).toBe(false);
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(false);
+    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+  });
+
+  it('a confirmed write prepares the next page; canceling the write prepares nothing', async () => {
+    mockPreviewAndCommit();
+    fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
+    await fw.loadStoryPages();
+
+    // CANCEL: zero paid requests, the direction stays in the field.
+    document.getElementById('userInput').value = 'she opens the door';
+    const canceled = fw.generateNextPage();
+    expect(await paidReview('cancel')).toBe(true);
+    await canceled;
+    await tick();
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/preview'))).toBe(false);
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(false);
+    expect(document.getElementById('userInput').value).toBe('she opens the door');
+
+    // CONFIRM: the write goes through and the review disclosed the follow-up
+    // preparation, so the preview is fair game immediately after it.
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
     await tick(); // let the un-awaited speculative call settle
 
     const previewCall = fetchMock.mock.calls.find((c) => c[0].includes('/pages/preview'));
@@ -58,14 +87,15 @@ describe('Speculative next-page preparation', () => {
     // The button becomes a green Next Page; the preview cost hits the session ticker
     expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
-    expect(fw.state().costs.session).toBeCloseTo(0.001, 8);
-    expect(fw.state().costs.story).toBeCloseTo(0, 8); // story total untouched until commit
+    expect(fw.state().costs.session).toBeCloseTo(0.021, 8); // 0.02 write + 0.001 preview
+    expect(fw.state().costs.story).toBeCloseTo(0.02, 8); // the written page; preview commits later
   });
 
   it('hides the note while the writer types a direction', async () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
+    await fw.maybeStartSpeculative(); // the consented post-write preparation
     await tick();
     expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
 
@@ -81,10 +111,11 @@ describe('Speculative next-page preparation', () => {
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
   });
 
-  it('commits the prepared page instantly on an empty Generate', async () => {
+  it('commits the prepared page on an empty Generate after its free-commit review', async () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
+    await fw.maybeStartSpeculative(); // prepare as a confirmed write would
     await tick();
     fetchMock.mockClear();
     fetchMock.mockImplementation((url, options) => {
@@ -93,10 +124,22 @@ describe('Speculative next-page preparation', () => {
           jsonResponse(201, { page: { page_number: 2, content: 'The prepared continuation.', user_input: null, cost_usd: 0.001 } })
         );
       }
+      if (url.includes('/pages/preview')) {
+        return Promise.resolve(jsonResponse(200, { preview: { expected_page: 3, model: 'x', cost_usd: 0.001 } }));
+      }
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
 
-    await fw.generateNextPage();
+    // Cancel first: committing costs nothing new, but the follow-up
+    // preparation does - so cancel means no commit at all.
+    const canceled = fw.generateNextPage();
+    expect(await paidReview('cancel')).toBe(true);
+    await canceled;
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/commit-preview'))).toBe(false);
+
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     const urls = fetchMock.mock.calls.map((c) => c[0]);
     expect(urls).toContain('/api/stories/s1/pages/commit-preview');
@@ -104,7 +147,7 @@ describe('Speculative next-page preparation', () => {
     expect(fw.state().storyPages).toHaveLength(2);
     expect(fw.state().currentPage).toBe(2);
     // Session counted the preview once; story total gained the page cost
-    expect(fw.state().costs.session).toBeCloseTo(0.001, 8);
+    expect(fw.state().costs.session).toBeCloseTo(0.002, 8); // first prep + follow-up prep
     expect(fw.state().costs.story).toBeCloseTo(0.001, 8);
     expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
   });
@@ -124,7 +167,9 @@ describe('Speculative next-page preparation', () => {
     });
 
     document.getElementById('userInput').value = 'go left';
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
     await tick();
 
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(true);
@@ -173,7 +218,9 @@ describe('Speculative next-page preparation', () => {
 
     // The writer gives a direction: live generate, page 2 lands
     document.getElementById('userInput').value = 'go left';
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
     await tick();
     expect(previewCalls).toBe(2); // a FRESH preview fired for page 3
 
@@ -192,7 +239,9 @@ describe('Speculative next-page preparation', () => {
     expect(btn.classList.contains('next-page')).toBe(true);
 
     document.getElementById('userInput').value = '';
-    await fw.generateNextPage();
+    const commit = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true); // the free-commit + follow-up review
+    await commit;
     await tick();
     const commits = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/commit-preview'));
     expect(commits).toHaveLength(1); // pressed green, committed - no silent regenerate
@@ -204,6 +253,7 @@ describe('Speculative next-page preparation', () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
+    await fw.maybeStartSpeculative(); // a confirmed write prepares; here it goes stale
     await tick(); // let the prepared preview settle before it goes stale
     fetchMock.mockClear();
     fetchMock.mockImplementation((url, options) => {
@@ -221,7 +271,10 @@ describe('Speculative next-page preparation', () => {
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
 
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true); // the free-commit review
+    expect(await paidReview('confirm')).toBe(true); // stale commit: the live write is NEW paid work, reviewed again
+    await gen;
     await tick();
 
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/commit-preview'))).toBe(true);

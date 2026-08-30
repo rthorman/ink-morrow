@@ -2,9 +2,17 @@
 // are canonical - stories reference the live row, so saves refresh every
 // list that shows the world.
 
+import { approxCostText } from '../core/cost.js';
+import { wireModal } from '../core/dialogs.js';
+import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
+
+const WORLD_IMAGE_ESTIMATE = IMAGE_COST_ESTIMATE.world;
+
 export function createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
+  let imageReviewing = false; // an image cost review is open: no second submission
+  let worldEditorModal = null; // wired lifecycle controller
   let editingWorldId = null;
 
   async function loadWorlds() {
@@ -44,12 +52,28 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
       const title = document.createElement('h4');
       title.textContent = world.name;
       const desc = document.createElement('p');
+      desc.className = 'item-card__desc'; // bounded preview; full text in Edit + AT
       desc.textContent = world.description || 'No description';
       const meta = document.createElement('div');
       meta.className = 'item-meta';
       meta.textContent = [world.genre, world.setting].filter(Boolean).join(' · ') || 'No genre/setting';
 
       const regenerate = async () => {
+        if (imageReviewing) return;
+        imageReviewing = true;
+        const yes = await dialogs.confirmPaid({
+          title: `Repaint the scene for "${world.name}"?`,
+          review: {
+            action: `Paint a new reference scene for the world ${world.name}.`,
+            object: `world "${world.name}"`,
+            quantity: 'one 1K scene painting',
+            sends: `the world's name, setting, and image blurb${world.image_prompt ? '' : ' (auto-composed)'}`,
+            estimate: WORLD_IMAGE_ESTIMATE,
+          },
+          confirmLabel: `Repaint it (${approxCostText(WORLD_IMAGE_ESTIMATE)})`,
+        });
+        imageReviewing = false;
+        if (!yes) return;
         try {
           await apiCall(`/worlds/${world.id}/image`, 'POST');
           loadWorlds();
@@ -121,6 +145,26 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
     // "Create without image" skips the background painting entirely; the
     // default path paints (generate_image omitted = old-client behavior).
     const withoutImage = event.submitter && event.submitter.id === 'worldNoImageBtn';
+    if (!withoutImage) {
+      // Creating a world paints its reference scene by default: the paid
+      // half is reviewed first; cancel keeps every filled field.
+      if (imageReviewing) return;
+      imageReviewing = true;
+      const yes = await dialogs.confirmPaid({
+        title: 'Create this world and paint its scene?',
+        review: {
+          action: 'Create the world, then paint its reference scene in the background.',
+          object: `world "${document.getElementById('worldName').value.trim() || '(unnamed)'}"`,
+          quantity: 'one 1K scene painting',
+          sends: 'the world\'s name, setting, and image blurb (auto-composed when empty)',
+          estimate: WORLD_IMAGE_ESTIMATE,
+          note: '"Create without image" skips the painting entirely.',
+        },
+        confirmLabel: `Create & paint (${approxCostText(WORLD_IMAGE_ESTIMATE)})`,
+      });
+      imageReviewing = false;
+      if (!yes) return;
+    }
     try {
       await apiCall('/worlds', 'POST', {
         name: document.getElementById('worldName').value,
@@ -163,13 +207,11 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
     document.getElementById('worldEditLore').value = world.lore || '';
     document.getElementById('worldEditImagePrompt').value = world.image_prompt || '';
     editorSnapshot = editorValues();
-    modal.hidden = false;
-    document.getElementById('worldEditName').focus();
+    worldEditorModal.open(); // the wired lifecycle: focus entry, scroll lock, opener
   }
 
   function closeWorldEditor() {
-    const modal = document.getElementById('worldEditorModal');
-    if (modal) modal.hidden = true;
+    worldEditorModal.close(); // restores the opener and unlocks the document
     editingWorldId = null;
     editorSnapshot = null;
   }
@@ -228,11 +270,28 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
         (async () => {
           const id = editingWorldId;
           if (!id) return;
+          // Save is free; the repaint is paid and reviewed. Cancel keeps the
+          // editor open with every field as it is.
+          if (imageReviewing) return;
+          imageReviewing = true;
+          const yes = await dialogs.confirmPaid({
+            title: 'Save and repaint the scene?',
+            review: {
+              action: 'Save the edited world fields, then paint a new reference scene.',
+              object: `world "${document.getElementById('worldEditName').value.trim()}"`,
+              quantity: 'one 1K scene painting',
+              sends: 'the world\'s name, setting, and the image blurb from the editor',
+              estimate: WORLD_IMAGE_ESTIMATE,
+            },
+            confirmLabel: `Save & repaint (${approxCostText(WORLD_IMAGE_ESTIMATE)})`,
+          });
+          imageReviewing = false;
+          if (!yes) return;
           try {
             await saveWorldEditor(); // saves the fields (incl. the blurb) first
             await apiCall(`/worlds/${id}/image`, 'POST');
             await loadWorlds();
-            showSuccess('A new scene is being painted (≈$0.04).');
+            showSuccess(`A new scene is being painted (${approxCostText(WORLD_IMAGE_ESTIMATE)}).`);
           } catch (error) {
             showError(error.message);
           }
@@ -246,17 +305,11 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
         saveWorldEditor().catch((error) => showError(error.message));
       });
     }
+    // The complete modal lifecycle (focus trap, Escape/backdrop, opener
+    // restore, scroll lock) is wired once; the dirty guard is the policy.
+    worldEditorModal = wireModal('worldEditorModal', { beforeClose: requestCloseWorldEditor, focusId: 'worldEditName' });
     const cancel = document.getElementById('worldEditCancelBtn');
-    const modal = document.getElementById('worldEditorModal');
-    if (cancel && modal) {
-      cancel.addEventListener('click', requestCloseWorldEditor);
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) requestCloseWorldEditor();
-      });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.hidden) requestCloseWorldEditor();
-      });
-    }
+    if (cancel) cancel.addEventListener('click', requestCloseWorldEditor);
   }
 
   return { loadWorlds, renderWorlds, updateWorldSelects, handleWorldSubmit, openWorldEditor, closeWorldEditor, saveWorldEditor, init };

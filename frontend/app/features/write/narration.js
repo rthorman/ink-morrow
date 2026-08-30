@@ -1,7 +1,12 @@
 // Narration: streaming page read-aloud with pause/resume, autoplay, stop,
 // and idempotent cost settlement per generation id (replays never re-bill).
+// Every narration pass that will hit the paid speech provider first passes
+// the shared cost review; auto-read discloses its remaining-page run once,
+// then flips pages without nagging until stopped.
 
-export function createNarration({ api, state, notify, shell, features }) {
+import { approxCostText } from '../../core/cost.js';
+
+export function createNarration({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
   const { showError, scribeErrorMessage } = notify;
   const { settings, data } = state;
@@ -11,10 +16,72 @@ export function createNarration({ api, state, notify, shell, features }) {
   let narrationAudio = null;
   let narrationGenerationId = null;
   let narrationCacheHit = false;
+  let reviewing = false; // a cost review is open: no second submission
   const appliedNarrationCosts = new Set(); // generation ids already billed this session
 
   function narrationConfigured() {
     return Boolean(settings.narrationModel && settings.narrationVoice);
+  }
+
+  async function speechModelEntry() {
+    try {
+      const models = await features.settings.loadSpeechModels();
+      return models.find((m) => m.id === settings.narrationModel) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  // The per-page review for a single Read-aloud press.
+  async function reviewPageNarration() {
+    if (reviewing) return false;
+    reviewing = true;
+    const entry = await speechModelEntry();
+    const estimate = entry ? features.settings.estimateNarrationCostPerPage(entry) : null;
+    const known = entry && estimate > 0 ? estimate : null;
+    const yes = await dialogs.confirmPaid({
+      title: 'Read this page aloud?',
+      review: {
+        action: `Narrate page ${data.currentPage} of "${data.currentStory?.title}" with the chosen voice.`,
+        object: `page ${data.currentPage} of "${data.currentStory?.title}"`,
+        model: entry ? `${entry.name} · voice ${settings.narrationVoice}` : null,
+        quantity: 'one page of spoken audio',
+        sends: 'the text of this page to the speech provider',
+        estimate: known,
+        note: 'A page you have had read before may be replayed from cache and cost nothing - never promised, just possible.',
+      },
+      confirmLabel: known !== null ? `Read it (${approxCostText(known)})` : 'Read it',
+    });
+    reviewing = false;
+    return yes;
+  }
+
+  // The once-per-run review for Auto-read: every remaining narratable page,
+  // one after the other, stoppable anytime.
+  async function reviewAutoNarration() {
+    if (reviewing) return false;
+    reviewing = true;
+    const entry = await speechModelEntry();
+    const remaining = (data.storyPages || []).filter(
+      (p) => p.page_number >= data.currentPage && !p.image_media_type && String(p.content || '').trim()
+    ).length;
+    const perPage = entry ? features.settings.estimateNarrationCostPerPage(entry) : null;
+    const known = entry && perPage > 0 ? perPage * remaining : null;
+    const yes = await dialogs.confirmPaid({
+      title: 'Keep reading pages aloud?',
+      review: {
+        action: `Auto-read the tale from page ${data.currentPage}: each remaining narratable page is narrated, one after the other, until the end or you stop.`,
+        object: `${remaining} remaining narratable page${remaining === 1 ? '' : 's'} of "${data.currentStory?.title}"`,
+        model: entry ? `${entry.name} · voice ${settings.narrationVoice}` : null,
+        quantity: `${remaining} page${remaining === 1 ? '' : 's'} of spoken audio`,
+        sends: 'the text of each page, as it is reached, to the speech provider',
+        estimate: known,
+        note: 'The ■ control stops the run at any page; pages already read stay read.',
+      },
+      confirmLabel: known !== null ? `Auto-read (${approxCostText(known)})` : 'Auto-read',
+    });
+    reviewing = false;
+    return yes;
   }
 
   function setNarrationState(st) {
@@ -58,7 +125,7 @@ export function createNarration({ api, state, notify, shell, features }) {
       setTimeout(() => {
         if (!narrationAuto || !data.currentStory) return; // user changed their mind meanwhile
         features.write.navigatePage(1); // also stops the finished playback cleanly
-        startNarration();
+        doNarration(); // the auto-read run's consent covers every page it reaches
       }, 350); // a breath between pages
     } else {
       notify.showSuccess('The scribe has read to the end of the written tale.');
@@ -100,7 +167,26 @@ export function createNarration({ api, state, notify, shell, features }) {
     }
   }
 
-  function startNarration() {
+  // The paid entry point: review first, then run. Auto-advance pages already
+  // carry the run's consent and call doNarration directly.
+  async function startNarration() {
+    if (!narrationStateAllowsStart()) return;
+    if (!narrationConfigured()) {
+      showError('Narration is not configured — choose a speech model and voice in Settings.');
+      shell.showSection('settings');
+      features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+      return;
+    }
+    const { currentStory, currentPage, storyPages } = data;
+    if (!currentStory || storyPages.length === 0 || currentPage > storyPages.length) {
+      showError('Select a page to read first.');
+      return;
+    }
+    if (!(await reviewPageNarration())) return; // cancel: zero paid requests
+    doNarration();
+  }
+
+  function doNarration() {
     if (!narrationStateAllowsStart()) return;
     if (!narrationConfigured()) {
       showError('Narration is not configured — choose a speech model and voice in Settings.');
@@ -191,10 +277,26 @@ export function createNarration({ api, state, notify, shell, features }) {
     if (stopBtn) stopBtn.addEventListener('click', stopNarration);
     const autoBtn = document.getElementById('narrationAutoBtn');
     if (autoBtn) {
-      autoBtn.addEventListener('click', () => {
-        narrationAuto = !narrationAuto;
-        autoBtn.setAttribute('aria-pressed', narrationAuto ? 'true' : 'false');
-        autoBtn.classList.toggle('active', narrationAuto);
+      autoBtn.addEventListener('click', async () => {
+        if (narrationAuto) {
+          // ■ : stop the run; any in-flight page finishes this once.
+          narrationAuto = false;
+          autoBtn.setAttribute('aria-pressed', 'false');
+          autoBtn.classList.remove('active');
+          return;
+        }
+        if (!data.currentStory) return; // nothing selected: no run to promise
+        if (!narrationConfigured()) {
+          // Same honest dead end as Read aloud: fix it in Settings.
+          showError('Narration is not configured — choose a speech model and voice in Settings.');
+          shell.showSection('settings');
+          features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+          return;
+        }
+        if (!(await reviewAutoNarration())) return; // cancel keeps auto off
+        narrationAuto = true;
+        autoBtn.setAttribute('aria-pressed', 'true');
+        autoBtn.classList.add('active');
       });
     }
     setNarrationState('idle');

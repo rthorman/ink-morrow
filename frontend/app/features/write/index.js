@@ -96,7 +96,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       state.data.currentPage = Math.max(1, state.data.storyPages.length);
       displayCurrentPage();
       state.resetStoryCost();
-      features.generation.maybeStartSpeculative();
+      // No speculative preview here: selecting a story alone must never
+      // start paid work. The preparation only runs after a confirmed write.
       features.audiobook.refreshAudiobook(); // banner follows the tale (progress, or a fresh result once)
     } catch (error) {
       showError(error.message);
@@ -115,17 +116,23 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const { currentStory, currentPage, storyPages, generating } = state.data;
 
     if (!currentStory) {
+      // A truthful empty desk: no fake page count, every story-dependent
+      // control off (so it can never fire an invalid request), and the
+      // reason spelled out in copy, not just faded grey.
       const placeholder = document.createElement('p');
       placeholder.className = 'placeholder';
-      placeholder.textContent = 'Select a story to begin reading and writing…';
+      placeholder.textContent =
+        'No story selected. Choose a tale from the picker above, or create one from the Library — every writing control sleeps until then.';
       contentDiv.appendChild(placeholder);
       prevBtn.disabled = true;
       nextBtn.disabled = true;
       retryBtn.disabled = true;
       deletePageBtn.disabled = true;
-      document.getElementById('pageIndicator').textContent = 'Page 1 of 1';
+      document.getElementById('exportBtn').disabled = true;
+      document.getElementById('audiobookBtn').disabled = true;
+      document.getElementById('pageIndicator').textContent = 'No story selected';
       setPastPageBar(false, 0, 0);
-      setWritingEnabled(true);
+      setWritingEnabled(false);
       updatePageActionButtons();
       return;
     }
@@ -161,6 +168,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     // A plate has no prose to rewrite: retrying it would paint text over a picture.
     retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length || Boolean(page && page.image_media_type);
     deletePageBtn.disabled = storyPages.length === 0 || currentPage > storyPages.length;
+    // Export and audiobook are story-level actions: they wake with a tale.
+    document.getElementById('exportBtn').disabled = false;
+    document.getElementById('audiobookBtn').disabled = storyPages.length === 0;
     updatePageActionButtons();
 
     // Old pages are read-only: writing continues from the last page only.
@@ -255,8 +265,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const yes = await dialogs.confirmDestructive({
       title: `Delete page ${currentPage}?`,
       body: isPlate
-        ? `Page ${currentPage} of "${currentStory.title}" is a painted plate. It will be permanently deleted; later pages keep their numbers.`
-        : `Page ${currentPage} of "${currentStory.title}" will be permanently deleted. This cannot be undone.`,
+        ? `Page ${currentPage} of "${currentStory.title}" is a painted plate. It will be permanently deleted; later pages move up to close the gap.`
+        : `Page ${currentPage} of "${currentStory.title}" will be permanently deleted and later pages move up to close the gap. This cannot be undone.`,
       confirmLabel: `Delete page ${currentPage}`,
     });
     if (!yes) return;

@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const STORY_STATE = {
   currentStory: { id: 's1', title: 'T', tone: 'explicit', page_count: 2, total_cost_usd: 0 },
@@ -36,6 +36,7 @@ describe('Scene image prompt button', () => {
     fw.__setModelsCache([{ id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} }]);
 
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true); // condensation is paid: reviewed
     await new Promise((r) => setTimeout(r, 0));
 
     const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-prompt') && options.method === 'POST');
@@ -50,6 +51,7 @@ describe('Scene image prompt button', () => {
 
   it('omits model and reasoning when no model override is chosen', async () => {
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-prompt') && options.method === 'POST');
     expect(JSON.parse(call[1].body)).toEqual({});
@@ -57,6 +59,7 @@ describe('Scene image prompt button', () => {
 
   it('cancel closes the popup, Escape too; backdrop click as well', async () => {
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const modal = document.getElementById('imagePromptModal');
     expect(modal.hidden).toBe(false);
@@ -66,6 +69,7 @@ describe('Scene image prompt button', () => {
 
     // Reopen, then Escape closes it
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(modal.hidden).toBe(true);
@@ -74,6 +78,7 @@ describe('Scene image prompt button', () => {
   it('shows the scribe error and restores the button when the LLM fails', async () => {
     fetch.mockImplementation(() => Promise.resolve(jsonResponse(500, { error: 'The muse is mute' })));
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     expect(document.querySelector('.error-message').textContent).toContain('The muse is mute');
@@ -111,9 +116,11 @@ describe('Scene image prompt button', () => {
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptText').value = PROMPT_TEXT;
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true); // the paint press is reviewed
     await new Promise((r) => setTimeout(r, 0));
     const floating = document.querySelector('.error-message');
     expect(floating.textContent).toContain('The muse is mute');
@@ -138,8 +145,10 @@ describe('Scene image prompt button', () => {
     });
 
     document.getElementById('imagePromptBtn').click(); // condense
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptGenerateBtn').click(); // paint
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     // The first paint used the condensed prompt as-is, with the default render
@@ -168,6 +177,7 @@ describe('Scene image prompt button', () => {
     // The user can edit the prompt before painting; the edited text is what's sent
     document.getElementById('imagePromptText').value = PROMPT_TEXT + ' Warmer light.';
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const sceneCalls = fetch.mock.calls.filter(([url, options]) => String(url).includes('/scene-image') && options.method === 'POST');
     expect(JSON.parse(sceneCalls[sceneCalls.length - 1][1].body).prompt).toBe(PROMPT_TEXT + ' Warmer light.');
@@ -190,8 +200,10 @@ describe('Scene image prompt button', () => {
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const body = JSON.parse(fetch.mock.calls.find(([url, options]) => String(url).includes('/scene-image'))[1].body);
     expect(body.render).toBe('medium_2k');
@@ -214,8 +226,10 @@ describe('Scene image prompt button', () => {
     });
 
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     // Rewritten prompt back in the box, announced loudly, viewer stays shut
@@ -256,9 +270,11 @@ describe('Scene image prompt button', () => {
     });
 
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     expect(fw.__sceneModerationState().refusals).toBe(1);
     expect(fw.__sceneModerationState().dropReferences).toBe(false);
@@ -266,12 +282,14 @@ describe('Scene image prompt button', () => {
     expect(lastNotice()).not.toContain('portraits');
 
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     // Second refusal in a row: the portraits are suspected
     expect(fw.__sceneModerationState().dropReferences).toBe(true);
     expect(lastNotice()).toContain('portraits');
 
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     // The escalated press sends drop_references and paints
     const bodies = fetch.mock.calls
@@ -282,6 +300,27 @@ describe('Scene image prompt button', () => {
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
     // Success clears the escalation
     expect(fw.__sceneModerationState()).toEqual({ refusals: 0, dropReferences: false });
+  });
+
+  it('canceling the paint review keeps the prompt box and sends nothing', async () => {
+    fetch.mockImplementation((url, options) => {
+      if (String(url).includes('/scene-image')) {
+        return Promise.resolve(jsonResponse(200, { image: Buffer.from('x').toString('base64'), media_type: 'image/png', cost_usd: 0.04, references: [] }));
+      }
+      if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    document.getElementById('imagePromptText').value = 'A candlelit hall.';
+    fetch.mockClear();
+    document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetch.mock.calls.some(([url, options]) => String(url).includes('/scene-image'))).toBe(false);
+    expect(document.getElementById('imagePromptText').value).toBe('A candlelit hall.');
+    expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
   });
 
   it('narration, autoplay and illustration buttons gray out without a page or mid-write', async () => {
@@ -308,10 +347,11 @@ describe('Scene image prompt button', () => {
 
   it('refuses to paint an empty prompt box', async () => {
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptText').value = '   ';
     document.getElementById('imagePromptGenerateBtn').click();
-    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0)); // no review yet: the empty box refuses first
     expect(document.querySelector('.error-message').textContent).toContain('empty');
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
     expect(fw.state().costs.session).toBeCloseTo(0); // nothing billed
@@ -327,8 +367,10 @@ describe('Scene image prompt button', () => {
     });
 
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     expect(document.querySelector('.error-message').textContent).toContain('The muse is mute');
@@ -468,8 +510,10 @@ describe('Add as page: binding a painting into the story', () => {
 
   async function paintAndOpenViewer(fw) {
     document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
     expect(document.getElementById('imagePromptModal').hidden).toBe(false);

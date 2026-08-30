@@ -67,3 +67,10 @@ body {
   white-space: nowrap;
 }
 
+
+/* A future locked auth state holds the shell back entirely (the dormant
+   gate). Never active while the adapter is disabled. */
+body.st-gated .main-content,
+body.st-gated nav.main-nav {
+  display: none;
+}

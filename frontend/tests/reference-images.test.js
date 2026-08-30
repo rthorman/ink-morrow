@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 function characterRow(overrides = {}) {
   return {
@@ -70,6 +70,7 @@ describe('Reference images on cards', () => {
     });
 
     document.querySelector('#charactersList .card-more__item').click();
+    expect(await paidReview('confirm')).toBe(true); // the repaint is reviewed
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
@@ -77,6 +78,20 @@ describe('Reference images on cards', () => {
     expect(String(post[0])).toBe('/api/characters/c1/image');
     // the list refreshed to the pending state
     expect(document.querySelector('#charactersList .card-image--pending')).toBeTruthy();
+  });
+
+  it('canceling the redo review sends zero image requests and keeps the card', async () => {
+    await boot([characterRow({ id: 'c1', image_status: 'ready' })]);
+    await fw.loadCharacters();
+    global.fetch.mockClear();
+
+    document.querySelector('#charactersList .card-more__item').click();
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+
+    const posts = fetch.mock.calls.filter(([url, options]) => String(url).includes('/image') && options.method === 'POST');
+    expect(posts).toHaveLength(0);
+    expect(document.querySelector('.dialog-manager').hidden).toBe(true);
   });
 
   it('session cost ticks once per painted image, and again after a redo', async () => {

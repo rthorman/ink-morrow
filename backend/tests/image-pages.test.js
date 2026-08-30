@@ -177,6 +177,49 @@ describe('Image pages', () => {
     expect(storedPageFiles()).toHaveLength(0);
   });
 
+  it('renumbers contiguously when a text page around plates is deleted', async () => {
+    const story = await seedStory(); // text 1, 2, 3
+    const plate1 = (await postImagePage(story.id, 1).expect(201)).body.page; // page 2
+    const plate2 = (await postImagePage(story.id, 3).expect(201)).body.page; // page 4
+    expect(storedPageFiles()).toHaveLength(2);
+
+    // Delete the text page BEFORE the first plate (page 1).
+    await request(app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
+    const list = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(list.body.pages.map((p) => p.page_number)).toEqual([1, 2, 3, 4]);
+    // Both plates keep their IDs (files keyed by id) and now sit at 1 and 3.
+    expect(list.body.pages[0].id).toBe(plate1.id);
+    expect(list.body.pages[2].id).toBe(plate2.id);
+    expect(list.body.pages[1].content).toBe('Second page body.');
+    expect(list.body.pages[3].content).toBe('Third page body.');
+    // Both plate files survive and still serve their bytes at the new numbers.
+    expect(storedPageFiles()).toHaveLength(2);
+    await request(app).get(`/api/stories/${story.id}/pages/1/image`).expect(200);
+    await request(app).get(`/api/stories/${story.id}/pages/3/image`).expect(200);
+  });
+
+  it('renumbers the surviving plate after deleting a plate page itself', async () => {
+    const story = await seedStory(); // text 1, 2, 3
+    await postImagePage(story.id, 1).expect(201); // plate A on page 2
+    const plateB = (await postImagePage(story.id, 2).expect(201)).body.page; // plate B on page 3
+    // Layout is [T1, A, B, T2, T3]; deleting the middle text page (4) leaves
+    // [T1=1, A=2, B=3, T3=4].
+    await request(app).delete(`/api/stories/${story.id}/pages/4`).expect(204);
+    const before = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(before.body.pages.map((p) => p.image_media_type)).toEqual([
+      null, 'image/png', 'image/png', null,
+    ]);
+
+    // Delete plate A (page 2): only its file goes; plate B renumbers onto 2.
+    await request(app).delete(`/api/stories/${story.id}/pages/2`).expect(204);
+    expect(storedPageFiles()).toHaveLength(1);
+    const after = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(after.body.pages.map((p) => p.page_number)).toEqual([1, 2, 3]);
+    expect(after.body.pages[1].id).toBe(plateB.id);
+    const res = await request(app).get(`/api/stories/${story.id}/pages/2/image`).expect(200);
+    expect(res.body.equals(PNG_BYTES)).toBe(true);
+  });
+
   it('serves 404 (not 500) for a text page or a missing plate file', async () => {
     const story = await seedStory();
     await request(app).get(`/api/stories/${story.id}/pages/1/image`).expect(404);

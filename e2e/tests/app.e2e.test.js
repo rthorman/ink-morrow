@@ -1,5 +1,14 @@
 import { test, expect } from '@playwright/test';
 
+// The shared cost review gates every paid action in real UI flows: click
+// the confirming button and wait for the dialog to close.
+async function confirmPaidReview(page, label) {
+  const dialog = page.locator('.dialog-manager');
+  await expect(dialog).toBeVisible({ timeout: 5000 });
+  await dialog.locator('button', { hasText: label }).first().click();
+  await expect(dialog).toBeHidden({ timeout: 5000 });
+}
+
 // Helper: pick a <select> option whose label contains `text`, return its value.
 async function selectByLabel(page, selector, text) {
   const option = page.locator(`${selector} option`, { hasText: text }).first();
@@ -44,6 +53,7 @@ test.describe('ScribeTribe UI', () => {
     await page.fill('#worldGenre', 'Dark Fantasy');
     await page.fill('#worldSetting', 'Gothic Medieval');
     await page.locator('#worldForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/); // creating paints the scene by default
 
     await expect(page.locator('#worldName')).toHaveValue('');
     const card = page.locator('#worldsList .item-card', { hasText: 'Gothic Castle Realm' });
@@ -56,6 +66,7 @@ test.describe('ScribeTribe UI', () => {
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'E2E Realm');
     await page.locator('#worldForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' })).toBeVisible({ timeout: 5000 });
 
     // Character in that world (select by visible label, not by guessed value)
@@ -65,12 +76,14 @@ test.describe('ScribeTribe UI', () => {
     await page.fill('#characterDescription', 'A mysterious noblewoman');
     await selectByLabel(page, '#characterWorld', 'E2E Realm');
     await page.locator('#characterForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' })).toBeVisible({ timeout: 5000 });
 
     // Free-roaming second character
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Drifter');
     await page.locator('#characterForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
 
     // Every card carries reference-image controls (e2e key is a dummy, so
@@ -80,10 +93,14 @@ test.describe('ScribeTribe UI', () => {
     await drifterCard.locator('.card-more summary').click();
     await expect(drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' })).toBeVisible();
     await drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' }).click();
+    await confirmPaidReview(page, /Repaint it/); // the repaint is reviewed before it fires
     await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
 
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
     await page.locator('#libraryBtn').click();
+    // Parallel workers share the in-memory server: another test may already
+    // have created stories, which folds the form - reveal it on demand.
+    if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
     await page.fill('#storyTitle', 'The Shadow and the Flame');
     await selectByLabel(page, '#storyWorld', 'E2E Realm');
     await page.selectOption('#storyTone', 'romantic');
@@ -105,6 +122,7 @@ test.describe('ScribeTribe UI', () => {
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Busy Realm');
     await page.locator('#worldForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     const card = page.locator('#worldsList .item-card', { hasText: 'Busy Realm' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
@@ -113,6 +131,7 @@ test.describe('ScribeTribe UI', () => {
     await page.fill('#characterName', 'Busy Body');
     await selectByLabel(page, '#characterWorld', 'Busy Realm');
     await page.locator('#characterForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'Busy Body' })).toBeVisible({ timeout: 5000 });
 
     // Deleting the in-use world: confirm the shared destructive dialog, then
@@ -284,6 +303,7 @@ test.describe('ScribeTribe UI', () => {
     // Choose short, generate
     await page.locator('#aiDraftBody .seg-btn', { hasText: 'Short' }).click();
     await page.locator('#aiDraftBody button', { hasText: 'Ask the scribe' }).click();
+    await confirmPaidReview(page, /Draft it/); // drafting is paid: reviewed
 
     // The draft arrives as editable fields; tweak the name
     const nameField = page.locator('#draft-name');
@@ -305,6 +325,7 @@ test.describe('ScribeTribe UI', () => {
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Editable Soul');
     await page.locator('#characterForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     const card = page.locator('#charactersList .item-card', { hasText: 'Editable Soul' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
@@ -328,6 +349,7 @@ test.describe('ScribeTribe UI', () => {
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Lorebook Realm');
     await page.locator('#worldForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     const card = page.locator('#worldsList .item-card', { hasText: 'Lorebook Realm' });
     await expect(card).toBeVisible({ timeout: 5000 });
 
@@ -365,5 +387,71 @@ test.describe('ScribeTribe UI', () => {
       await page.locator(`#${section}Btn`).click();
       await expect(banner).toBeVisible();
     }
+  });
+
+  test('library is collection-first; New story reveals the form and focuses Title', async ({ page }) => {
+    // A story exists: the collection shows first, the long form is folded
+    const worldRes = await page.request.post('/api/worlds', { data: { name: 'Disclosure Realm' } });
+    const world = (await worldRes.json()).world;
+    await page.request.post('/api/stories', { data: { title: 'A Tale That Exists', world_id: world.id, characters: [] } });
+
+    await page.locator('#libraryBtn').click();
+    await expect(page.locator('#librarySection')).toHaveClass(/active/);
+    await expect(page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#storyCreateWrap')).toBeHidden();
+
+    // New story reveals the form and focuses the first logical field
+    await page.locator('#storyNewBtn').click();
+    await expect(page.locator('#storyCreateWrap')).toBeVisible();
+    await expect(page.locator('#storyTitle')).toBeFocused();
+  });
+
+  test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
+    const longDescription = 'A brass city under twin moons. '.repeat(60);
+    await page.request.post('/api/worlds', { data: { name: 'Longwinded Realm', description: longDescription, generate_image: false } });
+    await page.locator('#worldsBtn').click();
+    const card = page.locator('#worldsList .item-card', { hasText: 'Longwinded Realm' });
+    await expect(card).toBeVisible({ timeout: 5000 });
+
+    // Bounded: the box clamps (scrollHeight exceeds the visible band)...
+    const clamped = await card.locator('.item-card__desc').evaluate((el) => el.scrollHeight > el.clientHeight + 2);
+    expect(clamped).toBe(true);
+    // ...while the FULL text stays in the DOM for assistive tech and editors
+    const inDom = await card.locator('.item-card__desc').evaluate((el) => el.textContent.includes('brass city under twin moons'));
+    expect(inDom).toBe(true);
+    const boxHeight = await card.locator('.item-card__desc').evaluate((el) => el.getBoundingClientRect().height);
+    expect(boxHeight).toBeLessThan(160); // a bounded band, not a wall of prose
+  });
+
+  test('200% zoom and images-disabled modes stay usable', async ({ page }) => {
+    await page.locator('#writeBtn').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+
+    // 200% zoom: no document-level horizontal overflow on desktop/tablet
+    // widths (the phone stretch target in the viewport matrix promises no
+    // overflow at 100% - halving a 390px viewport is beyond its reach).
+    if (page.viewportSize()?.width >= 900) {
+      await page.evaluate(() => { document.body.style.zoom = '2'; });
+      const overflowAtZoom = await page.evaluate(() =>
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      );
+      expect(overflowAtZoom).toBeLessThanOrEqual(2);
+      await page.evaluate(() => { document.body.style.zoom = ''; });
+    }
+
+    // Images disabled: every control, field, and label remains present and
+    // operable (the app never hides meaning inside artwork alone).
+    await page.route('**/*.{png,jpg,jpeg,webp,svg}', (route) => route.abort());
+    await page.route('**/api/*/image', (route) => route.abort());
+    await page.reload();
+    await page.locator('#writeBtn').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    for (const sel of ['#currentStory', '#userInput', '#generateBtn', '#readAloudBtn', '#exportBtn']) {
+      await expect(page.locator(sel)).toBeAttached();
+    }
+    await expect(page.locator('label[for="userInput"]')).toBeAttached(); // labels external to fields
+    await page.locator('#worldsBtn').click();
+    await expect(page.locator('#worldsSection')).toHaveClass(/active/);
+    await expect(page.locator('#worldNewBtn')).toBeAttached();
   });
 });

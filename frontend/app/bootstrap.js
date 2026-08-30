@@ -9,7 +9,7 @@
 import { apiCall, API_BASE_URL } from './core/api.js';
 import { createSharedState, STORY_FONTS } from './core/state.js';
 import { createNotifications } from './core/notifications.js';
-import { createDialogManager, updateSliderFill } from './core/dialogs.js';
+import { createDialogManager } from './core/dialogs.js';
 import { createRouter } from './core/router.js';
 import { createShell, SCRIBE_FLAVOR, updateDiskBanner } from './shell.js';
 import { entityImageBlock, cardActions, createCatalogPoll } from './components/entity-card.js';
@@ -36,10 +36,12 @@ export function initApp() {
   const state = createSharedState();
   const notify = createNotifications();
   const dialogs = createDialogManager();
-  const auth = createDisabledAuthAdapter(); // the seam stays disabled until real security exists
+  // The seam stays disabled until real security exists. The override hook is
+  // a TEST seam only (the real app never sets it): it proves a future blocked
+  // adapter can actually stop route rendering. No credential logic lives here.
+  const auth = window.__stTestAuthAdapter || createDisabledAuthAdapter();
   const authGate = createAuthGate({ auth });
   const shell = createShell({ api, state, notify });
-  shell.updateSliderFill = updateSliderFill;
 
   // Cross-feature registry: features get each other through this bag, never
   // by importing another feature module.
@@ -73,6 +75,7 @@ export function initApp() {
   const bootToken = {};
   window.__stLiveBoot = bootToken;
   let lastRoute = null;
+  let routeTransitionToken = 0; // stale async gate results must not render
   const SECTION_FOR = {
     home: 'home',
     write: 'write',
@@ -83,31 +86,57 @@ export function initApp() {
     settings: 'settings',
   };
 
+  // What a permitted route actually paints. Extracted so the gate result is
+  // the ONLY entry to rendering.
+  function renderRoute(route, previous) {
+    // Leaving the writing desk stops its media; stale streams must not
+    // narrate into another room.
+    if (previous && previous.name === 'write' && route.name !== 'write') {
+      features.narration.stopNarration();
+    }
+    // A true top-level surface change establishes a predictable top
+    // position, instantly - but page turns inside a story and Library tab
+    // switches stay exactly where they are.
+    const section = SECTION_FOR[route.name] || 'home';
+    const previousSection = previous ? SECTION_FOR[previous.name] || 'home' : null;
+    if (previousSection !== section) window.scrollTo(0, 0);
+    shell.showSection(section);
+    if (route.name === 'home') features.home.enter();
+    if (route.name === 'library-stories' || route.name === 'library-bookshelf') {
+      features.library.enter(route);
+      if (route.name === 'library-stories') features.stories.loadStories(); // the shelf is fresh on arrival
+    }
+    if (route.name === 'settings') {
+      features.settings.loadModels().then(features.settings.renderModelList);
+      features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+    }
+    if (route.name === 'worlds') features.worlds.loadWorlds();
+    if (route.name === 'characters') features.characters.loadCharacters();
+    if (route.name === 'write') features.write.enterFromRoute(route.params);
+  }
+
   const router = createRouter({
     isAlive: () => window.__stLiveBoot === bootToken,
     onRoute(route) {
       const previous = lastRoute;
       lastRoute = route;
-      // The auth gate gets the first word; in disabled mode (now, always)
-      // it lets every route through.
+      // The auth gate gets the FIRST word and rendering genuinely awaits it.
+      // A per-transition token keeps a slow older gate result from rendering
+      // after a newer route change - only the newest transition may paint.
+      const token = ++routeTransitionToken;
       authGate.canRender().then((allowed) => {
-        if (!allowed) return; // a future locked state mounts the gate here
+        if (token !== routeTransitionToken) return; // superseded transition
+        if (!allowed) {
+          // A future locked state: no application surface may render. The
+          // shell sleeps until the (future) unlock surface exists - this
+          // branch holds content back; it adds no credential logic.
+          document.body.classList.add('st-gated');
+          for (const el of document.querySelectorAll('.content-section')) el.classList.remove('active');
+          return;
+        }
+        document.body.classList.remove('st-gated');
+        renderRoute(route, previous);
       });
-      // Leaving the writing desk stops its media; stale streams must not
-      // narrate into another room.
-      if (previous && previous.name === 'write' && route.name !== 'write') {
-        features.narration.stopNarration();
-      }
-      shell.showSection(SECTION_FOR[route.name] || 'home');
-      if (route.name === 'home') features.home.enter();
-      if (route.name === 'library-stories' || route.name === 'library-bookshelf') features.library.enter(route);
-      if (route.name === 'settings') {
-        features.settings.loadModels().then(features.settings.renderModelList);
-        features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
-      }
-      if (route.name === 'worlds') features.worlds.loadWorlds();
-      if (route.name === 'characters') features.characters.loadCharacters();
-      if (route.name === 'write') features.write.enterFromRoute(route.params);
     },
     onUnknown(path) {
       notify.showErrorRaw(`That address (${path}) does not lead anywhere in the scriptorium.`);

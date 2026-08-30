@@ -86,6 +86,8 @@ function buildDom() {
           <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
         </div>
         <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
+        <button id="storyNewBtn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
+        <div id="storyCreateWrap" hidden>
         <form id="storyForm">
           <input type="text" id="storyTitle" required>
           <select id="storyWorld"><option value="">No world</option></select>
@@ -107,6 +109,7 @@ function buildDom() {
           </div>
           <button type="submit">Create Story</button>
         </form>
+        </div>
         <div id="storiesList" class="items-grid"></div>
         </div>
         <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
@@ -297,7 +300,28 @@ function jsonResponse(status, body) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) };
 }
 
-export { buildDom, loadScript, mockFetch, jsonResponse, dialogAction };
+// The shared cost review now gates every paid action. Tests click through
+// it with paidReview('confirm') / paidReview('cancel'); the poll tolerates
+// the async hop between an initiating click and the dialog opening.
+async function paidReview(action = 'confirm') {
+  for (let i = 0; i < 200; i++) {
+    const dlg = document.querySelector('.dialog-manager');
+    if (dlg && !dlg.hidden) {
+      const btn = dlg.querySelector(
+        `.dialog-manager__actions .btn-${action === 'confirm' ? 'primary' : 'secondary'}`
+      );
+      if (btn) {
+        btn.click();
+        await new Promise((r) => setTimeout(r, 0));
+        return true;
+      }
+    }
+    await new Promise((r) => setTimeout(r, 0));
+  }
+  return false;
+}
+
+export { buildDom, loadScript, mockFetch, jsonResponse, dialogAction, paidReview };
 
 // Drives the shared dialog manager: waits a tick for the dialog to open,
 // clicks the action button with the given label, waits for the flow to settle.

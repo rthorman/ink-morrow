@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const MODELS = [
   { id: 'or/voice-1', name: 'Voice One', pcm: false, voices: [{ id: 'amber', label: 'Amber' }], pricing: { prompt_per_mchar: 15, completion_per_mtok: 0 } },
@@ -87,6 +87,15 @@ describe('Audiobook modal', () => {
     // The explicit button carries the price; POST carries the chosen narrator
     expect(document.getElementById('audiobookStartBtn').textContent).toContain('Create audiobook (≈$0.0090)');
     document.getElementById('audiobookStartBtn').click();
+    // The final start is the shared paid review: cancel first keeps the modal
+    // flow intact and sends nothing.
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(global.fetch.mock.calls.some(([url, options]) => String(url).includes('/audiobook') && options.method === 'POST')).toBe(false);
+    expect(document.getElementById('audiobookModal').hidden).toBe(false); // reopened with its facts
+
+    document.getElementById('audiobookStartBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
 
     const call = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/audiobook') && options.method === 'POST');

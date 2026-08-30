@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const SPEECH_MODELS = [
   {
@@ -158,6 +158,7 @@ describe('Narration player', () => {
     });
 
     document.getElementById('readAloudBtn').click(); // starting
+    expect(await paidReview('confirm')).toBe(true); // narration is reviewed first
     await new Promise((r) => setTimeout(r, 0));
 
     const audio = fw.__lastNarrationAudio();
@@ -191,6 +192,7 @@ describe('Narration player', () => {
     });
 
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const audio = fw.__lastNarrationAudio();
     audio.dispatchEvent(new Event('playing'));
@@ -222,6 +224,7 @@ describe('Narration player', () => {
     });
 
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const audio = fw.__lastNarrationAudio();
     audio.dispatchEvent(new Event('ended'));
@@ -240,6 +243,7 @@ describe('Narration player', () => {
     });
 
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const audio = fw.__lastNarrationAudio();
     audio.dispatchEvent(new Event('playing'));
@@ -261,11 +265,48 @@ describe('Narration player', () => {
     });
 
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     expect(document.getElementById('readAloudBtn').textContent).toBe('Retry reading');
     expect(document.querySelector('.error-message').textContent).toContain('rate limited');
   });
 });
+describe('Narration consent', () => {
+  it('canceling the read-aloud review sends zero narrate requests', async () => {
+    window.localStorage.clear();
+    const fetchMock = mockFetch();
+    const fw = await loadScript();
+    fw.setSetting('narrationModel', 'or/voice-1');
+    fw.setSetting('narrationVoice', 'amber');
+    fw.__setStoryState(storyState(PAGES));
+    fw.displayCurrentPage();
+    fetchMock.mockClear();
+
+    document.getElementById('readAloudBtn').click();
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/narrate'))).toBe(false);
+    expect(document.getElementById('readAloudBtn').textContent).toBe('Read aloud');
+  });
+
+  it('canceling the auto-read review leaves auto off', async () => {
+    window.localStorage.clear();
+    const fetchMock = mockFetch();
+    const fw = await loadScript();
+    fw.setSetting('narrationModel', 'or/voice-1');
+    fw.setSetting('narrationVoice', 'amber');
+    fw.__setStoryState(storyState(PAGES));
+    fw.displayCurrentPage();
+
+    document.getElementById('narrationAutoBtn').click();
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.getElementById('narrationAutoBtn').classList.contains('active')).toBe(false);
+    expect(fetchMock.mock.calls.some((c) => String(c[0]).includes('/narrate'))).toBe(false);
+  });
+});
+
 describe('Narration autoplay', () => {
   let fw, fetchMock;
 
@@ -299,9 +340,11 @@ describe('Narration autoplay', () => {
     });
 
     document.getElementById('narrationAutoBtn').click(); // autoplay on
+    expect(await paidReview('confirm')).toBe(true); // the run's pages disclosed once
     expect(document.getElementById('narrationAutoBtn').classList.contains('active')).toBe(true);
 
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true); // this page's read: reviewed
     await new Promise((r) => setTimeout(r, 0));
     let audio = fw.__lastNarrationAudio();
     audio.dispatchEvent(new Event('playing'));
@@ -329,7 +372,9 @@ describe('Narration autoplay', () => {
     });
 
     document.getElementById('narrationAutoBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     document.getElementById('readAloudBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
     const audio = fw.__lastNarrationAudio();
     audio.dispatchEvent(new Event('playing'));

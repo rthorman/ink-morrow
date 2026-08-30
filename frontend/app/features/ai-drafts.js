@@ -1,6 +1,10 @@
 // AI drafts: flesh out worlds and characters from the creation form's seed
 // fields. Drafts stay editable inside the modal; saving creates the entity
-// explicitly - generating a draft never silently creates data.
+// explicitly - generating a draft never silently creates data. Every draft
+// pass (first or regeneration) passes the shared paid review first.
+
+import { approxCostText, estimatePageCost } from '../core/cost.js';
+import { wireModal } from '../core/dialogs.js';
 
 const DRAFT_FIELDS = {
   world: [
@@ -20,11 +24,13 @@ const DRAFT_FIELDS = {
 
 const DRAFT_LENGTH_LABELS = { short: 'Short', medium: 'Medium', long: 'Long' };
 
-export function createAiDrafts({ api, state, notify, features }) {
+export function createAiDrafts({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
   const { showSuccess, scribeErrorMessage } = notify;
 
   let aiDraft = null;
+  let draftReviewing = false; // a cost review is open: no second submission
+  let aiDraftModal = null; // wired lifecycle controller // a cost review is open: no second submission
 
   function draftSeedValue(id) {
     const el = document.getElementById(id);
@@ -55,22 +61,47 @@ export function createAiDrafts({ api, state, notify, features }) {
     if (!modal) return;
     aiDraft = { mode, length: 'medium', variant: 1, data: null, generating: false };
     renderAiDraft();
-    modal.hidden = false;
+    aiDraftModal?.open(); // wired lifecycle: focus entry, scroll lock, opener
   }
 
   function closeAiDraft() {
-    const modal = document.getElementById('aiDraftModal');
-    if (modal) modal.hidden = true;
+    aiDraftModal?.close(); // restores the opener, unlocks the document
     aiDraft = null;
   }
 
   async function generateAiDraft() {
     if (!aiDraft || aiDraft.generating) return;
+    if (draftReviewing) return;
+    draftReviewing = true;
+    const seed = draftSeedFor(aiDraft.mode);
+    const seedChars = Object.values(seed).join(' ').length;
+    const estimate = estimatePageCost({
+      models: state.modelsCache,
+      model: state.settings.model,
+      wordsPerPage: 220, // a fleshed-out draft is a medium JSON document
+      pageChars: seedChars,
+    });
+    // Initial draft and every regeneration pass the same paid review; the
+    // draft stays editable and nothing is created until it is saved.
+    const yes = await dialogs.confirmPaid({
+      title: aiDraft.variant > 1 ? 'Draft another variant?' : 'Flesh this out with the AI?',
+      review: {
+        action: `Write a ${DRAFT_LENGTH_LABELS[aiDraft.length].toLowerCase()} draft ${aiDraft.mode} from your seed fields.`,
+        object: `a draft ${aiDraft.mode}${aiDraft.variant > 1 ? `, variant ${aiDraft.variant}` : ''}`,
+        model: state.settings.model || 'the scribe\u2019s default model',
+        quantity: `one ${DRAFT_LENGTH_LABELS[aiDraft.length].toLowerCase()} draft`,
+        sends: 'the seed fields you filled in (name and whatever else you wrote)',
+        estimate,
+        note: 'The draft only becomes a real ' + aiDraft.mode + ' when you save it.',
+      },
+      confirmLabel: estimate === null ? 'Draft it (price unavailable)' : `Draft it (${approxCostText(estimate)})`,
+    });
+    draftReviewing = false;
+    if (!yes) return; // cancel: the modal and its seeds stand untouched
     aiDraft.generating = true;
     aiDraft.error = null;
     renderAiDraft();
     try {
-      const seed = draftSeedFor(aiDraft.mode);
       const res = await apiCall(`/ai/${aiDraft.mode}`, 'POST', {
         ...seed,
         length: aiDraft.length,
@@ -235,19 +266,12 @@ export function createAiDrafts({ api, state, notify, features }) {
   }
 
   function init() {
+    // One wired lifecycle; drafts are discardable without a guard.
+    aiDraftModal = wireModal('aiDraftModal');
     const worldAi = document.getElementById('worldAiBtn');
     if (worldAi) worldAi.addEventListener('click', () => openAiDraft('world'));
     const characterAi = document.getElementById('characterAiBtn');
     if (characterAi) characterAi.addEventListener('click', () => openAiDraft('character'));
-    const modal = document.getElementById('aiDraftModal');
-    if (modal) {
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) closeAiDraft();
-      });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.hidden) closeAiDraft();
-      });
-    }
   }
 
   return { openAiDraft, closeAiDraft, generateAiDraft, regenerateAiDraft, saveAiDraft, renderAiDraft, init };

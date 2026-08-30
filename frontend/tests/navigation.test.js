@@ -103,7 +103,9 @@ describe('Generation loading state', () => {
 
     fw.setGenerating(false);
     expect(fw.state().generating).toBe(false);
-    expect(document.getElementById('generateBtn').disabled).toBe(false);
+    // No story is selected: the desk stays honestly disabled - the writing
+    // controls only wake with a tale.
+    expect(document.getElementById('generateBtn').disabled).toBe(true);
     expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
   });
 });
@@ -116,13 +118,27 @@ describe('Page display and navigation', () => {
     fw = await loadScript();
   });
 
-  it('shows a placeholder when no story is selected', async () => {
+  it('shows a truthful empty desk when no story is selected', async () => {
+    const fetchMock = global.fetch;
+    fetchMock.mockClear();
     fw.resetStoryReader();
     const content = document.getElementById('storyContent');
     expect(content.querySelector('.placeholder')).toBeTruthy();
-    expect(document.getElementById('prevPageBtn').disabled).toBe(true);
-    expect(document.getElementById('nextPageBtn').disabled).toBe(true);
-    expect(document.getElementById('retryBtn').disabled).toBe(true);
+    // No fake "Page 1 of 1": the indicator says it plainly
+    expect(document.getElementById('pageIndicator').textContent).toBe('No story selected');
+    // Every story-dependent control sleeps: direction, write, navigation, media, management
+    for (const id of [
+      'prevPageBtn', 'nextPageBtn', 'retryBtn', 'userInput', 'generateBtn',
+      'deletePageBtn', 'exportBtn', 'audiobookBtn', 'readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn',
+    ]) {
+      expect(document.getElementById(id).disabled).toBe(true);
+    }
+    // Activating the disabled state fires no request and raises no error toast
+    document.getElementById('generateBtn').click();
+    document.getElementById('exportBtn').click();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchMock.mock.calls.length).toBe(0);
+    expect(document.querySelector('.error-message')).toBeNull();
   });
 
   it('renders page text safely via textContent and updates the indicator', async () => {
@@ -154,5 +170,49 @@ describe('Page display and navigation', () => {
     expect(document.getElementById('nextPageBtn').disabled).toBe(true);
     // The hash follows the reader
     expect(window.location.hash).toBe('#/write/s1/page/2');
+  });
+});
+
+describe('Top-level route scroll', () => {
+  it('a surface change scrolls to the top instantly; page turns and Library tabs do not', async () => {
+    window.localStorage.clear();
+    mockFetch();
+    const fw = await loadScript();
+
+    // jsdom has no real layout; the deliberate scroll is observable as a
+    // window.scrollTo call with an instant, top-only target.
+    const scrolls = [];
+    window.scrollTo = (...args) => scrolls.push(args);
+
+    // Library tab change: same surface, position preserved (no scroll call)
+    document.getElementById('libraryBtn').click();
+    await flush();
+    scrolls.length = 0;
+    document.getElementById('libraryBookshelfTab').click();
+    await flush();
+    expect(scrolls).toHaveLength(0);
+
+    // A true surface change establishes the top
+    document.getElementById('worldsBtn').click();
+    await flush();
+    expect(scrolls).toHaveLength(1);
+    expect(scrolls[0][0]).toBe(0);
+
+    // A page turn inside the writing desk does not reset scroll: enter the
+    // desk first (that surface change scrolls once), then turn pages.
+    fw.__setStoryState({
+      currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2 },
+      storyPages: [
+        { page_number: 1, content: 'One.', user_input: null },
+        { page_number: 2, content: 'Two.', user_input: null },
+      ],
+      currentPage: 2,
+    });
+    document.getElementById('writeBtn').click();
+    await flush();
+    scrolls.length = 0; // settled into the Write surface
+    fw.navigatePage(-1); // replace(): a page turn, not a surface change
+    await flush();
+    expect(scrolls).toHaveLength(0);
   });
 });

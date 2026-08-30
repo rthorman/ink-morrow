@@ -233,8 +233,69 @@ describe('Story pages', () => {
     await request(app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
     const res = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(res.body.pages).toHaveLength(1);
-    expect(res.body.pages[0].page_number).toBe(2); // historic numbering preserved
+    expect(res.body.pages[0].page_number).toBe(1); // renumbered, no gap
+    expect(res.body.pages[0].content).toBe('Two');
     await request(app).delete(`/api/stories/${story.id}/pages/99`).expect(404);
+  });
+
+  it('renumbers contiguously after deleting the first, middle, or last page', async () => {
+    for (const n of [1, 2, 3]) {
+      const story = await createStory(app);
+      await addPage(app, story.id, 'One');
+      await addPage(app, story.id, 'Two');
+      await addPage(app, story.id, 'Three');
+
+      await request(app).delete(`/api/stories/${story.id}/pages/${n}`).expect(204);
+      const res = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+      expect(res.body.pages.map((p) => p.page_number)).toEqual([1, 2]);
+      // Surviving content stays associated with its page number slot.
+      const contents = res.body.pages.map((p) => p.content);
+      const expected = ['One', 'Two', 'Three'].filter((_, i) => i + 1 !== n);
+      expect(contents).toEqual(expected);
+    }
+  });
+
+  it('keeps surviving page IDs stable through renumbering', async () => {
+    const story = await createStory(app);
+    const p1 = await addPage(app, story.id, 'One');
+    const p2 = await addPage(app, story.id, 'Two');
+    const p3 = await addPage(app, story.id, 'Three');
+
+    await request(app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
+    const res = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(res.body.pages.map((p) => p.id)).toEqual([p2.id, p3.id]);
+    expect(res.body.pages.map((p) => p.page_number)).toEqual([1, 2]);
+    expect(p1.id).not.toBe(p2.id); // sanity: ids were distinct to begin with
+  });
+
+  it('inserts the next page as N+1 after a deletion (no gap reuse, no duplicate)', async () => {
+    const story = await createStory(app);
+    await addPage(app, story.id, 'One');
+    await addPage(app, story.id, 'Two');
+    await addPage(app, story.id, 'Three');
+
+    await request(app).delete(`/api/stories/${story.id}/pages/2`).expect(204);
+    const next = await addPage(app, story.id, 'Four');
+    expect(next.page_number).toBe(3);
+
+    const res = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(res.body.pages.map((p) => p.page_number)).toEqual([1, 2, 3]);
+    expect(res.body.pages.map((p) => p.content)).toEqual(['One', 'Three', 'Four']);
+  });
+
+  it('invalidates the speculative preview and bumps updated_at on page delete', async () => {
+    const story = await createStory(app);
+    await addPage(app, story.id, 'One');
+    await addPage(app, story.id, 'Two');
+    db.prepare('INSERT INTO story_previews (story_id, expected_page, raw_content) VALUES (?, ?, ?)').run(
+      story.id, 3, 'A prepared page.'
+    );
+    const before = db.prepare('SELECT updated_at FROM stories WHERE id = ?').get(story.id).updated_at;
+
+    await request(app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
+    expect(db.prepare('SELECT * FROM story_previews WHERE story_id = ?').get(story.id)).toBeUndefined();
+    const after = db.prepare('SELECT updated_at FROM stories WHERE id = ?').get(story.id).updated_at;
+    expect(after >= before).toBe(true);
   });
 
   it('404s pages for an unknown story', async () => {

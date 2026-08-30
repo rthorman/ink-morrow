@@ -111,11 +111,11 @@
   }
 
   /* Page navigation: wrap into two rows, every control reachable */
-  .page-navigation {
+  .desk-group--pages {
     flex-wrap: wrap;
   }
 
-  .page-navigation button {
+  .desk-group--pages button {
     flex: 1 1 30%;
     min-width: 0;
   }
@@ -176,12 +176,15 @@
     background: var(--st-ink-900);
   }
 
-  /* The dedicated portrait artwork is a complete tall composition;
-     show it whole rather than cropping the landscape scene. */
+  /* The dedicated portrait artwork stays unmistakable, but it is a
+     deliberately BOUNDED band: a useful action must sit inside the
+     initial viewport, not a full 941×1672 scroll away. The crop anchors
+     to the top of the composition so faces are never cut or covered. */
   .hero__picture img {
-    aspect-ratio: 941 / 1672;
     width: 100%;
-    height: auto;
+    height: min(52vh, 560px);
+    object-fit: cover;
+    object-position: top center;
   }
 
   /* Copy gets its own block below the art so faces stay unobstructed. */
@@ -286,6 +289,7 @@
     border-radius: var(--st-radius-md);
     background: rgb(9 6 13 / 0.82);
   }
+}
 
 /* ------------------------------------------------------------------ */
 /* Home surface: recent manuscripts + scriptorium path                 */

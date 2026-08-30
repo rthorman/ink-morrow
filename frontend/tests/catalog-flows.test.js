@@ -1,4 +1,4 @@
-import { loadScript, mockFetch, jsonResponse, dialogAction } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, dialogAction, paidReview } from './dom-helpers.js';
 
 function flush(ms = 0) {
   return new Promise((r) => setTimeout(r, ms));
@@ -18,6 +18,7 @@ describe('Create without image (generate_image field)', () => {
 
     document.getElementById('worldName').value = 'Painted Vale';
     document.getElementById('worldForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    expect(await paidReview('confirm')).toBe(true); // the default path paints: reviewed
     await flush(0);
     const defaultCall = fetchMock.mock.calls.find(([url, options]) => String(url).endsWith('/worlds') && options.method === 'POST');
     expect(JSON.parse(defaultCall[1].body).generate_image).toBeUndefined(); // old-client behavior preserved

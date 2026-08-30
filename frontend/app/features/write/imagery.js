@@ -5,8 +5,10 @@
 
 import { SCENE_RENDER_VARIANTS } from '../../core/state.js';
 import { formatUsd } from '../../core/dom.js';
+import { approxCostText, estimatePageCost } from '../../core/cost.js';
+import { wireModal } from '../../core/dialogs.js';
 
-export function createImagery({ api, state, notify, shell, features }) {
+export function createImagery({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess, scribeErrorMessage } = notify;
   const { settings, data } = state;
@@ -16,6 +18,9 @@ export function createImagery({ api, state, notify, shell, features }) {
   // twice in a row -> the cast portraits are probably what offends; drop them.
   let sceneRefusals = 0;
   let dropSceneReferences = false;
+  let imageryReviewing = false; // a cost review is open: no second submission
+  let imagePromptModal = null; // wired lifecycle controllers
+  let sceneViewerModal = null;
 
   // Viewer state.
   let sceneViewerDataUrl = null;
@@ -50,14 +55,13 @@ export function createImagery({ api, state, notify, shell, features }) {
     const ext = mediaType === 'image/jpeg' ? 'jpg' : mediaType === 'image/webp' ? 'webp' : 'png';
     sceneViewerFilename = `scene-page-${data.currentStory ? data.currentPage : 0}.${ext}`;
     img.src = dataUrl;
-    modal.hidden = false;
+    sceneViewerModal.open(); // wired lifecycle: the viewer locks the background too
     resetSceneViewer();
   }
 
   function closeSceneViewer() {
-    const modal = document.getElementById('sceneImageViewerModal');
+    sceneViewerModal.close(); // restores focus (to the prompt popup or the opener), unlocks
     const img = document.getElementById('sceneViewerImg');
-    if (modal) modal.hidden = true;
     if (img) img.removeAttribute('src');
     sceneViewerDataUrl = null;
     sceneViewerMediaType = null;
@@ -92,8 +96,7 @@ export function createImagery({ api, state, notify, shell, features }) {
         ...(typeof costUsd === 'number' ? { cost_usd: costUsd } : {}),
       });
       closeSceneViewer();
-      const promptModal = document.getElementById('imagePromptModal');
-      if (promptModal) promptModal.hidden = true;
+      imagePromptModal.close();
       features.generation.discardSpeculative(); // a live write: any prepared next page is stale now
       const list = await apiCall(`/stories/${currentStory.id}/pages`);
       data.storyPages = list.pages || [];
@@ -183,13 +186,39 @@ export function createImagery({ api, state, notify, shell, features }) {
       showError('The prompt box is empty — condense the scene first.');
       return;
     }
+    // The paid paint commitment: resolution, identity references, and the
+    // possible moderation rewrite are all disclosed before the press costs.
+    const variant = SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k';
+    const paintEstimate = variant === 'medium_2k' ? 0.08 : 0.04;
+    const refs = readyCastReferences();
+    if (imageryReviewing) return;
+    imageryReviewing = true;
+    const yes = await dialogs.confirmPaid({
+      title: 'Paint this scene?',
+      review: {
+        action: `Paint page ${currentPage} of "${currentStory.title}" from the prompt in the box.`,
+        object: `page ${currentPage} of "${currentStory.title}"`,
+        quantity: variant === 'medium_2k' ? 'one 2K painting (≈$0.08)' : 'one 1K painting (≈$0.04)',
+        sends: dropSceneReferences
+          ? 'the prompt text only (cast portraits are dropped after repeat refusals)'
+          : refs.length > 0
+            ? `the prompt text and ${refs.length} cast portrait${refs.length === 1 ? '' : 's'} (${refs.join(', ')}) as identity reference${refs.length === 1 ? '' : 's'}`
+            : 'the prompt text only (no cast portraits are ready)',
+        also: 'if the image model refuses, the scribe rewrites the prompt safely and that rewrite is billed',
+        estimate: paintEstimate,
+        note: 'A refusal paints nothing: image billing is all-or-nothing, only the rewrite costs.',
+      },
+      confirmLabel: `Paint it (${approxCostText(paintEstimate)})`,
+    });
+    imageryReviewing = false;
+    if (!yes) return; // cancel: the prompt stays in the box, nothing is sent
     btn.disabled = true;
     btn.textContent = 'Painting…';
     if (costEl) costEl.hidden = true;
     try {
       const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/scene-image`, 'POST', {
         prompt,
-        render: SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k',
+        render: variant,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
         ...(dropSceneReferences ? { drop_references: true } : {}),
@@ -239,6 +268,31 @@ export function createImagery({ api, state, notify, shell, features }) {
     const modal = document.getElementById('imagePromptModal');
     const box = document.getElementById('imagePromptText');
     if (!modal || !box) return;
+    // The condensation itself is paid writing-model work: reviewed first.
+    const page = storyPages.find((p) => p.page_number === currentPage);
+    const estimate = estimatePageCost({
+      models: state.modelsCache,
+      model: settings.model,
+      wordsPerPage: 90, // a condensed scene prompt is short prose
+      pageChars: String(page?.content || '').length,
+    });
+    if (imageryReviewing) return;
+    imageryReviewing = true;
+    const yes = await dialogs.confirmPaid({
+      title: 'Condense this page into a prompt?',
+      review: {
+        action: `Condense page ${currentPage} of "${currentStory.title}" into an editable image prompt.`,
+        object: `page ${currentPage} of "${currentStory.title}"`,
+        model: settings.model || 'the scribe\u2019s default model',
+        quantity: 'a short prompt draft (≈90 words)',
+        sends: 'the text of this page to the writing model',
+        estimate,
+        note: 'You review and may edit the prompt in the box before anything is painted.',
+      },
+      confirmLabel: estimate === null ? 'Condense it (price unavailable)' : `Condense it (${approxCostText(estimate)})`,
+    });
+    imageryReviewing = false;
+    if (!yes) return; // cancel: no condensation, no modal
     if (btn) {
       btn.disabled = true;
       btn.textContent = 'Thinking…';
@@ -263,8 +317,7 @@ export function createImagery({ api, state, notify, shell, features }) {
         costEl.hidden = false;
       }
       updatePaintButtonPrice();
-      modal.hidden = false;
-      box.focus();
+      imagePromptModal.open(); // wired lifecycle: focus entry, scroll lock, opener
     } catch (error) {
       showError(scribeErrorMessage(error.message));
     } finally {
@@ -328,16 +381,10 @@ export function createImagery({ api, state, notify, shell, features }) {
       document.getElementById('sceneViewerAddPageBtn')?.addEventListener('click', addSceneAsPage);
       document.getElementById('sceneViewerSaveBtn')?.addEventListener('click', saveSceneViewer);
       document.getElementById('sceneViewerCloseBtn')?.addEventListener('click', closeSceneViewer);
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) closeSceneViewer();
-      });
-      // Escape closes the viewer FIRST; the prompt popup underneath stays put.
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.hidden) {
-          closeSceneViewer();
-          event.stopImmediatePropagation();
-        }
-      });
+      // The viewer is structurally distinct (an image, not a form) but lives
+      // on the SAME wired lifecycle: on top of the prompt popup in the modal
+      // stack, Escape dismisses the viewer first, focus returns underneath.
+      sceneViewerModal = wireModal('sceneImageViewerModal', { focusId: 'sceneViewerCloseBtn' });
     }
 
     const btn = document.getElementById('imagePromptBtn');
@@ -349,17 +396,10 @@ export function createImagery({ api, state, notify, shell, features }) {
     });
     const generateBtn = document.getElementById('imagePromptGenerateBtn');
     if (generateBtn) generateBtn.addEventListener('click', generateSceneImage);
-    const promptModal = document.getElementById('imagePromptModal');
+    // The prompt popup: no dirty guard - its box keeps its text either way.
+    imagePromptModal = wireModal('imagePromptModal', { focusId: 'imagePromptText' });
     const cancel = document.getElementById('imagePromptCancelBtn');
-    if (promptModal && cancel) {
-      cancel.addEventListener('click', () => { promptModal.hidden = true; });
-      promptModal.addEventListener('click', (event) => {
-        if (event.target === promptModal) promptModal.hidden = true;
-      });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !promptModal.hidden) promptModal.hidden = true;
-      });
-    }
+    if (cancel) cancel.addEventListener('click', () => imagePromptModal.close());
   }
 
   return {

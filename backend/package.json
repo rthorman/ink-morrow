@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe-backend",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Backend API for ScribeTribe",
   "main": "server.js",
   "scripts": {
@@ -23,12 +23,21 @@
   "engines": {
     "node": ">=22.5.0"
   },
-  "keywords": ["fiction", "writing", "api"],
+  "keywords": [
+    "fiction",
+    "writing",
+    "api"
+  ],
   "author": "ScribeTribe",
   "license": "MIT",
   "jest": {
     "testEnvironment": "node",
-    "testMatch": ["**/tests/**/*.test.js"],
-    "collectCoverageFrom": ["src/**/*.js", "server.js"]
+    "testMatch": [
+      "**/tests/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "server.js"
+    ]
   }
 }

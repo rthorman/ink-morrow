@@ -73,9 +73,8 @@ function createStoriesRouter({ store, imageStore, audio }) {
     if (!story) return notFound(res, 'Story not found');
     const page = store.getPageByNumber(story.id, parseInt(req.params.number, 10));
     if (!page) return notFound(res, 'Page not found');
-    store.deletePage(page);
+    store.deletePage(page); // transactional delete + renumber + preview invalidation
     if (page.image_media_type) imageStore.deleteImage('page', page.id);
-    store.invalidatePreview(story.id);
     res.status(204).end();
   });
 

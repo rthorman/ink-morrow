@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const AI_WORLD = {
   name: 'The Ashen Marches',
@@ -41,6 +41,7 @@ describe('AI world drafts', () => {
     segButtons[0].click(); // short
     const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
     genBtn.click();
+    expect(await paidReview('confirm')).toBe(true); // drafting is paid work: reviewed
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const draftCall = fetchMock.mock.calls.find((c) => c[0].includes('/api/ai/world'));
@@ -89,11 +90,13 @@ describe('AI world drafts', () => {
     fw.openAiDraft('world');
     const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
     genBtn.click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
     fetchMock.mockClear();
 
     const regenBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Regenerate'));
     regenBtn.click();
+    expect(await paidReview('confirm')).toBe(true); // every regeneration is reviewed too
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const draftCall = fetchMock.mock.calls.find((c) => c[0].includes('/api/ai/world'));
@@ -136,6 +139,7 @@ describe('AI character drafts', () => {
     fw.openAiDraft('character');
     const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
     genBtn.click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const draftCall = fetchMock.mock.calls.find((c) => c[0].includes('/api/ai/character'));
@@ -156,6 +160,29 @@ describe('AI character drafts', () => {
     expect(document.getElementById('characterDescription').value).toBe('');
   });
 });
+describe('Draft consent', () => {
+  it('canceling the review sends no draft request and keeps the seeds', async () => {
+    const fetchMock = mockFetch();
+    fetchMock.mockImplementation((url, options) => {
+      if (url.includes('/api/ai/world') && options && options.method === 'POST') {
+        return Promise.resolve(jsonResponse(200, { world: { name: 'X' }, cost_usd: 0, model: 'x' }));
+      }
+      return Promise.resolve(jsonResponse(200, { worlds: [] }));
+    });
+    const fw = await loadScript();
+    document.getElementById('worldName').value = 'Ashen';
+    fw.openAiDraft('world');
+    const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
+    genBtn.click();
+    expect(await paidReview('cancel')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/api/ai/world'))).toBe(false);
+    expect(document.getElementById('aiDraftModal').hidden).toBe(false); // seeds still there
+    expect(document.getElementById('worldName').value).toBe('Ashen');
+  });
+});
+
 describe('Scribe-voiced errors', () => {
   it('wraps dependency failures without hiding the reason', async () => {
     const fw = await loadScript();
@@ -186,6 +213,7 @@ describe('Scribe-voiced errors', () => {
     fw.openAiDraft('world');
     const genBtn = [...document.querySelectorAll('#aiDraftBody button')].find((b) => b.textContent.includes('Ask the scribe'));
     genBtn.click();
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const errorLine = document.querySelector('#aiDraftBody .draft-error');

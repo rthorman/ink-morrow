@@ -23,10 +23,25 @@ export function createStories({ api, state, notify, features, dialogs }) {
     const container = document.getElementById('storiesList');
     container.textContent = '';
 
+    // Collection-first: with stories present the long creation form stays
+    // behind New story (the button owns the user's expansion choice); a
+    // genuinely empty library opens the form to walk the novice in.
+    const wrap = document.getElementById('storyCreateWrap');
+    const newBtn = document.getElementById('storyNewBtn');
+    if (wrap) {
+      if (state.data.stories.length === 0) {
+        // Novice-forward: the form is open. (aria-expanded stays the USER's
+        // toggle; the empty state does not claim they pressed anything.)
+        wrap.hidden = false;
+      } else if (newBtn && newBtn.getAttribute('aria-expanded') !== 'true') {
+        wrap.hidden = true;
+      }
+    }
+
     if (state.data.stories.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'placeholder';
-      empty.textContent = 'The shelves are bare. Start a story above.';
+      empty.textContent = 'The shelves are bare - the form below is open to begin your first tale.';
       container.appendChild(empty);
       return;
     }

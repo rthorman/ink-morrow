@@ -1,11 +1,13 @@
 // Audiobooks: the whole tale read aloud as one mp3 through the single
-// global queue. A modal advertises the narrator verdict + estimate and takes
-// a slide-to-confirm; the pending banner carries progress; the ready banner
-// shows once per completed reading; the Bookshelf owns downloads afterwards.
+// global queue. A modal advertises the narrator verdict + estimate; the final
+// start passes the shared paid review; the pending banner carries progress;
+// the ready banner shows once per completed reading; the Bookshelf owns
+// downloads afterwards.
 
 import { formatUsd, formatMinutes, formatMb } from '../../core/dom.js';
+import { wireModal } from '../../core/dialogs.js';
 
-export function createAudiobook({ api, state, notify, shell, features }) {
+export function createAudiobook({ api, state, notify, shell, features, dialogs }) {
   const { apiCall, API_BASE_URL } = api;
   const { showError, scribeErrorMessage } = notify;
   const { settings, data } = state;
@@ -16,6 +18,7 @@ export function createAudiobook({ api, state, notify, shell, features }) {
   // Session + story tick exactly once per completed reading.
   const chargedAudiobooks = new Set();
   let audiobookPollTimer = null;
+  let audiobookModal = null; // wired lifecycle controller
 
   function audiobookTextPages() {
     return data.storyPages.filter((p) => !p.image_media_type && String(p.content || '').trim());
@@ -111,18 +114,39 @@ export function createAudiobook({ api, state, notify, shell, features }) {
       : 'Create audiobook';
     startBtn.disabled = blocked;
     startBtn.dataset.blockedReason = blocked ? (verdict.usable ? 'no narratable pages' : 'narrator unusable') : '';
-    modal.hidden = false;
-    startBtn.focus();
+    audiobookModal?.open(); // wired lifecycle: focus entry, scroll lock, opener
   }
 
   function closeAudiobookModal() {
-    const modal = document.getElementById('audiobookModal');
-    if (modal) modal.hidden = true;
+    audiobookModal?.close(); // restores the opener, unlocks the document
   }
 
   async function startAudiobook() {
     if (!data.currentStory) return;
+    // The final commitment goes through the shared paid review: narrator,
+    // page count, duration, size, and estimate in one place, price on the
+    // confirm button. Cancel keeps the modal flow intact (nothing is sent).
+    const verdict = await audiobookNarratorVerdict();
+    const estimate = audiobookEstimate(verdict.entry);
+    const price = verdict.entry && estimate.cost_usd > 0 ? estimate.cost_usd : null;
     closeAudiobookModal();
+    const yes = await dialogs.confirmPaid({
+      title: 'Read the whole tale aloud?',
+      review: {
+        action: `Bind "${data.currentStory.title}" into a single mp3 audiobook.`,
+        object: `"${data.currentStory.title}", ${estimate.pages} narratable page${estimate.pages === 1 ? '' : 's'}`,
+        model: verdict.entry ? `${verdict.entry.name} · voice ${settings.narrationVoice}` : null,
+        quantity: `≈${formatMinutes(estimate.duration_s)} of listening · ≈${formatMb(estimate.size_bytes)}`,
+        sends: 'the text of every narratable page, page by page, to the speech provider',
+        estimate: price,
+        note: 'Unchanged pages are remembered - regenerating after edits re-bills only what changed.',
+      },
+      confirmLabel: price !== null ? `Create audiobook (≈${formatUsd(price)})` : 'Create audiobook',
+    });
+    if (!yes) {
+      openAudiobookModal();
+      return;
+    }
     try {
       const res = await apiCall(`/stories/${data.currentStory.id}/audiobook`, 'POST', {
         model: settings.narrationModel,
@@ -289,14 +313,10 @@ export function createAudiobook({ api, state, notify, shell, features }) {
     const start = document.getElementById('audiobookStartBtn');
     const cancel = document.getElementById('audiobookCancelBtn');
     if (!modal || !start || !cancel) return;
+    // One wired lifecycle; the modal has no dirty state to guard.
+    audiobookModal = wireModal('audiobookModal', { focusId: 'audiobookStartBtn' });
     cancel.addEventListener('click', closeAudiobookModal);
     start.addEventListener('click', startAudiobook);
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) closeAudiobookModal();
-    });
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !modal.hidden) closeAudiobookModal();
-    });
   }
 
   return {

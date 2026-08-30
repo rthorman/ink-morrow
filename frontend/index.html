@@ -201,9 +201,10 @@
                 </div>
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
                     <div class="list-container">
+                        <button id="storyNewBtn" class="btn btn-primary new-story-btn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
                         <div id="storiesList" class="items-grid"></div>
                     </div>
-                    <div class="create-form">
+                    <div id="storyCreateWrap" class="create-form" hidden>
                         <h3>Create New Story</h3>
                         <form id="storyForm">
                             <label for="storyTitle">Title</label>
@@ -275,9 +276,9 @@
                     <div class="story-reader">
                         <div class="desk-groups">
                             <div class="desk-group desk-group--pages" role="group" aria-label="Page navigation">
-                                <button id="prevPageBtn" type="button">← Previous</button>
+                                <button id="prevPageBtn" class="btn btn-secondary" type="button">← Previous</button>
                                 <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
-                                <button id="nextPageBtn" type="button">Next →</button>
+                                <button id="nextPageBtn" class="btn btn-secondary" type="button">Next →</button>
                             </div>
                             <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
                                 <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
@@ -313,12 +314,12 @@
                             <textarea id="userInput" placeholder="Enter your direction for the next page… (or leave empty to just continue)"></textarea>
                             <div class="action-buttons">
                                 <button id="generateBtn" class="btn btn-primary" type="button">Write next page</button>
-                                <button id="retryBtn" type="button" title="Rewrite the current (last) page with the same direction (billed again)">Rewrite last page</button>
+                                <button id="retryBtn" class="btn btn-secondary" type="button" title="Rewrite the current (last) page with the same direction (billed again)">Rewrite last page</button>
                             </div>
                             <div class="desk-group desk-group--management" role="group" aria-label="Story management">
-                                <button id="exportBtn" type="button">Export EPUB</button>
-                                <button id="audiobookBtn" type="button" title="Generate a whole-story audiobook with the narrator chosen in Settings">Audiobook</button>
-                                <button id="deletePageBtn" class="btn-danger" type="button" title="Delete the page you are viewing">Delete page</button>
+                                <button id="exportBtn" class="btn btn-secondary" type="button">Export EPUB</button>
+                                <button id="audiobookBtn" class="btn btn-secondary" type="button" title="Generate a whole-story audiobook with the narrator chosen in Settings">Audiobook</button>
+                                <button id="deletePageBtn" class="btn btn-danger" type="button" title="Delete the page you are viewing">Delete page</button>
                             </div>
                         </div>
                     </div>
@@ -423,7 +424,7 @@
             <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
             <p id="sceneImageCost" class="scene-image-cost" hidden></p>
             <div class="burn-modal__actions">
-                <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
+                <button id="imagePromptGenerateBtn" type="button" class="btn btn-primary">Generate image</button>
                 <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
@@ -468,7 +469,7 @@
                 <textarea id="charEditImagePrompt" rows="3" maxlength="2000"></textarea>
             </form>
             <div class="burn-modal__actions">
-                <button id="charEditSaveBtn" type="submit" form="characterEditorForm" class="btn">Save</button>
+                <button id="charEditSaveBtn" type="submit" form="characterEditorForm" class="btn btn-primary">Save</button>
                 <button id="charEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
                 <button id="charEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
@@ -493,7 +494,7 @@
                 <textarea id="worldEditImagePrompt" rows="3" maxlength="2000"></textarea>
             </form>
             <div class="burn-modal__actions">
-                <button id="worldEditSaveBtn" type="submit" form="worldEditorForm" class="btn">Save</button>
+                <button id="worldEditSaveBtn" type="submit" form="worldEditorForm" class="btn btn-primary">Save</button>
                 <button id="worldEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
                 <button id="worldEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
@@ -521,7 +522,7 @@
                         </select>
                         <label class="sr-only" for="storyCastAddRelation">Starting connection</label>
                         <input type="text" id="storyCastAddRelation" maxlength="2000" placeholder="starting connection…">
-                        <button id="storyCastAddBtn" type="button" class="btn">Add to cast</button>
+                        <button id="storyCastAddBtn" type="button" class="btn btn-secondary">Add to cast</button>
                     </div>
                 </div>
                 <div id="storyCastDetail" class="cast-edit__detail"></div>

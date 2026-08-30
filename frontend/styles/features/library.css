@@ -610,3 +610,15 @@
     width: 100%;
   }
 }
+
+/* The New story reveal sits with the collection: primary, full-width on
+   narrow shelves, and always within reach. */
+.new-story-btn {
+  margin-bottom: 14px;
+  width: 100%;
+}
+@media (min-width: 640px) {
+  .new-story-btn {
+    width: auto;
+  }
+}

@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const MODELS = [
   { id: 'z-ai/glm-5.1', name: 'GLM 5.1', context_length: 128000, pricing: { prompt_per_mtok: 1.5, completion_per_mtok: 2 } },
@@ -89,7 +89,9 @@ describe('Model picker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect(body.model).toBe('z-ai/glm-5.1');
@@ -107,7 +109,9 @@ describe('Model picker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect('model' in body).toBe(false);
@@ -161,7 +165,9 @@ describe('Cost ticker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 2, content: 'New.', user_input: null, cost_usd: 0.0025 } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     expect(fw.state().costs.session).toBeCloseTo(0.0025, 8);
     const ticker = document.getElementById('costTicker');
@@ -174,7 +180,9 @@ describe('Cost ticker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(200, { page: { page_number: 1, content: 'Redone.', user_input: null, cost_usd: 0.02 } })
     );
-    await fw.retryLastPage();
+    const retry = fw.retryLastPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await retry;
 
     // old page cost 0.01 replaced by 0.02 -> story +0.01
     expect(fw.state().costs.story).toBeCloseTo(0.02, 8);
@@ -186,7 +194,9 @@ describe('Cost ticker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 2, content: 'New.', user_input: null, cost_usd: 0.0025 } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     expect(fw.state().costs.session).toBeCloseTo(0.0025, 8); // still tracked
     expect(document.getElementById('costTicker').hidden).toBe(true);
@@ -211,7 +221,9 @@ describe('Words per page setting', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
     const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect(body.words).toBe(400);
   });
@@ -237,7 +249,9 @@ describe('Words per page setting', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(200, { page: { page_number: 1, content: 'New.', user_input: null, cost_usd: null } })
     );
-    await fw.retryLastPage();
+    const retry = fw.retryLastPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await retry;
     const body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect(body.words).toBe(400);
   });
@@ -299,11 +313,15 @@ describe('Reasoning level selector', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Quick.', user_input: null, cost_usd: null } })
     );
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
     let body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect('reasoning_effort' in body).toBe(false);
 
-    // Reasoning model: effort goes along
+    // Reasoning model: effort goes along (a direction forces the live write,
+    // skipping the prepared-page commit branch entirely)
+    document.getElementById('userInput').value = 'go on';
     fw.setSetting('model', 'z-ai/glm-5.1');
     fw.setSetting('reasoningEffort', 'high');
     fw.__setModelsCache([{ id: 'z-ai/glm-5.1', name: 'GLM', reasoning: true, context_length: 1000, pricing: {} }]);
@@ -316,7 +334,9 @@ describe('Reasoning level selector', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 2, content: 'Deep.', user_input: null, cost_usd: null } })
     );
-    await fw.generateNextPage();
+    const deep = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await deep;
     body = JSON.parse(fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST')[1].body);
     expect(body.reasoning_effort).toBe('high');
   });

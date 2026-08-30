@@ -29,7 +29,7 @@ const PNG_1PX =
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
 test.describe('Audiobook', () => {
-  test('the modal advertises and estimates, the slide starts, the banner carries progress to download', async ({ page }) => {
+  test('the modal advertises and estimates, the reviewed start carries progress to download', async ({ page }) => {
     // The chosen narrator rides in via settings
     await page.addInitScript(() => {
       localStorage.setItem('st-settings', JSON.stringify({ narrationModel: 'or/voice-1', narrationVoice: 'amber' }));
@@ -83,9 +83,21 @@ test.describe('Audiobook', () => {
     await expect(page.locator('#audiobookModalBody')).toContainText('2 pages');
     await expect(page.locator('#audiobookModalBody')).toContainText('$');
 
-    // The explicit paid-review button starts the reading
+    // The explicit paid-review button opens the final shared review; cancel
+    // keeps the modal and sends nothing, confirm starts the reading
     await expect(page.locator('#audiobookStartBtn')).toContainText('Create audiobook (≈$');
     await page.locator('#audiobookStartBtn').click();
+    await expect(page.locator('.dialog-manager')).toBeVisible({ timeout: 5000 });
+    await page.locator('.dialog-manager button', { hasText: 'Cancel' }).click();
+    await expect(page.locator('.dialog-manager')).toBeHidden({ timeout: 5000 });
+    await expect(page.locator('#audiobookModal')).toBeVisible(); // reopened with its facts
+    await page.locator('#audiobookStartBtn').click();
+    const review = page.locator('.dialog-manager');
+    await expect(review).toBeVisible({ timeout: 5000 });
+    await expect(review.locator('.dialog-manager__body')).toContainText('Voice One');
+    await expect(review.locator('.dialog-manager__body')).toContainText('2 narratable pages');
+    await review.locator('button', { hasText: /Create audiobook/ }).first().click();
+    await expect(review).toBeHidden({ timeout: 5000 });
     await expect(page.locator('#audiobookModal')).toBeHidden();
     await expect(page.locator('#audiobookBanner')).toBeVisible();
     await expect(page.locator('#audiobookBannerText')).toContainText('page 0 of 2');

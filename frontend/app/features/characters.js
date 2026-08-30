@@ -2,9 +2,17 @@
 // Base characters are reusable; stories hold mutable state copies (deletion
 // removes the character from story casts, server-side).
 
+import { approxCostText } from '../core/cost.js';
+import { wireModal } from '../core/dialogs.js';
+import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
+
+const CHARACTER_IMAGE_ESTIMATE = IMAGE_COST_ESTIMATE.character;
+
 export function createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
+  let imageReviewing = false; // an image cost review is open: no second submission
+  let characterEditorModal = null; // wired lifecycle controller
   let editingCharacterId = null;
 
   async function loadCharacters() {
@@ -43,12 +51,28 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
       const title = document.createElement('h4');
       title.textContent = character.name;
       const desc = document.createElement('p');
+      desc.className = 'item-card__desc'; // bounded preview; full text in Edit + AT
       desc.textContent = character.description || 'No description';
       const meta = document.createElement('div');
       meta.className = 'item-meta';
       meta.textContent = world ? `World: ${world.name}` : 'Free-roaming (no world)';
 
       const regenerate = async () => {
+        if (imageReviewing) return;
+        imageReviewing = true;
+        const yes = await dialogs.confirmPaid({
+          title: `Repaint the portrait of ${character.name}?`,
+          review: {
+            action: `Paint a new reference portrait for ${character.name}.`,
+            object: `character "${character.name}"`,
+            quantity: 'one 1K portrait painting',
+            sends: `the character's appearance, personality, and image blurb${character.image_prompt ? '' : ' (auto-composed)'}`,
+            estimate: CHARACTER_IMAGE_ESTIMATE,
+          },
+          confirmLabel: `Repaint it (${approxCostText(CHARACTER_IMAGE_ESTIMATE)})`,
+        });
+        imageReviewing = false;
+        if (!yes) return;
         try {
           await apiCall(`/characters/${character.id}/image`, 'POST');
           loadCharacters();
@@ -99,6 +123,26 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
     event.preventDefault();
     const form = event.target;
     const withoutImage = event.submitter && event.submitter.id === 'characterNoImageBtn';
+    if (!withoutImage) {
+      // Creating a character paints their portrait by default: the paid half
+      // is reviewed first; cancel keeps every filled field.
+      if (imageReviewing) return;
+      imageReviewing = true;
+      const yes = await dialogs.confirmPaid({
+        title: 'Create this character and paint their portrait?',
+        review: {
+          action: 'Create the character, then paint their reference portrait in the background.',
+          object: `character "${document.getElementById('characterName').value.trim() || '(unnamed)'}"`,
+          quantity: 'one 1K portrait painting',
+          sends: 'the character\'s sheet (appearance, personality, image blurb)',
+          estimate: CHARACTER_IMAGE_ESTIMATE,
+          note: '"Create without image" skips the painting entirely.',
+        },
+        confirmLabel: `Create & paint (${approxCostText(CHARACTER_IMAGE_ESTIMATE)})`,
+      });
+      imageReviewing = false;
+      if (!yes) return;
+    }
     try {
       await apiCall('/characters', 'POST', {
         ...(withoutImage ? { generate_image: false } : {}),
@@ -156,13 +200,11 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
     document.getElementById('charEditBackground').value = character.background || '';
     document.getElementById('charEditImagePrompt').value = character.image_prompt || '';
     editorSnapshot = editorValues();
-    modal.hidden = false;
-    document.getElementById('charEditName').focus();
+    characterEditorModal.open(); // the wired lifecycle: focus, scroll lock, opener
   }
 
   function closeCharacterEditor() {
-    const modal = document.getElementById('characterEditorModal');
-    if (modal) modal.hidden = true;
+    characterEditorModal.close(); // restores the opener, unlocks the document
     editingCharacterId = null;
     editorSnapshot = null;
   }
@@ -205,11 +247,28 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
         (async () => {
           const id = editingCharacterId;
           if (!id) return;
+          // Save is free; the repaint is paid and reviewed. Cancel keeps the
+          // editor open with every field as it is.
+          if (imageReviewing) return;
+          imageReviewing = true;
+          const yes = await dialogs.confirmPaid({
+            title: 'Save and repaint the portrait?',
+            review: {
+              action: 'Save the edited character fields, then paint a new reference portrait.',
+              object: `character "${document.getElementById('charEditName').value.trim()}"`,
+              quantity: 'one 1K portrait painting',
+              sends: 'the character\'s sheet and the image blurb from the editor',
+              estimate: CHARACTER_IMAGE_ESTIMATE,
+            },
+            confirmLabel: `Save & repaint (${approxCostText(CHARACTER_IMAGE_ESTIMATE)})`,
+          });
+          imageReviewing = false;
+          if (!yes) return;
           try {
             await saveCharacterEditor(); // saves the fields (incl. the blurb) first
             await apiCall(`/characters/${id}/image`, 'POST');
             await loadCharacters();
-            showSuccess('A new portrait is being painted (≈$0.06).');
+            showSuccess(`A new portrait is being painted (${approxCostText(CHARACTER_IMAGE_ESTIMATE)}).`);
           } catch (error) {
             showError(error.message);
           }
@@ -223,17 +282,10 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
         saveCharacterEditor().catch((error) => showError(error.message));
       });
     }
+    // One wired lifecycle; the dirty guard is the close policy.
+    characterEditorModal = wireModal('characterEditorModal', { beforeClose: requestCloseCharacterEditor, focusId: 'charEditName' });
     const cancel = document.getElementById('charEditCancelBtn');
-    const modal = document.getElementById('characterEditorModal');
-    if (cancel && modal) {
-      cancel.addEventListener('click', requestCloseCharacterEditor);
-      modal.addEventListener('click', (event) => {
-        if (event.target === modal) requestCloseCharacterEditor();
-      });
-      document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && !modal.hidden) requestCloseCharacterEditor();
-      });
-    }
+    if (cancel) cancel.addEventListener('click', requestCloseCharacterEditor);
   }
 
   return { loadCharacters, renderCharacters, handleCharacterSubmit, openCharacterEditor, closeCharacterEditor, saveCharacterEditor, init };

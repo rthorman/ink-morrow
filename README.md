@@ -2,7 +2,9 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
-**v3.0.0** is a ground-up reorganization: a modular backend (feature routers + stores), a native-ES-module frontend with hash routing and a shared dialog system, a Home/Library/Write information architecture, explicit centered/ensemble cast shapes, and honest cost-bearing buttons everywhere — with every API route, data schema, and cost guarantee preserved.
+**v3.0.1** is a correctness patch over the v3.0.0 ground-up reorganization: page deletion now renumbers transactionally, every paid action passes an explicit cost review before it fires, the writing desk is truthful when no story is selected, all dialogs share one complete focus/scroll/opener lifecycle, Home's guidance cards and the themed controls render as designed on every viewport, and the dormant auth seam can actually hold rendering back (still no login system — security remains deferred).
+
+**v3.0.0** was the ground-up reorganization itself: a modular backend (feature routers + stores), a native-ES-module frontend with hash routing and a shared dialog system, a Home/Library/Write information architecture, explicit centered/ensemble cast shapes, and honest cost-bearing buttons everywhere — with every API route, data schema, and cost guarantee preserved.
 
 **ScribeTribe is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
 
@@ -21,7 +23,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 | Home (tablet portrait) | Writing desk (tablet portrait) |
 |---|---|
-| ![Home on a tall tablet — dedicated portrait hero](docs/screenshots/home-tablet-portrait.png) | ![The desk on a tall tablet — sticky composer](docs/screenshots/write-tablet-portrait.png) |
+| ![Home on a tall tablet — portrait hero art, bounded so the first action is in reach](docs/screenshots/home-tablet-portrait.png) | ![The desk on a tall tablet — sticky composer](docs/screenshots/write-tablet-portrait.png) |
 
 | Library | Worlds |
 |---|---|
@@ -44,20 +46,20 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Per-story tone setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+)
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — models that can reason before writing expose a reasoning level (low/medium/high) in Settings, with room in the token budget to think
-- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, **not a guarantee** (see the warning above; cap your key)
+- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, **not a guarantee** (see the warning above; cap your key). Every paid action — page writes and rewrites, prepared-page follow-ups, narration, auto-read, audiobooks, scene condensing and painting, AI drafts and regenerations, entity portraits and scenes — opens one shared cost review first: what runs, with which model, what is sent, what else gets billed, and an honest estimate (unknown pricing says **price unavailable**, never $0.00). Canceling a review sends nothing and keeps your text; merely selecting a story never spends a cent
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
 - **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
 - **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
-- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range
+- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range, and deleting any single page renumbers the rest transactionally (page IDs, prose, and painted plates keep their identity; the numbering stays a contiguous 1..N)
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
-- **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; a single explicit **Create audiobook (≈$…)** button starts the reading — a slider is not a price tag. The reading whose banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
+- **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button opens the final shared cost review, and confirming starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Bookshelf** — a shelf of every tale's kept things: bound audiobooks and painted scene plates, downloadable or deletable at any later time
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
 - **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
-- **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one paid-action review (price on the button) across the whole app; every dialog traps focus, restores its opener, and guards dirty drafts on Escape and backdrop
-- **Full test suite** — 321 Jest tests (163 backend + 158 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one paid-action review (price on the button) across the whole app; every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
+- **Full test suite** — 347 Jest tests (170 backend + 177 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -68,7 +70,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 321 Jest tests (163 backend + 158 frontend) pass on-device under Termux
+- All 347 Jest tests (170 backend + 177 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -158,12 +160,13 @@ scribe-tribe/
 │   │       ├── audio/         #   narration cache/segments, audiobook queue
 │   │       ├── library/       #   storage aggregation + EPUB download
 │   │       └── auth/          #   disabled adapter seam (security deferred)
-│   └── tests/                 # Jest + supertest (163 tests)
+│   └── tests/                 # Jest + supertest (170 tests)
 ├── frontend/
 │   ├── index.html             # semantic shell, mount points, dialog templates
 │   ├── app/                   # native ES modules — no build step
 │   │   ├── bootstrap.js       # one context, feature composition, startup
-│   │   ├── core/              # api, router (hash), state, dom, dialogs, notifications
+│   │   ├── core/              # api, router (hash), state, dom, dialogs, notifications,
+│   │   │                      #   cost (the shared paid-review grammar)
 │   │   ├── components/        # shared catalog card anatomy
 │   │   ├── shell.js           # section switching, scribe status, disk banner
 │   │   └── features/          # home, worlds, characters, settings, ai-drafts,
@@ -172,7 +175,7 @@ scribe-tribe/
 │   │                          #   auth/ (disabled adapter + dormant gate)
 │   ├── styles/                # tokens, base, shell, components, features
 │   ├── brand/                 # production art assets (WebP + SVG only)
-│   └── tests/                 # Jest + jsdom (158 tests, native ESM)
+│   └── tests/                 # Jest + jsdom (177 tests, native ESM)
  ├── e2e/                   # Playwright browser tests (chromium + mobile)
  ├── database/              # runtime storage, gitignored: SQLite file,
  │                          #   images/ (portraits + scene plates), audio/ (audiobooks)
@@ -195,11 +198,11 @@ scribe-tribe/
 | GET/PUT/DELETE | `/api/characters/:id` | Fetch / update / delete (removed from casts) |
 | GET/POST | `/api/stories` | List (with parsed cast + page counts) / create |
 | GET/PUT/DELETE | `/api/stories/:id` | Fetch / update (title, world, tone, cast) / delete |
-| GET/POST/DELETE | `/api/stories/:id/pages[/:n]` | List / add / delete pages |
-| DELETE | `/api/stories/:id/pages?after=N` | Burn every page after N (slide-to-confirm in the UI) |
+| GET/POST/DELETE | `/api/stories/:id/pages[/:n]` | List / add / delete pages (deleting one renumbers later pages down, transactionally) |
+| DELETE | `/api/stories/:id/pages?after=N` | Burn every page after N (destructive dialog in the UI) |
 | POST | `/api/stories/:id/pages/generate` | AI-generate the next page (saves it) |
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
-| POST | `/api/stories/:id/pages/preview` | Silently prepare the next page (no direction, nothing saved) |
+| POST | `/api/stories/:id/pages/preview` | Prepare the next page ahead of time (nothing saved until committed). The client only calls this as a disclosed follow-up of a confirmed action — never on passive story selection |
 | POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
 | POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
 | POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; drop_references=true omits them). A moderation refusal returns `{refused, reason, sanitized_prompt}` instead of repainting — the client announces and waits for a fresh press |
@@ -226,7 +229,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (163) + frontend (158) Jest suites — runs on Termux too
+npm test             # lint + backend (170) + frontend (177) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # frontend Jest runs native ESM: cd frontend && npm test (uses --experimental-vm-modules)

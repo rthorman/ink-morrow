@@ -8,6 +8,15 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
+// The shared cost review now gates every paid action in real UI flows:
+// click the confirming button and wait for the dialog to close.
+async function confirmPaidReview(page, label) {
+  const dialog = page.locator('.dialog-manager');
+  await expect(dialog).toBeVisible({ timeout: 5000 });
+  await dialog.locator('button', { hasText: label }).first().click();
+  await expect(dialog).toBeHidden({ timeout: 5000 });
+}
+
 async function createStoryViaUi(page, title) {
   // These tests exercise generation, not casting - build the minimal legal
   // cast (one Main Character) through the API, then select the story in the UI.
@@ -68,6 +77,7 @@ test.describe('AI generation flows (mocked)', () => {
 
     await page.fill('#userInput', 'Enter the castle');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
 
     // Scribe flavor/status appears while working, then the page renders
     await expect(page.locator('#storyContent')).toContainText('The brave knight approached', { timeout: 5000 });
@@ -80,9 +90,11 @@ test.describe('AI generation flows (mocked)', () => {
 
     await page.fill('#userInput', 'Enter the castle');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#storyContent')).toContainText('The brave knight approached', { timeout: 5000 });
 
     await page.locator('#retryBtn').click();
+    await confirmPaidReview(page, /Write it/); // rewrites are reviewed too
     await expect(page.locator('#storyContent')).toContainText('Rewritten: the castle loomed', { timeout: 5000 });
   });
 
@@ -98,6 +110,7 @@ test.describe('AI generation flows (mocked)', () => {
     await createStoryViaUi(page, 'Error Test');
     await page.fill('#userInput', 'Try anyway');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
 
     await expect(page.locator('.error-message').first()).toContainText('no ink', { timeout: 5000 });
     // Buttons recover
@@ -131,6 +144,7 @@ test.describe('AI generation flows (mocked)', () => {
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Context Realm');
     await page.locator('#worldForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/); // create paints its scene by default
     await expect(page.locator('#worldsList .item-card', { hasText: 'Context Realm' })).toBeVisible({ timeout: 5000 });
 
     await page.locator('#charactersBtn').click();
@@ -138,9 +152,11 @@ test.describe('AI generation flows (mocked)', () => {
     await page.fill('#characterName', 'Sir Context');
     await selectByLabel(page, '#characterWorld', 'Context Realm');
     await page.locator('#characterForm .btn-primary').click();
+    await confirmPaidReview(page, /Create & paint/);
     await expect(page.locator('#charactersList .item-card', { hasText: 'Sir Context' })).toBeVisible({ timeout: 5000 });
 
     await page.locator('#libraryBtn').click();
+    if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
     await page.fill('#storyTitle', 'Context Story');
     await selectByLabel(page, '#storyWorld', 'Context Realm');
     await page.selectOption('#storyTone', 'explicit');
@@ -154,6 +170,7 @@ test.describe('AI generation flows (mocked)', () => {
 
     await page.fill('#userInput', 'Sir Context opens the tome');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#storyContent')).toContainText('Mock page.', { timeout: 5000 });
 
     expect(seenRequests).toHaveLength(1);
@@ -164,6 +181,7 @@ test.describe('AI generation flows (mocked)', () => {
     await createStoryViaUi(page, 'Export Test');
     await page.fill('#userInput', 'Enter the castle');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#storyContent')).toContainText('The brave knight approached', { timeout: 5000 });
 
     const downloadPromise = page.waitForEvent('download');
@@ -183,7 +201,7 @@ test.describe('AI generation flows (mocked)', () => {
   });
 });
 test.describe('Reading old pages and burning the rest', () => {
-  test('old pages are read-only; burn-after truncates via the slider', async ({ page }) => {
+  test('old pages are read-only; burn-after truncates through the destructive dialog', async ({ page }) => {
     // Two pages: generate a second one after the first
     await page.route('**/api/stories/*/pages/generate', async (route) => {
       await route.fulfill({
@@ -212,6 +230,7 @@ test.describe('Reading old pages and burning the rest', () => {
 
     // Generate the second page, then step back to page 1
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
@@ -236,6 +255,63 @@ test.describe('Reading old pages and burning the rest', () => {
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
     await expect(page.locator('#userInput')).toBeEnabled(); // page 1 is the last page again
+  });
+});
+
+test.describe('Single-page deletion renumbers (real backend)', () => {
+  test('deleting the middle page closes the gap and the next page lands on N+1', async ({ page }) => {
+    const story = await createStoryViaUi(page, 'Renumber Test');
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page one.' } });
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page two.' } });
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page three.' } });
+    await page.selectOption('#currentStory', story.id);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+
+    // Step to the middle page and delete it through the real endpoint.
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await page.locator('#deletePageBtn').click();
+    await expect(page.locator('.dialog-manager')).toBeVisible();
+    await expect(page.locator('.dialog-manager__body')).toContainText('move up to close the gap');
+    await page.locator('.dialog-manager button', { hasText: 'Delete page 2' }).click();
+
+    // Contiguous again: old page 3 now sits at 2, reader lands on an existing page.
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
+    await expect(page.locator('#storyContent')).toContainText('Renumber page three.');
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#storyContent')).toContainText('Renumber page one.');
+
+    // The next written page takes 3 — no gap reuse, no duplicate. The reload
+    // proves the numbering comes from the database, not in-page state; the
+    // hash still points at page 1, so the reader restores there.
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page four.' } });
+    await page.reload();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 3', { timeout: 5000 });
+    await expect(page.locator('#storyContent')).toContainText('Renumber page one.');
+
+    // Walk forward: the renumbered middle and the new tail are both honest.
+    await page.locator('#nextPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await expect(page.locator('#storyContent')).toContainText('Renumber page three.');
+    await page.locator('#nextPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+    await expect(page.locator('#storyContent')).toContainText('Renumber page four.');
+  });
+
+  test('deleting the first page renumbers the rest through the reader', async ({ page }) => {
+    const story = await createStoryViaUi(page, 'Renumber First Test');
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Firstborn page.' } });
+    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Secondborn page.' } });
+    await page.selectOption('#currentStory', story.id);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
+
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
+    await page.locator('#deletePageBtn').click();
+    await page.locator('.dialog-manager button', { hasText: 'Delete page 1' }).click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
+    await expect(page.locator('#storyContent')).toContainText('Secondborn page.');
   });
 });
 
@@ -269,8 +345,10 @@ test.describe('Speculative next-page preparation', () => {
 
     await createStoryViaUi(page, 'Instant Test');
 
-    // First page via the normal flow
+    // First page via the normal flow (the review also disclosed the follow-up
+    // preparation, so the scribe may prepare on her own afterwards)
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
 
     // The scribe prepares the next page on her own; Generate turns into a green Next Page
@@ -281,8 +359,9 @@ test.describe('Speculative next-page preparation', () => {
     await expect(page.locator('#generateBtn')).toHaveText('Write next page');
     await page.fill('#userInput', '');
 
-    // Empty direction -> instant commit of the prepared page
+    // Empty direction -> the free-commit review, then instant commit
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, 'Use prepared page');
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(page.locator('#storyContent')).toContainText('The prepared continuation');
     // The scribe immediately prepares the next page (chained speculation)
@@ -353,6 +432,7 @@ test.describe('Narration (read aloud)', () => {
     // Unconfigured: the control explains instead of failing silently
     await createStoryViaUi(page, 'Narration Test');
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/); // the write review precedes the paid call
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
     await page.locator('#readAloudBtn').click();
     await expect(page.locator('#settingsSection')).toHaveClass(/active/);
@@ -367,14 +447,17 @@ test.describe('Narration (read aloud)', () => {
     // Read aloud: streams, plays, completes, and bills exactly once
     await page.locator('#writeBtn').click();
     await page.locator('#readAloudBtn').click();
+    await confirmPaidReview(page, /Read it/); // narration passes the paid review
     await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 5000 });
     expect(narrateCalls).toBe(1);
     await expect
       .poll(() => costCalls, { timeout: 5000 })
       .toBeGreaterThanOrEqual(1);
 
-    // Replaying in-session uses the cache and never bills again
+    // Replaying in-session uses the cache and never bills again (the review
+    // is still shown: a cache hit is possible, never promised)
     await page.locator('#readAloudBtn').click(); // Read again
+    await confirmPaidReview(page, /Read it/);
     await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 5000 });
     expect(narrateCalls).toBe(2);
     const costBefore = costCalls;
@@ -393,13 +476,16 @@ test.describe('Narration (read aloud)', () => {
       })
     );
     await page.locator('#generateBtn').click();
+    await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
 
     await page.locator('#narrationAutoBtn').click(); // autoplay on
+    await confirmPaidReview(page, /Auto-read/); // the run's remaining pages disclosed once
     await page.locator('#prevPageBtn').click(); // back to page one
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
     await page.locator('#readAloudBtn').click(); // starts the chain on page one
+    await confirmPaidReview(page, /Read it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 8000 }); // flipped automatically
     await expect(page.locator('#readAloudBtn')).toHaveText('Read again', { timeout: 8000 }); // tale exhausted
   });
@@ -445,6 +531,7 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
 
     await page.locator('#imagePromptBtn').click();
+    await confirmPaidReview(page, /Condense it/); // the condensation is paid work
     await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#imagePromptText')).toHaveValue(
       'A candlelit gothic hall, wide cinematic shot, frost on black stone.'
@@ -466,6 +553,7 @@ test.describe('Scene image prompt', () => {
     });
     await page.fill('#imagePromptText', 'A candlelit gothic hall, warmer light.');
     await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/); // resolution + references disclosed
     await sentBody;
     await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#sceneViewerImg')).toBeVisible();
@@ -529,8 +617,10 @@ test.describe('Scene image prompt', () => {
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
     await page.locator('#imagePromptBtn').click();
+    await confirmPaidReview(page, /Condense it/); // the condensation is paid work
     await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
     await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
     await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
 
     await page.locator('#sceneViewerAddPageBtn').click();

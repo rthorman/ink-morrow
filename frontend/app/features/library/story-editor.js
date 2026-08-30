@@ -8,6 +8,8 @@ const CAST_EDIT_FIELDS = [
   { key: 'relationship_to_mc', label: 'Relationship to the Main Character', mc: false },
 ];
 
+import { wireModal } from '../../core/dialogs.js';
+
 export function createStoryEditor({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess, scribeErrorMessage } = notify;
@@ -227,6 +229,11 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       storyCast = [];
       renderCastBuilder();
       document.getElementById('storyTone').value = 'fade-to-black';
+      // The tale exists now: the library is collection-first again.
+      const wrap = document.getElementById('storyCreateWrap');
+      if (wrap) wrap.hidden = true;
+      const newBtn = document.getElementById('storyNewBtn');
+      if (newBtn) newBtn.setAttribute('aria-expanded', 'false');
       await features.stories.loadStories();
       features.write.openStory(data.story.id);
       showSuccess('Story created.');
@@ -242,6 +249,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   let castEditSelected = null; // member id whose detail sheet is open
   let castEditSnapshot = null; // entries as loaded; drift means "dirty"
   let castEditSaved = false; // last save result for the status line
+  let storyCastModal = null; // wired lifecycle controller
 
   function castEditCharacter(id) {
     return state.data.characters.find((c) => c.id === id) || null;
@@ -285,15 +293,14 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       castEditSaved = false;
       castEditSelected = castEdit.entries.length > 0 ? castEdit.entries[0].id : null;
       renderStoryCastEditor();
-      modal.hidden = false;
+      storyCastModal?.open(); // wired lifecycle: focus entry, scroll lock, opener
     } catch (error) {
       showError(scribeErrorMessage(error.message));
     }
   }
 
   function closeStoryCastEditor() {
-    const modal = document.getElementById('storyCastModal');
-    if (modal) modal.hidden = true;
+    storyCastModal?.close(); // restores the opener, unlocks the document
     castEdit = null;
     castEditSnapshot = null;
     castEditSelected = null;
@@ -705,20 +712,15 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       });
     }
 
-    const modal = document.getElementById('storyCastModal');
     const save = document.getElementById('storyCastSaveBtn');
     const cancel = document.getElementById('storyCastCancelBtn');
     const add = document.getElementById('storyCastAddBtn');
-    if (!modal || !save || !cancel) return;
+    if (!save || !cancel) return;
+    // One wired lifecycle; the dirty guard is the close policy.
+    storyCastModal = wireModal('storyCastModal', { beforeClose: requestCloseStoryCastEditor });
     save.addEventListener('click', saveStoryCastEditor);
     cancel.addEventListener('click', requestCloseStoryCastEditor);
     if (add) add.addEventListener('click', addCastEditorMember);
-    modal.addEventListener('click', (event) => {
-      if (event.target === modal) requestCloseStoryCastEditor();
-    });
-    document.addEventListener('keydown', (event) => {
-      if (event.key === 'Escape' && !modal.hidden) requestCloseStoryCastEditor();
-    });
   }
 
   return {

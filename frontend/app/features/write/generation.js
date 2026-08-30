@@ -2,11 +2,14 @@
 // preview survives server restarts server-side; on this side a per-attempt
 // token guarantees a stale in-flight response can never turn the button
 // green, and a direction-generate always discards first so a FRESH preview
-// fires after it.
+// fires after it. Paid boundaries: every write/rewrite/commit that will also
+// prepare the next page goes through the shared cost review first; a story
+// selection alone never spends anything.
 
 import { SCRIBE_FLAVOR, SCRIBE_DONE, SCRIBE_ERROR } from '../../shell.js';
+import { approxCostText, estimatePageCost } from '../../core/cost.js';
 
-export function createGeneration({ api, state, notify, shell, features }) {
+export function createGeneration({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
   const { showError } = notify;
   const { settings, data } = state;
@@ -14,6 +17,48 @@ export function createGeneration({ api, state, notify, shell, features }) {
   let speculative = null; // { storyId, ready, token }
   let speculativeToken = 0; // in-flight responses must match their own token
   let flavorTimer = null;
+  let reviewing = false; // a cost review is open: no second submission path
+
+  // Rough context size (the provider bills prompt tokens for it): the last
+  // CONTEXT_WINDOW pages are sent verbatim.
+  function contextChars() {
+    const pages = (data.storyPages || []).slice(-5);
+    return pages.reduce((sum, p) => sum + (p.content || '').length, 0);
+  }
+
+  function pageEstimate() {
+    return estimatePageCost({
+      models: state.modelsCache,
+      model: settings.model,
+      wordsPerPage: settings.wordsPerPage,
+      pageChars: contextChars(),
+    });
+  }
+
+  // The review every write shares: the page itself plus the follow-up
+  // preparation, disclosed as one commitment.
+  async function reviewWrite({ action, object, quantity, sends, also }) {
+    const estimate = pageEstimate();
+    const previewEstimate = pageEstimate();
+    const note = estimate === null
+      ? 'The price of the configured model is unknown to this client; the provider will bill it.'
+      : 'Longer tales cost slightly more: the whole recent context is sent with each write.';
+    const yes = await dialogs.confirmPaid({
+      title: 'Send this to the paid scribe?',
+      review: {
+        action,
+        object,
+        model: settings.model || 'the scribe\u2019s default model',
+        quantity,
+        sends,
+        also: also ? `${also} (${approxCostText(previewEstimate)})` : null,
+        estimate,
+        note,
+      },
+      confirmLabel: estimate === null ? 'Write it (price unavailable)' : `Write it (${approxCostText(estimate)})`,
+    });
+    return yes;
+  }
 
   function updateSpeculativeUi() {
     const btn = document.getElementById('generateBtn');
@@ -121,6 +166,25 @@ export function createGeneration({ api, state, notify, shell, features }) {
       speculative.ready &&
       speculative.storyId === currentStory.id
     ) {
+      if (reviewing) return;
+      reviewing = true;
+      // Committing is free (the preview was billed when it was prepared) -
+      // but preparing the SUCCESSOR is a fresh spend, so it is disclosed
+      // here, before the commit releases it.
+      const nextEstimate = pageEstimate();
+      const yes = await dialogs.confirmPaid({
+        title: 'Use the prepared page?',
+        review: {
+          action: `Commit the prepared page ${storyPages.length + 1} of "${currentStory.title}". Its cost was already paid when it was prepared.`,
+          quantity: `the prepared page ${storyPages.length + 1} (already spent)`,
+          also: `then prepare the next page for what may follow (${approxCostText(nextEstimate)})`,
+          estimate: 0,
+          note: 'Using the prepared page itself bills nothing; only the follow-up preparation is new spend.',
+        },
+        confirmLabel: 'Use prepared page',
+      });
+      reviewing = false;
+      if (!yes) return; // cancel: no commit, no follow-up, direction kept
       setGenerating(true);
       let committed = false;
       try {
@@ -139,7 +203,7 @@ export function createGeneration({ api, state, notify, shell, features }) {
         setGenerating(false);
       }
       if (committed) {
-        maybeStartSpeculative(); // prepare the next one
+        maybeStartSpeculative(); // consented: the review disclosed it
         return;
       }
     }
@@ -148,6 +212,21 @@ export function createGeneration({ api, state, notify, shell, features }) {
     // invalidates whatever preview the server holds, so any in-flight
     // speculative response is stale and must never turn the button green.
     discardSpeculative();
+
+    if (reviewing) return;
+    reviewing = true;
+    const yes = await reviewWrite({
+      action: userInput
+        ? `Write page ${storyPages.length + 1} of "${currentStory.title}" from your direction.`
+        : `Write page ${storyPages.length + 1} of "${currentStory.title}", continuing naturally.`,
+      object: `"${currentStory.title}", new page ${storyPages.length + 1}`,
+      quantity: `≈${settings.wordsPerPage} words of new prose`,
+      sends: 'your direction, the world, the cast, and the last few pages',
+      also: 'then prepare the next page for what may follow',
+    });
+    reviewing = false;
+    if (!yes) return; // cancel: no request, the direction stays in the field
+
     await generateNextPageLive(userInput);
   }
 
@@ -188,6 +267,18 @@ export function createGeneration({ api, state, notify, shell, features }) {
       showError('Retry works on the last page only - navigate there first.');
       return;
     }
+    if (reviewing) return;
+    reviewing = true;
+    const yes = await reviewWrite({
+      action: `Rewrite page ${storyPages.length} of "${currentStory.title}" with its original direction. Rewrites are billed in full.`,
+      object: `"${currentStory.title}", rewriting page ${storyPages.length}`,
+      quantity: `≈${settings.wordsPerPage} words rewritten from scratch`,
+      sends: 'the same direction as the original page, the world, the cast, and the last few pages',
+      also: 'then prepare the next page for what may follow',
+    });
+    reviewing = false;
+    if (!yes) return; // cancel: the existing page stands, nothing is sent
+
     setGenerating(true);
     try {
       const oldCost = typeof storyPages[storyPages.length - 1]?.cost_usd === 'number'

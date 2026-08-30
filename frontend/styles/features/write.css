@@ -63,13 +63,6 @@
   display: none;
 }
 
-/* A blocked slider must look unable, not merely unwilling */
-input[type="range"]:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-
 /* ------------------------------------------------------------------ story reader */
 
 .story-reader {
@@ -96,37 +89,9 @@ input[type="range"]:disabled {
   font-size: 1.05rem;
 }
 
-.page-navigation {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
-  padding: 12px 14px;
-  background: var(--st-surface-2);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
-}
-
-.page-navigation button {
-  min-height: var(--st-touch-min);
-  padding: 8px 16px;
-  background: var(--st-surface-3);
-  color: var(--st-vellum-200);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-ui);
-  cursor: pointer;
-  transition:
-    background-color var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease;
-}
-
-.page-navigation button:hover:not(:disabled) {
-  background: var(--st-oxblood-700);
-  color: var(--st-vellum-100);
-  border-color: var(--st-gold-500);
-}
+/* Pagination buttons carry .btn .btn-secondary (the shared variant contract);
+   this group only shapes their container. The container look itself lives
+   with the other desk groups below. */
 
 .page-indicator {
   font-family: var(--st-font-mono);
@@ -198,32 +163,8 @@ input[type="range"]:disabled {
   gap: 12px;
 }
 
-.action-buttons button {
-  min-height: var(--st-touch-min);
-  padding: 10px 20px;
-  font-family: var(--st-font-ui);
-  font-size: 1rem;
-  border-radius: var(--st-radius-md);
-  cursor: pointer;
-  background: var(--st-surface-3);
-  color: var(--st-vellum-200);
-  border: 1px solid var(--st-border-bright);
-  transition:
-    background-color var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease,
-    border-color var(--st-duration-fast) ease,
-    transform var(--st-duration-fast) var(--st-ease-out);
-}
-
-.action-buttons button:hover:not(:disabled) {
-  background: var(--st-ink-700);
-  border-color: var(--st-gold-500);
-  color: var(--st-vellum-50);
-}
-
-.action-buttons button:active:not(:disabled) {
-  transform: scale(0.97);
-}
+/* Composer buttons carry .btn variants (primary writes, secondary rewrites);
+   this container adds nothing visual. */
 
 /* Prepared next page: the same button, same dimensions - a gothic deep
    forest green with tarnished-gold edging and vellum lettering. */
@@ -332,7 +273,7 @@ input[type="range"]:disabled {
   border-radius: inherit;
   background:
     linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
-    url('brand/hero-scriptorium-tablet-landscape.webp') center / cover no-repeat;
+    url('../../brand/hero-scriptorium-tablet-landscape.webp') center / cover no-repeat;
   filter: saturate(0.65);
   pointer-events: none;
 }
@@ -349,7 +290,17 @@ input[type="range"]:disabled {
   #writeSection.scriptorium-bg::before {
     background:
       linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
-      url('brand/hero-scriptorium-desktop.webp') center / cover no-repeat;
+      url('../../brand/hero-scriptorium-desktop.webp') center / cover no-repeat;
+  }
+}
+
+/* Tablet portrait gets the dedicated portrait composition, not the
+   landscape scene cropped thin. */
+@media (min-width: 768px) and (max-width: 1199px) and (orientation: portrait) {
+  #writeSection.scriptorium-bg::before {
+    background:
+      linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
+      url('../../brand/hero-scriptorium-tablet-portrait.webp') center / cover no-repeat;
   }
 }
 
@@ -357,7 +308,7 @@ input[type="range"]:disabled {
   #writeSection.scriptorium-bg::before {
     background:
       linear-gradient(180deg, rgb(9 6 13 / 0.88), rgb(9 6 13 / 0.94)),
-      url('brand/vesper-quill.webp') top center / cover no-repeat;
+      url('../../brand/vesper-quill.webp') top center / cover no-repeat;
   }
 }
 

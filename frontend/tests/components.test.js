@@ -1,7 +1,7 @@
 'use strict';
 
 import { jest } from '@jest/globals';
-import { loadScript, mockFetch, jsonResponse, dialogAction } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, dialogAction, paidReview } from './dom-helpers.js';
 
 describe('Worlds components', () => {
   let fw;
@@ -52,6 +52,8 @@ describe('Worlds components', () => {
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
     document.getElementById('worldForm').dispatchEvent(event);
+    // Creating a world paints its scene by default: pass the paid review.
+    expect(await paidReview('confirm')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0)); // let async handler complete
 
     const [url, options] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
@@ -223,7 +225,9 @@ describe('Generation and export flows', () => {
     );
     document.getElementById('userInput').value = 'continue';
 
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     const [url, options] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
     expect(url).toBe('/api/stories/s1/pages/generate');
@@ -238,7 +242,9 @@ describe('Generation and export flows', () => {
 
   it('keeps the reader intact and shows an error when generation fails', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(500, { error: 'AI on strike' }));
-    await fw.generateNextPage();
+    const gen = fw.generateNextPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await gen;
 
     expect(fw.state().storyPages).toHaveLength(1);
     expect(document.getElementById('scribeStatus').textContent).toContain('troubled');
@@ -256,7 +262,9 @@ describe('Generation and export flows', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(200, { page: { page_number: 1, content: 'Rewritten.', user_input: 'go' } })
     );
-    await fw.retryLastPage();
+    const retry = fw.retryLastPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await retry;
 
     const [url] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
     expect(url).toBe('/api/stories/s1/pages/regenerate');
