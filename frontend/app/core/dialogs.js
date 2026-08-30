@@ -9,6 +9,7 @@
 
 import { reviewBody } from './cost.js';
 
+export const PAID_CONSENT_KEY = 'st-paid-consent-v1';
 
 function createDialogManager() {
   let overlay = null; // the live dialog element
@@ -16,6 +17,43 @@ function createDialogManager() {
   let dirtyCheck = null; // () => boolean, "closing would discard work"
   let closing = false;
   let lastSpec = null; // the open dialog's spec, for dirty-guard recovery
+  let paidConsentForSession = false; // private-mode fallback if storage rejects writes
+
+  function hasPaidConsent() {
+    if (paidConsentForSession) return true;
+    try {
+      return localStorage.getItem(PAID_CONSENT_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  function rememberPaidConsent() {
+    paidConsentForSession = true;
+    try {
+      localStorage.setItem(PAID_CONSENT_KEY, '1');
+    } catch {
+      // Private/restricted storage: remember it for this running session.
+    }
+  }
+
+  function paidReviewContent(body, review) {
+    let nodes;
+    if (review) {
+      nodes = reviewBody(review);
+    } else if (typeof body === 'string') {
+      const p = document.createElement('p');
+      p.textContent = body;
+      nodes = [p];
+    } else {
+      nodes = Array.isArray(body) ? [...body] : body ? [body] : [];
+    }
+    const consent = document.createElement('p');
+    consent.className = 'review-consent';
+    consent.textContent = 'Approve once: this device remembers your consent until its site data is cleared. Future paid actions run without another approval.';
+    nodes.push(consent);
+    return nodes;
+  }
 
   function ensureOverlay() {
     if (overlay) return overlay;
@@ -172,21 +210,21 @@ function createDialogManager() {
     });
   }
 
-  // One shared paid-action review: what will be spent, on what, and an
-  // explicit button carrying the price. Faster and more accessible than a
-  // slider; the confirmation is informed intent, not security theater.
+  // One shared paid-action consent gate. Its first accepted review explains
+  // what will be spent and sent; later actions bypass the modal on this device.
   // `body` is plain copy; `review` is the structured shared grammar (see
   // core/cost.js reviewBody) rendered as uniform rows.
   function confirmPaid({ title, body, review, confirmLabel, cancelLabel = 'Cancel', disabled = false }) {
+    if (!disabled && hasPaidConsent()) return Promise.resolve(true);
     return new Promise((resolve) => {
       openDialog({
         title,
-        body: review ? reviewBody(review) : body,
+        body: paidReviewContent(body, review),
         variant: 'cost',
         onFreeClose: () => resolve(false), // Escape/backdrop = a deliberate no
         actions: [
           { label: cancelLabel, className: 'btn-secondary', autofocus: true, onClick: () => { close(true); resolve(false); } },
-          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { close(true); resolve(true); } },
+          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { rememberPaidConsent(); close(true); resolve(true); } },
         ],
       });
     });
@@ -196,7 +234,7 @@ function createDialogManager() {
     return Boolean(overlay && !overlay.hidden);
   }
 
-  return { openDialog, close, requestClose, confirmDestructive, confirmPaid, isOpen };
+  return { openDialog, close, requestClose, confirmDestructive, confirmPaid, hasPaidConsent, isOpen };
 }
 
 // The complete lifecycle controller for existing feature modals (entity

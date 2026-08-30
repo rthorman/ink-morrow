@@ -11,7 +11,7 @@ const CHARACTER_IMAGE_ESTIMATE = IMAGE_COST_ESTIMATE.character;
 export function createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
-  let imageReviewing = false; // an image cost review is open: no second submission
+  let imageReviewing = false; // a paid-consent check is running: no second submission
   let characterEditorModal = null; // wired lifecycle controller
   let editingCharacterId = null;
 
@@ -125,7 +125,7 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
     const withoutImage = event.submitter && event.submitter.id === 'characterNoImageBtn';
     if (!withoutImage) {
       // Creating a character paints their portrait by default: the paid half
-      // is reviewed first; cancel keeps every filled field.
+      // passes the consent gate; a first-review cancel keeps every field.
       if (imageReviewing) return;
       imageReviewing = true;
       const yes = await dialogs.confirmPaid({
@@ -276,8 +276,8 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
         (async () => {
           const id = editingCharacterId;
           if (!id) return;
-          // Save is free; the repaint is paid and reviewed. Cancel keeps the
-          // editor open with every field as it is.
+          // Save is free; the repaint passes the paid-consent gate. A
+          // first-review cancel keeps the editor open with every field intact.
           if (imageReviewing) return;
           imageReviewing = true;
           const yes = await dialogs.confirmPaid({

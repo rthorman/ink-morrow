@@ -8,10 +8,15 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
-// The shared cost review now gates every paid action in real UI flows:
-// click the confirming button and wait for the dialog to close.
+// The first paid action is reviewed; accepting it permanently remembers
+// consent on this device, so later calls deliberately have no dialog.
 async function confirmPaidReview(page, label) {
   const dialog = page.locator('.dialog-manager');
+  const remembered = await page.evaluate(() => localStorage.getItem('st-paid-consent-v1') === '1');
+  if (remembered) {
+    await expect(dialog).toBeHidden();
+    return;
+  }
   await expect(dialog).toBeVisible({ timeout: 5000 });
   await dialog.locator('button', { hasText: label }).first().click();
   await expect(dialog).toBeHidden({ timeout: 5000 });
@@ -85,6 +90,56 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('#scribeStatus')).toContainText(/complete|quill|purr|ink|flicks|paws|murmurs|Candlelight|scribe/i);
   });
 
+  test('one consent persists and later page generation runs without another modal', async ({ page }) => {
+    await page.unroute('**/api/stories/*/pages/generate');
+    let generated = 0;
+    await page.route('**/api/stories/*/pages/generate', async (route) => {
+      generated += 1;
+      const requestBody = JSON.parse(route.request().postData());
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          page: {
+            id: `remembered-consent-${generated}`,
+            page_number: generated,
+            content: generated === 1 ? 'The first paid page.' : 'The second paid page, without another interruption.',
+            user_input: requestBody.user_input,
+          },
+        }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/preview', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ preview: { expected_page: generated + 1, model: 'mock', cost_usd: 0.001 } }),
+      });
+    });
+
+    await createStoryViaUi(page, 'Remembered Consent Test');
+    await page.fill('#userInput', 'Open the first door');
+    await page.locator('#generateBtn').click();
+
+    const review = page.locator('.dialog-manager');
+    await expect(review).toBeVisible({ timeout: 5000 });
+    await expect(review.locator('.dialog-manager__body')).toContainText('≈$0.0400');
+    await expect(review.locator('.dialog-manager__body')).not.toContainText(/unknown|unavailable/i);
+    await expect(review.locator('.review-consent')).toContainText('Approve once');
+    expect(await review.locator('.dialog-manager__body').evaluate((el) => getComputedStyle(el).textAlign)).toBe('left');
+    expect(await review.locator('.review-list dd').first().evaluate((el) => getComputedStyle(el).textAlign)).toBe('left');
+    await confirmPaidReview(page, /Write it/);
+    await expect(page.locator('#storyContent')).toContainText('The first paid page.', { timeout: 5000 });
+    expect(await page.evaluate(() => localStorage.getItem('st-paid-consent-v1'))).toBe('1');
+
+    await page.fill('#userInput', 'Open the second door');
+    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await page.locator('#generateBtn').click();
+    await expect(review).toBeHidden();
+    await expect(page.locator('#storyContent')).toContainText('without another interruption', { timeout: 5000 });
+    expect(generated).toBe(2);
+  });
+
   test('retry regenerates the last page', async ({ page }) => {
     await createStoryViaUi(page, 'Retry Test');
 
@@ -94,7 +149,7 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('#storyContent')).toContainText('The brave knight approached', { timeout: 5000 });
 
     await page.locator('#retryBtn').click();
-    await confirmPaidReview(page, /Write it/); // rewrites are reviewed too
+    await confirmPaidReview(page, /Write it/); // remembered consent deliberately bypasses this review
     await expect(page.locator('#storyContent')).toContainText('Rewritten: the castle loomed', { timeout: 5000 });
   });
 

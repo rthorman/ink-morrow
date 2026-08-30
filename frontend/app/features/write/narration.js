@@ -1,10 +1,10 @@
 // Narration: streaming page read-aloud with pause/resume, autoplay, stop,
 // and idempotent cost settlement per generation id (replays never re-bill).
-// Every narration pass that will hit the paid speech provider first passes
-// the shared cost review; auto-read discloses its remaining-page run once,
+// Every narration pass that will hit the paid speech provider passes the
+// shared consent gate; remembered device consent keeps it quiet. Auto-read
 // then flips pages without nagging until stopped.
 
-import { approxCostText } from '../../core/cost.js';
+import { approxCostText, ROUGH_NARRATION_PAGE_ESTIMATE } from '../../core/cost.js';
 
 export function createNarration({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
@@ -16,7 +16,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
   let narrationAudio = null;
   let narrationGenerationId = null;
   let narrationCacheHit = false;
-  let reviewing = false; // a cost review is open: no second submission
+  let reviewing = false; // a paid-consent check is running: no second submission
   const appliedNarrationCosts = new Set(); // generation ids already billed this session
 
   function narrationConfigured() {
@@ -37,8 +37,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     if (reviewing) return false;
     reviewing = true;
     const entry = await speechModelEntry();
-    const estimate = entry ? features.settings.estimateNarrationCostPerPage(entry) : null;
-    const known = entry && estimate > 0 ? estimate : null;
+    const estimate = entry ? features.settings.estimateNarrationCostPerPage(entry) : ROUGH_NARRATION_PAGE_ESTIMATE;
     const yes = await dialogs.confirmPaid({
       title: 'Read this page aloud?',
       review: {
@@ -47,10 +46,10 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
         model: entry ? `${entry.name} · voice ${settings.narrationVoice}` : null,
         quantity: 'one page of spoken audio',
         sends: 'the text of this page to the speech provider',
-        estimate: known,
+        estimate,
         note: 'A page you have had read before may be replayed from cache and cost nothing - never promised, just possible.',
       },
-      confirmLabel: known !== null ? `Read it (${approxCostText(known)})` : 'Read it',
+      confirmLabel: `Read it (${approxCostText(estimate)})`,
     });
     reviewing = false;
     return yes;
@@ -65,8 +64,8 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     const remaining = (data.storyPages || []).filter(
       (p) => p.page_number >= data.currentPage && !p.image_media_type && String(p.content || '').trim()
     ).length;
-    const perPage = entry ? features.settings.estimateNarrationCostPerPage(entry) : null;
-    const known = entry && perPage > 0 ? perPage * remaining : null;
+    const perPage = entry ? features.settings.estimateNarrationCostPerPage(entry) : ROUGH_NARRATION_PAGE_ESTIMATE;
+    const estimate = perPage * remaining;
     const yes = await dialogs.confirmPaid({
       title: 'Keep reading pages aloud?',
       review: {
@@ -75,10 +74,10 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
         model: entry ? `${entry.name} · voice ${settings.narrationVoice}` : null,
         quantity: `${remaining} page${remaining === 1 ? '' : 's'} of spoken audio`,
         sends: 'the text of each page, as it is reached, to the speech provider',
-        estimate: known,
+        estimate,
         note: 'The ■ control stops the run at any page; pages already read stay read.',
       },
-      confirmLabel: known !== null ? `Auto-read (${approxCostText(known)})` : 'Auto-read',
+      confirmLabel: `Auto-read (${approxCostText(estimate)})`,
     });
     reviewing = false;
     return yes;
@@ -167,8 +166,8 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     }
   }
 
-  // The paid entry point: review first, then run. Auto-advance pages already
-  // carry the run's consent and call doNarration directly.
+  // The paid entry point: pass the remembered consent gate, then run.
+  // Auto-advance pages carry the run's consent and call doNarration directly.
   async function startNarration() {
     if (!narrationStateAllowsStart()) return;
     if (!narrationConfigured()) {

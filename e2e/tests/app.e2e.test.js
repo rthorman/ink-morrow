@@ -1,9 +1,14 @@
 import { test, expect } from '@playwright/test';
 
-// The shared cost review gates every paid action in real UI flows: click
-// the confirming button and wait for the dialog to close.
+// The first paid action opens the shared review; remembered device consent
+// deliberately bypasses it for later actions.
 async function confirmPaidReview(page, label) {
   const dialog = page.locator('.dialog-manager');
+  const remembered = await page.evaluate(() => localStorage.getItem('st-paid-consent-v1') === '1');
+  if (remembered) {
+    await expect(dialog).toBeHidden();
+    return;
+  }
   await expect(dialog).toBeVisible({ timeout: 5000 });
   await dialog.locator('button', { hasText: label }).first().click();
   await expect(dialog).toBeHidden({ timeout: 5000 });
@@ -99,7 +104,7 @@ test.describe('ScribeTribe UI', () => {
     await drifterCard.locator('.card-more summary').click();
     await expect(drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' })).toBeVisible();
     await drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' }).click();
-    await confirmPaidReview(page, /Repaint it/); // the repaint is reviewed before it fires
+    await confirmPaidReview(page, /Repaint it/); // the repaint uses the same remembered consent gate
     await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
 
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
@@ -359,7 +364,7 @@ test.describe('ScribeTribe UI', () => {
     // Choose short, generate
     await page.locator('#aiDraftBody .seg-btn', { hasText: 'Short' }).click();
     await page.locator('#aiDraftBody button', { hasText: 'Ask the scribe' }).click();
-    await confirmPaidReview(page, /Draft it/); // drafting is paid: reviewed
+    await confirmPaidReview(page, /Draft it/); // drafting uses the same remembered consent gate
 
     // The draft arrives as editable fields; tweak the name
     const nameField = page.locator('#draft-name');

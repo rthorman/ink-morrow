@@ -1,7 +1,7 @@
 // AI drafts: flesh out worlds and characters from the creation form's seed
 // fields. Drafts stay editable inside the modal; saving creates the entity
 // explicitly - generating a draft never silently creates data. Every draft
-// pass (first or regeneration) passes the shared paid review first.
+// pass uses the shared paid-consent gate; remembered consent bypasses its UI.
 
 import { approxCostText, estimatePageCost } from '../core/cost.js';
 import { wireModal } from '../core/dialogs.js';
@@ -29,8 +29,8 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
   const { showSuccess, scribeErrorMessage } = notify;
 
   let aiDraft = null;
-  let draftReviewing = false; // a cost review is open: no second submission
-  let aiDraftModal = null; // wired lifecycle controller // a cost review is open: no second submission
+  let draftReviewing = false; // a paid-consent check is running: no second submission
+  let aiDraftModal = null; // wired lifecycle controller
 
   function draftSeedValue(id) {
     const el = document.getElementById(id);
@@ -84,8 +84,8 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
     // There can be two JSON draft passes, and each provider completion can
     // need up to three billable attempts before it yields usable text.
     const retryMaximum = typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * 6 : null;
-    // Initial draft and every regeneration pass the same paid review; the
-    // draft stays editable and nothing is created until it is saved.
+    // Initial draft and every regeneration pass the same consent gate; only
+    // the first accepted paid action on this device opens the review.
     const yes = await dialogs.confirmPaid({
       title: aiDraft.variant > 1 ? 'Draft another variant?' : 'Flesh this out with the AI?',
       review: {
@@ -98,7 +98,7 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
         maximum: retryMaximum,
         note: 'The draft only becomes a real ' + aiDraft.mode + ' when you save it. An invalid first answer is corrected once and both completions are billed.',
       },
-      confirmLabel: estimate === null ? 'Draft it (price unavailable)' : `Draft it (${approxCostText(estimate)})`,
+      confirmLabel: `Draft it (${approxCostText(estimate)})`,
     });
     draftReviewing = false;
     if (!yes) return; // cancel: the modal and its seeds stand untouched

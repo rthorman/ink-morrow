@@ -3,6 +3,7 @@
 // persisted presentation preferences. Every change saves immediately.
 
 import { formatUsd } from '../core/dom.js';
+import { ROUGH_NARRATION_PAGE_ESTIMATE, ROUGH_TEXT_CALL_ESTIMATE } from '../core/cost.js';
 import { STORY_FONTS } from '../core/state.js';
 
 export function createSettings({ api, state, notify, shell }) {
@@ -108,7 +109,10 @@ export function createSettings({ api, state, notify, shell }) {
       const meta = document.createElement('span');
       meta.className = 'model-item__meta';
       const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : 'ctx n/a';
-      meta.textContent = `${ctx} · in ${formatUsd(m.pricing?.prompt_per_mtok)}/1M · out ${formatUsd(m.pricing?.completion_per_mtok)}/1M`;
+      const hasCataloguePrice = Number.isFinite(m.pricing?.prompt_per_mtok) || Number.isFinite(m.pricing?.completion_per_mtok);
+      meta.textContent = hasCataloguePrice
+        ? `${ctx} · in ${formatUsd(m.pricing?.prompt_per_mtok)}/1M · out ${formatUsd(m.pricing?.completion_per_mtok)}/1M`
+        : `${ctx} · rough page ballpark ≈${formatUsd(ROUGH_TEXT_CALL_ESTIMATE)} until pricing loads`;
       item.append(name, id, meta);
 
       item.addEventListener('click', () => {
@@ -151,13 +155,16 @@ export function createSettings({ api, state, notify, shell }) {
   // output audio tokens (≈20 per word — measured against a live Gemini bill).
   // At the mercy of honest rounding.
   function estimateNarrationCostPerPage(model) {
-    if (!model) return 0;
+    if (!model) return ROUGH_NARRATION_PAGE_ESTIMATE;
     const words = Number.isFinite(state.settings.wordsPerPage) ? state.settings.wordsPerPage : 400;
     const chars = words * 6.5;
     const audioTokens = words * 20;
     const p = model.pricing || {};
+    if (!Number.isFinite(p.prompt_per_mchar) && !Number.isFinite(p.completion_per_mtok)) {
+      return ROUGH_NARRATION_PAGE_ESTIMATE;
+    }
     const cost = (chars * (p.prompt_per_mchar || 0) + audioTokens * (p.completion_per_mtok || 0)) / 1e6;
-    return Number.isFinite(cost) ? cost : 0;
+    return Number.isFinite(cost) ? cost : ROUGH_NARRATION_PAGE_ESTIMATE;
   }
 
   function narrationOptionLabel(model) {

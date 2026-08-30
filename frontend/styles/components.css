@@ -388,7 +388,7 @@ select optgroup {
   border: 1px solid var(--st-danger-500);
   border-radius: var(--st-radius-lg);
   box-shadow: 0 30px 90px rgb(0 0 0 / 0.7);
-  text-align: center;
+  text-align: left;
 }
 
 .burn-modal__panel h2 {
@@ -397,6 +397,7 @@ select optgroup {
   font-weight: 700;
   font-size: clamp(1.7rem, 4vw, 2.2rem);
   color: #edaab1;
+  text-align: center;
 }
 
 .burn-modal__body {
@@ -405,6 +406,7 @@ select optgroup {
   font-size: 1rem;
   line-height: 1.6;
   color: var(--st-vellum-200);
+  text-align: left;
 }
 
 
@@ -453,6 +455,7 @@ select optgroup {
 
 .dialog-manager__panel {
   max-width: 460px;
+  text-align: left;
 }
 
 .dialog-manager__title {
@@ -466,6 +469,53 @@ select optgroup {
   color: var(--st-vellum-200);
   line-height: 1.55;
   margin-bottom: 1.1rem;
+  text-align: left;
+}
+
+.review-lead,
+.review-note,
+.review-consent {
+  margin: 0 0 0.9rem;
+  text-align: left;
+}
+
+.review-list {
+  display: grid;
+  grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+  margin: 0 0 1rem;
+  text-align: left;
+}
+
+.review-list dt,
+.review-list dd {
+  margin: 0;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgb(230 221 202 / 0.12);
+  text-align: left;
+}
+
+.review-list dt {
+  padding-right: 0.9rem;
+  color: var(--st-gold-300);
+  font-family: var(--st-font-ui);
+  font-weight: 650;
+}
+
+.review-list dd {
+  color: var(--st-vellum-100);
+}
+
+.review-note {
+  color: var(--st-text-muted);
+}
+
+.review-consent {
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--st-gold-500);
+  background: rgb(199 163 91 / 0.08);
+  color: var(--st-vellum-200);
+  font-family: var(--st-font-ui);
+  font-size: 0.88rem;
 }
 
 .dialog-manager__actions {

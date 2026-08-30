@@ -331,9 +331,9 @@ describe('Scene image prompt button', () => {
       if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
-    document.getElementById('imagePromptBtn').click();
-    expect(await paidReview('confirm')).toBe(true);
-    await new Promise((r) => setTimeout(r, 0));
+    // Make painting the first paid action in this test so cancellation is
+    // still available; after any accepted review it would correctly bypass.
+    document.getElementById('imagePromptModal').hidden = false;
     document.getElementById('imagePromptText').value = 'A candlelit hall.';
     fetch.mockClear();
     document.getElementById('imagePromptGenerateBtn').click();

@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe-e2e",
-  "version": "3.0.3",
+  "version": "3.0.4",
   "description": "End-to-end tests for ScribeTribe (Playwright)",
   "scripts": {
     "test": "node sweep-e2e-server.cjs && playwright test --project=chromium && node sweep-e2e-server.cjs && playwright test --project=\"Mobile Chrome\"",

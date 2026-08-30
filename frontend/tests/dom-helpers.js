@@ -267,9 +267,11 @@ function buildDom() {
 }
 
 let loadCounter = 0;
+const PAID_CONSENT_KEY = 'st-paid-consent-v1';
 
 // opts.hash: boot the app at that hash (deep-link); default is a clean '#/home'.
 async function loadScript(opts = {}) {
+  if (!opts.preservePaidConsent) window.localStorage.removeItem(PAID_CONSENT_KEY);
   buildDom();
   // A fresh app boot: the hash is whatever the caller asked for. Stale
   // routers from earlier loads are dead (boot-token liveness), so no
@@ -301,9 +303,9 @@ function jsonResponse(status, body) {
   return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) };
 }
 
-// The shared cost review now gates every paid action. Tests click through
-// it with paidReview('confirm') / paidReview('cancel'); the poll tolerates
-// the async hop between an initiating click and the dialog opening.
+// The shared consent gate covers every paid action. Tests click through its
+// first review with paidReview('confirm') / paidReview('cancel'); after an
+// accepted review, confirm observes the deliberate no-dialog fast path.
 async function paidReview(action = 'confirm') {
   for (let i = 0; i < 200; i++) {
     const dlg = document.querySelector('.dialog-manager');
@@ -316,6 +318,13 @@ async function paidReview(action = 'confirm') {
         await new Promise((r) => setTimeout(r, 0));
         return true;
       }
+    }
+    // Once the first confirmation has been accepted, paid reviews are
+    // deliberately bypassed. Treat that as a successful confirm helper;
+    // a requested cancel must fail loudly so stale tests cannot hide it.
+    if (window.localStorage.getItem(PAID_CONSENT_KEY) === '1') {
+      await new Promise((r) => setTimeout(r, 0));
+      return action === 'confirm';
     }
     await new Promise((r) => setTimeout(r, 0));
   }

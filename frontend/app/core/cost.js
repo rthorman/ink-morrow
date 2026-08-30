@@ -1,13 +1,21 @@
 // Shared cost-review helpers: every paid flow describes itself with the same
 // data shape (what, to what, with which model, how much, what is sent, what
 // else gets billed), so the review dialog grammar stays uniform across
-// features. Unknown pricing is spelled out honestly - never as $0.00.
+// features. When catalogue pricing has not arrived, the UI still gives a
+// conservative order-of-magnitude ballpark instead of withholding a number.
 
 import { formatUsd } from './dom.js';
 
-// Number → "≈$0.0312"; 0 → "free"; null/undefined/NaN → "price unavailable".
+export const ROUGH_TEXT_CALL_ESTIMATE = 0.02;
+export const ROUGH_NARRATION_PAGE_ESTIMATE = 0.05;
+export const ROUGH_GENERIC_ACTION_ESTIMATE = 0.05;
+
+// Number → "≈$0.0312"; 0 → "free"; missing/non-finite → a clearly labelled
+// generic ballpark. A paid action must never imply an unbounded mystery bill.
 export function approxCostText(estimate) {
-  if (estimate === null || estimate === undefined || !Number.isFinite(estimate)) return 'price unavailable';
+  if (estimate === null || estimate === undefined || !Number.isFinite(estimate)) {
+    return `≈${formatUsd(ROUGH_GENERIC_ACTION_ESTIMATE)} (rough ballpark)`;
+  }
   if (estimate === 0) return 'free';
   return `≈${formatUsd(estimate)}`;
 }
@@ -16,24 +24,28 @@ export function approxCostText(estimate) {
 // for the context (world + cast + the last ~5 pages + instructions) and
 // completion tokens for the new prose. Completion dominates and is fairly
 // predictable (words × ≈1.5 tokens); the prompt side is estimated from the
-// pages the client actually holds. Returns null when the chosen model (or its
-// pricing) is unknown - honest "price unavailable", never a fake zero.
+// pages the client actually holds. If the chosen model or its catalogue price
+// has not loaded, $0.02 per call is a deliberately conservative ballpark for
+// this app's normal short-form requests—not a quote or spending guarantee.
 export function estimatePageCost({ models, model, wordsPerPage, pageChars }) {
-  if (!model) return null; // server default model: pricing unknown to the client
+  if (!model) return ROUGH_TEXT_CALL_ESTIMATE;
   const entry = (models || []).find((m) => m.id === model);
-  if (!entry) return null;
+  if (!entry) return ROUGH_TEXT_CALL_ESTIMATE;
   const p = entry.pricing || {};
-  if (!Number.isFinite(p.prompt_per_mtok) && !Number.isFinite(p.completion_per_mtok)) return null;
+  if (!Number.isFinite(p.prompt_per_mtok) && !Number.isFinite(p.completion_per_mtok)) {
+    return ROUGH_TEXT_CALL_ESTIMATE;
+  }
   const words = Number.isFinite(wordsPerPage) ? wordsPerPage : 400;
   const completionTokens = words * 1.5;
   const promptTokens = (Number.isFinite(pageChars) ? pageChars : 0) / 4 + 1200;
   const cost =
     (promptTokens * (p.prompt_per_mtok || 0) + completionTokens * (p.completion_per_mtok || 0)) / 1e6;
-  return Number.isFinite(cost) ? cost : null;
+  return Number.isFinite(cost) ? cost : ROUGH_TEXT_CALL_ESTIMATE;
 }
 
 // Render the shared review body for a paid dialog. Rows with falsy values are
-// omitted; the estimate row is always present (unknown costs say so).
+// omitted; the estimate row is always present (missing catalogue data falls
+// back to a labelled rough ballpark).
 export function reviewBody(review) {
   const lead = document.createElement('p');
   lead.className = 'review-lead';
