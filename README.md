@@ -34,7 +34,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
-- **Full test suite** — 220 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 222 Jest tests (backend + frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -45,7 +45,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 220 Jest tests (118 backend + 102 frontend) pass on-device under Termux
+- All 222 Jest tests (119 backend + 103 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -125,13 +125,13 @@ scribe-tribe/
 │   │   ├── prompt.js      # prompt builder (tone, cast tiers, relations, mutable state, context window)
 │   │   ├── epub.js        # dependency-free EPUB/ZIP writer
 │   │   ├── images.js     # OpenRouter Image API client (Grok Imagine) + disk store
-│   └── tests/             # Jest + supertest (118 tests)
+│   └── tests/             # Jest + supertest (119 tests)
 ├── frontend/
 │   ├── index.html         # gothic UI + catgirl scribe SVG
 │   ├── styles.css
 │   ├── script.js          # XSS-safe rendering, cast builder, settings, cost ticker
 │   ├── brand/             # production art assets (WebP + SVG)
-│   └── tests/             # Jest + jsdom (102 tests)
+│   └── tests/             # Jest + jsdom (103 tests)
 ├── e2e/                   # Playwright browser tests (chromium + mobile)
 ├── database/              # SQLite file lives here (gitignored)
 ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
@@ -176,7 +176,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 ## Testing
 
 ```bash
-npm test             # backend (118) + frontend (102) Jest suites — runs on Termux too
+npm test             # backend (119) + frontend (103) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # first run on a new machine: cd e2e && npm install && npm run install-browsers

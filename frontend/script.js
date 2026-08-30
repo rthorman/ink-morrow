@@ -221,7 +221,8 @@ function stopImagePolling() {
 // When the writer sits on the last page with no direction, the scribe
 // prepares the next page in advance; an empty Generate commits it instantly.
 // Costs are booked at preparation time (the tokens are spent either way).
-let speculative = null; // { storyId, ready: bool }
+let speculative = null; // { storyId, ready, token }
+let speculativeToken = 0; // in-flight responses must match their own token
 
 // The ready signal IS the button: with a prepared page and no direction,
 // Generate Page becomes a green Next Page button of identical dimensions.
@@ -244,23 +245,28 @@ async function maybeStartSpeculative() {
   if (speculative && speculative.storyId === currentStory.id) return; // already in flight or ready
 
   const storyId = currentStory.id;
-  speculative = { storyId, ready: false };
+  const token = ++speculativeToken;
+  speculative = { storyId, ready: false, token };
   try {
     const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
       words: settings.wordsPerPage,
       ...(settings.model ? { model: settings.model } : {}),
       ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
-    if (!speculative || speculative.storyId !== storyId) return; // story changed mid-flight
-    speculative = { storyId, ready: true };
+    // Only the CURRENT attempt may turn the button green: a stale attempt
+    // whose story slot got written in the meantime (a direction-generate
+    // invalidated its server-side preview) must never masquerade as ready.
+    if (!speculative || speculative.storyId !== storyId || speculative.token !== token) return;
+    speculative = { storyId, ready: true, token };
     addSessionCost(res.preview?.cost_usd); // honest: the tokens are spent now
   } catch {
-    if (speculative && speculative.storyId === storyId) speculative = null;
+    if (speculative && speculative.storyId === storyId && speculative.token === token) speculative = null;
   }
   updateSpeculativeUi();
 }
 
 function discardSpeculative() {
+  speculativeToken++; // any in-flight response is now stale by definition
   speculative = null;
   updateSpeculativeUi();
 }
@@ -1422,6 +1428,10 @@ async function generateNextPage() {
     }
   }
 
+  // A direction was given (or the commit fell through): the live write
+  // invalidates whatever preview the server holds, so any in-flight
+  // speculative response is stale and must never turn the button green.
+  discardSpeculative();
   await generateNextPageLive(userInput);
 }
 

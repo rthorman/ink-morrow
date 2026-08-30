@@ -1015,13 +1015,18 @@ function createApp(
 
   // -- speculative next-page preview ----------------------------------------
 
-  // Holds one prepared-but-unsaved next page per story. The client asks for a
-  // preview whenever the writer sits on the last page with no direction; a
-  // later commit must be stale-checked against the page count.
-  const previews = new Map(); // storyId -> { expectedPage, rawContent, model, promptTokens, completionTokens, costUsd }
+  // Holds one prepared-but-unsaved next page per story - in the DATABASE,
+  // not memory: the browser keeps its green "Next Page" across server
+  // restarts, so the prepared page must survive them too. A later commit is
+  // stale-checked against the page count and the preview is single-use.
+  const upsertPreview = db.prepare(
+    'INSERT OR REPLACE INTO story_previews (story_id, expected_page, raw_content, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  );
+  const getPreview = db.prepare('SELECT * FROM story_previews WHERE story_id = ?');
+  const deletePreview = db.prepare('DELETE FROM story_previews WHERE story_id = ?');
 
   function invalidatePreview(storyId) {
-    previews.delete(storyId);
+    deletePreview.run(storyId);
   }
 
   function generationMessages(story, ctx, userInput, wordTarget) {
@@ -1040,21 +1045,24 @@ function createApp(
       const wordTarget = parseWordTarget(req.body.words);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
 
+      // Snapshot the page count BEFORE the (slow) generation: a preview that
+      // raced with a live write must never commit wrong-context prose as a
+      // later page - the commit staleness check catches it instead.
+      const expectedPage = storyPages(story.id).length + 1;
       const ctx = loadContext(story);
       const result = await chatCompletion(
         generationMessages(story, ctx, 'Continue the story.', wordTarget),
         { model: modelOverride || undefined, reasoningEffort, ...(wordTarget ? { maxTokens: tokensForWords(wordTarget) } : {}) }
       );
-
-      const expectedPage = storyPages(story.id).length + 1;
-      previews.set(story.id, {
+      upsertPreview.run(
+        story.id,
         expectedPage,
-        rawContent: result.content,
-        model: result.model,
-        promptTokens: result.usage?.prompt_tokens ?? null,
-        completionTokens: result.usage?.completion_tokens ?? null,
-        costUsd: result.cost_usd,
-      });
+        result.content,
+        result.model,
+        result.usage?.prompt_tokens ?? null,
+        result.usage?.completion_tokens ?? null,
+        result.cost_usd
+      );
       res.json({ preview: { expected_page: expectedPage, model: result.model, cost_usd: result.cost_usd } });
     } catch (error) {
       next(error);
@@ -1065,20 +1073,20 @@ function createApp(
     try {
       const story = getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
-      const preview = previews.get(story.id);
+      const preview = getPreview.get(story.id);
       if (!preview) return notFound(res, 'No prepared page for this story. Generate normally.');
-      if (storyPages(story.id).length + 1 !== preview.expectedPage) {
+      if (storyPages(story.id).length + 1 !== preview.expected_page) {
         invalidatePreview(story.id);
         return res.status(409).json({ error: 'The prepared page has gone stale - the story moved on without it.' });
       }
 
-      const prose = consumeStoryText(story, preview.rawContent); // applies character-state updates
+      const prose = consumeStoryText(story, preview.raw_content); // applies character-state updates
       const id = uuidv4();
       db.prepare(
         'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
       ).run(
-        id, story.id, preview.expectedPage, prose, null,
-        preview.model, preview.promptTokens, preview.completionTokens, preview.costUsd
+        id, story.id, preview.expected_page, prose, null,
+        preview.model, preview.prompt_tokens, preview.completion_tokens, preview.cost_usd
       );
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
       invalidatePreview(story.id);

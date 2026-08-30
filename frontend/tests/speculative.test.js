@@ -132,6 +132,75 @@ describe('Speculative next-page preparation', () => {
     expect(fw.state().storyPages[1].content).toBe('The live page.');
   });
 
+  it('a stale in-flight preview resolved after a direction write never turns the button green', async () => {
+    // THE REGRESSION: an old speculative is still in flight when the writer
+    // gives a direction. Its server-side preview is invalidated by the live
+    // write, but its HTTP response arrives afterwards - it must be ignored,
+    // a FRESH preview must fire, and the green button must be real.
+    let previewCalls = 0;
+    let resolvePreview;
+    const deferred = [];
+    fetchMock.mockImplementation((url, options) => {
+      if (String(url).includes('/pages/preview') && options && options.method === 'POST') {
+        previewCalls++;
+        deferred.push({});
+        return new Promise((resolve) => {
+          deferred[deferred.length - 1].resolve = resolve;
+        });
+      }
+      if (String(url).includes('/pages/generate') && options && options.method === 'POST') {
+        return Promise.resolve(
+          jsonResponse(201, { page: { page_number: 2, content: 'The direction page.', user_input: 'go left', cost_usd: 0.02 } })
+        );
+      }
+      if (String(url).includes('/commit-preview') && options && options.method === 'POST') {
+        return Promise.resolve(
+          jsonResponse(201, { page: { page_number: 3, content: 'The fresh prepared page.', user_input: null, cost_usd: 0.03 } })
+        );
+      }
+      if (String(url).includes('/s1/pages') && (!options || options.method === 'GET')) {
+        return Promise.resolve(
+          jsonResponse(200, { pages: [{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }] })
+        );
+      }
+      return Promise.resolve(jsonResponse(200, { stories: [] }));
+    });
+
+    fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
+    await fw.loadStoryPages();
+    fw.maybeStartSpeculative(); // preview #A goes in flight (unresolved)
+    await tick();
+    expect(previewCalls).toBe(1);
+
+    // The writer gives a direction: live generate, page 2 lands
+    document.getElementById('userInput').value = 'go left';
+    await fw.generateNextPage();
+    await tick();
+    expect(previewCalls).toBe(2); // a FRESH preview fired for page 3
+
+    // The STALE #A response arrives late: it must NOT turn the button green
+    deferred[0].resolve(jsonResponse(200, { preview: { expected_page: 2, cost_usd: 0.001 } }));
+    await tick();
+    await tick();
+    const btn = document.getElementById('generateBtn');
+    expect(btn.classList.contains('next-page')).toBe(false); // the stale lie is dead
+
+    // The fresh preview resolves: NOW the button is green, and pressing it
+    // commits the page that was actually prepared
+    deferred[1].resolve(jsonResponse(200, { preview: { expected_page: 3, cost_usd: 0.003 } }));
+    await tick();
+    await tick();
+    expect(btn.classList.contains('next-page')).toBe(true);
+
+    document.getElementById('userInput').value = '';
+    await fw.generateNextPage();
+    await tick();
+    const commits = fetchMock.mock.calls.filter((c) => String(c[0]).includes('/commit-preview'));
+    expect(commits).toHaveLength(1); // pressed green, committed - no silent regenerate
+    expect(fw.state().storyPages[2].content).toBe('The fresh prepared page.');
+    expect(fw.state().storyPages).toHaveLength(3);
+  });
+
   it('falls back to a live call when the prepared page went stale', async () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));

@@ -586,6 +586,39 @@ describe('Speculative next-page preview', () => {
     await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
   });
 
+  it('a prepared page survives a full server restart (the green button outlives it)', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const fs = require('fs');
+    const os = require('os');
+    const path = require('path');
+    const { createDb } = require('../src/db');
+    const { createApp } = require('../src/app');
+    const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'st-preview-')), 'preview.db');
+    try {
+      const db1 = createDb(dbFile);
+      const app1 = createApp(db1, { staticDir: null });
+      const world = await createWorld(app1, { name: 'Restart Realm' });
+      const story = await createStory(app1, world.id, []);
+
+      mockAi('The prepared continuation.');
+      await request(app1).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+      // Full restart: new app instance on the same database file
+      db1.close();
+      const db2 = createDb(dbFile);
+      const app2 = createApp(db2, { staticDir: null });
+
+      // The prepared page is still there and commits as-is - no silent
+      // fallback to a fresh (re-billed) generation
+      const commit = await request(app2).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+      expect(commit.body.page.page_number).toBe(1);
+      expect(commit.body.page.content).toBe('The prepared continuation.');
+      db2.close();
+    } finally {
+      fs.rmSync(path.dirname(dbFile), { recursive: true, force: true });
+    }
+  });
+
   it('a normal generate discards the prepared preview', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const world = await createWorld(app, { name: 'Stale Realm' });

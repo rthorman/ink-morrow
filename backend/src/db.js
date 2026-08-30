@@ -63,6 +63,17 @@ CREATE TABLE IF NOT EXISTS story_pages (
 CREATE INDEX IF NOT EXISTS idx_pages_story ON story_pages (story_id, page_number);
 CREATE INDEX IF NOT EXISTS idx_characters_world ON characters (world_id);
 CREATE INDEX IF NOT EXISTS idx_stories_world ON stories (world_id);
+
+CREATE TABLE IF NOT EXISTS story_previews (
+  story_id TEXT PRIMARY KEY REFERENCES stories (id) ON DELETE CASCADE,
+  expected_page INTEGER NOT NULL,
+  raw_content TEXT NOT NULL,
+  model TEXT,
+  prompt_tokens INTEGER,
+  completion_tokens INTEGER,
+  cost_usd REAL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
 `;
 
 function ensureColumn(db, table, column, ddl) {
