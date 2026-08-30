@@ -5,7 +5,9 @@
 
 const TONES = ['fade-to-black', 'romantic', 'explicit'];
 const CAST_ROLES = ['mc', 'supporting', 'background'];
-const REASONING_EFFORTS = ['low', 'medium', 'high'];
+// OpenRouter's complete effort vocabulary. Individual model catalog entries
+// expose their own supported subset; this is the transport-level allow-list.
+const REASONING_EFFORTS = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
 function asString(value) {
   return typeof value === 'string' ? value.trim() : null;

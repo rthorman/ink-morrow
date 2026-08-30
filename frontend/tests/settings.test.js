@@ -291,6 +291,52 @@ describe('Reasoning level selector', () => {
     expect(document.getElementById('reasoningSelect').value).toBe('medium');
   });
 
+  it('shows reasoning for the server default model and uses its declared capabilities', async () => {
+    fw.__setModelsCache([
+      {
+        id: 'z-ai/glm-5.3',
+        name: 'GLM 5.3',
+        reasoning: true,
+        reasoning_efforts: ['max', 'high', 'low'],
+        reasoning_default: 'max',
+        reasoning_mandatory: true,
+        is_default: true,
+        context_length: 200000,
+        pricing: {},
+      },
+    ]);
+    fw.renderModelList();
+
+    expect(fw.state().settings.model).toBeNull();
+    expect(document.getElementById('currentModel').textContent).toBe('Server default: z-ai/glm-5.3');
+    expect(document.getElementById('reasoningBlock').hidden).toBe(false);
+    expect([...document.getElementById('reasoningSelect').options].map((option) => option.value)).toEqual([
+      'max', 'high', 'low',
+    ]);
+    expect(document.getElementById('reasoningSelect').value).toBe('max');
+    expect(fw.state().settings.reasoningEffort).toBe('max');
+  });
+
+  it('renders lower and higher levels only when the selected model supports them', async () => {
+    fw.setSetting('model', 'vendor/wide-ladder');
+    fw.__setModelsCache([
+      {
+        id: 'vendor/wide-ladder',
+        name: 'Wide Ladder',
+        reasoning: true,
+        reasoning_efforts: ['xhigh', 'medium', 'low', 'minimal', 'none'],
+        reasoning_default: 'xhigh',
+        context_length: 1000,
+        pricing: {},
+      },
+    ]);
+    fw.renderModelList();
+    expect([...document.getElementById('reasoningSelect').options].map((option) => option.value)).toEqual([
+      'xhigh', 'medium', 'low', 'minimal', 'none',
+    ]);
+    expect(document.getElementById('reasoningSelect').value).toBe('xhigh');
+  });
+
   it('is hidden for plain models and the effort is cleared on switch', async () => {
     fw.setSetting('model', 'z-ai/glm-5.1');
     fw.setSetting('reasoningEffort', 'high');

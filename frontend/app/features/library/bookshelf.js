@@ -1,20 +1,27 @@
-// Library → Bookshelf: every tale's kept things - audiobooks and painted
-// plates - with downloads and deletes. Deleting a plate deletes a REAL
-// story page (renumbering the rest); an open reader must be refreshed.
+// Library storage: the all-story Bookshelf plus the per-story asset dialog
+// opened from a story card. Deleting a plate deletes a REAL story page
+// (renumbering the rest); an open reader must be refreshed.
 
 import { API_BASE_URL } from '../../core/api.js';
 import { formatUsd, formatMinutes, formatMb } from '../../core/dom.js';
+import { wireModal } from '../../core/dialogs.js';
 
 export function createBookshelf({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
-  const { showError, scribeErrorMessage } = notify;
+  const { showError, showSuccess, scribeErrorMessage } = notify;
+  let storyAssetsModal = null;
+  let activeStoryId = null;
+
+  async function storageData() {
+    return apiCall('/storage');
+  }
 
   async function loadBookshelf() {
     const list = document.getElementById('bookshelfList');
     if (!list) return;
     let data;
     try {
-      data = await apiCall('/storage');
+      data = await storageData();
     } catch (error) {
       list.textContent = '';
       const p = document.createElement('p');
@@ -84,7 +91,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     return card;
   }
 
-  function bookshelfAudioBlock(story) {
+  function bookshelfAudioBlock(story, afterChange = loadBookshelf) {
     const row = story.audiobook;
     const block = document.createElement('div');
     block.className = 'bookshelf-audio';
@@ -124,7 +131,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       if (!yes) return;
       try {
         await apiCall(`/stories/${story.id}/audiobook`, 'DELETE');
-        await loadBookshelf();
+        await afterChange();
         if (state.data.currentStory && state.data.currentStory.id === story.id) features.audiobook.refreshAudiobook();
       } catch (error) {
         showError(scribeErrorMessage(error.message));
@@ -135,7 +142,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     return block;
   }
 
-  function bookshelfPlate(story, plate) {
+  function bookshelfPlate(story, plate, afterChange = loadBookshelf) {
     const wrap = document.createElement('div');
     wrap.className = 'bookshelf-plate';
     const img = document.createElement('img');
@@ -168,7 +175,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       if (!yes) return;
       try {
         await apiCall(`/stories/${story.id}/pages/${plate.page_number}`, 'DELETE');
-        await loadBookshelf();
+        await afterChange();
         // An open reader must not sit on renumbered pages
         if (state.data.currentStory && state.data.currentStory.id === story.id) {
           features.generation.discardSpeculative();
@@ -184,5 +191,184 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     return wrap;
   }
 
-  return { loadBookshelf };
+  function assetSection(titleText) {
+    const section = document.createElement('section');
+    section.className = 'story-asset-section';
+    const title = document.createElement('h3');
+    title.textContent = titleText;
+    section.appendChild(title);
+    return section;
+  }
+
+  async function refreshActiveAssets() {
+    if (!activeStoryId || !storyAssetsModal?.isOpen) return;
+    try {
+      const data = await storageData();
+      const storage = (data.stories || []).find((entry) => entry.id === activeStoryId);
+      const story = state.data.stories.find((entry) => entry.id === activeStoryId);
+      if (!storage || !story) {
+        closeStoryAssets();
+        return;
+      }
+      renderStoryAssets(story, storage);
+    } catch (error) {
+      showError(scribeErrorMessage(error.message));
+    }
+  }
+
+  async function afterModalAssetChange() {
+    await features.stories.loadStories();
+    await refreshActiveAssets();
+  }
+
+  function coverBlock(story, storage) {
+    const section = assetSection('Cover');
+    const cover = storage.cover || { status: story.image_status || 'none' };
+    if (cover.status === 'ready' && !cover.file_missing) {
+      const img = document.createElement('img');
+      img.className = 'story-asset-cover';
+      img.src = `${API_BASE_URL}/stories/${story.id}/cover`;
+      img.alt = `Cover of ${story.title}`;
+      section.appendChild(img);
+      const info = document.createElement('p');
+      info.className = 'story-asset-info';
+      info.textContent = `${formatMb(cover.size_bytes || 0)}${typeof cover.cost_usd === 'number' ? ` · painted for ${formatUsd(cover.cost_usd)}` : ''}`;
+      section.appendChild(info);
+    } else {
+      const empty = document.createElement('p');
+      empty.className = 'bookshelf-entry__none';
+      empty.textContent = cover.status === 'pending'
+        ? 'The cover is being painted…'
+        : cover.status === 'failed' ? 'The last cover painting failed.' : 'No cover is stored.';
+      section.appendChild(empty);
+    }
+
+    const actions = document.createElement('div');
+    actions.className = 'bookshelf-entry__actions';
+    if (cover.status === 'ready' && !cover.file_missing) {
+      const download = document.createElement('a');
+      download.className = 'ghost-btn';
+      download.href = `${API_BASE_URL}/stories/${story.id}/cover?download=1`;
+      download.textContent = 'Download cover';
+      actions.appendChild(download);
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'ghost-btn';
+      remove.textContent = 'Delete cover';
+      remove.addEventListener('click', async () => {
+        const yes = await dialogs.confirmDestructive({
+          title: `Delete the cover of "${story.title}"?`,
+          body: 'Only the cover file is removed. The story, pages, cast, audiobook, and plates stay.',
+          confirmLabel: 'Delete cover',
+        });
+        if (!yes) return;
+        try {
+          await apiCall(`/stories/${story.id}/cover`, 'DELETE');
+          await afterModalAssetChange();
+          showSuccess('Cover deleted.');
+        } catch (error) {
+          showError(scribeErrorMessage(error.message));
+        }
+      });
+      actions.appendChild(remove);
+    }
+    const repaint = document.createElement('button');
+    repaint.type = 'button';
+    repaint.className = 'ghost-btn';
+    repaint.disabled = cover.status === 'pending';
+    repaint.textContent = cover.status === 'ready' ? 'Repaint cover (≈$0.06)' : 'Paint cover (≈$0.06)';
+    repaint.addEventListener('click', async () => {
+      await features.stories.repaintCover(story);
+      await refreshActiveAssets();
+    });
+    actions.appendChild(repaint);
+    section.appendChild(actions);
+    return section;
+  }
+
+  function manuscriptBlock(story) {
+    const section = assetSection('Manuscript');
+    const info = document.createElement('p');
+    info.className = 'story-asset-info';
+    info.textContent = `${story.page_count} page${story.page_count === 1 ? '' : 's'} · maturity: ${story.tone === 'fade-to-black' ? 'tasteful' : story.tone}`;
+    const actions = document.createElement('div');
+    actions.className = 'bookshelf-entry__actions';
+    const download = document.createElement('a');
+    download.className = 'ghost-btn';
+    download.href = `${API_BASE_URL}/stories/${story.id}/export`;
+    download.textContent = 'Download EPUB';
+    actions.appendChild(download);
+    section.append(info, actions);
+    return section;
+  }
+
+  function renderStoryAssets(story, storage) {
+    const body = document.getElementById('storyAssetsBody');
+    const title = document.getElementById('storyAssetsTitle');
+    const total = document.getElementById('storyAssetsTotal');
+    if (!body || !title || !total) return;
+    title.textContent = story.title;
+    total.textContent = `${storage.asset_count || 0} media ${storage.asset_count === 1 ? 'asset' : 'assets'} · ${formatMb(storage.disk_bytes || 0)} on disk`;
+    body.textContent = '';
+    body.append(manuscriptBlock(story), coverBlock(story, storage));
+
+    const audio = assetSection('Audiobook');
+    if (storage.audiobook) audio.appendChild(bookshelfAudioBlock(storage, afterModalAssetChange));
+    else {
+      const none = document.createElement('p');
+      none.className = 'bookshelf-entry__none';
+      none.textContent = 'No audiobook is stored.';
+      audio.appendChild(none);
+    }
+    body.appendChild(audio);
+
+    const plates = assetSection(`Painted plates (${(storage.plates || []).length})`);
+    if (storage.plates?.length) {
+      const grid = document.createElement('div');
+      grid.className = 'bookshelf-plates';
+      for (const plate of storage.plates) grid.appendChild(bookshelfPlate(storage, plate, afterModalAssetChange));
+      plates.appendChild(grid);
+    } else {
+      const none = document.createElement('p');
+      none.className = 'bookshelf-entry__none';
+      none.textContent = 'No painted plates are stored.';
+      plates.appendChild(none);
+    }
+    body.appendChild(plates);
+  }
+
+  async function openStoryAssets(story) {
+    try {
+      const data = await storageData();
+      const storage = (data.stories || []).find((entry) => entry.id === story.id);
+      if (!storage) throw new Error('Story storage record not found');
+      activeStoryId = story.id;
+      renderStoryAssets(story, storage);
+      storyAssetsModal?.open();
+    } catch (error) {
+      showError(scribeErrorMessage(error.message));
+    }
+  }
+
+  function closeStoryAssets() {
+    storyAssetsModal?.close();
+    activeStoryId = null;
+  }
+
+  function init() {
+    storyAssetsModal = wireModal('storyAssetsModal', { focusId: 'storyAssetsCloseBtn' });
+    document.getElementById('storyAssetsCloseBtn')?.addEventListener('click', closeStoryAssets);
+    document.getElementById('storyAssetsWriteBtn')?.addEventListener('click', () => {
+      const storyId = activeStoryId;
+      closeStoryAssets();
+      if (storyId) features.write.openStory(storyId);
+    });
+    document.getElementById('storyAssetsCastBtn')?.addEventListener('click', () => {
+      const story = state.data.stories.find((entry) => entry.id === activeStoryId);
+      closeStoryAssets();
+      if (story) features.storyEditor.openStoryCastEditor(story);
+    });
+  }
+
+  return { loadBookshelf, openStoryAssets, closeStoryAssets, refreshActiveAssets, init };
 }

@@ -93,6 +93,12 @@ function createStoriesStore(db, { getWorld }) {
     return getStory(storyId);
   }
 
+  function setImageDeleted(storyId) {
+    db.prepare(
+      "UPDATE stories SET image_status = 'deleted', image_media_type = NULL, image_cost_usd = NULL, image_updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    ).run(storyId);
+  }
+
   // -- pages ------------------------------------------------------------------
   function nextPageNumber(storyId) {
     return db.prepare('SELECT COALESCE(MAX(page_number), 0) + 1 AS n FROM story_pages WHERE story_id = ?').get(storyId).n;
@@ -208,6 +214,7 @@ function createStoriesStore(db, { getWorld }) {
     validateStoryPayload,
     createStory,
     updateStory,
+    setImageDeleted,
     nextPageNumber,
     insertGeneratedPage,
     insertManualPage,

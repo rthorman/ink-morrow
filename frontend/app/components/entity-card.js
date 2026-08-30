@@ -3,7 +3,7 @@
 // Actions (Edit / More menu) live on the card itself, never hidden behind
 // hover; the image block is presentation-only.
 
-export const IMAGE_COST_ESTIMATE = { world: 0.04, character: 0.06 };
+export const IMAGE_COST_ESTIMATE = { world: 0.04, character: 0.06, story: 0.06 };
 
 export function entityImageBlock(kind, row, altText) {
   const wrap = document.createElement('div');
@@ -11,7 +11,9 @@ export function entityImageBlock(kind, row, altText) {
   if (row.image_status === 'ready') {
     const img = document.createElement('img');
     img.className = 'card-image';
-    img.src = `/api/${kind === 'world' ? 'worlds' : 'characters'}/${row.id}/image`;
+    img.src = kind === 'story'
+      ? `/api/stories/${row.id}/cover`
+      : `/api/${kind === 'world' ? 'worlds' : 'characters'}/${row.id}/image`;
     img.alt = altText;
     // A "ready" image whose file has gone missing (legacy copies) degrades
     // to the failed placeholder instead of a broken image.
@@ -25,29 +27,36 @@ export function entityImageBlock(kind, row, altText) {
   } else if (row.image_status === 'pending') {
     const pending = document.createElement('div');
     pending.className = 'card-image card-image--pending';
-    pending.textContent = kind === 'world' ? 'The scene is being painted…' : 'The portrait is being painted…';
+    pending.textContent = kind === 'world'
+      ? 'The scene is being painted…'
+      : kind === 'story' ? 'The cover is being painted…' : 'The portrait is being painted…';
     wrap.appendChild(pending);
   } else if (row.image_status === 'failed') {
     const failed = document.createElement('div');
     failed.className = 'card-image card-image--failed';
     failed.textContent = 'The painting failed.';
     wrap.appendChild(failed);
+  } else if (kind === 'story') {
+    const missing = document.createElement('div');
+    missing.className = 'card-image card-image--missing';
+    missing.textContent = 'No cover bound yet.';
+    wrap.appendChild(missing);
   }
   return wrap;
 }
 
-// The card action row: one visible primary Edit plus a More menu holding
-// regenerate-image (with its approximate cost) and delete. Native <details>
+// The card action row: one visible primary action plus a More menu holding
+// repaint (with its approximate cost) and delete. Native <details>
 // keeps it keyboard-operable without a custom menu system.
-export function cardActions({ name, kind, onEdit, onRegenerate, onDelete }) {
+export function cardActions({ name, kind, onEdit, onRegenerate, onDelete, primaryLabel = 'Edit' }) {
   const actions = document.createElement('div');
   actions.className = 'card-actions';
 
   const edit = document.createElement('button');
   edit.type = 'button';
   edit.className = 'btn btn-secondary card-edit';
-  edit.textContent = 'Edit';
-  edit.setAttribute('aria-label', `Edit ${name}`);
+  edit.textContent = primaryLabel;
+  edit.setAttribute('aria-label', `${primaryLabel} for ${name}`);
   edit.addEventListener('click', onEdit);
   actions.appendChild(edit);
 
@@ -65,9 +74,10 @@ export function cardActions({ name, kind, onEdit, onRegenerate, onDelete }) {
   regen.type = 'button';
   regen.className = 'card-more__item';
   const estimate = IMAGE_COST_ESTIMATE[kind];
+  const repaintLabel = kind === 'story' ? 'Paint or repaint cover' : 'Regenerate image';
   regen.textContent = estimate
-    ? `Regenerate image (≈$${estimate.toFixed(2)})`
-    : 'Regenerate image';
+    ? `${repaintLabel} (≈$${estimate.toFixed(2)})`
+    : repaintLabel;
   regen.addEventListener('click', () => {
     more.removeAttribute('open');
     onRegenerate();

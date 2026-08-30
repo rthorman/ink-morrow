@@ -73,11 +73,11 @@
   font-family: var(--st-font-mono);
   font-size: 0.78rem;
   color: var(--st-text-muted);
-  text-align: center;
+  text-align: left;
 }
 
 .bookshelf-plate .bookshelf-entry__actions {
-  justify-content: center;
+  justify-content: flex-start;
   margin-bottom: 0;
 }
 
@@ -635,6 +635,124 @@
 .new-story-btn {
   margin-bottom: 14px;
   width: 100%;
+}
+
+/* ------------------------------------------------------------------ story catalogue + asset dialog */
+
+.library-story-head {
+  align-items: flex-start;
+  margin: 0 0 1rem;
+}
+
+.library-story-head .section-note {
+  flex: 1 1 440px;
+  margin: 0;
+}
+
+.library-story-head .btn {
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+
+.story-card .card-image-wrap {
+  min-height: 0;
+}
+
+.story-card .card-actions {
+  flex-wrap: wrap;
+}
+
+.story-assets-panel {
+  width: min(900px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  text-align: left;
+}
+
+.story-assets-panel h2,
+.story-assets-panel p {
+  text-align: left;
+}
+
+.story-assets__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid var(--st-gold-700);
+}
+
+.story-assets__head h2,
+.story-assets__head .hero__kicker,
+.story-assets__total {
+  margin: 0;
+}
+
+.story-assets__total {
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+  color: var(--st-violet-300);
+}
+
+.story-assets__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.story-assets-panel .burn-modal__actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+.story-asset-section {
+  min-width: 0;
+  padding: 1rem;
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+}
+
+.story-asset-section h3 {
+  margin: 0 0 0.7rem;
+  font-family: var(--st-font-display);
+  color: var(--st-gold-300);
+}
+
+.story-asset-info {
+  margin: 0 0 0.7rem;
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+  color: var(--st-vellum-200);
+}
+
+.story-asset-cover {
+  display: block;
+  width: min(100%, 220px);
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  margin-bottom: 0.7rem;
+}
+
+@media (max-width: 767px) {
+  .library-story-head,
+  .story-assets__head {
+    display: grid;
+  }
+
+  .library-story-head .btn {
+    width: 100%;
+    text-align: center;
+  }
+
+  .story-assets__body {
+    grid-template-columns: 1fr;
+  }
 }
 @media (min-width: 640px) {
   .new-story-btn {

@@ -97,7 +97,7 @@ function createWritingRouter({ db, catalog, stories, writing, ai }) {
       const wordTarget = parseWordTarget(req.body.words);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
       if (req.body.reasoning_effort !== undefined && req.body.reasoning_effort !== null && req.body.reasoning_effort !== '' && !reasoningEffort) {
-        return badRequest(res, '"reasoning_effort" must be one of: low, medium, high');
+        return badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
       }
 
       const result = await writing.completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort });

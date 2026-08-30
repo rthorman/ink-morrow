@@ -8,6 +8,10 @@ const STORAGE = {
       id: 's1',
       title: 'The Kept Tale',
       updated_at: '2026-08-30 10:00:00',
+      excerpt: 'The first kept line.',
+      disk_bytes: 43 * 1024 * 1024,
+      asset_count: 4,
+      cover: { status: 'ready', size_bytes: 512 * 1024, cost_usd: 0.06, file_missing: false },
       audiobook: {
         story_id: 's1',
         status: 'ready',
@@ -29,6 +33,9 @@ const STORAGE = {
       id: 's2',
       title: 'The Bare Tale',
       updated_at: '2026-08-29 10:00:00',
+      disk_bytes: 0,
+      asset_count: 0,
+      cover: { status: 'none', size_bytes: null, cost_usd: null, file_missing: false },
       audiobook: null,
       plates: [],
     },
@@ -74,6 +81,51 @@ describe('Bookshelf page', () => {
     const bare = entries()[1];
     expect(bare.textContent).toContain('No audiobook kept');
     expect(bare.textContent).toContain('No plates kept');
+  });
+
+  it('opens one story as an asset interface with downloads and a light delete confirmation', async () => {
+    let coverDeleted = false;
+    const story = {
+      id: 's1', title: 'The Kept Tale', tone: 'romantic', page_count: 6,
+      image_status: 'ready', characters: [], total_cost_usd: 0,
+    };
+    global.fetch.mockImplementation((url, options) => {
+      if (String(url).includes('/cover') && options?.method === 'DELETE') {
+        coverDeleted = true;
+        return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) });
+      }
+      if (String(url).endsWith('/storage')) {
+        const data = JSON.parse(JSON.stringify(STORAGE));
+        if (coverDeleted) {
+          data.stories[0].cover = { status: 'deleted', size_bytes: null, cost_usd: null, file_missing: false };
+          data.stories[0].disk_bytes -= 512 * 1024;
+          data.stories[0].asset_count -= 1;
+        }
+        return Promise.resolve(jsonResponse(200, data));
+      }
+      if (String(url).endsWith('/stories')) return Promise.resolve(jsonResponse(200, { stories: [story] }));
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+
+    await fw.openStoryAssets(story);
+    const modal = document.getElementById('storyAssetsModal');
+    expect(modal.hidden).toBe(false);
+    expect(document.getElementById('storyAssetsTitle').textContent).toBe('The Kept Tale');
+    expect(document.getElementById('storyAssetsTotal').textContent).toContain('43 MB on disk');
+    expect(modal.querySelector('.story-asset-cover').getAttribute('src')).toBe('/api/stories/s1/cover');
+    expect([...modal.querySelectorAll('a')].map((link) => link.getAttribute('href'))).toEqual(expect.arrayContaining([
+      '/api/stories/s1/export',
+      '/api/stories/s1/cover?download=1',
+      '/api/stories/s1/audiobook/audio',
+      '/api/stories/s1/pages/2/image?download=1',
+    ]));
+
+    const remove = [...modal.querySelectorAll('button')].find((button) => button.textContent === 'Delete cover');
+    remove.click();
+    expect(await dialogAction('Delete cover')).toBe(true);
+    expect(coverDeleted).toBe(true);
+    expect(document.getElementById('storyAssetsBody').textContent).toContain('No cover is stored');
+    expect(modal.hidden).toBe(false);
   });
 
   it('deleting the audiobook asks, then clears it from the shelf', async () => {

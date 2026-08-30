@@ -41,15 +41,46 @@ export function createSettings({ api, state, notify, shell }) {
     return state.speechModelsCache;
   }
 
-  // Reasoning level: only shown when the selected model can think first.
+  const EFFORT_ORDER = ['max', 'xhigh', 'high', 'medium', 'low', 'minimal', 'none'];
+  const EFFORT_LABELS = {
+    max: 'Maximum — use the model’s full reasoning budget',
+    xhigh: 'Extra high — very deep reasoning',
+    high: 'High — deep reasoning',
+    medium: 'Medium — balanced reasoning',
+    low: 'Low — quick reasoning',
+    minimal: 'Minimal — a very light pass',
+    none: 'None — answer without deliberate reasoning',
+  };
+
+  // Reasoning level: selected model, or the server's real default model when
+  // no override is selected. The catalogue, not a hardcoded trio, owns the
+  // choices and provider default.
   function selectedModelEntry() {
-    if (!state.settings.model || !state.modelsCache) return null;
-    return state.modelsCache.find((m) => m.id === state.settings.model) || null;
+    if (!state.modelsCache) return null;
+    if (state.settings.model) return state.modelsCache.find((m) => m.id === state.settings.model) || null;
+    return state.modelsCache.find((m) => m.is_default) || null;
   }
 
   function reasoningApplies() {
     const entry = selectedModelEntry();
     return Boolean(entry && entry.reasoning);
+  }
+
+  function effortsFor(entry) {
+    if (!entry?.reasoning) return [];
+    const declared = Array.isArray(entry.reasoning_efforts) ? entry.reasoning_efforts : [];
+    const efforts = declared.length ? declared : ['low', 'medium', 'high'];
+    return EFFORT_ORDER.filter((effort) => efforts.includes(effort));
+  }
+
+  function activeReasoningEffort() {
+    const entry = selectedModelEntry();
+    const efforts = effortsFor(entry);
+    if (!efforts.length) return null;
+    if (efforts.includes(state.settings.reasoningEffort)) return state.settings.reasoningEffort;
+    if (efforts.includes(entry.reasoning_default)) return entry.reasoning_default;
+    if (efforts.includes('medium')) return 'medium';
+    return efforts[0];
   }
 
   function updateReasoningBlock() {
@@ -59,8 +90,18 @@ export function createSettings({ api, state, notify, shell }) {
     const applies = reasoningApplies();
     block.hidden = !applies;
     if (applies) {
-      if (!state.settings.reasoningEffort) state.setSetting('reasoningEffort', 'medium');
-      select.value = state.settings.reasoningEffort || 'medium';
+      const entry = selectedModelEntry();
+      const efforts = effortsFor(entry);
+      const active = activeReasoningEffort();
+      select.textContent = '';
+      for (const effort of efforts) {
+        const option = document.createElement('option');
+        option.value = effort;
+        option.textContent = EFFORT_LABELS[effort] || effort;
+        select.appendChild(option);
+      }
+      if (state.settings.reasoningEffort !== active) state.setSetting('reasoningEffort', active);
+      select.value = active;
     } else if (state.settings.reasoningEffort) {
       state.setSetting('reasoningEffort', null); // carried thoughts don't fit this model
     }
@@ -69,9 +110,10 @@ export function createSettings({ api, state, notify, shell }) {
   function updateCurrentModelLabel() {
     const label = document.getElementById('currentModel');
     if (!label) return;
+    const entry = selectedModelEntry();
     label.textContent = state.settings.model
       ? `Selected: ${state.settings.model}`
-      : 'Using the server default model';
+      : entry ? `Server default: ${entry.id}` : 'Using the server default model';
   }
 
   function renderModelList() {
@@ -109,10 +151,11 @@ export function createSettings({ api, state, notify, shell }) {
       const meta = document.createElement('span');
       meta.className = 'model-item__meta';
       const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : 'ctx n/a';
+      const defaultMark = m.is_default ? ' · server default' : '';
       const hasCataloguePrice = Number.isFinite(m.pricing?.prompt_per_mtok) || Number.isFinite(m.pricing?.completion_per_mtok);
       meta.textContent = hasCataloguePrice
-        ? `${ctx} · in ${formatUsd(m.pricing?.prompt_per_mtok)}/1M · out ${formatUsd(m.pricing?.completion_per_mtok)}/1M`
-        : `${ctx} · rough page ballpark ≈${formatUsd(ROUGH_TEXT_CALL_ESTIMATE)} until pricing loads`;
+        ? `${ctx}${defaultMark} · in ${formatUsd(m.pricing?.prompt_per_mtok)}/1M · out ${formatUsd(m.pricing?.completion_per_mtok)}/1M`
+        : `${ctx}${defaultMark} · rough page ballpark ≈${formatUsd(ROUGH_TEXT_CALL_ESTIMATE)} until pricing loads`;
       item.append(name, id, meta);
 
       item.addEventListener('click', () => {
@@ -241,7 +284,7 @@ export function createSettings({ api, state, notify, shell }) {
   function updateGroupSummaries() {
     const writing = document.getElementById('writingAiSummary');
     if (writing) {
-      const model = state.settings.model || 'Server default model';
+      const model = state.settings.model || selectedModelEntry()?.id || 'Server default model';
       writing.textContent = `${model} · ≈${state.settings.wordsPerPage} words per page`;
     }
     const narration = document.getElementById('narrationSummary');
@@ -321,6 +364,7 @@ export function createSettings({ api, state, notify, shell }) {
     loadSpeechModels,
     selectedModelEntry,
     reasoningApplies,
+    activeReasoningEffort,
     updateReasoningBlock,
     updateCurrentModelLabel,
     renderModelList,
