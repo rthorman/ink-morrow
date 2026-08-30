@@ -139,7 +139,8 @@ describe('POST /api/stories/:id/pages/generate', () => {
     expect(prompt).toContain('Page 8:');
     expect(prompt).toContain('Page 12:');
     expect(prompt).toContain('omitted'); // earlier pages are summarized away
-    expect(prompt).toContain('Seeded page 1 content.'); // first page still referenced
+    expect(prompt).toContain('MEMORY COVERAGE: 0 of 12'); // no expensive surprise backfill
+    expect(prompt).not.toContain('Seeded page 1 content.'); // raw old prose is not smuggled back in
     expect(prompt).not.toContain('Page 2:'); // middle pages dropped
   });
 
@@ -445,8 +446,8 @@ describe('Three-tier cast (MC / supporting / background)', () => {
 
     expect(prompt).toContain('PROTAGONIST / MAIN CHARACTER');
     expect(prompt).toContain(`- ${mc.name} [id: ${mc.id}]:`);
-    expect(prompt).toContain('<<<CHARACTER_STATE>>>');
-    expect(prompt).toContain('book-paced');
+    expect(prompt).not.toContain('<<<CHARACTER_STATE>>>');
+    expect(prompt).toContain('REFERENCE-SHEET RULE');
     expect(prompt).toContain(`${mc.name} [id:`);
     expect(prompt).toContain('SUPPORTING CAST');
     expect(prompt).toContain(`- ${ally.name} [id: ${ally.id}]:`);
@@ -495,7 +496,7 @@ describe('Three-tier cast (MC / supporting / background)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Mutable per-story character state', () => {
-  it('shows the relation to the MC and asks for a state block', async () => {
+  it('shows the relation to the MC without asking the author model to mutate state', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     mockAi('Page one.');
     const world = await createWorld(app, { name: 'Relation Realm' });
@@ -509,11 +510,11 @@ describe('Mutable per-story character state', () => {
     await generatePage(story.id, 'go');
     const prompt = axios.post.mock.calls[0][1].messages[1].content;
     expect(prompt).toContain('Relation to the main character: owes her a life-debt from the war');
-    expect(prompt).toContain('<<<CHARACTER_STATE>>>');
-    expect(prompt).toContain('relationship_to_mc');
+    expect(prompt).not.toContain('<<<CHARACTER_STATE>>>');
+    expect(prompt).toContain('plans, wants, vows, and intentions describe motivation');
   });
 
-  it('strips the state block from the page and persists the evolved state', async () => {
+  it('strips legacy state blocks but never trusts them as continuity', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const world = await createWorld(app, { name: 'Evolution Realm' });
     const mc = await createCharacter(app, world.id, { name: 'Hurtable' });
@@ -539,15 +540,19 @@ describe('Mutable per-story character state', () => {
 
     const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
     const cast = meta.body.story.characters;
-    expect(cast[0].state.personality).toContain('Flint-eyed');
-    expect(cast[0].state.appearance).toContain('Missing her left hand');
+    expect(cast[0].state).toBeNull();
 
-    // The next prompt reflects the evolved instance, not the base sheet
+    // Ordinary unit tests intentionally disable paid extraction; the page is
+    // valid and its memory is visibly pending instead of accepting the marker.
+    const memory = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(memory.body.continuity.coverage.ready).toBe(0);
+    expect(memory.body.continuity.coverage.pending_page_ids).toHaveLength(1);
+
     mockAi('Page two.');
     await generatePage(story.id, 'go on');
     const prompt2 = axios.post.mock.calls[1][1].messages[1].content;
-    expect(prompt2).toContain('Flint-eyed and slower to trust after the bridge (as the story has reshaped them)');
-    expect(prompt2).toContain('Missing her left hand, bandaged stump');
+    expect(prompt2).not.toContain('Flint-eyed and slower to trust after the bridge');
+    expect(prompt2).toContain('The bridge fell. She lost her left hand.');
   });
 
   it('keeps prose and state intact when the state block is malformed', async () => {
@@ -571,7 +576,7 @@ describe('Mutable per-story character state', () => {
     expect(meta.body.story.characters[0].state).toBeNull();
   });
 
-  it('evolved relationship replaces the seed relation in later prompts', async () => {
+  it('an explicit in-story sheet override replaces the seed relation in later prompts', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const world = await createWorld(app, { name: 'Drift Realm' });
     const mc = await createCharacter(app, world.id, { name: 'Anchor' });
@@ -581,22 +586,18 @@ describe('Mutable per-story character state', () => {
       { id: ally.id, role: 'supporting', relation: 'childhood friends', state: null },
     ]);
 
-    axios.post.mockResolvedValue({
-      data: {
-        choices: [{
-          message: {
-            content:
-              'The betrayal page.\n\n<<<CHARACTER_STATE>>>\n' +
-              JSON.stringify({ [ally.id]: { relationship_to_mc: 'Openly hostile since the betrayal; the friendship is ash' } }),
-          },
-        }],
-      },
-    });
-    await generatePage(story.id, 'betray');
+    await request(app).put(`/api/stories/${story.id}`).send({
+      characters: [
+        { id: mc.id, role: 'mc', relation: null, state: null },
+        { id: ally.id, role: 'supporting', relation: 'childhood friends', state: {
+          relationship_to_mc: 'Openly hostile since the betrayal; the friendship is ash',
+        } },
+      ],
+    }).expect(200);
 
     mockAi('Next page.');
     await generatePage(story.id, 'go');
-    const prompt = axios.post.mock.calls[1][1].messages[1].content;
+    const prompt = axios.post.mock.calls[0][1].messages[1].content;
     expect(prompt).toContain('Openly hostile since the betrayal; the friendship is ash (as the story has reshaped it; it began as: childhood friends)');
   });
 });
@@ -686,7 +687,7 @@ describe('Speculative next-page preview', () => {
     expect(pages.body.pages[0].content).toBe('The real page.');
   });
 
-  it('preview honors model and word target, and its state block applies on commit', async () => {
+  it('preview honors model and word target, and its legacy state block stays inert on commit', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const world = await createWorld(app, { name: 'Stateful Realm' });
     const mc = await createCharacter(app, world.id, { name: 'Evolving' });
@@ -709,7 +710,9 @@ describe('Speculative next-page preview', () => {
 
     await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
     const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
-    expect(meta.body.story.characters[0].state.personality).toBe('Colder now');
+    expect(meta.body.story.characters[0].state).toBeNull();
+    const continuity = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(continuity.body.continuity.coverage.pending_page_ids).toHaveLength(1);
   });
 
   it('truncating invalidates a preview', async () => {

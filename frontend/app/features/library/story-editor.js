@@ -608,15 +608,21 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       detail.append(relationLabel, relation);
     }
 
-    // The in-story sheet, exactly as the tale has it. Empty = inherited from
-    // the base sheet (shown as the placeholder).
+    // Explicit author overrides sit above the frozen casting snapshot and the
+    // page ledger. They are not model-owned mutable state anymore.
     const sheet = document.createElement('div');
     sheet.className = 'cast-edit-member__sheet';
+    const sheetNote = document.createElement('p');
+    sheetNote.className = 'setting-hint';
+    sheetNote.textContent = 'Manual story overrides. Leave blank to follow the frozen cast copy and page-linked continuity; catalogue text in placeholders is reference only.';
+    sheet.appendChild(sheetNote);
     for (const field of CAST_EDIT_FIELDS) {
       if (field.mc === false && entry.role === 'mc') continue;
       const label = document.createElement('label');
       const lead = castEditLeadName();
-      label.textContent = field.mc === false && lead ? `In-story ${field.key.replace('_', ' ')} (vs. ${lead})` : field.label;
+      label.textContent = field.mc === false && lead
+        ? `Manual ${field.key.replace('_', ' ')} override (vs. ${lead})`
+        : `Manual ${field.label.toLowerCase()} override`;
       const input = document.createElement('textarea');
       input.rows = 2;
       input.maxLength = 2000;

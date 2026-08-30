@@ -2,7 +2,13 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
-**v3.0.5** turns Library → Stories into the manuscript catalogue without adding a duplicate top-level destination. Story creation now lives at the writing desk and restores the explicit maturity choice. Each story card carries a cast-and-world cover, prose excerpt, page/maturity context, and measured media footprint; opening it reveals one place to download or delete its EPUB, cover, audiobook, and painted plates, or repaint the cover. Settings now shows reasoning for the server-default model and builds its effort choices from that model's declared OpenRouter capabilities—including `minimal`, `xhigh`, `max`, or `none` when supported—instead of assuming a fixed low/medium/high trio.
+**v3.1.0** adds a page-provenanced continuity ledger for long-form stories. Every committed text page gets a separate, strictly structured memory delta: durable events, character location/condition/knowledge/possessions, goals, threads, and story facts. The author model receives a frozen casting snapshot, current folded state, bounded recent prose, and relevant older memories; character/world-sheet intentions are explicitly reference data rather than commands. Prepared pages remain completely inert until committed. Deleting a page removes its facts, regeneration excludes the old page while writing and replaces its delta only after successful prose generation, and the remaining ledger replays deterministically without another AI call.
+
+Library → Stories now exposes that ledger alongside each manuscript's assets. Existing pages are never surprise-backfilled: missing or failed memory can be built or rebuilt one page at a time with an informed cost review and recoverable progress. Authors can inspect current state and events, correct character location/condition, and override goal/thread status. The implementation stays friendly to low-powered local machines: no embeddings, vector server, local model, background polling, or whole-story AI replay—only bounded prompts, indexed SQLite/FTS (with a LIKE fallback), and small JSON folds.
+
+The exact data layers, commit/regeneration/delete semantics, extraction contract, and performance limits are documented in [docs/continuity-ledger.md](docs/continuity-ledger.md).
+
+**v3.0.5** turned Library → Stories into the manuscript catalogue without adding a duplicate top-level destination. Story creation moved to the writing desk and restored the explicit maturity choice. Each story card carries a cast-and-world cover, prose excerpt, page/maturity context, and measured media footprint; opening it reveals one place to download or delete its EPUB, cover, audiobook, and painted plates, or repaint the cover. Settings shows reasoning for the server-default model and builds its effort choices from that model's declared OpenRouter capabilities—including `minimal`, `xhigh`, `max`, or `none` when supported—instead of assuming a fixed low/medium/high trio.
 
 **v3.0.4** makes cost consent quiet after the first informed choice. Accepting one paid-action review is remembered on that device (until its site data is cleared), so later writing, narration, drafting, and painting actions run without repeated approval modals. Missing catalogue prices now use conservative ballparks—about $0.02 per text-generation call and $0.05 per narration page—instead of withholding a number. Modal content and cost rows are left-aligned; headings may keep their centered ornamental treatment.
 
@@ -40,24 +46,24 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 ## Features
 
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
-- **Prepared next page** — while you read, the next page is quietly prepared; the composer says so plainly ("Next page prepared. No cost is booked until you use it."), an empty Write lands instantly, and a direction states that it discards the prepared page. Cost is booked only when you take it
+- **Prepared next page** — after a confirmed write, the next page is quietly prepared and its provider cost enters Session immediately; an empty Write commits it instantly, while a direction discards it. Prepared prose has no continuity state until it is actually committed
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
 - **Explicit cast shapes** — every story declares itself *Centered on a lead* or an *Ensemble* up front, in creation and mid-story editing alike; relation labels follow the named lead (and never mention one that does not exist), the mid-story editor offers direct **Make lead / Switch to ensemble** actions, and an empty cast can add a lead directly — never add-then-promote
-- **Cast editing mid-story** — the Library's story cards open a roster/details editor: the roster lists members with roles, cross-world provenance and story-changed markers; the selected member's sheet edits role, starting connection, and the in-story state exactly as the tale has reshaped them. Dirty drafts guard every close, role changes never dump focus or discard local edits, and the base sheets stay untouched
-- **Living characters** — per-story mutable state: personality, appearance, and relationships evolve book-paced as pages deal injuries, revelations and betrayals; the base character sheets stay untouched
+- **Cast editing mid-story** — the Library's story cards open a roster/details editor: the roster lists members with roles and cross-world provenance; the selected member edits role, starting connection, and explicit manual story overrides. Dirty drafts guard every close, role changes never dump focus or discard local edits, and the reusable catalogue sheets stay untouched
+- **Long-form continuity** — casting freezes a story-local character snapshot; each committed page contributes a separately extracted, page-linked delta. Character location, condition, knowledge, possessions, appearance, personality and relationships fold together with goals, threads, world facts and durable events. The Library inspector shows coverage/current state/history, repairs failed or legacy pages sequentially, and permits small author corrections
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot, regeneration (with its approximate cost) sits in each card's **More** menu, and creation offers both *Create and paint (≈$…)* and *Create without image*
 - **Story catalogue and covers** — Library → Stories shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted stories get an honest empty-cover state and an explicit paid Paint action; opening the card manages that story's EPUB, cover, audiobook, and plates in one place
 - **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
-- **Canonical worlds** — stories reference the one live world: edit it and future pages follow; world-changing events persist because you decide when they happen. Characters are the opposite — stories hold their own mutable copies
+- **Canonical worlds, frozen casting** — stories reference the one live world: edit it and future pages follow. Characters are copied once when cast, then page-linked continuity and explicit manual overrides evolve that story-local identity without rewriting the reusable catalogue sheet
 - **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references; the painting opens in a zoomable, pannable popup with ghost Save/Close buttons. Choose 1K·low (fast, ≈$0.04) or 2K·medium (finest, ≈$0.08) before painting. Prompts are composed renderable in every tone — even 18+ implies artfully, since the image model refuses explicit content wholesale. When the moderator refuses, nothing repaints silently: the scribe rewrites the prompt aggressively safe, announces it, puts it back in the box, and waits for your press — and a second refusal drops the cast portraits (paintings made from forced-nudity sheets offend moderation on their own, no matter how clean the text). **Add as page** binds any painting into the story as an image page right after the one it illustrates — a book plate among the prose, later pages renumber, and it travels inside the EPUB export
 - **Per-story maturity setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+), selected when the story is created at Write
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — the selected model—and the server default before any override—exposes its own declared reasoning ladder in Settings, including lower or higher levels when OpenRouter advertises them, with room in the token budget to think
-- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, **not a guarantee** (see the warning above; cap your key). The first paid action opens one shared review: what runs, with which model, what is sent, what else gets billed, and an estimate. Accepting remembers consent on that device, so later paid actions run directly; canceling stores no consent, sends nothing, and keeps your text. If catalogue pricing has not loaded, the app shows a conservative numeric ballpark rather than withholding an estimate. Merely selecting a story never spends a cent
+- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, including continuity extraction, **not a guarantee** (see the warning above; cap your key). The first paid action reviews the authored page, its continuity record, and any prepared successor. Accepting remembers consent on that device; canceling sends nothing. If catalogue pricing has not loaded, the app shows conservative numeric ballparks rather than withholding an estimate. Merely selecting a story never spends a cent
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
-- **Context windowing** — the AI gets the recent pages verbatim plus a nod to the opening, so long stories don't blow the token budget
+- **Bounded context retrieval** — the AI gets recent pages verbatim, compact folded state, resolved/active goals and threads, and a few FTS-relevant older memories. Raw old pages are not repeatedly resent, so long stories stay within a predictable prompt budget
 - **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
 - **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range, and deleting any single page renumbers the rest transactionally (page IDs, prose, and painted plates keep their identity; the numbering stays a contiguous 1..N)
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
@@ -68,7 +74,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
 - **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
 - **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
-- **Full test suite** — 376 Jest tests (181 backend + 195 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 385 Jest tests (188 backend + 197 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -79,7 +85,7 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 376 Jest tests (181 backend + 195 frontend) pass on-device under Termux
+- All 385 Jest tests (188 backend + 197 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -138,6 +144,8 @@ npm start               # http://localhost:3000
 | `IMAGE_MODEL` | `x-ai/grok-imagine-image-2.0` | Image model for reference portraits and scene paintings
 | `IMAGE_TIMEOUT_MS` | `180000` | Per-request image generation timeout
 | `CONTEXT_WINDOW` | `5` | Recent pages sent verbatim to the AI |
+| `PAGE_CONTEXT_CHARS` | `12000` | Maximum characters copied from each recent page into a prompt |
+| `CONTINUITY_MODEL` | page model | Optional model used for compact continuity extraction |
 
 ## How It Works
 
@@ -156,7 +164,7 @@ scribe-tribe/
 │   │   ├── app.js             # composer: middleware, runtime, router mounting, disposal
 │   │   ├── db.js              # node:sqlite schema, WAL, FK enforcement, migrations
 │   │   ├── ai.js              # OpenAI-compatible client with retry/backoff + catalogs
-│   │   ├── prompt.js          # prompt builder (tone, cast tiers, relations, state)
+│   │   ├── prompt.js          # prompt builder (tone, snapshots, ledger retrieval)
 │   │   ├── quality.js         # reply quality guards (empty/truncated/language)
 │   │   ├── epub.js            # dependency-free EPUB/ZIP writer
 │   │   ├── images.js          # OpenRouter Image API client (Grok Imagine) + disk store
@@ -164,12 +172,13 @@ scribe-tribe/
 │   │   └── modules/           # feature routers/stores/services:
 │   │       ├── catalog/       #   worlds + characters CRUD, generate_image field
 │   │       ├── stories/       #   story/page/preview SQL, cast contract
+│   │       ├── continuity/    #   snapshots, page deltas, deterministic fold + API
 │   │       ├── writing/       #   drafts, generate/regenerate/preview orchestration
 │   │       ├── imagery/       #   scene painting, moderation flow, entity queue
 │   │       ├── audio/         #   narration cache/segments, audiobook queue
 │   │       ├── library/       #   storage aggregation + EPUB download
 │   │       └── auth/          #   disabled adapter seam (security deferred)
-│   └── tests/                 # Jest + supertest (181 tests)
+│   └── tests/                 # Jest + supertest (188 tests)
 ├── frontend/
 │   ├── index.html             # semantic shell, mount points, dialog templates
 │   ├── app/                   # native ES modules — no build step
@@ -184,7 +193,7 @@ scribe-tribe/
 │   │                          #   auth/ (disabled adapter + dormant gate)
 │   ├── styles/                # tokens, base, shell, components, features
 │   ├── brand/                 # production art assets (WebP + SVG only)
-│   └── tests/                 # Jest + jsdom (195 tests, native ESM)
+│   └── tests/                 # Jest + jsdom (197 tests, native ESM)
  ├── e2e/                   # Playwright browser tests (chromium + mobile)
  ├── database/              # runtime storage, gitignored: SQLite file,
  │                          #   images/ (portraits + covers + scene plates), audio/ (audiobooks)
@@ -214,6 +223,10 @@ scribe-tribe/
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
 | POST | `/api/stories/:id/pages/preview` | Prepare the next page ahead of time (nothing saved until committed). The client only calls this as a disclosed follow-up of a confirmed action — never on passive story selection |
 | POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
+| GET | `/api/stories/:id/continuity` | Inspect memory coverage, folded state, goals, threads and recent events |
+| POST | `/api/stories/:id/continuity/pages/:pageId/sync` | Build or repair one committed text page's memory delta |
+| DELETE | `/api/stories/:id/continuity` | Clear derived memory only (pages, snapshots, corrections and spent-cost ledger remain) |
+| PUT | `/api/stories/:id/continuity/overrides` | Save explicit character/goal/thread corrections |
 | POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
 | POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; drop_references=true omits them). A moderation refusal returns `{refused, reason, sanitized_prompt}` instead of repainting — the client announces and waits for a fresh press |
 | POST | `/api/stories/:id/pages/:n/image-page` | Bind a painted scene into the story as an image page right after page N (later pages renumber); body: `{image (base64), media_type, prompt?, cost_usd?}` |
@@ -239,7 +252,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (170) + frontend (177) Jest suites — runs on Termux too
+npm test             # lint + backend (188) + frontend (197) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # frontend Jest runs native ESM: cd frontend && npm test (uses --experimental-vm-modules)

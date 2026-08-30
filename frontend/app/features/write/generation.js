@@ -7,9 +7,10 @@
 // A story selection alone never spends anything.
 
 import { SCRIBE_FLAVOR, SCRIBE_DONE, SCRIBE_ERROR } from '../../shell.js';
-import { approxCostText, estimatePageCost } from '../../core/cost.js';
+import { approxCostText, estimatePageCost, estimateContinuityCost } from '../../core/cost.js';
 
 const QUALITY_ATTEMPTS_MAX = 3; // must match backend/src/ai.js
+const CONTINUITY_ATTEMPTS_MAX = 2; // initial structured reply + one correction
 
 export function createGeneration({ api, state, notify, shell, features, dialogs }) {
   const { apiCall } = api;
@@ -37,6 +38,19 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     });
   }
 
+  function continuityEstimate() {
+    return estimateContinuityCost({
+      models: state.modelsCache,
+      model: settings.model,
+      pageChars: settings.wordsPerPage * 6,
+    });
+  }
+
+  function storedPageCost(page) {
+    return (typeof page?.cost_usd === 'number' ? page.cost_usd : 0) +
+      (typeof page?.continuity_cost_usd === 'number' ? page.continuity_cost_usd : 0);
+  }
+
   function multipliedEstimate(estimate, count) {
     return typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * count : null;
   }
@@ -51,9 +65,11 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
   // preparation, disclosed as one commitment.
   async function reviewWrite({ action, object, quantity, sends, also }) {
     const singleEstimate = pageEstimate();
-    const estimate = multipliedEstimate(singleEstimate, 2); // live page + successor preview
-    const maximum = multipliedEstimate(singleEstimate, QUALITY_ATTEMPTS_MAX * 2);
-    const note = 'This rough estimate covers the page and its prepared successor. Each may need up to three billable quality attempts; longer tales also send more recent context.';
+    const memoryEstimate = continuityEstimate();
+    const estimate = multipliedEstimate(singleEstimate, 2) + memoryEstimate; // page + ledger + successor preview
+    const maximum = multipliedEstimate(singleEstimate, QUALITY_ATTEMPTS_MAX * 2) +
+      multipliedEstimate(memoryEstimate, CONTINUITY_ATTEMPTS_MAX);
+    const note = 'This rough estimate covers the page, its compact continuity record, and its prepared successor. Authoring may need up to three billable quality attempts; malformed continuity JSON gets one correction. Longer tales still send only bounded recent context.';
     const yes = await dialogs.confirmPaid({
       title: 'Send this to the paid scribe?',
       review: {
@@ -62,12 +78,12 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         model: settings.model || 'the scribe\u2019s default model',
         quantity,
         sends,
-        also: also ? `${also} (${approxCostText(singleEstimate)} before any retry)` : null,
+        also: also ? `record continuity (${approxCostText(memoryEstimate)}), then ${also} (${approxCostText(singleEstimate)} before retries)` : null,
         estimate,
         maximum,
         note,
       },
-      confirmLabel: `Write it + prepare (${approxCostText(estimate)})`,
+        confirmLabel: `Write it, remember + prepare (${approxCostText(estimate)})`,
     });
     return yes;
   }
@@ -183,22 +199,24 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     ) {
       if (reviewing) return;
       reviewing = true;
-      // Committing is free (the preview was billed when it was prepared) -
-      // but preparing the SUCCESSOR is a fresh spend, so it is disclosed
-      // here, before the commit releases it.
+      // The prose was billed when prepared. Committing makes it real, so the
+      // continuity clerk runs now; preparing the successor is also fresh spend.
       const nextEstimate = pageEstimate();
-      const nextMaximum = multipliedEstimate(nextEstimate, QUALITY_ATTEMPTS_MAX);
+      const memoryEstimate = continuityEstimate();
+      const commitEstimate = nextEstimate + memoryEstimate;
+      const nextMaximum = multipliedEstimate(nextEstimate, QUALITY_ATTEMPTS_MAX) +
+        multipliedEstimate(memoryEstimate, CONTINUITY_ATTEMPTS_MAX);
       const yes = await dialogs.confirmPaid({
         title: 'Use this page and prepare another?',
         review: {
-          action: `Commit the prepared page ${storyPages.length + 1} of "${currentStory.title}". Its cost was already paid when it was prepared.`,
+          action: `Commit prepared page ${storyPages.length + 1} of "${currentStory.title}". Its prose was already paid for; committing records its continuity.`,
           quantity: `the prepared page ${storyPages.length + 1} (already spent)`,
-          also: `then prepare the next page for what may follow (${approxCostText(nextEstimate)})`,
-          estimate: nextEstimate,
+          also: `record continuity (${approxCostText(memoryEstimate)}), then prepare the next page (${approxCostText(nextEstimate)})`,
+          estimate: commitEstimate,
           maximum: nextMaximum,
-          note: 'Using the prepared page itself bills nothing new. The estimate is for its successor; a failed quality check can require up to three billable attempts.',
+          note: 'The prepared prose bills nothing new. The estimate covers its continuity record and the successor; the record may get one JSON correction and authoring may need up to three quality attempts.',
         },
-        confirmLabel: `Use prepared page + prepare next (${approxCostText(nextEstimate)})`,
+        confirmLabel: `Use prepared page, remember + prepare next (${approxCostText(commitEstimate)})`,
       });
       reviewing = false;
       if (!yes) return; // cancel: no commit, no follow-up, direction kept
@@ -208,7 +226,10 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         const res = await apiCall(`/stories/${currentStory.id}/pages/commit-preview`, 'POST', {});
         data.storyPages.push(res.page);
         data.currentPage = data.storyPages.length;
-        state.addStoryCost(res.page?.cost_usd); // session cost was booked at preview time
+        const proseCost = typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0;
+        const memoryCost = typeof res.page?.continuity_cost_usd === 'number' ? res.page.continuity_cost_usd : 0;
+        state.addStoryCost(proseCost + memoryCost); // prose session cost was booked at preview time
+        state.addSessionCost(memoryCost); // continuity runs only when the preview commits
         discardSpeculative();
         document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
         features.write.displayCurrentPage();
@@ -265,7 +286,7 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       });
       data.storyPages.push(res.page);
       data.currentPage = data.storyPages.length;
-      state.addCost(typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0);
+      state.addCost(storedPageCost(res.page));
       document.getElementById('userInput').value = '';
       document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
       features.write.displayCurrentPage();
@@ -302,16 +323,14 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     setGenerating(true);
     let rewritten = false;
     try {
-      const oldCost = typeof storyPages[storyPages.length - 1]?.cost_usd === 'number'
-        ? storyPages[storyPages.length - 1].cost_usd
-        : 0;
+      const oldCost = storedPageCost(storyPages[storyPages.length - 1]);
       const res = await apiCall(`/stories/${currentStory.id}/pages/regenerate`, 'POST', {
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       data.storyPages[data.storyPages.length - 1] = res.page;
-      const newCost = typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0;
+      const newCost = storedPageCost(res.page);
       state.addSessionCost(newCost); // the rewrite is a new provider spend in full
       state.addStoryCost(newCost - oldCost); // persisted story replaces the old page
       document.getElementById('scribeStatus').textContent = SCRIBE_DONE;

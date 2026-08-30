@@ -287,7 +287,7 @@ describe('Speculative next-page preparation', () => {
     expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
   });
 
-  it('discloses the two paid calls and their bounded retry ceiling', async () => {
+  it('discloses authoring, continuity and preparation with bounded retry ceilings', async () => {
     fw.setSetting('model', 'priced/model');
     fw.__setModelsCache([
       {

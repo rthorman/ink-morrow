@@ -6,7 +6,7 @@
 
 const { buildCharacterImagePrompt, buildWorldImagePrompt, buildStoryCoverPrompt } = require('../../prompt');
 
-function createImageQueue({ db, generateImage, imageStore, logger, autoImagesEnabled }) {
+function createImageQueue({ db, continuity, generateImage, imageStore, logger, autoImagesEnabled }) {
   const tableFor = (kind) => (kind === 'world' ? 'worlds' : kind === 'story' ? 'stories' : 'characters');
   const queue = [];
   const inFlight = new Set(); // 'character:<id>' keys being generated
@@ -46,27 +46,10 @@ function createImageQueue({ db, generateImage, imageStore, logger, autoImagesEna
             prompt = buildWorldImagePrompt(row);
           } else if (kind === 'story') {
             const world = row.world_id ? db.prepare('SELECT * FROM worlds WHERE id = ?').get(row.world_id) : null;
-            let cast = [];
-            try { cast = JSON.parse(row.characters || '[]'); } catch { cast = []; }
             const rank = (entry) => (entry.role === 'mc' ? 0 : entry.role === 'supporting' ? 1 : 2);
-            const characters = cast
+            const characters = continuity.contextForPrompt(row).characters
               .slice()
-              .sort((a, b) => rank(a) - rank(b))
-              .map((entry) => {
-                const character = db.prepare('SELECT * FROM characters WHERE id = ?').get(entry.id);
-                const evolved = entry.state && typeof entry.state === 'object' ? entry.state : {};
-                return character
-                  ? {
-                      ...character,
-                      personality: evolved.personality || character.personality,
-                      appearance: evolved.appearance || character.appearance,
-                      role: entry.role,
-                      relation: entry.relation,
-                      state: entry.state,
-                    }
-                  : null;
-              })
-              .filter(Boolean);
+              .sort((a, b) => rank(a) - rank(b));
             prompt = buildStoryCoverPrompt({ story: row, world, characters });
             const urls = [];
             for (const character of characters.slice(0, 3)) {

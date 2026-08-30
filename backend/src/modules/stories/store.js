@@ -18,9 +18,25 @@ function createStoriesStore(db, { getWorld }) {
   const storyWithMeta = (story) => ({
     ...story,
     characters: normalizeCast(JSON.parse(story.characters || '[]')),
+    continuity_overrides: JSON.parse(story.continuity_overrides || '{}'),
     page_count: db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(story.id).c,
-    total_cost_usd: db.prepare('SELECT COALESCE(SUM(cost_usd), 0) AS s FROM story_pages WHERE story_id = ?').get(story.id).s,
+    total_cost_usd: db.prepare(
+      'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM story_pages WHERE story_id = ?'
+    ).get(story.id).s,
   });
+
+  const insertSnapshot = db.prepare(`
+    INSERT OR IGNORE INTO story_character_snapshots
+      (story_id, character_id, name, description, personality, appearance, background, source_updated_at)
+    SELECT ?, id, name, description, personality, appearance, background, updated_at
+      FROM characters WHERE id = ?
+  `);
+
+  // A cast member is copied once. Catalogue edits can improve the reusable
+  // template without silently rewriting the identity already cast in a tale.
+  function ensureCastSnapshots(storyId, cast) {
+    for (const entry of cast || []) insertSnapshot.run(storyId, entry.id);
+  }
 
   // -- speculative previews ------------------------------------------------
   // One prepared-but-unsaved next page per story, in the DATABASE so it
@@ -83,6 +99,7 @@ function createStoriesStore(db, { getWorld }) {
     db.prepare('INSERT INTO stories (id, title, world_id, characters, tone) VALUES (?, ?, ?, ?, ?)').run(
       id, payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone
     );
+    ensureCastSnapshots(id, payload.cast);
     return getStory(id);
   }
 
@@ -90,6 +107,8 @@ function createStoriesStore(db, { getWorld }) {
     db.prepare(
       'UPDATE stories SET title = ?, world_id = ?, characters = ?, tone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
+    ensureCastSnapshots(storyId, payload.cast);
+    deletePreview.run(storyId);
     return getStory(storyId);
   }
 
@@ -121,6 +140,32 @@ function createStoriesStore(db, { getWorld }) {
     );
     db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
     return getPageById(id);
+  }
+
+  // Replace a generated page only after its successor text exists. The old
+  // page and memory remain intact during the paid call; this transaction is
+  // the regeneration boundary. The UPDATE trigger invalidates its old delta.
+  function replaceGeneratedPage(pageId, { content, model, promptTokens, completionTokens, costUsd }) {
+    const old = getPageById(pageId);
+    if (!old) return null;
+    db.exec('BEGIN');
+    try {
+      db.prepare(`
+        UPDATE story_pages
+           SET content = ?, created_at = CURRENT_TIMESTAMP, model = ?,
+               prompt_tokens = ?, completion_tokens = ?, cost_usd = ?,
+               continuity_model = NULL, continuity_prompt_tokens = NULL,
+               continuity_completion_tokens = NULL, continuity_cost_usd = 0
+         WHERE id = ?
+      `).run(content, model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null, pageId);
+      deletePreview.run(old.story_id);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(old.story_id);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+    return getPageById(pageId);
   }
 
   // Delete one page and renumber every later page DOWN one slot inside a
@@ -196,6 +241,8 @@ function createStoriesStore(db, { getWorld }) {
       const idOf = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
       if (cast.some((entry) => idOf(entry) === characterId)) {
         update.run(JSON.stringify(cast.filter((entry) => idOf(entry) !== characterId)), story.id);
+        deletePreview.run(story.id);
+        db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
       }
     }
   }
@@ -214,10 +261,12 @@ function createStoriesStore(db, { getWorld }) {
     validateStoryPayload,
     createStory,
     updateStory,
+    ensureCastSnapshots,
     setImageDeleted,
     nextPageNumber,
     insertGeneratedPage,
     insertManualPage,
+    replaceGeneratedPage,
     deletePage,
     truncateAfter,
     insertImagePage,

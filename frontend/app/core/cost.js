@@ -7,6 +7,7 @@
 import { formatUsd } from './dom.js';
 
 export const ROUGH_TEXT_CALL_ESTIMATE = 0.02;
+export const ROUGH_CONTINUITY_CALL_ESTIMATE = 0.01;
 export const ROUGH_NARRATION_PAGE_ESTIMATE = 0.05;
 export const ROUGH_GENERIC_ACTION_ESTIMATE = 0.05;
 
@@ -41,6 +42,24 @@ export function estimatePageCost({ models, model, wordsPerPage, pageChars }) {
   const cost =
     (promptTokens * (p.prompt_per_mtok || 0) + completionTokens * (p.completion_per_mtok || 0)) / 1e6;
   return Number.isFinite(cost) ? cost : ROUGH_TEXT_CALL_ESTIMATE;
+}
+
+// The continuity clerk reads one committed page plus compact current state
+// and returns a bounded JSON delta. It is normally smaller than an authoring
+// call; malformed JSON may require one additional paid completion.
+export function estimateContinuityCost({ models, model, pageChars }) {
+  if (!model) return ROUGH_CONTINUITY_CALL_ESTIMATE;
+  const entry = (models || []).find((m) => m.id === model);
+  if (!entry) return ROUGH_CONTINUITY_CALL_ESTIMATE;
+  const p = entry.pricing || {};
+  if (!Number.isFinite(p.prompt_per_mtok) && !Number.isFinite(p.completion_per_mtok)) {
+    return ROUGH_CONTINUITY_CALL_ESTIMATE;
+  }
+  const promptTokens = (Number.isFinite(pageChars) ? pageChars : 1600) / 4 + 900;
+  const completionTokens = 650;
+  const cost =
+    (promptTokens * (p.prompt_per_mtok || 0) + completionTokens * (p.completion_per_mtok || 0)) / 1e6;
+  return Number.isFinite(cost) ? cost : ROUGH_CONTINUITY_CALL_ESTIMATE;
 }
 
 // Render the shared review body for a paid dialog. Rows with falsy values are
