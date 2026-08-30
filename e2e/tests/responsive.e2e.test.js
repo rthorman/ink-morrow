@@ -16,7 +16,11 @@ const SPECS = [
 ];
 
 for (const spec of SPECS) {
-  test(`responsive: ${spec.name}`, async ({ browser }) => {
+  test(`responsive: ${spec.name}`, async ({ browser }, testInfo) => {
+    // The viewport matrix already covers phone and tablet sizes with its own
+    // contexts; running it again under the Mobile Chrome project is pure
+    // duplication and doubles the suite time for zero extra coverage.
+    test.skip(testInfo.project.name !== 'chromium', 'viewport matrix runs once, in the chromium project');
     const context = await browser.newContext({
       viewport: { width: spec.w, height: spec.h },
       hasTouch: spec.coarse,

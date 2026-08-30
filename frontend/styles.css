@@ -619,6 +619,19 @@ button:disabled {
   color: #a9dfc2;
 }
 
+/* While a modal is open, messages float on top of it (modals are z-100,
+   the scene viewer z-120) - an error buried under an overlay is unreadable. */
+.message--floating {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  width: min(680px, 92vw);
+  margin-bottom: 0;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.65);
+}
+
 /* ------------------------------------------------------------------ empty states */
 
 .placeholder {
@@ -1517,12 +1530,66 @@ button:disabled {
   outline: none;
 }
 
-#sceneImageResult {
-  display: block;
-  width: 100%;
-  margin: 0 0 12px 0;
-  border-radius: var(--st-radius-sm);
+/* ------------------------------------------------------------------ scene viewer (zoomable popup) */
+
+.scene-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 120; /* above the modals (100) */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(5 3 8 / 0.93);
+}
+
+.scene-viewer[hidden] {
+  display: none;
+}
+
+.scene-viewer img {
+  max-width: 92vw;
+  max-height: 82vh;
   border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-sm);
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none; /* the viewer owns every gesture */
+  cursor: grab;
+  will-change: transform;
+}
+
+.scene-viewer__actions {
+  position: absolute;
+  bottom: 26px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+}
+
+/* Ghost buttons: quiet until hovered, then vellum and gold */
+.ghost-btn {
+  padding: 10px 30px;
+  background: transparent;
+  border: 1px solid rgb(230 221 202 / 0.3);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-vellum-200);
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    opacity var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease;
+}
+
+.ghost-btn:hover {
+  opacity: 1;
+  color: var(--st-vellum-50);
+  border-color: var(--st-gold-500);
 }
 
 #sceneImageCost {

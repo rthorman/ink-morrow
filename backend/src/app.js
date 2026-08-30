@@ -744,6 +744,17 @@ function createApp(
       if (!page) return notFound(res, 'Page not found');
       const prompt = optionalText(req.body.prompt, { max: 4000 });
       if (!prompt) return badRequest(res, '"prompt" is required (use the condensed scene prompt)');
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
+      const RENDER_VARIANTS = {
+        low_1k: { quality: 'low', resolution: '1K' },
+        medium_2k: { quality: 'medium', resolution: '2K' },
+      };
+      const variant = req.body.render === undefined ? 'low_1k' : asString(req.body.render);
+      if (!RENDER_VARIANTS[variant]) {
+        return badRequest(res, '"render" must be one of: low_1k, medium_2k');
+      }
 
       // Identity references: MC first, then supporting cast, then background.
       const cast = castCharacters(story)
@@ -763,18 +774,47 @@ function createApp(
         resolvedReferences.push(c.id);
       }
 
-      const result = await generateImage({
-        prompt,
+      const paintOptions = {
         aspectRatio: '2:3', // book-plate portrait
-        resolution: '1K',
-        quality: 'medium',
+        resolution: RENDER_VARIANTS[variant].resolution,
+        quality: RENDER_VARIANTS[variant].quality,
         inputReferences,
-      });
+      };
+      let usedPrompt = prompt;
+      let result;
+      try {
+        result = await generateImage({ prompt, ...paintOptions });
+      } catch (error) {
+        // The provider's moderation refused the prompt (a hand-written prompt
+        // can force what the tone rules would have softened). One rewrite:
+        // the configured LLM renders the scene passable, then we paint that.
+        if (error.statusCode !== 400) throw error;
+        const rewrite = await chatCompletion(
+          [
+            {
+              role: 'system',
+              content: 'You rewrite image prompts so a strict image moderator approves them, preserving the scene.',
+            },
+            {
+              role: 'user',
+              content:
+                'The following image prompt was refused by the image generator. Rewrite it so the SAME scene, drama ' +
+                'and tone survive under strict moderation: no explicit nudity or anatomy, no sexual acts, no graphic ' +
+                'gore - imply through shadow, drapery, framing, aftermath. Output ONLY the rewritten prompt.\n\n' +
+                `PROMPT:\n${prompt}`,
+            },
+          ],
+          { model: modelOverride || undefined, reasoningEffort, maxTokens: 800 }
+        );
+        usedPrompt = rewrite.content.trim();
+        result = await generateImage({ prompt: usedPrompt, ...paintOptions });
+      }
       res.json({
         image: result.buffer.toString('base64'),
         media_type: result.mediaType,
         cost_usd: result.cost,
         references: resolvedReferences,
+        prompt: usedPrompt,
       });
     } catch (error) {
       next(error);

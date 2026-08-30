@@ -1,11 +1,11 @@
 {
   "name": "scribe-tribe-e2e",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "End-to-end tests for ScribeTribe (Playwright)",
   "scripts": {
-    "test": "playwright test --project=chromium && playwright test --project=\"Mobile Chrome\"",
-    "test:headed": "playwright test --headed --project=chromium",
-    "test:debug": "playwright test --debug --project=chromium",
+    "test": "node sweep-e2e-server.cjs && playwright test --project=chromium && node sweep-e2e-server.cjs && playwright test --project=\"Mobile Chrome\"",
+    "test:headed": "node sweep-e2e-server.cjs && playwright test --headed --project=chromium",
+    "test:debug": "node sweep-e2e-server.cjs && playwright test --debug --project=chromium",
     "install-browsers": "playwright install chromium"
   },
   "devDependencies": {

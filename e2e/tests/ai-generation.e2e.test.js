@@ -454,12 +454,12 @@ test.describe('Scene image prompt', () => {
     );
     expect(promptCalls).toBe(1);
 
-    // Paint it: the edited prompt is sent, the image appears, the cost shows
-    await page.fill('#imagePromptText', 'A candlelit gothic hall, warmer light.');
-    await page.locator('#imagePromptGenerateBtn').click();
-    await expect(page.locator('#sceneImageResult')).toBeVisible({ timeout: 5000 });
-    await expect(page.locator('#sceneImageCost')).toContainText('$0.0600');
-    expect(sceneCalls).toBe(1);
+    // Render quality is selectable and persists in settings
+    await expect(page.locator('#imageQualitySelect')).toBeVisible();
+    await page.selectOption('#imageQualitySelect', 'medium_2k');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).sceneRenderQuality)).toBe('medium_2k');
+
+    // Paint it: the edited prompt is sent, the image opens in the zoomable popup
     const sentBody = page.waitForRequest((request) => {
       if (request.url().includes('/scene-image')) {
         expect(JSON.parse(request.postData()).prompt).toBe('A candlelit gothic hall, warmer light.');
@@ -467,9 +467,36 @@ test.describe('Scene image prompt', () => {
       }
       return false;
     });
-    await page.locator('#imagePromptGenerateBtn').click(); // repaint with the same text
+    await page.fill('#imagePromptText', 'A candlelit gothic hall, warmer light.');
+    await page.locator('#imagePromptGenerateBtn').click();
     await sentBody;
-    await expect(page.locator('#sceneImageResult')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#sceneViewerImg')).toBeVisible();
+    // Truly decoded, not a CSP-blocked or broken icon
+    await expect
+      .poll(() => page.locator('#sceneViewerImg').evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 5000 })
+      .toBe(true);
+    await expect(page.locator('#sceneImageCost')).toContainText('$0.0600');
+    expect(sceneCalls).toBe(1);
+
+    // Zoom really zooms (wheel), double-click resets, in a real browser
+    const img = page.locator('#sceneViewerImg');
+    await img.hover();
+    await page.mouse.wheel(0, -240);
+    await expect
+      .poll(async () => img.evaluate((el) => el.style.transform), { timeout: 3000 })
+      .toContain('scale(');
+    expect(await img.evaluate((el) => el.style.transform)).not.toBe('scale(1)');
+    await img.dblclick();
+    await expect
+      .poll(async () => img.evaluate((el) => el.style.transform), { timeout: 3000 })
+      .toBe('translate(0px, 0px) scale(1)');
+
+    // Ghost buttons: Close returns to the prompt popup, Save downloads
+    await expect(page.locator('#sceneViewerSaveBtn')).toBeVisible();
+    await page.locator('#sceneViewerCloseBtn').click();
+    await expect(page.locator('#sceneImageViewerModal')).toBeHidden();
+    await expect(page.locator('#imagePromptModal')).toBeVisible(); // still editing behind
 
     await page.locator('#imagePromptCancelBtn').click();
     await expect(page.locator('#imagePromptModal')).toBeHidden();

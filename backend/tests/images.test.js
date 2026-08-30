@@ -285,11 +285,28 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     const body = axios.post.mock.calls[axios.post.mock.calls.length - 1][1];
     expect(body.prompt).toBe('A candlelit hall, two figures, tense composition.');
     expect(body.aspect_ratio).toBe('2:3');
-    expect(body.quality).toBe('medium');
+    expect(body.quality).toBe('low'); // default render variant: 1K low
+    expect(body.resolution).toBe('1K');
     expect(body.input_references.length).toBe(2);
     // Both cast portraits ride along as base64 identity references
     expect(body.input_references[0].image_url.url.startsWith('data:image/png;base64,')).toBe(true);
     expect(body.input_references[1].image_url.url.startsWith('data:image/png;base64,')).toBe(true);
+  });
+
+  it('honors the chosen render variant and rejects unknown ones', async () => {
+    await request(app)
+      .post(`/api/stories/${story.id}/pages/1/scene-image`)
+      .send({ prompt: 'A tall hall.', render: 'medium_2k' })
+      .expect(200);
+    const body = axios.post.mock.calls[axios.post.mock.calls.length - 1][1];
+    expect(body.quality).toBe('medium');
+    expect(body.resolution).toBe('2K');
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/scene-image`)
+      .send({ prompt: 'A tall hall.', render: 'ultra_8k' })
+      .expect(400);
+    expect(res.body.error).toContain('low_1k, medium_2k');
   });
 
   it('caps references at three, casting background figures last', async () => {
@@ -340,5 +357,79 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       .post('/api/stories/00000000-0000-4000-8000-000000000000/pages/1/scene-image')
       .send({ prompt: 'Nothing here.' })
       .expect(404);
+  });
+
+  it('a moderation refusal (400) triggers one LLM rewrite and repaints that', async () => {
+    // First paint attempt is refused; the rewrite LLM softens it; the repaint lands.
+    // Background entity-portrait jobs share the mock: only the scene's own
+    // prompt gets refused (and counted).
+    const SCENE_PROMPT = 'An explicitly unrenderable scene.';
+    let sceneImageCalls = 0;
+    axios.post.mockImplementation((url, body) => {
+      if (String(url).includes('/images')) {
+        if (body && body.prompt === SCENE_PROMPT) {
+          sceneImageCalls++;
+          if (sceneImageCalls === 1) {
+            return Promise.reject({ response: { status: 400, data: '{"error":{"message":"refused by moderation"}}' } });
+          }
+          return Promise.resolve({
+            data: {
+              data: [{ b64_json: PNG_BYTES.toString('base64'), media_type: 'image/png' }],
+              usage: { cost: 0.06 },
+            },
+          });
+        }
+        // Entity portrait jobs pass through untouched
+        return Promise.resolve({
+          data: {
+            data: [{ b64_json: PNG_BYTES.toString('base64'), media_type: 'image/png' }],
+            usage: { cost: 0.04 },
+          },
+        });
+      }
+      if (String(url).includes('/chat/completions')) {
+        return Promise.resolve({
+          data: { choices: [{ message: { content: ' A softened, renderable take on the scene. ' } }] },
+        });
+      }
+      return Promise.resolve({ data: {} });
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/scene-image`)
+      .send({ prompt: SCENE_PROMPT })
+      .expect(200);
+
+    expect(res.body.prompt).toBe('A softened, renderable take on the scene.'); // the prompt actually painted
+    expect(Buffer.from(res.body.image, 'base64').equals(PNG_BYTES)).toBe(true);
+    expect(sceneImageCalls).toBe(1); // one refusal, then the repaint uses the rewritten prompt
+    const sceneBodies = axios.post.mock.calls
+      .filter(([url, body]) => String(url).includes('/images') && (body.prompt === SCENE_PROMPT || body.prompt === 'A softened, renderable take on the scene.'))
+      .map((c) => c[1]);
+    expect(sceneBodies).toHaveLength(2); // refused once, painted once
+    expect(sceneBodies[0].prompt).toBe(SCENE_PROMPT);
+    expect(sceneBodies[1].prompt).toBe('A softened, renderable take on the scene.');
+    expect(sceneBodies[1].input_references.length).toBe(2); // identity references survive the rewrite
+    const rewritePrompt = axios.post.mock.calls.find(([url]) => String(url).includes('/chat/completions'))[1]
+      .messages[1].content;
+    expect(rewritePrompt).toContain('strict moderation');
+    expect(rewritePrompt).toContain(SCENE_PROMPT);
+  });
+
+  it('a refusal followed by another refusal still surfaces the honest failure', async () => {
+    axios.post.mockImplementation((url) => {
+      if (String(url).includes('/images')) {
+        return Promise.reject({ response: { status: 400, data: '{"error":{"message":"still refused"}}' } });
+      }
+      return Promise.resolve({
+        data: { choices: [{ message: { content: ' Softened but still refused. ' } }] },
+      });
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/scene-image`)
+      .send({ prompt: 'Something the moderator will never pass.' })
+      .expect(400);
+    expect(res.body.error).toContain('refused');
   });
 });

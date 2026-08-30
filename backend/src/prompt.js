@@ -122,17 +122,23 @@ function buildPrompt({ story, world, characters, pages, userInput, wordTarget })
   return parts.join('\n\n');
 }
 
-// What each story tone permits in a *visual* rendering of a scene.
+// What each story tone permits in a *visual* rendering of a scene. Every
+// image generator moderates its own way, and a refused generation fails
+// wholesale - so EVERY tone composes renderable prompts: implication,
+// never explicit anatomy or gore. The 18+ case leans into charged mood
+// instead of refused anatomy.
 const IMAGE_TONE_INSTRUCTIONS = {
   'fade-to-black':
     'This story keeps things tasteful and the image must too: NEVER depict sex scenes, nudity, or gory/graphic battles. ' +
     'Render such moments obliquely - aftermath, charged stillness, silhouettes, smoke, implied intensity. Nothing explicit.',
   romantic:
-    'This story may be sensual: the image may carry romantic, sensual mood - closeness, longing, artful bared skin - ' +
-    'but no explicit imagery.',
+    'This story may be sensual: the image carries romantic, sensual mood - closeness, longing, charged atmosphere - ' +
+    'rendered suggestively and tastefully, never explicitly.',
   explicit:
-    'This story is intended for adults (18+): the image may be explicit if the scene calls for it - ' +
-    'nudity and graphic moments are permitted. All characters are adults.',
+    'This story is intended for adults (18+), but the image generator REFUSES explicit content and fails the entire ' +
+    'generation. Compose a RENDERABLE image of the adult scene: imply it artfully - shadow, drapery, silhouettes, ' +
+    'aftermath, charged tension - with NO explicit nudity or anatomy and no graphic gore; stylized implication only. ' +
+    'All characters are adults.',
 };
 
 function buildImagePrompt({ story, world, characters, pages }) {
@@ -194,6 +200,9 @@ function buildCharacterImagePrompt(character) {
   if (character.background) lines.push(`Background hints (era, clothing, worn gear): ${character.background}`);
   lines.push(
     'Plain neutral background, soft even light. Only this character - no other people, no creatures, no text, no captions, no watermark.'
+  );
+  lines.push(
+    'The portrait must pass strict image moderation: no explicit nudity or anatomy - imply tastefully through drapery, pose and framing.'
   );
   return lines.join('\n');
 }

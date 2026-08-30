@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self'; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -213,9 +213,9 @@
                             <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
                             <button id="nextPageBtn" type="button">Next →</button>
                             <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
-                            <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Keep reading pages aloud one after the other until stopped">Auto</button>
+                            <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" aria-label="Autoplay narration" title="Autoplay: keep reading pages aloud one after the other until stopped">▶</button>
+                            <button id="narrationStopBtn" class="narrate-btn" type="button" aria-label="Stop playback" title="Stop playback" hidden>■</button>
                             <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Scene image</button>
-                            <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
                         </div>
 
                         <div id="storyContent" class="story-content">
@@ -331,13 +331,25 @@
                 Condensed from the world, the cast as they stand in this scene, and the pages so far.
                 Edit freely before feeding it to an image generator.
             </p>
+            <label class="setting-label" for="imageQualitySelect">Render</label>
+            <select id="imageQualitySelect">
+                <option value="low_1k">1K · low — fast, ≈$0.04</option>
+                <option value="medium_2k">2K · medium — finest, ≈$0.08</option>
+            </select>
             <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
-            <img id="sceneImageResult" alt="The painted scene" hidden>
             <p id="sceneImageCost" class="scene-image-cost" hidden></p>
             <div class="burn-modal__actions">
                 <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
                 <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <div id="sceneImageViewerModal" class="scene-viewer" hidden>
+        <img id="sceneViewerImg" alt="The painted scene" draggable="false">
+        <div class="scene-viewer__actions">
+            <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
+            <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
         </div>
     </div>
 

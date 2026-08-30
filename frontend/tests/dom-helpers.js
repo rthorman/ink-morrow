@@ -96,9 +96,9 @@ function buildDom() {
         <button id="prevPageBtn">← Previous</button>        <span id="pageIndicator">Page 1 of 1</span>
         <button id="nextPageBtn">Next →</button>
         <button id="readAloudBtn" type="button">Read aloud</button>
-        <button id="narrationAutoBtn" type="button">Auto</button>
+        <button id="narrationAutoBtn" type="button" aria-pressed="false" aria-label="Autoplay narration">▶</button>
         <button id="imagePromptBtn" type="button">Scene image</button>
-        <button id="narrationStopBtn" type="button" hidden>Stop</button>
+        <button id="narrationStopBtn" type="button" aria-label="Stop playback" hidden>■</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
         <textarea id="userInput"></textarea>
@@ -136,11 +136,16 @@ function buildDom() {
         <h2 id="imagePromptTitle">Scene image prompt</h2>
         <p id="imagePromptHint" class="burn-modal__body"></p>
         <textarea id="imagePromptText" rows="10"></textarea>
-        <img id="sceneImageResult" alt="The painted scene" hidden>
+        <select id="imageQualitySelect"><option value="low_1k">1K · low</option><option value="medium_2k">2K · medium</option></select>
         <p id="sceneImageCost" class="scene-image-cost" hidden></p>
         <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
         <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
       </div>
+    </div>
+    <div id="sceneImageViewerModal" class="scene-viewer" hidden>
+      <img id="sceneViewerImg" alt="The painted scene">
+      <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
+      <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
     </div>
     <div id="characterEditorModal" class="burn-modal" hidden>
       <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="characterEditorTitle">

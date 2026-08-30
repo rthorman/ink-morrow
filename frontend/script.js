@@ -33,7 +33,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   narrationVoice: null,
   reasoningEffort: null,
   storyFontSize: 18,
+  sceneRenderQuality: 'low_1k',
 });
+const SCENE_RENDER_VARIANTS = new Set(['low_1k', 'medium_2k']);
 const FONT_SIZE_MIN = 14;
 const FONT_SIZE_MAX = 24;
 const WORDS_MIN = 50;
@@ -84,6 +86,7 @@ function setSetting(key, value) {
     if (!Number.isFinite(n)) return;
     value = Math.min(Math.max(n, WORDS_MIN), WORDS_MAX);
   }
+  if (key === 'sceneRenderQuality' && !SCENE_RENDER_VARIANTS.has(value)) return;
   if (settings[key] === value) return; // no change: nothing to apply or persist
   settings[key] = value;
   saveSettings();
@@ -105,6 +108,8 @@ function applySettings() {
   if (fontSizeSelect) fontSizeSelect.value = String(fontSize);
   const wordsInput = document.getElementById('wordsPerPageInput');
   if (wordsInput) wordsInput.value = String(settings.wordsPerPage);
+  const renderSelect = document.getElementById('imageQualitySelect');
+  if (renderSelect) renderSelect.value = SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k';
   if (speechModelsCache) renderNarrationSettings(); // per-page cost labels track the word target
   updateCurrentModelLabel();
   updateCostTicker();
@@ -453,6 +458,7 @@ function initApp() {
   initBurnModal();
   initAiDrafts();
   initNarration();
+  initSceneViewer(); // registered first so Escape dismisses the viewer before the prompt popup
   initImagePrompt();
   initEntityEditors();
 
@@ -527,11 +533,19 @@ function showSection(section) {
 // ---------------------------------------------------------------------------
 
 function showMessage(message, kind = 'error') {
-  const active = document.querySelector('.content-section.active') || document.querySelector('main');
   const div = document.createElement('div');
   div.className = kind === 'error' ? 'error-message' : 'success-message';
   div.textContent = message;
-  active.insertBefore(div, active.firstChild);
+  // A modal buries the section-level message area; anything said while a
+  // modal is open must surface ON TOP of it, or the user never reads it.
+  const modalOpen = document.querySelector('.burn-modal:not([hidden]), .scene-viewer:not([hidden])');
+  if (modalOpen) {
+    div.classList.add('message--floating');
+    document.body.appendChild(div);
+  } else {
+    const active = document.querySelector('.content-section.active') || document.querySelector('main');
+    active.insertBefore(div, active.firstChild);
+  }
   // Errors carry recovery information: keep them up longer.
   setTimeout(() => div.remove(), kind === 'error' ? 8000 : 5000);
 }
@@ -1261,6 +1275,7 @@ function displayCurrentPage() {
     document.getElementById('pageIndicator').textContent = 'Page 1 of 1';
     setPastPageBar(false, 0, 0);
     setWritingEnabled(true);
+    updatePageActionButtons();
     return;
   }
 
@@ -1285,6 +1300,7 @@ function displayCurrentPage() {
   nextBtn.disabled = currentPage >= storyPages.length;
   retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length;
   deletePageBtn.disabled = storyPages.length === 0 || currentPage > storyPages.length;
+  updatePageActionButtons();
 
   // Old pages are read-only: writing continues from the last page only.
   setWritingEnabled(storyPages.length === 0 || currentPage === storyPages.length);
@@ -1305,6 +1321,16 @@ function setWritingEnabled(enabled) {
   if (interfaceEl) interfaceEl.classList.toggle('read-only', !enabled);
   if (input) input.disabled = !enabled;
   if (generateBtn) generateBtn.disabled = generating || !enabled;
+}
+
+// Narration and illustration need a real page to work on, and hold still
+// while the scribe writes a new one.
+function updatePageActionButtons() {
+  const usable = Boolean(currentStory) && storyPages.length > 0 && !generating;
+  for (const id of ['readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn']) {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = !usable;
+  }
 }
 
 function setPastPageBar(visible, pageNumber, pagesAfter) {
@@ -1333,6 +1359,7 @@ function setGenerating(active) {
   for (const id of ['generateBtn', 'retryBtn']) {
     document.getElementById(id).disabled = active;
   }
+  updatePageActionButtons(); // narration & illustration pause while the scribe writes
   const generateBtn = document.getElementById('generateBtn');
   generateBtn.classList.toggle('busy', active);
   updateSpeculativeUi();
@@ -2102,9 +2129,8 @@ async function generateSceneImage() {
   }
   const box = document.getElementById('imagePromptText');
   const btn = document.getElementById('imagePromptGenerateBtn');
-  const img = document.getElementById('sceneImageResult');
   const costEl = document.getElementById('sceneImageCost');
-  if (!box || !btn || !img) return;
+  if (!box || !btn) return;
   const prompt = box.value.trim();
   if (!prompt) {
     showError('The prompt box is empty — condense the scene first.');
@@ -2112,22 +2138,28 @@ async function generateSceneImage() {
   }
   btn.disabled = true;
   btn.textContent = 'Painting…';
-  img.hidden = true;
-  img.removeAttribute('src');
   if (costEl) costEl.hidden = true;
   try {
-    const data = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/scene-image`, 'POST', { prompt });
-    img.src = `data:${data.media_type};base64,${data.image}`;
-    img.hidden = false;
-    if (costEl) {
-      if (typeof data.cost_usd === 'number') {
-        const refs = Array.isArray(data.references) ? data.references.length : 0;
-        costEl.textContent =
-          `This painting cost ${formatUsd(data.cost_usd)}` +
-          (refs > 0 ? ` · ${refs} cast portrait${refs > 1 ? 's' : ''} as reference${refs > 1 ? 's' : ''}` : '');
-        costEl.hidden = false;
-        addCost(data.cost_usd); // scene images belong to the tale: session + story
-      }
+    const data = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/scene-image`, 'POST', {
+      prompt,
+      render: SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k',
+      ...(settings.model ? { model: settings.model } : {}),
+      ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
+    });
+    openSceneViewer(`data:${data.media_type};base64,${data.image}`, data.media_type);
+    // The provider may have refused the first draft and the scribe repainted
+    // it renderable - show the prompt that was actually painted.
+    if (typeof data.prompt === 'string' && data.prompt && data.prompt !== prompt) {
+      box.value = data.prompt;
+      showSuccess('The image model refused the first draft; the scribe rewrote it and painted that instead.');
+    }
+    if (costEl && typeof data.cost_usd === 'number') {
+      const refs = Array.isArray(data.references) ? data.references.length : 0;
+      costEl.textContent =
+        `This painting cost ${formatUsd(data.cost_usd)}` +
+        (refs > 0 ? ` · ${refs} cast portrait${refs > 1 ? 's' : ''} as reference${refs > 1 ? 's' : ''}` : '');
+      costEl.hidden = false;
+      addCost(data.cost_usd); // scene images belong to the tale: session + story
     }
   } catch (error) {
     showError(scribeErrorMessage(error.message));
@@ -2135,6 +2167,147 @@ async function generateSceneImage() {
     btn.disabled = false;
     btn.textContent = 'Generate image';
   }
+}
+
+// ---------------------------------------------------------------------------
+// Scene viewer: the painting opens in its own zoomable, pannable popup.
+// Wheel zooms (anchored at the cursor), drag pans, pinch zooms, double-click
+// toggles between full and 2.5x; Save downloads, Close dismisses.
+// ---------------------------------------------------------------------------
+
+let sceneViewerDataUrl = null;
+let sceneViewerFilename = 'scene.png';
+let viewerScale = 1;
+let viewerX = 0;
+let viewerY = 0;
+
+function applySceneViewerTransform() {
+  const img = document.getElementById('sceneViewerImg');
+  if (img) img.style.transform = `translate(${viewerX}px, ${viewerY}px) scale(${viewerScale})`;
+}
+
+function resetSceneViewer() {
+  viewerScale = 1;
+  viewerX = 0;
+  viewerY = 0;
+  applySceneViewerTransform();
+}
+
+function openSceneViewer(dataUrl, mediaType) {
+  const modal = document.getElementById('sceneImageViewerModal');
+  const img = document.getElementById('sceneViewerImg');
+  if (!modal || !img) return;
+  sceneViewerDataUrl = dataUrl;
+  const ext = mediaType === 'image/jpeg' ? 'jpg' : mediaType === 'image/webp' ? 'webp' : 'png';
+  sceneViewerFilename = `scene-page-${currentStory ? currentPage : 0}.${ext}`;
+  img.src = dataUrl;
+  modal.hidden = false;
+  resetSceneViewer();
+}
+
+function closeSceneViewer() {
+  const modal = document.getElementById('sceneImageViewerModal');
+  const img = document.getElementById('sceneViewerImg');
+  if (modal) modal.hidden = true;
+  if (img) img.removeAttribute('src');
+  sceneViewerDataUrl = null;
+  resetSceneViewer();
+}
+
+function saveSceneViewer() {
+  if (!sceneViewerDataUrl) return;
+  const a = document.createElement('a');
+  a.href = sceneViewerDataUrl;
+  a.download = sceneViewerFilename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+// Zoom by `factor`, keeping the screen point (clientX/clientY) under the
+// cursor pinned to the same image point; no anchor = zoom about the center.
+function zoomSceneViewerAt(factor, clientX, clientY) {
+  const img = document.getElementById('sceneViewerImg');
+  if (!img || !img.getAttribute('src')) return;
+  const nextScale = Math.min(8, Math.max(0.25, viewerScale * factor));
+  if (nextScale === viewerScale) return;
+  const rect = img.getBoundingClientRect();
+  const tcx = rect.left + rect.width / 2; // transformed center
+  const tcy = rect.top + rect.height / 2;
+  const ax = typeof clientX === 'number' ? clientX : tcx;
+  const ay = typeof clientY === 'number' ? clientY : tcy;
+  const px = (ax - tcx) / viewerScale; // image-space point under the anchor
+  const py = (ay - tcy) / viewerScale;
+  const lcx = tcx - viewerX; // layout (untranslated) center
+  const lcy = tcy - viewerY;
+  viewerScale = nextScale;
+  viewerX = ax - lcx - px * viewerScale;
+  viewerY = ay - lcy - py * viewerScale;
+  applySceneViewerTransform();
+}
+
+function initSceneViewer() {
+  const modal = document.getElementById('sceneImageViewerModal');
+  const img = document.getElementById('sceneViewerImg');
+  if (!modal || !img) return;
+
+  img.addEventListener('wheel', (event) => {
+    event.preventDefault();
+    zoomSceneViewerAt(event.deltaY < 0 ? 1.15 : 1 / 1.15, event.clientX, event.clientY);
+  });
+  img.addEventListener('dblclick', (event) => {
+    if (viewerScale > 1.05) {
+      // Back to the full view, pan reset - a clean overview, not a half-shifted one
+      viewerScale = 1;
+      viewerX = 0;
+      viewerY = 0;
+      applySceneViewerTransform();
+    } else {
+      zoomSceneViewerAt(2.5, event.clientX, event.clientY); // zoom into where the eye landed
+    }
+  });
+
+  // Pointer pan (one finger / mouse drag) and pinch zoom (two fingers)
+  const pointers = new Map();
+  img.addEventListener('pointerdown', (event) => {
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (typeof img.setPointerCapture === 'function') {
+      try { img.setPointerCapture(event.pointerId); } catch { /* jsdom */ }
+    }
+  });
+  img.addEventListener('pointermove', (event) => {
+    const prev = pointers.get(event.pointerId);
+    if (!prev) return;
+    if (pointers.size === 1) {
+      viewerX += event.clientX - prev.x;
+      viewerY += event.clientY - prev.y;
+      applySceneViewerTransform();
+    } else if (pointers.size === 2) {
+      const other = [...pointers.entries()].find(([id]) => id !== event.pointerId)[1];
+      const prevDist = Math.hypot(prev.x - other.x, prev.y - other.y);
+      const dist = Math.hypot(event.clientX - other.x, event.clientY - other.y);
+      const midX = (event.clientX + other.x) / 2;
+      const midY = (event.clientY + other.y) / 2;
+      if (prevDist > 0 && dist > 0) zoomSceneViewerAt(dist / prevDist, midX, midY);
+    }
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+  });
+  const endPointer = (event) => pointers.delete(event.pointerId);
+  img.addEventListener('pointerup', endPointer);
+  img.addEventListener('pointercancel', endPointer);
+
+  document.getElementById('sceneViewerSaveBtn')?.addEventListener('click', saveSceneViewer);
+  document.getElementById('sceneViewerCloseBtn')?.addEventListener('click', closeSceneViewer);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeSceneViewer();
+  });
+  // Escape closes the viewer FIRST; the prompt popup underneath stays put.
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !modal.hidden) {
+      closeSceneViewer();
+      event.stopImmediatePropagation();
+    }
+  });
 }
 
 async function generateImagePrompt() {
@@ -2156,11 +2329,6 @@ async function generateImagePrompt() {
       ...(reasoningApplies() ? { reasoning_effort: settings.reasoningEffort || 'medium' } : {}),
     });
     box.value = data.prompt || '';
-    const img = document.getElementById('sceneImageResult');
-    if (img) {
-      img.hidden = true;
-      img.removeAttribute('src');
-    }
     const costEl = document.getElementById('sceneImageCost');
     if (costEl) costEl.hidden = true;
     modal.hidden = false;
@@ -2178,6 +2346,8 @@ async function generateImagePrompt() {
 function initImagePrompt() {
   const btn = document.getElementById('imagePromptBtn');
   if (btn) btn.addEventListener('click', generateImagePrompt);
+  const renderSelect = document.getElementById('imageQualitySelect');
+  if (renderSelect) renderSelect.addEventListener('change', () => setSetting('sceneRenderQuality', renderSelect.value));
   const generateBtn = document.getElementById('imagePromptGenerateBtn');
   if (generateBtn) generateBtn.addEventListener('click', generateSceneImage);
   const modal = document.getElementById('imagePromptModal');
@@ -2289,9 +2459,14 @@ if (typeof module !== 'undefined' && module.exports) {
     renderNarrationSettings,
     __lastNarrationAudio: () => narrationAudio,
     __setModelsCache(models) { modelsCache = models; },
-    // Scene image prompt
+    // Scene image prompt + zoomable viewer
     generateImagePrompt,
+    setGenerating,
     generateSceneImage,
+    openSceneViewer,
+    closeSceneViewer,
+    saveSceneViewer,
+    __sceneViewerState: () => ({ scale: viewerScale, x: viewerX, y: viewerY, dataUrl: sceneViewerDataUrl }),
     // Entity editors
     openCharacterEditor,
     saveCharacterEditor,

@@ -21,6 +21,28 @@ function imageConfig() {
  * entries (base64 data URLs, per the Image API contract).
  * Resolves with { buffer, mediaType, cost }.
  */
+// Turns an axios failure into an Error carrying the upstream status and,
+// when the provider explained itself, the real reason. 4xx pass through
+// (a moderation refusal is a 400 the caller may want to retry around).
+function imageError(error) {
+  const status = error.response?.status;
+  const data = error.response?.data;
+  let message = null;
+  if (data !== undefined && data !== null) {
+    try {
+      const parsed = typeof data === 'string' || Buffer.isBuffer(data) ? JSON.parse(data.toString()) : data;
+      message = parsed?.error?.message || (typeof parsed?.error === 'string' ? parsed.error : null);
+    } catch {
+      message = String(data).slice(0, 200);
+    }
+  }
+  const err = new Error(
+    message ? `The image model refused this request: ${message}` : error.message || 'Image generation failed'
+  );
+  err.statusCode = Number.isFinite(status) && status >= 400 && status < 500 ? status : 502;
+  return err;
+}
+
 async function generateImage({
   prompt,
   aspectRatio = '3:4',
@@ -34,24 +56,29 @@ async function generateImage({
     err.statusCode = 503;
     throw err;
   }
-  const response = await axios.post(
-    `${cfg.baseUrl}/images`,
-    {
-      model: cfg.model,
-      prompt,
-      aspect_ratio: aspectRatio,
-      resolution,
-      quality,
-      ...(inputReferences.length > 0 ? { input_references: inputReferences } : {}),
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${cfg.apiKey}`,
-        'Content-Type': 'application/json',
+  let response;
+  try {
+    response = await axios.post(
+      `${cfg.baseUrl}/images`,
+      {
+        model: cfg.model,
+        prompt,
+        aspect_ratio: aspectRatio,
+        resolution,
+        quality,
+        ...(inputReferences.length > 0 ? { input_references: inputReferences } : {}),
       },
-      timeout: cfg.timeout,
-    }
-  );
+      {
+        headers: {
+          Authorization: `Bearer ${cfg.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        timeout: cfg.timeout,
+      }
+    );
+  } catch (error) {
+    throw imageError(error);
+  }
   const image = response.data?.data?.[0];
   if (!image?.b64_json) {
     const err = new Error('The image model returned nothing usable.');
