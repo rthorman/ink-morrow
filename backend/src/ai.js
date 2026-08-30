@@ -281,6 +281,29 @@ async function chatCompletion(
   let languageNudgeSent = false;
   let lastError = null;
   let lastQualityProblem = null;
+  // A locally rejected response was still a successful provider completion
+  // and can therefore be billable. Keep the full spend across quality
+  // retries instead of returning only the final, accepted attempt.
+  let billedAttempts = 0;
+  let promptTokens = 0;
+  let completionTokens = 0;
+  let sawUsage = false;
+  let totalCostUsd = 0;
+  let allCostsKnown = true;
+
+  const accruedUsage = () =>
+    sawUsage ? { prompt_tokens: promptTokens, completion_tokens: completionTokens } : null;
+  const accruedCost = () =>
+    billedAttempts > 0 && allCostsKnown ? totalCostUsd : null;
+  const attachSpend = (error) => {
+    if (billedAttempts > 0) {
+      error.billedAttempts = billedAttempts;
+      error.usage = accruedUsage();
+      error.costUsd = accruedCost();
+    }
+    return error;
+  };
+
   for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
     if (attempt > 0) {
       await sleep(cfg.retryBaseDelay * attempt);
@@ -304,33 +327,6 @@ async function chatCompletion(
         }
       );
       const content = response.data?.choices?.[0]?.message?.content;
-      if (!content || !content.trim()) {
-        throw new Error('AI returned an empty response');
-      }
-      if (quality) {
-        const problem = checkReply(content, quality, languageReference);
-        if (problem) {
-          // A wrong language earns one explicit instruction before the
-          // remaining attempts are burned on the same mistake.
-          if (problem === 'language' && !languageNudgeSent) {
-            languageNudgeSent = true;
-            attemptMessages = [
-              ...messages,
-              { role: 'system', content: 'Important: write your reply in English only.' },
-            ];
-          }
-          const qErr = new Error(
-            problem === 'empty'
-              ? 'AI returned an empty response'
-              : problem === 'truncated'
-                ? 'The reply arrived clearly truncated'
-                : 'The reply arrived in the wrong language'
-          );
-          qErr.qualityProblem = problem;
-          qErr.retryable = true;
-          throw qErr;
-        }
-      }
       const rawUsage = response.data?.usage;
       const usage = rawUsage
         ? {
@@ -339,7 +335,48 @@ async function chatCompletion(
           }
         : null;
       const cost_usd = await computeCostUsd(useModel, usage);
-      return { content: content.trim(), model: useModel, usage, cost_usd };
+      billedAttempts += 1;
+      if (usage) {
+        sawUsage = true;
+        promptTokens += usage.prompt_tokens;
+        completionTokens += usage.completion_tokens;
+      }
+      if (typeof cost_usd === 'number' && Number.isFinite(cost_usd)) totalCostUsd += cost_usd;
+      else allCostsKnown = false;
+
+      const problem = !content || !content.trim()
+        ? 'empty'
+        : quality
+          ? checkReply(content, quality, languageReference)
+          : null;
+      if (problem) {
+        // A wrong language earns one explicit instruction before the
+        // remaining attempts are burned on the same mistake.
+        if (problem === 'language' && !languageNudgeSent) {
+          languageNudgeSent = true;
+          attemptMessages = [
+            ...messages,
+            { role: 'system', content: 'Important: write your reply in English only.' },
+          ];
+        }
+        const qErr = new Error(
+          problem === 'empty'
+            ? 'AI returned an empty response'
+            : problem === 'truncated'
+              ? 'The reply arrived clearly truncated'
+              : 'The reply arrived in the wrong language'
+        );
+        qErr.qualityProblem = problem;
+        qErr.retryable = true;
+        throw qErr;
+      }
+      return {
+        content: content.trim(),
+        model: useModel,
+        usage: accruedUsage(),
+        cost_usd: accruedCost(),
+        billed_attempts: billedAttempts,
+      };
     } catch (error) {
       lastError = error;
       lastQualityProblem = error.qualityProblem || null;
@@ -360,7 +397,7 @@ async function chatCompletion(
           : 'The scribe kept answering in a different language. Nothing was saved \u2014 try again.'
     );
     err.statusCode = 502;
-    throw err;
+    throw attachSpend(err);
   }
 
   const err = new Error(
@@ -369,7 +406,7 @@ async function chatCompletion(
       : `AI API request failed: ${lastError?.message || 'unknown error'}`
   );
   err.statusCode = lastError?.response?.status && !RETRYABLE.has(lastError.response.status) ? 502 : 504;
-  throw err;
+  throw attachSpend(err);
 }
 
 module.exports = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost, resetModelCache };

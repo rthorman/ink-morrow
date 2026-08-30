@@ -186,7 +186,21 @@ describe('Cost ticker', () => {
 
     // old page cost 0.01 replaced by 0.02 -> story +0.01
     expect(fw.state().costs.story).toBeCloseTo(0.02, 8);
-    expect(fw.state().costs.session).toBeCloseTo(0.01, 8);
+    // The provider billed the full new rewrite; session spend never applies
+    // the persisted-page replacement delta.
+    expect(fw.state().costs.session).toBeCloseTo(0.02, 8);
+  });
+
+  it('books a cheaper rewrite in full without decreasing session spend', async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse(200, { page: { page_number: 1, content: 'Shorter redo.', user_input: null, cost_usd: 0.004 } })
+    );
+    const retry = fw.retryLastPage();
+    expect(await paidReview('confirm')).toBe(true);
+    await retry;
+
+    expect(fw.state().costs.story).toBeCloseTo(0.004, 8);
+    expect(fw.state().costs.session).toBeCloseTo(0.004, 8);
   });
 
   it('hides when the setting is off', async () => {

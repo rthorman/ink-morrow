@@ -100,7 +100,17 @@ function createApp(
   app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
     if (status >= 500) logger.error(`Unhandled error: ${error.message}`);
-    res.status(status).json({ error: error.message || 'Internal server error' });
+    const body = { error: error.message || 'Internal server error' };
+    // A failed local quality check can still follow one or more billable
+    // provider completions. Return additive spend metadata so the local
+    // session ledger stays honest even though nothing was saved.
+    if (Number.isInteger(error.billedAttempts) && error.billedAttempts > 0) {
+      body.billed_attempts = error.billedAttempts;
+      body.cost_usd = typeof error.costUsd === 'number' && Number.isFinite(error.costUsd)
+        ? error.costUsd
+        : null;
+    }
+    res.status(status).json(body);
   });
 
   // Test/runtime disposal: queues stop accepting work; persisted user data

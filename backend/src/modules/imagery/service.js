@@ -47,7 +47,12 @@ function createImageryService({ catalog, stories, chatCompletion, generateImage,
       ],
       { model: modelOverride || undefined, reasoningEffort, maxTokens: 800, quality: { minWords: 30 } }
     );
-    return String(result.content || '').trim();
+    return {
+      prompt: String(result.content || '').trim(),
+      model: result.model,
+      cost_usd: result.cost_usd,
+      billed_attempts: result.billed_attempts,
+    };
   }
 
   // Render the scene. On a provider moderation refusal (400), rewrite the

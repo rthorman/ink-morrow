@@ -5,6 +5,7 @@ const { createTestApp, resetDb, createWorld } = require('./helpers');
 
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 const axios = require('axios');
+const { resetModelCache } = require('../src/ai');
 
 let app, db, close;
 
@@ -17,6 +18,7 @@ beforeEach(() => {
   resetDb(db);
   axios.post.mockReset();
   axios.get.mockReset();
+  resetModelCache();
   delete process.env.OPENROUTER_API_KEY;
 });
 
@@ -75,6 +77,27 @@ describe('POST /api/ai/world', () => {
     });
     const res = await request(app).post('/api/ai/world').send({}).expect(502);
     expect(res.body.error).toContain('illegible');
+    expect(res.body.billed_attempts).toBe(2);
+    expect(res.body.cost_usd).toBeNull();
+  });
+
+  it('returns the cost of both invalid JSON attempts when pricing is known', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    axios.get.mockResolvedValue({
+      data: {
+        data: [{ id: 'z-ai/glm-5.1', name: 'GLM', pricing: { prompt: '0.000002', completion: '0.000004' } }],
+      },
+    });
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{ message: { content: 'Still not a JSON object.' } }],
+        usage: { prompt_tokens: 100, completion_tokens: 50 },
+      },
+    });
+
+    const res = await request(app).post('/api/ai/world').send({ model: 'z-ai/glm-5.1' }).expect(502);
+    expect(res.body.billed_attempts).toBe(2);
+    expect(res.body.cost_usd).toBeCloseTo(2 * ((100 * 2 + 50 * 4) / 1e6), 8);
   });
 
   it('passes model override and cost through', async () => {

@@ -205,7 +205,7 @@ describe('Scribe-voiced errors', () => {
     const fetchMock = mockFetch();
     fetchMock.mockImplementation((url, options) => {
       if (url.includes('/api/ai/world') && options && options.method === 'POST') {
-        return Promise.resolve(jsonResponse(500, { error: 'no ink' }));
+        return Promise.resolve(jsonResponse(502, { error: 'no ink', cost_usd: 0.005, billed_attempts: 2 }));
       }
       return Promise.resolve(jsonResponse(200, { worlds: [] }));
     });
@@ -220,6 +220,7 @@ describe('Scribe-voiced errors', () => {
     expect(errorLine).toBeTruthy();
     expect(errorLine.textContent).toContain('no ink');
     expect(document.getElementById('aiDraftModal').hidden).toBe(false);
+    expect(fw.state().costs.session).toBeCloseTo(0.005, 8);
     // Nothing leaked behind the modal either
     expect(document.querySelector('.content-section.active .error-message')).toBeNull();
   });

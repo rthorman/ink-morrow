@@ -73,11 +73,24 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     });
   }
 
-  function renderCastBuilder() {
+  function renderCastBuilder({ resetAddDraft = false } = {}) {
     const mcSelect = document.getElementById('mcSelect');
     const charSelect = document.getElementById('castCharSelect');
     const list = document.getElementById('castList');
     if (!mcSelect || !charSelect || !list) return;
+
+    // Character portraits are polled while they are being painted. Each poll
+    // reloads the catalogue and therefore re-renders this builder. Preserve
+    // the member the writer is in the middle of adding; only a successful Add
+    // (or successful story creation) deliberately clears this little draft.
+    const relationInput = document.getElementById('castRelation');
+    const tierSelect = document.getElementById('castTierSelect');
+    const addBtn = document.getElementById('castAddBtn');
+    const addDraft = {
+      id: charSelect.value,
+      role: tierSelect?.value || 'supporting',
+      relation: relationInput?.value || '',
+    };
 
     // Cast-shape choice drives everything else.
     const centeredBtn = document.getElementById('castModeCentered');
@@ -120,12 +133,16 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     });
     charSelect.disabled = available.length === 0;
 
-    const relationInput = document.getElementById('castRelation');
-    const tierSelect = document.getElementById('castTierSelect');
-    const addBtn = document.getElementById('castAddBtn');
     if (addBtn) addBtn.disabled = available.length === 0;
-    if (relationInput) relationInput.value = '';
-    if (tierSelect) tierSelect.value = 'supporting';
+    if (!resetAddDraft && available.some((character) => character.id === addDraft.id)) {
+      charSelect.value = addDraft.id;
+    }
+    if (relationInput) relationInput.value = resetAddDraft ? '' : addDraft.relation;
+    if (tierSelect) {
+      tierSelect.value = resetAddDraft || !['supporting', 'background'].includes(addDraft.role)
+        ? 'supporting'
+        : addDraft.role;
+    }
 
     // Cast list: rows with editable connection + removal.
     list.textContent = '';
@@ -145,7 +162,13 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
 
       const name = document.createElement('span');
       name.className = 'cast-list__name';
-      name.textContent = (character ? character.name : entry.id) + (entry.role === 'mc' ? ' — Lead' : '');
+      name.textContent = character ? character.name : entry.id;
+
+      const role = document.createElement('span');
+      role.className = `cast-list__role cast-list__role--${entry.role}`;
+      role.textContent = entry.role === 'mc' ? 'Lead' : entry.role === 'supporting' ? 'Supporting' : 'Background';
+
+      row.append(name, role);
 
       if (entry.role !== 'mc') {
         const relation = document.createElement('input');
@@ -171,7 +194,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         storyCast = storyCast.filter((e) => e.id !== entry.id);
         renderCastBuilder();
       });
-      row.append(name, remove);
+      row.appendChild(remove);
       list.appendChild(row);
     });
 
@@ -201,7 +224,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     const role = tierSelect && tierSelect.value === 'background' ? 'background' : 'supporting';
     const relation = relationInput && relationInput.value.trim() ? relationInput.value.trim() : null;
     storyCast.push({ id: charSelect.value, role, relation });
-    renderCastBuilder();
+    renderCastBuilder({ resetAddDraft: true });
   }
 
   function chooseMainCharacter() {
@@ -227,7 +250,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       });
       form.reset();
       storyCast = [];
-      renderCastBuilder();
+      renderCastBuilder({ resetAddDraft: true });
       document.getElementById('storyTone').value = 'fade-to-black';
       // The tale exists now: the library is collection-first again.
       const wrap = document.getElementById('storyCreateWrap');

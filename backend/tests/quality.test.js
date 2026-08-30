@@ -7,6 +7,7 @@ const quality = require('../src/quality');
 // Mock axios (used by src/ai.js) BEFORE requiring anything that pulls it in.
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 const axios = require('axios');
+const { resetModelCache } = require('../src/ai');
 
 let app, db, close;
 
@@ -18,6 +19,8 @@ beforeAll(() => {
 beforeEach(async () => {
   resetDb(db);
   axios.post.mockReset();
+  axios.get.mockReset();
+  resetModelCache();
   delete process.env.OPENROUTER_API_KEY;
 });
 
@@ -87,6 +90,28 @@ function mockSequence(contents) {
   });
 }
 
+function mockPricedSequence(contents, usages) {
+  axios.get.mockResolvedValue({
+    data: {
+      data: [{
+        id: 'z-ai/glm-5.1',
+        name: 'GLM',
+        pricing: { prompt: '0.000002', completion: '0.000004' },
+      }],
+    },
+  });
+  let n = 0;
+  axios.post.mockImplementation(() => {
+    const index = Math.min(n++, contents.length - 1);
+    return Promise.resolve({
+      data: {
+        choices: [{ message: { content: contents[index] } }],
+        usage: usages[Math.min(index, usages.length - 1)],
+      },
+    });
+  });
+}
+
 async function seededStory() {
   const world = await createWorld(app, { name: 'Quality Realm' });
   const mc = await createCharacter(app, world.id, { name: 'Hero' });
@@ -111,6 +136,27 @@ describe('quality enforcement on page generation', () => {
     expect(axios.post).toHaveBeenCalledTimes(2);
   });
 
+  it('stores cumulative usage and cost for every billable quality attempt', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await seededStory();
+    mockPricedSequence(
+      ['She opened the door and the corridor stret', GOOD_PAGE],
+      [
+        { prompt_tokens: 100, completion_tokens: 10 },
+        { prompt_tokens: 120, completion_tokens: 40 },
+      ]
+    );
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', words: 50 })
+      .expect(201);
+
+    expect(res.body.page.prompt_tokens).toBe(220);
+    expect(res.body.page.completion_tokens).toBe(50);
+    expect(res.body.page.cost_usd).toBeCloseTo((220 * 2 + 50 * 4) / 1e6, 8);
+  });
+
   it('refuses to save a page that never arrives whole', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const story = await seededStory();
@@ -125,6 +171,25 @@ describe('quality enforcement on page generation', () => {
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(pages.body.pages).toHaveLength(0);
     expect(axios.post).toHaveBeenCalledTimes(3); // every attempt was spent honestly
+  });
+
+  it('returns known incurred spend when all quality attempts are rejected', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await seededStory();
+    mockPricedSequence(
+      ['She opened the door and the corridor stret'],
+      [{ prompt_tokens: 100, completion_tokens: 20 }]
+    );
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', words: 50 })
+      .expect(502);
+
+    expect(res.body.billed_attempts).toBe(3);
+    expect(res.body.cost_usd).toBeCloseTo(3 * ((100 * 2 + 20 * 4) / 1e6), 8);
+    const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(pages.body.pages).toHaveLength(0);
   });
 
   it('nudges a wrong-language reply back to English before giving up', async () => {
@@ -169,8 +234,10 @@ describe('quality enforcement on page generation', () => {
     const res = await request(app)
       .post(`/api/stories/${story.id}/pages/generate`)
       .send({ user_input: 'go', words: 50 });
-    expect(res.status).toBe(504);
-    expect(res.body.error).toContain('empty response');
+    expect(res.status).toBe(502);
+    expect(res.body.error).toContain('nothing but silence');
+    expect(res.body.billed_attempts).toBe(3);
+    expect(res.body.cost_usd).toBeNull();
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(pages.body.pages).toHaveLength(0);
   });
