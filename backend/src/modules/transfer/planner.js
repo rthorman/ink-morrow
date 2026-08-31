@@ -21,6 +21,7 @@ const {
   volumeRecord,
   chapterRecord,
   hierarchyPageRecord,
+  revisionRecord,
   snapshotRecord,
   memoryRecord,
   previewRecord,
@@ -198,6 +199,14 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         if (image) pageImages.set(page.id, image);
         return record;
       });
+    const revisions = db.prepare(`
+      SELECT r.* FROM page_revisions r
+      JOIN pages p ON p.id = r.page_id
+      JOIN chapters c ON c.id = p.chapter_id
+      JOIN volumes v ON v.id = c.volume_id
+      WHERE v.story_id = ?
+      ORDER BY v.ordinal, c.ordinal, p.ordinal, r.created_at, r.rowid
+    `).all(id).map((revision) => revisionRecord(revision, options));
     const castIds = new Set(parseCastJson(row.characters).map((entry) => entry.id));
     const snapshots = db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ? ORDER BY character_id').all(id)
       .filter((snapshot) => castIds.has(snapshot.character_id))
@@ -227,6 +236,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         record,
         hierarchy,
         pages,
+        revisions,
         snapshots,
         memory,
         preview,

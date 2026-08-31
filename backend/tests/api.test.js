@@ -408,7 +408,13 @@ describe('DELETE /api/stories/:id/pages?after=N', () => {
     for (let i = 1; i <= 4; i++) await addPage(app, story.id, `Body ${i}.`);
 
     const res = await request(app).delete(`/api/stories/${story.id}/pages?after=2`).expect(200);
-    expect(res.body).toEqual({ deleted: 2, remaining: 2 });
+    expect(res.body).toMatchObject({
+      deleted: 2,
+      remaining: 2,
+      removed_range: { first: 3, last: 4 },
+      recovery: { id: expect.any(String), expires_at: expect.any(String) },
+      undo: { token: expect.any(String), expires_at: expect.any(String) },
+    });
 
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(pages.body.pages.map((p) => p.page_number)).toEqual([1, 2]);

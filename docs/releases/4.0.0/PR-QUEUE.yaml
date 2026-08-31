@@ -150,7 +150,7 @@ pull_requests:
   - id: "03"
     slug: revisions-recovery
     title: Revisions, copyediting, and truncation recovery
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "02"

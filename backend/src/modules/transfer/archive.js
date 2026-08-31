@@ -23,6 +23,7 @@ const {
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
   HIERARCHY_PAGE_FIELDS,
+  REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -266,7 +267,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     if (Object.keys(value || {}).some((key) => !allowed.includes(key))) throw httpError(`${label} contains an unknown field`);
   };
   assertKnown(bundle, meta.kind === 'story'
-    ? ['record', 'hierarchy', 'pages', 'snapshots', 'memory', 'preview', 'audiobook']
+    ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'memory', 'preview', 'audiobook']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -328,6 +329,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   if (databaseSchemaVersion >= 2 && (!hierarchy || typeof hierarchy !== 'object' || Array.isArray(hierarchy))) {
     throw httpError('Story archive is missing its manuscript hierarchy');
   }
+  const hierarchyPageById = new Map();
   if (hierarchy) {
     assertKnown(hierarchy, ['volumes', 'chapters', 'pages'], 'Story hierarchy');
     if (!Array.isArray(hierarchy.volumes) || !Array.isArray(hierarchy.chapters) || !Array.isArray(hierarchy.pages)) {
@@ -378,10 +380,47 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         throw httpError('Story archive contains an invalid hierarchy page');
       }
       hierarchyPageIds.add(page.id);
+      hierarchyPageById.set(page.id, page);
       pagesByChapter.get(page.chapter_id).push(page);
     }
     if (hierarchyPageIds.size !== pageIds.size) throw httpError('Story hierarchy does not contain every committed page exactly once');
     for (const pagesInChapter of pagesByChapter.values()) assertContiguous(pagesInChapter, 'Hierarchy page');
+  }
+  if (databaseSchemaVersion >= 3 && !Array.isArray(bundle.revisions)) {
+    throw httpError('Story archive is missing immutable page revisions');
+  }
+  if (bundle.revisions !== undefined) {
+    if (!Array.isArray(bundle.revisions)) throw httpError('Story archive contains invalid page revisions');
+    const revisions = new Map();
+    for (const revision of bundle.revisions) {
+      assertKnown(revision, REVISION_FIELDS, 'Page revision');
+      if (!revision || !validId(revision.id) || !pageIds.has(revision.page_id) || revisions.has(revision.id) ||
+          !['canonical', 'copyedit'].includes(revision.kind) || typeof revision.content !== 'string' ||
+          revision.content.length > 500000 || !['author', 'ai', 'import', 'migration'].includes(revision.source) ||
+          (revision.parent_revision_id !== null && revision.parent_revision_id !== undefined && !validId(revision.parent_revision_id))) {
+        throw httpError('Story archive contains an invalid page revision');
+      }
+      revisions.set(revision.id, revision);
+    }
+    for (const revision of revisions.values()) {
+      if (revision.parent_revision_id) {
+        const parent = revisions.get(revision.parent_revision_id);
+        if (!parent || parent.page_id !== revision.page_id) {
+          throw httpError('Story archive revision ancestry crosses page boundaries');
+        }
+      }
+    }
+    if (databaseSchemaVersion >= 3) {
+      for (const pageId of pageIds) {
+        const placement = hierarchyPageById.get(pageId);
+        const canonical = placement && revisions.get(placement.canonical_revision_id);
+        const display = placement && revisions.get(placement.display_revision_id);
+        if (!canonical || canonical.page_id !== pageId || canonical.kind !== 'canonical' ||
+            !display || display.page_id !== pageId) {
+          throw httpError('Story archive revision pointers do not belong to their page');
+        }
+      }
+    }
   }
   const snapshotIds = new Set();
   for (const snapshot of bundle.snapshots) {

@@ -7,8 +7,9 @@ const { randomUUID } = require('node:crypto');
 const { optionalText, asString, TONES } = require('../../core/validation');
 const { normalizeCast, validateCastPayload, parseCastJson } = require('./cast');
 const { createHierarchyStore } = require('./hierarchy');
+const { createRevisionStore } = require('./revisions');
 
-function createStoriesStore(db, { getWorld }) {
+function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
   const hierarchy = createHierarchyStore(db);
   const getStory = (id) => db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
   const storyPages = (storyId) =>
@@ -68,6 +69,13 @@ function createStoriesStore(db, { getWorld }) {
   function previewRevision(storyId) {
     return previewRevisions.get(storyId) || 0;
   }
+
+  const revisions = createRevisionStore(db, {
+    hierarchy,
+    invalidatePreview,
+    recoveryRetentionDays,
+    clock,
+  });
 
   function invalidatePreviewsForWorld(worldId) {
     const storyIds = db.prepare('SELECT id FROM stories WHERE world_id = ?').all(worldId);
@@ -157,7 +165,19 @@ function createStoriesStore(db, { getWorld }) {
       ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
         model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
       hierarchy.insertTailPageInTransaction(storyId, id);
+      const revision = revisions.createInitialRevisionInTransaction(id, {
+        content,
+        direction: userInput ?? null,
+        source: model ? 'ai' : 'author',
+        model: model ?? null,
+        promptTokens: promptTokens ?? null,
+        completionTokens: completionTokens ?? null,
+        costUsd: costUsd ?? 0,
+      });
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+      revisions.journalInTransaction('page.create', storyId, 'page', id, {
+        source: model ? 'ai' : 'author',
+      }, { page_id: id, revision_id: revision.id });
     });
     return getPageById(id);
   }
@@ -169,7 +189,15 @@ function createStoriesStore(db, { getWorld }) {
         id, storyId, nextPageNumber(storyId), content, userInput
       );
       hierarchy.insertTailPageInTransaction(storyId, id);
+      const revision = revisions.createInitialRevisionInTransaction(id, {
+        content,
+        direction: userInput,
+        source: 'author',
+      });
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+      revisions.journalInTransaction('page.create', storyId, 'page', id, {
+        source: 'author',
+      }, { page_id: id, revision_id: revision.id });
     });
     return getPageById(id);
   }
@@ -180,25 +208,16 @@ function createStoriesStore(db, { getWorld }) {
   function replaceGeneratedPage(pageId, { content, model, promptTokens, completionTokens, costUsd }) {
     const old = getPageById(pageId);
     if (!old) return null;
-    db.exec('BEGIN');
-    try {
-      db.prepare(`
-        UPDATE story_pages
-           SET content = ?, created_at = CURRENT_TIMESTAMP, model = ?,
-               prompt_tokens = ?, completion_tokens = ?, cost_usd = ?,
-               continuity_model = NULL, continuity_prompt_tokens = NULL,
-               continuity_completion_tokens = NULL, continuity_cost_usd = 0
-         WHERE id = ?
-      `).run(content, model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null, pageId);
-      deletePreview.run(old.story_id);
-      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(old.story_id);
-      db.exec('COMMIT');
-      previewRevisions.set(old.story_id, (previewRevisions.get(old.story_id) || 0) + 1);
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
-    return getPageById(pageId);
+    const edited = revisions.tailEdit(old.story_id, pageId, {
+      content,
+      direction: old.user_input,
+      source: 'ai',
+      model: model ?? null,
+      promptTokens: promptTokens ?? null,
+      completionTokens: completionTokens ?? null,
+      costUsd: costUsd ?? 0,
+    });
+    return edited?.page || null;
   }
 
   // Delete one page and renumber every later page DOWN one slot inside a
@@ -218,29 +237,17 @@ function createStoriesStore(db, { getWorld }) {
       for (const row of later) bump.run(row.id);
       deletePreview.run(page.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);
+      revisions.journalInTransaction('page.delete', page.story_id, 'page', page.id, {
+        page_number: page.page_number,
+      }, { page_id: page.id, deleted: true });
     });
     previewRevisions.set(page.story_id, (previewRevisions.get(page.story_id) || 0) + 1);
   }
 
   // Delete every page AFTER the given page number. Plate files are cleaned
   // by the caller (imagery store) via the onPlate callback.
-  function truncateAfter(storyId, after, onPlate) {
-    const doomed = db
-      .prepare('SELECT id, image_media_type FROM story_pages WHERE story_id = ? AND page_number > ?')
-      .all(storyId, after);
-    const result = hierarchy.inImmediateTransaction(() => {
-      const deletePlacement = db.prepare('DELETE FROM pages WHERE id = ?');
-      for (const page of doomed) deletePlacement.run(page.id);
-      const deleted = db
-        .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?')
-        .run(storyId, after);
-      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
-      return deleted;
-    });
-    for (const page of doomed) {
-      if (page.image_media_type) onPlate(page.id);
-    }
-    return { deleted: result.changes, remaining: storyPages(storyId).length };
+  function truncateAfter(storyId, after, options) {
+    return revisions.truncateAfter(storyId, after, options);
   }
 
   // Insert a painted plate row after page `after`, renumbering later pages
@@ -260,7 +267,15 @@ function createStoriesStore(db, { getWorld }) {
       for (const row of later) bump.run(row.id);
       insert.run(id, storyId, after + 1, '', typeof cost === 'number' ? cost : null, mediaType, imagePrompt);
       hierarchy.insertPageAfterInTransaction(storyId, anchor?.id || null, id);
+      const revision = revisions.createInitialRevisionInTransaction(id, {
+        content: '',
+        source: 'author',
+        costUsd: typeof cost === 'number' ? cost : 0,
+      });
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+      revisions.journalInTransaction('page.create', storyId, 'page', id, {
+        source: 'image',
+      }, { page_id: id, revision_id: revision.id });
     });
     return getPageById(id);
   }
@@ -290,6 +305,7 @@ function createStoriesStore(db, { getWorld }) {
     storyWithMeta,
     storyWithHierarchy,
     hierarchy,
+    revisions,
     upsertPreview,
     getPreview,
     invalidatePreview,

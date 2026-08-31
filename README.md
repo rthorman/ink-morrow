@@ -9,12 +9,13 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 > [docs/releases/4.0.0/](docs/releases/4.0.0/). The feature descriptions below
 > continue to describe the current 3.2.2 line until implementation PRs land.
 
-The `release/4.0.0` integration line begins with PR 01's clean kernel and PR
-02's manuscript hierarchy. Its databases identify themselves as
-`scribetribe-4` schema 2, use transactional migrations and an operation
-journal, create Volume I and Chapter I with every story, and refuse 3.x files
-before modifying them. Later 4.0 features remain unavailable until their PRs
-land; `/api/capabilities` reports the distinction explicitly.
+The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
+manuscript hierarchy, and PR 03's immutable revisions and truncation recovery.
+Its databases identify themselves as `scribetribe-4` schema 3, use
+transactional migrations and an operation journal, create Volume I and
+Chapter I with every story, preserve separate canonical/display prose, and
+refuse 3.x files before modifying them. Later 4.0 features remain unavailable
+until their PRs land; `/api/capabilities` reports the distinction explicitly.
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 

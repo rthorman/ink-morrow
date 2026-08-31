@@ -157,7 +157,7 @@ describe('Image pages', () => {
     expect(res.body.toString('utf8')).not.toContain('<img src="images/');
   });
 
-  it('removes the plate file when its page is deleted, truncated away, or the story dies', async () => {
+  it('removes deleted plates, preserves recovery plates, and clears all plates when the story dies', async () => {
     const story = await seedStory();
     await postImagePage(story.id, 1).expect(201); // plate on page 2
     await postImagePage(story.id, 2).expect(201); // plate on page 3
@@ -167,11 +167,12 @@ describe('Image pages', () => {
     await request(app).delete(`/api/stories/${story.id}/pages/2`).expect(204);
     expect(storedPageFiles()).toHaveLength(1);
 
-    // Truncate after page 1: the remaining plate (now page 2) is destroyed.
+    // Truncate after page 1: the remaining plate stays available to the
+    // recoverable suffix rather than being destroyed with canonical placement.
     await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
-    expect(storedPageFiles()).toHaveLength(0);
+    expect(storedPageFiles()).toHaveLength(1);
 
-    // Story delete leaves nothing behind either.
+    // Story delete removes both active and recovery-owned plates.
     await postImagePage(story.id, 1).expect(201);
     await request(app).delete(`/api/stories/${story.id}`).expect(204);
     expect(storedPageFiles()).toHaveLength(0);

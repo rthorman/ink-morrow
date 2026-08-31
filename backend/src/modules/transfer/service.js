@@ -13,6 +13,7 @@ const {
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
   HIERARCHY_PAGE_FIELDS,
+  REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -455,7 +456,7 @@ function createTransferService({
 
     const maps = {
       world: new Map(), character: new Map(), story: new Map(),
-      volume: new Map(), chapter: new Map(), page: new Map(),
+      volume: new Map(), chapter: new Map(), page: new Map(), revision: new Map(),
     };
     const reservedNames = { world: new Set(), character: new Set(), story: new Set() };
     const copiedNames = new Map();
@@ -502,6 +503,12 @@ function createTransferService({
           id = randomUUID();
         }
         maps.page.set(page.id, id);
+      }
+      for (const revision of entity.bundle.revisions || []) {
+        let id = revision.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT page_id FROM page_revisions WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.page_id !== revision.page_id)) id = randomUUID();
+        maps.revision.set(revision.id, id);
       }
     }
     return { mode, actions, maps, copiedNames };
@@ -681,6 +688,8 @@ function createTransferService({
             ...pageSource,
             id: maps.page.get(pageSource.id),
             chapter_id: maps.chapter.get(pageSource.chapter_id),
+            canonical_revision_id: null,
+            display_revision_id: null,
           }, HIERARCHY_PAGE_FIELDS);
         }
       } else {
@@ -695,6 +704,60 @@ function createTransferService({
           .run(chapterId, volumeId, 'Chapter I');
         const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
         importedPages.forEach((page, index) => insertPage.run(page.id, chapterId, index + 1));
+      }
+      if (entity.bundle.revisions?.length && entity.bundle.hierarchy) {
+        const pending = new Map(entity.bundle.revisions.map((revision) => [revision.id, revision]));
+        while (pending.size) {
+          let progressed = false;
+          for (const [sourceId, revisionSource] of [...pending]) {
+            if (revisionSource.parent_revision_id && pending.has(revisionSource.parent_revision_id)) continue;
+            const revision = {
+              ...revisionSource,
+              id: maps.revision.get(sourceId),
+              page_id: maps.page.get(revisionSource.page_id),
+              parent_revision_id: revisionSource.parent_revision_id
+                ? maps.revision.get(revisionSource.parent_revision_id)
+                : null,
+            };
+            insertOrUpdate(db, 'page_revisions', revision, REVISION_FIELDS);
+            pending.delete(sourceId);
+            progressed = true;
+          }
+          if (!progressed) throw httpError('Imported page revision ancestry is cyclic');
+        }
+        for (const pageSource of entity.bundle.hierarchy.pages) {
+          db.prepare(`
+            UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?
+          `).run(
+            maps.revision.get(pageSource.canonical_revision_id),
+            maps.revision.get(pageSource.display_revision_id),
+            maps.page.get(pageSource.id)
+          );
+        }
+      } else {
+        // Schema-1/2 archives predate immutable revisions. Their compatibility
+        // prose is unambiguous, so it becomes one imported canonical/display
+        // revision per page without inventing history.
+        const placementFor = db.prepare('SELECT id FROM pages WHERE id = ?');
+        const insertRevision = db.prepare(`
+          INSERT INTO page_revisions
+            (id, page_id, parent_revision_id, kind, content, direction, source,
+             model, prompt_tokens, completion_tokens, cost_usd, created_at)
+          VALUES (?, ?, NULL, 'canonical', ?, ?, 'import', ?, ?, ?, ?, ?)
+        `);
+        const setPointers = db.prepare(`
+          UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?
+        `);
+        for (const page of importedPages) {
+          if (!placementFor.get(page.id)) continue;
+          const revisionId = randomUUID();
+          insertRevision.run(
+            revisionId, page.id, page.content, page.user_input, page.model,
+            page.prompt_tokens, page.completion_tokens, page.cost_usd || 0,
+            page.created_at
+          );
+          setPointers.run(revisionId, revisionId, page.id);
+        }
       }
       for (const snapshotSource of entity.bundle.snapshots) {
         const snapshot = {
