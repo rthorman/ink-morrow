@@ -41,6 +41,21 @@ function createTestApp(options = {}) {
 /** Clear all rows between tests within a file (keeps schema + open handle). */
 function resetDb(db) {
   db.exec(`
+    DELETE FROM operation_journal;
+    DELETE FROM shares;
+    DELETE FROM publication_snapshots;
+    DELETE FROM asset_placements;
+    DELETE FROM assets;
+    DELETE FROM recovery_suffixes;
+    DELETE FROM continuity_issues;
+    DELETE FROM continuity_corrections;
+    DELETE FROM continuity_deltas;
+    DELETE FROM writing_operations;
+    DELETE FROM prepared_pages;
+    DELETE FROM page_revisions;
+    DELETE FROM pages;
+    DELETE FROM chapters;
+    DELETE FROM volumes;
     DELETE FROM auth_sessions;
     DELETE FROM auth_owner;
     DELETE FROM story_pages;

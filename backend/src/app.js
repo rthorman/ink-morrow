@@ -12,6 +12,7 @@ const { randomUUID } = require('node:crypto');
 const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { generateImage, createImageStore } = require('./images');
 const { createHostGuard, securityHeaders } = require('./core/security');
+const { releaseCapabilities } = require('./release');
 
 const { createCatalogStore } = require('./modules/catalog/store');
 const { createCatalogRouter } = require('./modules/catalog/routes');
@@ -73,6 +74,12 @@ function createApp(
   app.use(createAuthRouter({ auth }));
   app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
 
+  // The release branch grows feature-by-feature. Later frontend PRs can use
+  // this authenticated, non-secret contract instead of inferring support from
+  // routes or package versions.
+  const capabilities = releaseCapabilities(require('../package.json').version);
+  app.get('/api/capabilities', (req, res) => res.json(capabilities));
+
   const ordinaryJson = express.json({ limit: '256kb' });
   const paintedPageJson = express.json({ limit: '12mb' });
   const paintedPagePath = /^\/api\/stories\/[^/]+\/pages\/\d+\/image-page$/;
@@ -130,6 +137,7 @@ function createApp(
     transferDir: resolvedTransferDir,
   });
   app.locals.auth = auth;
+  app.locals.releaseCapabilities = capabilities;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
