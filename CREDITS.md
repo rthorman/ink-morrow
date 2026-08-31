@@ -52,6 +52,13 @@ WebP in `frontend/brand/`, PNG masters in the instruction packages):
 - `cinder-cast.webp` — Cinder, the Inkbreaker (story-creation cast-shape
   introduction)
 
+The accepted 4.0.0 planning package also includes
+`docs/releases/4.0.0/assets/art-direction-reference.png`, an OpenAI-generated
+portrait-tablet atmosphere reference selected by the project author. It is a
+planning reference rather than a production UI screenshot; its approved use
+and boundaries are documented in
+`docs/releases/4.0.0/ART-DIRECTION.md`.
+
 Interface typography uses self-hosted Latin/Latin Extended subsets of
 Cormorant Garamond, Inter, Literata, and IBM Plex Mono from Google Fonts. Each
 family is distributed under the SIL Open Font License 1.1; the applicable

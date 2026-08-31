@@ -8,6 +8,20 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
 - AI via OpenRouter (key in backend/.env, see backend/.env.example); branding per ScribeTribe-OpenCode-Branding/ in the repo root (frontend assets in frontend/brand/, WebP + SVG only — PNG masters stay in the package dir)
 - Dev server control: `~/bin/st-server {start|stop|restart|status}` (PID-file based) — never `pkill -f` a pattern; a command line containing the plain string anywhere in its argv self-matches and kills the shell (hung the tool twice). Use the helper.
 
+### 4.0.0 planning contract (not yet shipped)
+
+- The stakeholder-accepted alpha-to-beta contract is indexed at
+  `docs/releases/4.0.0/README.md`. It defines the 4.0.0 product, system,
+  security, UX, art, QA, and ordered PR plan.
+- Current sections below remain the source of truth for shipped 3.2.2 behavior.
+  A 4.0 implementation PR must name the plan item it implements and update
+  current contracts only when behavior actually changes.
+- Product invariants in
+  `docs/releases/4.0.0/WORKSHOP-DECISIONS.md` require explicit stakeholder
+  approval to change. Do not silently reinterpret them during implementation.
+- PRs 01–18 target `release/4.0.0` after the documentation foundation
+  merges. PR 19 is the reviewed release merge to main.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.
