@@ -185,6 +185,20 @@ describe('PR 06 transactional writing state machine', () => {
       .expect(409);
   });
 
+  it('lets an identified tab replace an idle compatibility-client lease', async () => {
+    const story = await createStory(fixture.app);
+    await request(fixture.app).post(`/api/stories/${story.id}/pages`)
+      .send({ content: 'Imported by an older client.' })
+      .expect(201);
+    expect(fixture.db.prepare('SELECT writer_session_id FROM writer_leases WHERE story_id = ?')
+      .get(story.id).writer_session_id).toBe('legacy-client');
+    const acquired = await request(fixture.app).post(`/api/stories/${story.id}/writer-lease`)
+      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .send({})
+      .expect(200);
+    expect(acquired.body.lease.writer_session_id).toBe(WRITER_A);
+  });
+
   it('binds a prepared page to the active manuscript destination', async () => {
     const story = await createStory(fixture.app);
     axios.post.mockResolvedValueOnce(reply('Prepared for the original chapter.'));
