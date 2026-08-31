@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const request = require('supertest');
 const yazl = require('yazl');
+const yauzl = require('yauzl');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const {
@@ -13,6 +14,9 @@ const {
   ARCHIVE_MANIFEST_SCHEMA_VERSION,
   DATABASE_FAMILY,
   DATABASE_SCHEMA_VERSION,
+  jsonBuffer,
+  sha256,
+  semanticHash,
 } = require('../src/modules/transfer/format');
 const { createWorld, createCharacter, createStory, addPage } = require('./helpers');
 
@@ -95,6 +99,34 @@ function zipFixture(manifest, extraEntries = []) {
   });
 }
 
+function readZipEntries(bytes) {
+  return new Promise((resolve, reject) => {
+    yauzl.fromBuffer(bytes, { lazyEntries: true }, (error, zip) => {
+      if (error) return reject(error);
+      const entries = new Map();
+      zip.on('error', reject);
+      zip.on('end', () => resolve(entries));
+      zip.on('entry', (entry) => {
+        if (entry.fileName.endsWith('/')) {
+          zip.readEntry();
+          return;
+        }
+        zip.openReadStream(entry, (streamError, stream) => {
+          if (streamError) return reject(streamError);
+          const chunks = [];
+          stream.on('data', (chunk) => chunks.push(chunk));
+          stream.on('error', reject);
+          stream.on('end', () => {
+            entries.set(entry.fileName, Buffer.concat(chunks));
+            zip.readEntry();
+          });
+        });
+      });
+      zip.readEntry();
+    });
+  });
+}
+
 function storeImage(root, bucket, id, bytes = Buffer.from('image bytes')) {
   const directory = path.join(root, bucket);
   fs.mkdirSync(directory, { recursive: true });
@@ -125,6 +157,14 @@ describe('portable archives and backups', () => {
       { id: visitor.id, role: 'supporting', relation: 'new arrival', state: null },
     ], { title: 'The Portable Tale', tone: 'romantic' });
     const page = await addPage(source.app, story.id, 'The visitor crosses the threshold.', 'Make the visitor arrive');
+    const volumeOne = story.hierarchy.volumes[0];
+    const secondChapter = (await request(source.app)
+      .post(`/api/stories/${story.id}/volumes/${volumeOne.id}/chapters`)
+      .send({ title: 'Consequences' }).expect(201)).body.chapter;
+    const secondPage = await addPage(source.app, story.id, 'The threshold closes.');
+    const secondVolume = (await request(source.app).post(`/api/stories/${story.id}/volumes`)
+      .send({ title: 'Beyond', chapter_title: 'The Road' }).expect(201)).body.volume;
+    const thirdPage = await addPage(source.app, story.id, 'The road begins.');
     // Stale database metadata without a file must not create a broken image
     // reference in the portable story.
     source.db.prepare("UPDATE story_pages SET image_media_type='image/png' WHERE id=?").run(page.id);
@@ -147,7 +187,7 @@ describe('portable archives and backups', () => {
       scope: 'story', id: story.id, include_visuals: true,
       include_audio: false, include_working_history: false,
     });
-    expect(plan.exposure).toMatchObject({ worlds: 2, characters: 2, stories: 1, pages: 1, continuity_rows: 1, images: 3, audio_files: 0 });
+    expect(plan.exposure).toMatchObject({ worlds: 2, characters: 2, stories: 1, pages: 3, continuity_rows: 1, images: 3, audio_files: 0 });
     expect(plan.exposure.external_worlds.map((row) => row.name)).toEqual(['Visitor World']);
     expect(plan.exposure.excluded).toContain('API keys');
 
@@ -164,11 +204,28 @@ describe('portable archives and backups', () => {
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM characters').get().c).toBe(2);
     const importedStory = destination.db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id);
     expect(JSON.parse(importedStory.characters).map((entry) => entry.id)).toEqual([lead.id, visitor.id]);
-    const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE story_id = ?').get(story.id);
+    const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE id = ?').get(page.id);
     expect(importedPage.content).toContain('threshold');
     expect(importedPage.user_input).toBeNull(); // portable history switch was off
     expect(importedPage.image_media_type).toBeNull();
     expect(destination.db.prepare('SELECT summary FROM story_memory_pages WHERE page_id = ?').get(page.id).summary).toBe('The visitor arrived.');
+    const importedVolumes = destination.db.prepare('SELECT id, ordinal, title FROM volumes WHERE story_id = ? ORDER BY ordinal').all(story.id);
+    expect(importedVolumes).toEqual([
+      { id: volumeOne.id, ordinal: 1, title: 'Volume I' },
+      { id: secondVolume.id, ordinal: 2, title: 'Beyond' },
+    ]);
+    expect(destination.db.prepare(`
+      SELECT c.id, c.title FROM chapters c JOIN volumes v ON v.id = c.volume_id
+      WHERE v.story_id = ? ORDER BY v.ordinal, c.ordinal
+    `).all(story.id).map((row) => row.title)).toEqual(['Chapter I', 'Consequences', 'The Road']);
+    const importedPlacements = destination.db.prepare(`
+      SELECT p.id FROM pages p
+      JOIN chapters c ON c.id = p.chapter_id
+      JOIN volumes v ON v.id = c.volume_id
+      WHERE v.story_id = ? ORDER BY v.ordinal, c.ordinal, p.ordinal
+    `).all(story.id).map((row) => row.id);
+    expect(importedPlacements).toEqual([page.id, secondPage.id, thirdPage.id]);
+    expect(secondChapter.volume_id).toBe(volumeOne.id);
     expect(fs.existsSync(path.join(destination.imageDir, 'covers', `${story.id}.png`))).toBe(true);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM audiobooks').get().c).toBe(0);
   });
@@ -209,6 +266,38 @@ describe('portable archives and backups', () => {
     expect(destination.db.prepare('SELECT user_input FROM story_pages WHERE id = ?').get(page.id).user_input).toBe('A private author direction');
     expect(fs.readFileSync(path.join(destination.audioDir, `${story.id}.mp3`), 'utf8')).toBe('mp3 bytes');
     await request(destination.app).get(committed.body.safety_backup.download_url).expect(200);
+  });
+
+  it('upgrades a schema-1 4.0 kernel archive to the default hierarchy on import', async () => {
+    const story = await createStory(source.app, null, [], { title: 'Kernel Archive' });
+    const page = await addPage(source.app, story.id, 'Compatibility prose.');
+    const { bytes } = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: false,
+    });
+    const entries = await readZipEntries(bytes);
+    const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+    const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+    const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+    delete bundle.hierarchy;
+    const bundleBuffer = jsonBuffer(bundle);
+    storyMeta.size_bytes = bundleBuffer.length;
+    storyMeta.sha256 = sha256(bundleBuffer);
+    storyMeta.semantic_sha256 = semanticHash('story', bundle, { includeHierarchy: false });
+    manifest.database_schema.version = 1;
+    const legacyBytes = await zipFixture(manifest, [{ path: storyMeta.path, content: bundleBuffer }]);
+
+    const reviewed = await preflight(destination.app, legacyBytes).expect(200);
+    await request(destination.app)
+      .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
+      .send({ mode: 'merge' })
+      .expect(200);
+    const volume = destination.db.prepare('SELECT * FROM volumes WHERE story_id = ?').get(story.id);
+    const chapter = destination.db.prepare('SELECT * FROM chapters WHERE volume_id = ?').get(volume.id);
+    expect(volume).toMatchObject({ ordinal: 1, title: 'Volume I' });
+    expect(chapter).toMatchObject({ ordinal: 1, title: 'Chapter I' });
+    expect(destination.db.prepare('SELECT id, ordinal FROM pages WHERE chapter_id = ?').get(chapter.id))
+      .toEqual({ id: page.id, ordinal: 1 });
   });
 
   it('preflights identical records, then offers copy/keep/replace for a divergent same-id world', async () => {
@@ -303,6 +392,16 @@ describe('portable archives and backups', () => {
     expect(JSON.parse(importedStory.characters)[0].id).toBe(importedCharacter.id);
     const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE story_id = ?').get(importedStory.id);
     expect(importedPage.id).not.toBe(page.id);
+    const sourceVolume = source.db.prepare('SELECT * FROM volumes WHERE story_id = ?').get(story.id);
+    const importedVolume = destination.db.prepare('SELECT * FROM volumes WHERE story_id = ?').get(importedStory.id);
+    const importedHierarchyPage = destination.db.prepare(`
+      SELECT p.id, c.volume_id FROM pages p
+      JOIN chapters c ON c.id = p.chapter_id
+      JOIN volumes v ON v.id = c.volume_id
+      WHERE v.story_id = ?
+    `).get(importedStory.id);
+    expect(importedVolume.id).not.toBe(sourceVolume.id);
+    expect(importedHierarchyPage).toMatchObject({ id: importedPage.id, volume_id: importedVolume.id });
     const snapshot = destination.db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ?').get(importedStory.id);
     expect(snapshot.character_id).toBe(importedCharacter.id);
     const memory = destination.db.prepare('SELECT * FROM story_memory_pages WHERE page_id = ?').get(importedPage.id);

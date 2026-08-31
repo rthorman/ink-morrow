@@ -38,6 +38,15 @@ const PAGE_FIELDS = [
   'image_prompt', 'continuity_model', 'continuity_prompt_tokens',
   'continuity_completion_tokens', 'continuity_cost_usd', 'created_at',
 ];
+const VOLUME_FIELDS = [
+  'id', 'story_id', 'ordinal', 'title', 'created_at', 'updated_at',
+];
+const CHAPTER_FIELDS = [
+  'id', 'volume_id', 'ordinal', 'title', 'created_at', 'updated_at',
+];
+const HIERARCHY_PAGE_FIELDS = [
+  'id', 'chapter_id', 'ordinal', 'created_at', 'updated_at',
+];
 const SNAPSHOT_FIELDS = [
   'story_id', 'character_id', 'name', 'description', 'personality',
   'appearance', 'background', 'source_updated_at', 'created_at',
@@ -148,6 +157,18 @@ function pageRecord(row, { includeWorkingHistory }) {
   return page;
 }
 
+function volumeRecord(row) {
+  return pick(row, VOLUME_FIELDS);
+}
+
+function chapterRecord(row) {
+  return pick(row, CHAPTER_FIELDS);
+}
+
+function hierarchyPageRecord(row) {
+  return pick(row, HIERARCHY_PAGE_FIELDS);
+}
+
 function snapshotRecord(row) {
   return pick(row, SNAPSHOT_FIELDS);
 }
@@ -184,7 +205,7 @@ function without(object, keys) {
 // own primary id, and transient image status. Story pages are compared by
 // order; dependency ids remain meaningful so differently linked graphs are
 // never collapsed into one collision result.
-function semanticEntity(kind, bundle) {
+function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
   if (kind === 'world') {
     return without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
@@ -198,12 +219,42 @@ function semanticEntity(kind, bundle) {
     ]);
   }
   const pageNumberById = new Map((bundle.pages || []).map((page) => [page.id, page.page_number]));
+  const hierarchy = bundle.hierarchy || { volumes: [], chapters: [], pages: [] };
+  const chaptersByVolume = new Map();
+  for (const chapter of hierarchy.chapters || []) {
+    if (!chaptersByVolume.has(chapter.volume_id)) chaptersByVolume.set(chapter.volume_id, []);
+    chaptersByVolume.get(chapter.volume_id).push(chapter);
+  }
+  const hierarchyPagesByChapter = new Map();
+  for (const page of hierarchy.pages || []) {
+    if (!hierarchyPagesByChapter.has(page.chapter_id)) hierarchyPagesByChapter.set(page.chapter_id, []);
+    hierarchyPagesByChapter.get(page.chapter_id).push(page);
+  }
+  const semanticHierarchy = (hierarchy.volumes || [])
+    .slice()
+    .sort((a, b) => a.ordinal - b.ordinal)
+    .map((volume) => ({
+      ordinal: volume.ordinal,
+      title: volume.title,
+      chapters: (chaptersByVolume.get(volume.id) || [])
+        .slice()
+        .sort((a, b) => a.ordinal - b.ordinal)
+        .map((chapter) => ({
+          ordinal: chapter.ordinal,
+          title: chapter.title,
+          pages: (hierarchyPagesByChapter.get(chapter.id) || [])
+            .slice()
+            .sort((a, b) => a.ordinal - b.ordinal)
+            .map((page) => pageNumberById.get(page.id) || null),
+        })),
+    }));
   return {
     record: without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
       'image_cost_usd', 'image_updated_at',
     ]),
     pages: (bundle.pages || []).map((page) => without(page, ['id', 'story_id', 'created_at'])),
+    ...(includeHierarchy ? { hierarchy: semanticHierarchy } : {}),
     snapshots: (bundle.snapshots || []).map((row) => without(row, ['story_id', 'created_at'])),
     memory: (bundle.memory || []).map((row) => ({
       ...without(row, ['page_id', 'story_id', 'created_at', 'updated_at']),
@@ -214,8 +265,8 @@ function semanticEntity(kind, bundle) {
   };
 }
 
-function semanticHash(kind, bundle) {
-  return sha256(canonicalJson(semanticEntity(kind, bundle)));
+function semanticHash(kind, bundle, options) {
+  return sha256(canonicalJson(semanticEntity(kind, bundle, options)));
 }
 
 const ALLOWED_SETTING_KEYS = new Set([
@@ -268,6 +319,9 @@ module.exports = {
   CHARACTER_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
+  VOLUME_FIELDS,
+  CHAPTER_FIELDS,
+  HIERARCHY_PAGE_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -282,6 +336,9 @@ module.exports = {
   characterRecord,
   storyRecord,
   pageRecord,
+  volumeRecord,
+  chapterRecord,
+  hierarchyPageRecord,
   snapshotRecord,
   memoryRecord,
   previewRecord,

@@ -55,12 +55,12 @@ describe('ScribeTribe 4.0 kernel', () => {
     ]) {
       expect(tables.has(table)).toBe(true);
     }
-    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(1);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(MIGRATIONS.length);
     db.close();
 
     db = createDb(dbPath);
     expect(schemaIdentity(db).version).toBe(DATABASE_SCHEMA_VERSION);
-    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(1);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(MIGRATIONS.length);
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     db.close();
   });
@@ -103,12 +103,13 @@ describe('ScribeTribe 4.0 kernel', () => {
 
   it('rolls a failed recognized migration back to the last valid version', () => {
     const db = createDb(':memory:');
+    const interruptedVersion = DATABASE_SCHEMA_VERSION + 1;
     const migrations = [
       ...MIGRATIONS,
       {
-        version: 2,
+        version: interruptedVersion,
         name: 'deliberately interrupted test migration',
-        checksumSource: 'interrupted-v2-fixture',
+        checksumSource: `interrupted-v${interruptedVersion}-fixture`,
         up(database) {
           database.exec('CREATE TABLE should_rollback (id INTEGER PRIMARY KEY)');
           throw new Error('simulated interruption');
@@ -116,11 +117,31 @@ describe('ScribeTribe 4.0 kernel', () => {
       },
     ];
 
-    expect(() => runMigrations(db, 1, migrations)).toThrow('simulated interruption');
-    expect(schemaIdentity(db).version).toBe(1);
-    expect(db.prepare('PRAGMA user_version').get().user_version).toBe(1);
+    expect(() => runMigrations(db, DATABASE_SCHEMA_VERSION, migrations)).toThrow('simulated interruption');
+    expect(schemaIdentity(db).version).toBe(DATABASE_SCHEMA_VERSION);
+    expect(db.prepare('PRAGMA user_version').get().user_version).toBe(DATABASE_SCHEMA_VERSION);
     expect(db.prepare("SELECT name FROM sqlite_master WHERE name='should_rollback'").get()).toBeUndefined();
-    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(1);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(MIGRATIONS.length);
+    db.close();
+  });
+
+  it('transactionally backfills kernel-era stories and pages into the hierarchy', () => {
+    const dbPath = path.join(root, 'schema-1.db');
+    let db = createDb(dbPath, { migrations: [MIGRATIONS[0]], reconcileOperations: false });
+    db.prepare("INSERT INTO stories (id, title) VALUES ('story-1', 'Kernel-era story')").run();
+    db.prepare("INSERT INTO story_pages (id, story_id, page_number, content) VALUES ('page-a', 'story-1', 1, 'One')").run();
+    db.prepare("INSERT INTO story_pages (id, story_id, page_number, content) VALUES ('page-b', 'story-1', 2, 'Two')").run();
+    db.close();
+
+    db = createDb(dbPath);
+    expect(schemaIdentity(db).version).toBe(DATABASE_SCHEMA_VERSION);
+    const volume = db.prepare("SELECT * FROM volumes WHERE story_id = 'story-1'").get();
+    const chapter = db.prepare('SELECT * FROM chapters WHERE volume_id = ?').get(volume.id);
+    expect(volume).toMatchObject({ ordinal: 1, title: 'Volume I' });
+    expect(chapter).toMatchObject({ ordinal: 1, title: 'Chapter I' });
+    expect(db.prepare('SELECT id, ordinal FROM pages WHERE chapter_id = ? ORDER BY ordinal').all(chapter.id))
+      .toEqual([{ id: 'page-a', ordinal: 1 }, { id: 'page-b', ordinal: 2 }]);
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     db.close();
   });
 
@@ -171,7 +192,7 @@ describe('ScribeTribe 4.0 kernel', () => {
       archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'scaffold' },
     });
     expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('planned');
+    expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

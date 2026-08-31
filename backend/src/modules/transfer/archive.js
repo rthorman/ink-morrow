@@ -20,6 +20,9 @@ const {
   CHARACTER_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
+  VOLUME_FIELDS,
+  CHAPTER_FIELDS,
+  HIERARCHY_PAGE_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -254,7 +257,7 @@ function assertHash(value) {
   if (typeof value !== 'string' || !/^[a-f0-9]{64}$/.test(value)) throw httpError('Archive contains an invalid SHA-256 hash');
 }
 
-function validateBundle(meta, bundle) {
+function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_VERSION } = {}) {
   if (!bundle || typeof bundle !== 'object' || Array.isArray(bundle) || !bundle.record || typeof bundle.record !== 'object') {
     throw httpError(`Invalid ${meta.kind} record`);
   }
@@ -263,7 +266,7 @@ function validateBundle(meta, bundle) {
     if (Object.keys(value || {}).some((key) => !allowed.includes(key))) throw httpError(`${label} contains an unknown field`);
   };
   assertKnown(bundle, meta.kind === 'story'
-    ? ['record', 'pages', 'snapshots', 'memory', 'preview', 'audiobook']
+    ? ['record', 'hierarchy', 'pages', 'snapshots', 'memory', 'preview', 'audiobook']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -320,6 +323,66 @@ function validateBundle(meta, bundle) {
   }
   const ordered = [...numbers].sort((a, b) => a - b);
   if (ordered.some((number, index) => number !== index + 1)) throw httpError('Story page numbers must be contiguous');
+
+  const hierarchy = bundle.hierarchy;
+  if (databaseSchemaVersion >= 2 && (!hierarchy || typeof hierarchy !== 'object' || Array.isArray(hierarchy))) {
+    throw httpError('Story archive is missing its manuscript hierarchy');
+  }
+  if (hierarchy) {
+    assertKnown(hierarchy, ['volumes', 'chapters', 'pages'], 'Story hierarchy');
+    if (!Array.isArray(hierarchy.volumes) || !Array.isArray(hierarchy.chapters) || !Array.isArray(hierarchy.pages)) {
+      throw httpError('Story archive contains an invalid manuscript hierarchy');
+    }
+    const assertContiguous = (items, label) => {
+      const ordinals = items.map((item) => item.ordinal).sort((a, b) => a - b);
+      if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
+        throw httpError(`${label} ordinals must be contiguous`);
+      }
+    };
+    const volumeIds = new Set();
+    for (const volume of hierarchy.volumes) {
+      assertKnown(volume, VOLUME_FIELDS, 'Story volume');
+      if (!volume || !validId(volume.id) || volume.story_id !== meta.id || volumeIds.has(volume.id) ||
+          !Number.isSafeInteger(volume.ordinal) || volume.ordinal < 1 ||
+          typeof volume.title !== 'string' || !volume.title.trim() || volume.title.length > 500) {
+        throw httpError('Story archive contains an invalid volume');
+      }
+      volumeIds.add(volume.id);
+    }
+    if (hierarchy.volumes.length === 0) throw httpError('Story archive must contain at least one volume');
+    assertContiguous(hierarchy.volumes, 'Story volume');
+
+    const chapterIds = new Set();
+    const chaptersByVolume = new Map([...volumeIds].map((id) => [id, []]));
+    for (const chapter of hierarchy.chapters) {
+      assertKnown(chapter, CHAPTER_FIELDS, 'Story chapter');
+      if (!chapter || !validId(chapter.id) || !volumeIds.has(chapter.volume_id) || chapterIds.has(chapter.id) ||
+          !Number.isSafeInteger(chapter.ordinal) || chapter.ordinal < 1 ||
+          typeof chapter.title !== 'string' || !chapter.title.trim() || chapter.title.length > 500) {
+        throw httpError('Story archive contains an invalid chapter');
+      }
+      chapterIds.add(chapter.id);
+      chaptersByVolume.get(chapter.volume_id).push(chapter);
+    }
+    for (const chapters of chaptersByVolume.values()) {
+      if (chapters.length === 0) throw httpError('Every story volume must contain a chapter');
+      assertContiguous(chapters, 'Story chapter');
+    }
+
+    const hierarchyPageIds = new Set();
+    const pagesByChapter = new Map([...chapterIds].map((id) => [id, []]));
+    for (const page of hierarchy.pages) {
+      assertKnown(page, HIERARCHY_PAGE_FIELDS, 'Hierarchy page');
+      if (!page || !validId(page.id) || !chapterIds.has(page.chapter_id) || !pageIds.has(page.id) ||
+          hierarchyPageIds.has(page.id) || !Number.isSafeInteger(page.ordinal) || page.ordinal < 1) {
+        throw httpError('Story archive contains an invalid hierarchy page');
+      }
+      hierarchyPageIds.add(page.id);
+      pagesByChapter.get(page.chapter_id).push(page);
+    }
+    if (hierarchyPageIds.size !== pageIds.size) throw httpError('Story hierarchy does not contain every committed page exactly once');
+    for (const pagesInChapter of pagesByChapter.values()) assertContiguous(pagesInChapter, 'Hierarchy page');
+  }
   const snapshotIds = new Set();
   for (const snapshot of bundle.snapshots) {
     assertKnown(snapshot, SNAPSHOT_FIELDS, 'Character snapshot');
@@ -379,12 +442,9 @@ function validateManifest(manifest, files) {
   if (databaseSchema.family !== DATABASE_FAMILY) {
     throw httpError('This archive belongs to a different ScribeTribe database family.');
   }
-  if (!Number.isSafeInteger(databaseSchema.version)) throw httpError('Archive database schema version is invalid');
+  if (!Number.isSafeInteger(databaseSchema.version) || databaseSchema.version < 1) throw httpError('Archive database schema version is invalid');
   if (databaseSchema.version > DATABASE_SCHEMA_VERSION) {
     throw httpError('This archive was made from a newer ScribeTribe database schema.');
-  }
-  if (databaseSchema.version !== DATABASE_SCHEMA_VERSION) {
-    throw httpError('This archive database schema is not supported by the 4.0 clean-break importer.');
   }
   const allowedManifestFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties);
   if (Object.keys(manifest).some((key) => !allowedManifestFields.includes(key)) ||
@@ -486,8 +546,10 @@ async function stageAndReadArchive(uploadPath, stageRoot, customLimits = {}) {
     if (file.size !== meta.size_bytes) throw httpError(`Size check failed for ${meta.path}`);
     if (await hashFile(file.path) !== meta.sha256) throw httpError(`Integrity check failed for ${meta.path}`);
     const bundle = readJsonFile(file.path, limits.maxJsonBytes);
-    validateBundle(meta, bundle);
-    if (semanticHash(meta.kind, bundle) !== meta.semantic_sha256) {
+    validateBundle(meta, bundle, { databaseSchemaVersion: manifest.database_schema.version });
+    if (semanticHash(meta.kind, bundle, {
+      includeHierarchy: manifest.database_schema.version >= 2,
+    }) !== meta.semantic_sha256) {
       throw httpError(`Semantic integrity check failed for ${meta.path}`);
     }
     entities.push({ ...meta, bundle, staged_path: file.path });

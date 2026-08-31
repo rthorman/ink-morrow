@@ -10,6 +10,9 @@ const {
   CHARACTER_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
+  VOLUME_FIELDS,
+  CHAPTER_FIELDS,
+  HIERARCHY_PAGE_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -291,7 +294,9 @@ function createTransferService({
       const key = `${kind}:${id}`;
       if (!hashes.has(key)) {
         const bundle = planner.localBundle(kind, id, options);
-        hashes.set(key, semanticHash(kind, bundle));
+        hashes.set(key, semanticHash(kind, bundle, {
+          includeHierarchy: imported.manifest.database_schema.version >= 2,
+        }));
       }
       return hashes.get(key);
     }
@@ -448,7 +453,10 @@ function createTransferService({
       actions.set(collision.key, { ...collision, action: selected });
     }
 
-    const maps = { world: new Map(), character: new Map(), story: new Map(), page: new Map() };
+    const maps = {
+      world: new Map(), character: new Map(), story: new Map(),
+      volume: new Map(), chapter: new Map(), page: new Map(),
+    };
     const reservedNames = { world: new Set(), character: new Set(), story: new Set() };
     const copiedNames = new Map();
     for (const kind of ['world', 'character', 'story']) {
@@ -465,10 +473,32 @@ function createTransferService({
     }
     for (const entity of session.imported.entities.filter((item) => item.kind === 'story')) {
       const action = actions.get(`story:${entity.id}`);
+      for (const volume of entity.bundle.hierarchy?.volumes || []) {
+        let id = volume.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM volumes WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
+        maps.volume.set(volume.id, id);
+      }
+      for (const chapter of entity.bundle.hierarchy?.chapters || []) {
+        let id = chapter.id;
+        const existing = mode === 'replace_all' ? null : db.prepare(`
+          SELECT v.story_id FROM chapters c JOIN volumes v ON v.id = c.volume_id WHERE c.id = ?
+        `).get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
+        maps.chapter.set(chapter.id, id);
+      }
       for (const page of entity.bundle.pages) {
         let id = page.id;
-        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
-        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) {
+        const compatibilityOwner = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
+        const hierarchyOwner = mode === 'replace_all' ? null : db.prepare(`
+          SELECT v.story_id FROM pages p
+          JOIN chapters c ON c.id = p.chapter_id
+          JOIN volumes v ON v.id = c.volume_id
+          WHERE p.id = ?
+        `).get(id);
+        if (action.action === 'copy' ||
+            (compatibilityOwner && compatibilityOwner.story_id !== entity.id) ||
+            (hierarchyOwner && hierarchyOwner.story_id !== entity.id)) {
           id = randomUUID();
         }
         maps.page.set(page.id, id);
@@ -630,6 +660,41 @@ function createTransferService({
         };
         insertOrUpdate(db, 'story_pages', page, PAGE_FIELDS);
         importedPages.push(page);
+      }
+      if (entity.bundle.hierarchy) {
+        for (const volumeSource of entity.bundle.hierarchy.volumes) {
+          insertOrUpdate(db, 'volumes', {
+            ...volumeSource,
+            id: maps.volume.get(volumeSource.id),
+            story_id: storyId,
+          }, VOLUME_FIELDS);
+        }
+        for (const chapterSource of entity.bundle.hierarchy.chapters) {
+          insertOrUpdate(db, 'chapters', {
+            ...chapterSource,
+            id: maps.chapter.get(chapterSource.id),
+            volume_id: maps.volume.get(chapterSource.volume_id),
+          }, CHAPTER_FIELDS);
+        }
+        for (const pageSource of entity.bundle.hierarchy.pages) {
+          insertOrUpdate(db, 'pages', {
+            ...pageSource,
+            id: maps.page.get(pageSource.id),
+            chapter_id: maps.chapter.get(pageSource.chapter_id),
+          }, HIERARCHY_PAGE_FIELDS);
+        }
+      } else {
+        // Schema-1 archives came from the kernel scaffold before hierarchy
+        // behavior existed. They carry no structural choices to preserve, so
+        // importing them into schema 2 creates the accepted default manuscript.
+        const volumeId = randomUUID();
+        const chapterId = randomUUID();
+        db.prepare('INSERT INTO volumes (id, story_id, ordinal, title) VALUES (?, ?, 1, ?)')
+          .run(volumeId, storyId, 'Volume I');
+        db.prepare('INSERT INTO chapters (id, volume_id, ordinal, title) VALUES (?, ?, 1, ?)')
+          .run(chapterId, volumeId, 'Chapter I');
+        const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
+        importedPages.forEach((page, index) => insertPage.run(page.id, chapterId, index + 1));
       }
       for (const snapshotSource of entity.bundle.snapshots) {
         const snapshot = {

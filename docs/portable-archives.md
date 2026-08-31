@@ -74,14 +74,20 @@ assets/
 `database_schema` family/version, every entity, dependency, file path, byte
 count, SHA-256 digest, and semantic digest. The checked-in
 `archive-manifest-v2.schema.json` is the machine-readable field contract. Story
-JSON is currently an aggregate containing its story row, ordered compatibility
-pages, current cast snapshots, continuity rows, optional prepared page, and
-optional ready-audiobook metadata. Derived continuity search/FTS tables are not
-exported; they are rebuilt locally from verified continuity rows during import.
+JSON is an aggregate containing its story row, ordered volume/chapter/page
+hierarchy, temporary ordered compatibility prose rows, current cast snapshots,
+continuity rows, optional prepared page, and optional ready-audiobook metadata.
+Hierarchy identities and scoped ordinals are functional manuscript data, not
+working history, so they always travel. Derived continuity search/FTS tables
+are not exported; they are rebuilt locally from verified continuity rows during
+import.
 
-Legacy, unknown-family, and future format/manifest/database versions are
-rejected rather than guessed at. A future format can add an explicit migration
-without binding portable data to an old SQLite layout.
+3.x, unknown-family, and future format/manifest/database versions are rejected
+rather than guessed at. A schema-1 `scribetribe-4` kernel archive is the one
+supported older case: it predates hierarchy behavior, so import gives each
+story the accepted Volume I / Chapter I default while preserving page order.
+A future format can add an explicit migration without binding portable data to
+an old SQLite layout.
 
 ## Import preflight and collision choices
 
@@ -98,7 +104,7 @@ Each top-level entity receives one classification:
 
 “Identical” ignores timestamps, an entity's own primary ID, and story-page IDs (pages are compared in manuscript order), but retains dependency identities so differently linked graphs are not collapsed. It compares the meaningful fields, ordered manuscript, snapshots, continuity, optional working history, and every media file selected for this archive. If visuals or audio were deliberately left out, that omitted category does not create a collision.
 
-ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity and its pages; every world, cast, snapshot, continuity character reference, override key, plate, cover, and audiobook reference is remapped as one dependency graph.
+ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, and pages; every world, cast, snapshot, continuity character reference, override key, plate, cover, and audiobook reference is remapped as one dependency graph.
 
 ## Merge and full restore
 
