@@ -56,6 +56,26 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
 - `GET /api/capabilities` remains behind the existing auth/origin boundary and
   distinguishes the available kernel from planned release features.
 
+### 4.0 manuscript hierarchy contract (PR 02)
+
+- Schema version 2 activates Story -> Volume -> Chapter -> Page. Story
+  creation writes Volume I and Chapter I in the same transaction.
+- `pages` owns stable structural identity and scoped chapter order. During the
+  PR 02/PR 03 compatibility seam, each committed `story_pages` row has the
+  same opaque id as its `pages` row; prose remains in `story_pages` until
+  immutable revisions land.
+- New volumes are appended at the active tail with an empty Chapter I. New
+  chapters may be appended only to the active volume. Historical volumes and
+  chapters may be renamed, but only empty active-tail structure may be
+  deleted, and every story/volume retains at least one child container.
+- Story reads expose the ordered hierarchy; stable page reads use
+  `GET /api/stories/:storyId/pages/:pageId` and return hierarchy position plus
+  indexed previous/next identities. Scene breaks remain prose, never rows.
+- Archive v2 story aggregates carry flat volume/chapter/page hierarchy arrays
+  in addition to temporary compatibility pages. Copy import remaps all three
+  identity levels. A schema-1 4.0 kernel archive has no hierarchy choices and
+  is upgraded on import to the accepted Volume I / Chapter I default.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.

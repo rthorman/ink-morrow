@@ -18,6 +18,9 @@ const {
   characterRecord,
   storyRecord,
   pageRecord,
+  volumeRecord,
+  chapterRecord,
+  hierarchyPageRecord,
   snapshotRecord,
   memoryRecord,
   previewRecord,
@@ -171,6 +174,22 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
     const record = storyRecord(row, { hasVisual: Boolean(cover), includeWorkingHistory: options.includeWorkingHistory });
     if (cover) record.image_media_type = cover.mediaType;
     const pageImages = new Map();
+    const hierarchy = {
+      volumes: db.prepare('SELECT * FROM volumes WHERE story_id = ? ORDER BY ordinal').all(id).map(volumeRecord),
+      chapters: db.prepare(`
+        SELECT c.* FROM chapters c
+        JOIN volumes v ON v.id = c.volume_id
+        WHERE v.story_id = ?
+        ORDER BY v.ordinal, c.ordinal
+      `).all(id).map(chapterRecord),
+      pages: db.prepare(`
+        SELECT p.* FROM pages p
+        JOIN chapters c ON c.id = p.chapter_id
+        JOIN volumes v ON v.id = c.volume_id
+        WHERE v.story_id = ?
+        ORDER BY v.ordinal, c.ordinal, p.ordinal
+      `).all(id).map(hierarchyPageRecord),
+    };
     const pages = db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(id)
       .map((page) => {
         const record = pageRecord(page, options);
@@ -206,6 +225,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
     return {
       bundle: {
         record,
+        hierarchy,
         pages,
         snapshots,
         memory,

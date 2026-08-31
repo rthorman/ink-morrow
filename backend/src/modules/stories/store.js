@@ -6,8 +6,10 @@
 const { randomUUID } = require('node:crypto');
 const { optionalText, asString, TONES } = require('../../core/validation');
 const { normalizeCast, validateCastPayload, parseCastJson } = require('./cast');
+const { createHierarchyStore } = require('./hierarchy');
 
 function createStoriesStore(db, { getWorld }) {
+  const hierarchy = createHierarchyStore(db);
   const getStory = (id) => db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
   const storyPages = (storyId) =>
     db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(storyId);
@@ -29,6 +31,11 @@ function createStoriesStore(db, { getWorld }) {
     total_cost_usd: db.prepare(
       'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM story_pages WHERE story_id = ?'
     ).get(story.id).s,
+  });
+
+  const storyWithHierarchy = (story) => ({
+    ...storyWithMeta(story),
+    hierarchy: hierarchy.buildHierarchy(story.id),
   });
 
   const insertSnapshot = db.prepare(`
@@ -112,10 +119,13 @@ function createStoriesStore(db, { getWorld }) {
 
   function createStory(payload) {
     const id = randomUUID();
-    db.prepare('INSERT INTO stories (id, title, world_id, characters, tone) VALUES (?, ?, ?, ?, ?)').run(
-      id, payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone
-    );
-    ensureCastSnapshots(id, payload.cast);
+    hierarchy.inImmediateTransaction(() => {
+      db.prepare('INSERT INTO stories (id, title, world_id, characters, tone) VALUES (?, ?, ?, ?, ?)').run(
+        id, payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone
+      );
+      ensureCastSnapshots(id, payload.cast);
+      hierarchy.ensureDefaultInTransaction(id);
+    });
     return getStory(id);
   }
 
@@ -141,20 +151,26 @@ function createStoriesStore(db, { getWorld }) {
 
   function insertGeneratedPage(storyId, { content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber }) {
     const id = randomUUID();
-    db.prepare(
-      'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
-      model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
-    db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    hierarchy.inImmediateTransaction(() => {
+      db.prepare(
+        'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
+        model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
+      hierarchy.insertTailPageInTransaction(storyId, id);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    });
     return getPageById(id);
   }
 
   function insertManualPage(storyId, content, userInput) {
     const id = randomUUID();
-    db.prepare('INSERT INTO story_pages (id, story_id, page_number, content, user_input) VALUES (?, ?, ?, ?, ?)').run(
-      id, storyId, nextPageNumber(storyId), content, userInput
-    );
-    db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    hierarchy.inImmediateTransaction(() => {
+      db.prepare('INSERT INTO story_pages (id, story_id, page_number, content, user_input) VALUES (?, ?, ?, ?, ?)').run(
+        id, storyId, nextPageNumber(storyId), content, userInput
+      );
+      hierarchy.insertTailPageInTransaction(storyId, id);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    });
     return getPageById(id);
   }
 
@@ -196,18 +212,14 @@ function createStoriesStore(db, { getWorld }) {
       .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number ASC')
       .all(page.story_id, page.page_number);
     const bump = db.prepare('UPDATE story_pages SET page_number = page_number - 1 WHERE id = ?');
-    db.exec('BEGIN');
-    try {
+    hierarchy.inImmediateTransaction(() => {
+      hierarchy.removePageInTransaction(page.id);
       db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
       for (const row of later) bump.run(row.id);
       deletePreview.run(page.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);
-      db.exec('COMMIT');
-      previewRevisions.set(page.story_id, (previewRevisions.get(page.story_id) || 0) + 1);
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
+    });
+    previewRevisions.set(page.story_id, (previewRevisions.get(page.story_id) || 0) + 1);
   }
 
   // Delete every page AFTER the given page number. Plate files are cleaned
@@ -216,12 +228,18 @@ function createStoriesStore(db, { getWorld }) {
     const doomed = db
       .prepare('SELECT id, image_media_type FROM story_pages WHERE story_id = ? AND page_number > ?')
       .all(storyId, after);
+    const result = hierarchy.inImmediateTransaction(() => {
+      const deletePlacement = db.prepare('DELETE FROM pages WHERE id = ?');
+      for (const page of doomed) deletePlacement.run(page.id);
+      const deleted = db
+        .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?')
+        .run(storyId, after);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+      return deleted;
+    });
     for (const page of doomed) {
       if (page.image_media_type) onPlate(page.id);
     }
-    const result = db
-      .prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?')
-      .run(storyId, after);
     return { deleted: result.changes, remaining: storyPages(storyId).length };
   }
 
@@ -237,16 +255,13 @@ function createStoriesStore(db, { getWorld }) {
     const later = db
       .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number DESC')
       .all(storyId, after);
-    db.exec('BEGIN');
-    try {
+    const anchor = getPageByNumber(storyId, after);
+    hierarchy.inImmediateTransaction(() => {
       for (const row of later) bump.run(row.id);
       insert.run(id, storyId, after + 1, '', typeof cost === 'number' ? cost : null, mediaType, imagePrompt);
-      db.exec('COMMIT');
-    } catch (error) {
-      db.exec('ROLLBACK');
-      throw error;
-    }
-    db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+      hierarchy.insertPageAfterInTransaction(storyId, anchor?.id || null, id);
+      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    });
     return getPageById(id);
   }
 
@@ -273,6 +288,8 @@ function createStoriesStore(db, { getWorld }) {
     getPageByNumber,
     getPageById,
     storyWithMeta,
+    storyWithHierarchy,
+    hierarchy,
     upsertPreview,
     getPreview,
     invalidatePreview,

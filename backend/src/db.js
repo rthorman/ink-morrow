@@ -1,6 +1,6 @@
 'use strict';
 
-const { createHash } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const fs = require('fs');
 const path = require('path');
@@ -460,6 +460,49 @@ CREATE INDEX idx_operation_journal_status
   ON operation_journal (status, started_at);
 `;
 
+// Version 1 already reserved the target hierarchy tables. Version 2 makes
+// that structure live and backfills any compatibility stories/pages created
+// while the kernel-only release branch was running. The same opaque page id is
+// used on both sides of the temporary PR 02/PR 03 compatibility seam.
+function backfillManuscriptHierarchy(db) {
+  const insertVolume = db.prepare('INSERT INTO volumes (id, story_id, ordinal, title) VALUES (?, ?, 1, ?)');
+  const insertChapter = db.prepare('INSERT INTO chapters (id, volume_id, ordinal, title) VALUES (?, ?, 1, ?)');
+  const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
+  const pageExists = db.prepare('SELECT 1 FROM pages WHERE id = ?');
+  const lastVolume = db.prepare('SELECT * FROM volumes WHERE story_id = ? ORDER BY ordinal DESC LIMIT 1');
+  const lastChapter = db.prepare('SELECT * FROM chapters WHERE volume_id = ? ORDER BY ordinal DESC LIMIT 1');
+  const nextOrdinal = db.prepare('SELECT COALESCE(MAX(ordinal), 0) + 1 AS value FROM pages WHERE chapter_id = ?');
+  const compatibilityPages = db.prepare('SELECT id FROM story_pages WHERE story_id = ? ORDER BY page_number');
+
+  for (const story of db.prepare('SELECT id FROM stories ORDER BY created_at, id').all()) {
+    let volume = lastVolume.get(story.id);
+    if (!volume) {
+      const id = randomUUID();
+      insertVolume.run(id, story.id, 'Volume I');
+      volume = lastVolume.get(story.id);
+    }
+    let chapter = lastChapter.get(volume.id);
+    if (!chapter) {
+      const id = randomUUID();
+      insertChapter.run(id, volume.id, 'Chapter I');
+      chapter = lastChapter.get(volume.id);
+    }
+    let ordinal = nextOrdinal.get(chapter.id).value;
+    for (const page of compatibilityPages.all(story.id)) {
+      if (pageExists.get(page.id)) continue;
+      insertPage.run(page.id, chapter.id, ordinal);
+      ordinal += 1;
+    }
+  }
+}
+
+const HIERARCHY_V2_CHECKSUM_SOURCE = `
+PR 02 manuscript hierarchy activation:
+- ensure every existing story has a Volume I and Chapter I tail
+- pair every compatibility story page with a stable pages row using the same id
+- preserve compatibility page order as scoped chapter ordinals
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -467,6 +510,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: SCHEMA_V1,
     up(db) {
       db.exec(SCHEMA_V1);
+    },
+  }),
+  Object.freeze({
+    version: 2,
+    name: 'manuscript hierarchy activation',
+    checksumSource: HIERARCHY_V2_CHECKSUM_SOURCE,
+    up(db) {
+      backfillManuscriptHierarchy(db);
     },
   }),
 ]);

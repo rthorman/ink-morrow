@@ -127,7 +127,7 @@ pull_requests:
   - id: "02"
     slug: manuscript-hierarchy
     title: Volume, chapter, and page hierarchy
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "01"
