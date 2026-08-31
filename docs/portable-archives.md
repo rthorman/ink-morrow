@@ -1,8 +1,13 @@
-# Portable archives and full backups (v3.2.0)
+# Project archives and full backups (4.0 format v2)
 
-ScribeTribe 3.2.0 uses one versioned archive format for moving a single asset, a linked bundle, or the entire local installation. Archives use the `.scribetribe.zip` suffix. They contain ordinary JSON plus optional image and MP3 files; they are not raw SQLite copies.
+The ScribeTribe 4.0 release line uses one versioned project-archive format for moving a single asset, a linked bundle, or the entire local installation. Archives use the `.scribetribe` suffix. They remain ZIP containers holding ordinary JSON plus optional image and MP3 files; they are not raw SQLite copies.
 
-The v3.2.1 installation password and browser sessions never enter an archive. Archive encryption is intentionally not part of format version 1, so treat an exported file according to what its review screen says it contains.
+The installation password and browser sessions never enter an archive. Archive encryption is not part of format version 2, so treat an exported file according to what its review screen says it contains.
+
+Format v2 is a clean break: ScribeTribe 4.0 does not import the 3.x
+`scribetribe-portable-archive` v1 format. Use ScribeTribe 3.2.2 to read a v1
+archive. PR 01 establishes the v2 identity and strict manifest scaffold; later
+4.0 implementation PRs extend its domain aggregates before beta release.
 
 ## Export scopes and dependency rules
 
@@ -47,9 +52,9 @@ The reviewed download is streamed. Image and MP3 files are read directly from di
 
 ## Archive layout
 
-Format identifier: `scribetribe-portable-archive`
+Format identifier: `scribetribe-project-archive`
 
-Current format version: `1`
+Current format version: `2`
 
 ```text
 manifest.json
@@ -65,9 +70,18 @@ assets/
   audio/*.mp3
 ```
 
-`manifest.json` declares every entity, dependency, file path, byte count, SHA-256 digest, and semantic digest. Story JSON is an aggregate containing its story row, ordered pages, current cast snapshots, continuity rows, optional prepared page, and optional ready-audiobook metadata. Derived continuity search/FTS tables are not exported; they are rebuilt locally from the verified continuity rows during import.
+`manifest.json` declares `manifest_schema_version: 1`, the source
+`database_schema` family/version, every entity, dependency, file path, byte
+count, SHA-256 digest, and semantic digest. The checked-in
+`archive-manifest-v2.schema.json` is the machine-readable field contract. Story
+JSON is currently an aggregate containing its story row, ordered compatibility
+pages, current cast snapshots, continuity rows, optional prepared page, and
+optional ready-audiobook metadata. Derived continuity search/FTS tables are not
+exported; they are rebuilt locally from verified continuity rows during import.
 
-Unknown format versions are rejected rather than guessed at. A future format can add an explicit migration without binding portable data to an old SQLite schema.
+Legacy, unknown-family, and future format/manifest/database versions are
+rejected rather than guessed at. A future format can add an explicit migration
+without binding portable data to an old SQLite layout.
 
 ## Import preflight and collision choices
 
@@ -105,7 +119,7 @@ The importer rejects absolute paths, `..` traversal, backslash paths, duplicate 
 | Method | Route | Purpose |
 |---|---|---|
 | POST | `/api/transfers/exports/plan` | Validate scope/options, resolve dependencies, and return exposure plus a short-lived download token |
-| GET | `/api/transfers/exports/:token` | Stream the reviewed `.scribetribe.zip` once |
+| GET | `/api/transfers/exports/:token` | Stream the reviewed `.scribetribe` once |
 | POST | `/api/transfers/imports/preflight` | Multipart upload (`archive` file; optional `current_settings` JSON), verify/stage, and return collisions |
 | POST | `/api/transfers/imports/:token/commit` | Apply merge/replace-all and collision resolutions |
 | DELETE | `/api/transfers/imports/:token` | Cancel and remove staged content |

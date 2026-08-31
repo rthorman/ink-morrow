@@ -66,7 +66,7 @@ This sends the password, session cookie, manuscripts, generated media, and API t
 The login is access control, not encryption:
 
 - The SQLite database, images, and audio are plaintext files. Anyone who can read the account's files—or an unencrypted disk after theft—can read them without the web password.
-- Portable `.scribetribe.zip` exports are not encrypted. The exposure review shows what is included; store/share them accordingly. Login credentials, sessions, API keys, and paid-consent state are never exported.
+- Portable `.scribetribe` exports are ZIP containers and are not encrypted. The exposure review shows what is included; store/share them accordingly. Login credentials, sessions, API keys, and paid-consent state are never exported.
 - `backend/.env` contains the provider key. Use a dedicated OpenRouter key with a hard spend limit and protect the operating-system account.
 - A malicious administrator/root user, compromised OS, browser extension, reverse proxy, or provider is outside this boundary.
 - There is one owner only: no usernames, roles, remote recovery, MFA, email, or account sharing.

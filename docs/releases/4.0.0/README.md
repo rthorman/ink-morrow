@@ -13,6 +13,11 @@ ScribeTribe 3.2.2 remains the shipped behavior until an implementation pull
 request changes it. Statements in this directory are target requirements, not
 claims about the current application.
 
+Implementation progress is recorded in [PR-QUEUE.yaml](PR-QUEUE.yaml). The
+first implementation item is the clean 4.0 kernel; later feature capability is
+reported by the authenticated runtime endpoint rather than inferred from the
+release-train name.
+
 ## Authority and change control
 
 The project stakeholder has accepted these documents as the 4.0.0 baseline.

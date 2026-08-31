@@ -9,6 +9,12 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 > [docs/releases/4.0.0/](docs/releases/4.0.0/). The feature descriptions below
 > continue to describe the current 3.2.2 line until implementation PRs land.
 
+The `release/4.0.0` integration line begins with PR 01's clean kernel. Its
+databases identify themselves as `scribetribe-4` schema 1, use transactional
+migrations and an operation journal, and refuse 3.x files before modifying
+them. This is infrastructure for the beta, not a claim that later 4.0 features
+are already available; `/api/capabilities` reports the distinction explicitly.
+
 **v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
 
 Prepared pages now carry opaque identities, stale provider replies cannot overwrite newer previews, and a free metadata read restores the green button after refresh. While preparation is in flight the empty-direction button says so and cannot launch a competing write; canceling a directed write keeps the paid preview. Live writes and rewrites revalidate their story snapshot after the provider returns, story-load and generation tokens prevent late responses from painting the wrong manuscript, and async continuity costs stay attached to the story that started them.
@@ -145,6 +151,12 @@ $EDITOR backend/.env   # set OPENROUTER_API_KEY
 # then choose a password or passphrase of at least 15 characters.
 ```
 
+ScribeTribe 4.0 is a clean data-contract break. If this checkout already has a
+3.x `database/scribe-tribe.db`, set `DATA_DIR=../database-v4` in
+`backend/.env` before starting 4.0. The server inspects an existing database
+read-only and refuses legacy or future schema families with recovery guidance;
+it never upgrades or reinterprets a 3.x manuscript in place.
+
 Or manually:
 
 ```bash
@@ -165,7 +177,8 @@ npm start               # http://localhost:3000
 | `ALLOW_INSECURE_LAN` | — | Set to `1` only to acknowledge that direct LAN HTTP exposes passwords and manuscripts in transit |
 | `ALLOWED_HOSTS` | — | Comma-separated public hostnames accepted when an HTTPS reverse proxy fronts the loopback server |
 | `TRUST_PROXY` | — | Set to `1` only for an HTTPS reverse proxy running on the same machine/loopback |
-| `DB_PATH` | `../database/scribe-tribe.db` | SQLite file; `:memory:` for ephemeral runs |
+| `DATA_DIR` | `../database` | Root for the SQLite database, images, audio, and transfer staging. Use a new empty directory for the 4.0 clean break |
+| `DB_PATH` | `<DATA_DIR>/scribe-tribe.db` | Advanced SQLite-file override; `:memory:` for ephemeral runs. Without `DATA_DIR`, media follows the file's directory |
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |
 | `AI_TIMEOUT_MS` | `120000` | Per-request AI timeout
@@ -246,6 +259,7 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | POST | `/api/auth/login` | Unlock and create a server-side session |
 | POST | `/api/auth/logout` | Revoke the current session |
 | POST | `/api/auth/change-password` | Change the owner password and revoke every other session |
+| GET | `/api/capabilities` | Authenticated release train, database/archive identity, and truthful available/planned feature states |
 | GET/POST | `/api/worlds` | List / create worlds |
 | GET/PUT/DELETE | `/api/worlds/:id` | Fetch / update / delete (409 if in use) |
 | GET/POST | `/api/characters` | List (filter by `?world_id=`) / create |
@@ -276,7 +290,7 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | GET | `/api/stories/:id/audiobook/audio` | Download the finished audiobook (attachment) |
 | GET | `/api/storage` | Per-story excerpt, measured media bytes/count, cover, audiobook, and scene-plate metadata for Library |
 | POST | `/api/transfers/exports/plan` | Resolve an export scope/dependencies and return its exposure review plus a short-lived download token |
-| GET | `/api/transfers/exports/:token` | Stream the reviewed `.scribetribe.zip` archive |
+| GET | `/api/transfers/exports/:token` | Stream the reviewed v2 `.scribetribe` project archive |
 | POST | `/api/transfers/imports/preflight` | Stage and verify a multipart archive, then classify collisions without writing local data |
 | POST/DELETE | `/api/transfers/imports/:token/commit`, `/api/transfers/imports/:token` | Commit reviewed merge/replace choices, or cancel and remove staging |
 | GET | `/api/transfers/safety-backups/:filename` | Download the automatic pre-restore safety backup |

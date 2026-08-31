@@ -35,7 +35,7 @@ pull_requests:
   - id: "00"
     slug: plan-legal
     title: Planning, legal, and release contract
-    status: ready_for_review
+    status: merged
     target: main
     depends_on: []
     risk: low
@@ -61,7 +61,7 @@ pull_requests:
   - id: "01"
     slug: v4-kernel
     title: Clean 4.0 kernel and schema identity
-    status: planned
+    status: ready_for_review
     target: release/4.0.0
     depends_on:
       - "00"
