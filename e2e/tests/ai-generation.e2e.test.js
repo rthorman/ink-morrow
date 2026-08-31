@@ -374,7 +374,11 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
 
 test.describe('Speculative next-page preparation', () => {
   test('an empty-direction Generate commits the prepared page instantly', async ({ page }) => {
+    let generateCalls = 0;
+    let previewCalls = 0;
+    let commitCalls = 0;
     await page.route('**/api/stories/*/pages/generate', async (route) => {
+      generateCalls += 1;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -384,13 +388,22 @@ test.describe('Speculative next-page preparation', () => {
       });
     });
     await page.route('**/api/stories/*/pages/preview', async (route) => {
+      previewCalls += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ preview: { expected_page: 2, model: 'mock', cost_usd: 0.001 } }),
+        body: JSON.stringify({
+          preview: {
+            expected_page: previewCalls + 1,
+            preview_key: `prepared-${previewCalls + 1}`,
+            model: 'mock',
+            cost_usd: 0.001,
+          },
+        }),
       });
     });
     await page.route('**/api/stories/*/pages/commit-preview', async (route) => {
+      commitCalls += 1;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
@@ -416,13 +429,15 @@ test.describe('Speculative next-page preparation', () => {
     await expect(page.locator('#generateBtn')).toHaveText('Write next page');
     await page.fill('#userInput', '');
 
-    // Empty direction -> the free-commit review, then instant commit
+    // Empty direction -> review the continuity/successor work, then commit instantly
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, 'Use prepared page');
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(page.locator('#storyContent')).toContainText('The prepared continuation');
-    // The scribe immediately prepares the next page (chained speculation)
+    // The scribe immediately prepares exactly one next page. The green press
+    // never fell through to a duplicate live generation.
     await expect(page.locator('#generateBtn')).toHaveText('Use prepared page', { timeout: 5000 });
+    expect({ generateCalls, commitCalls, previewCalls }).toEqual({ generateCalls: 1, commitCalls: 1, previewCalls: 2 });
   });
 });
 

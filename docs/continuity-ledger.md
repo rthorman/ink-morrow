@@ -17,7 +17,7 @@ World rows remain live canonical references by design. The ledger records world 
 ## Commit semantics
 
 - A speculative preview has no page row and therefore no continuity delta.
-- Committing a preview inserts the prose page, then extracts its delta.
+- Committing a preview inserts the prose page and returns it to the reader before extracting its delta. The server starts extraction in the background; the browser's explicit sync request joins that same per-page job so cost accounting never creates a duplicate provider call.
 - A normal write inserts valid prose before extraction. Extraction failure leaves the page valid and marks its memory `failed` for later repair.
 - Regeneration writes the replacement against a projection that excludes the old last page. The old prose and delta remain intact during the provider call. Only successful replacement prose updates the row and invalidates the old delta; replacement extraction follows.
 - Deleting a page cascades its memory row and search record. Surviving page IDs remain stable while page numbers close the gap. Folding the survivors immediately reverts the deleted facts.
@@ -68,7 +68,7 @@ Upgrading creates no paid work. Existing and manually added pages report `pendin
 - Prompt history is bounded independently of manuscript length.
 - FTS5 is used when bundled with SQLite; ordinary indexed storage plus `LIKE` retrieval is the automatic fallback.
 - Repair is sequential, avoiding parallel provider load and memory spikes on low-end devices.
-- No polling is added for continuity.
+- No polling is added for continuity. A prepared commit performs one explicit join to the already-started per-page extraction.
 
 ## API
 

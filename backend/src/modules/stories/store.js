@@ -14,6 +14,12 @@ function createStoriesStore(db, { getWorld }) {
   const getPageByNumber = (storyId, number) =>
     db.prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?').get(storyId, number);
   const getPageById = (id) => db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id);
+  // In-flight preview generation cannot be cancelled at the provider. Keep a
+  // process-local context revision so a reply produced against an invalidated
+  // story can be billed honestly without being allowed to resurrect itself in
+  // story_previews. A restart also ends every in-flight request, so this does
+  // not need to be durable.
+  const previewRevisions = new Map();
 
   const storyWithMeta = (story) => ({
     ...story,
@@ -49,6 +55,16 @@ function createStoriesStore(db, { getWorld }) {
 
   function invalidatePreview(storyId) {
     deletePreview.run(storyId);
+    previewRevisions.set(storyId, (previewRevisions.get(storyId) || 0) + 1);
+  }
+
+  function previewRevision(storyId) {
+    return previewRevisions.get(storyId) || 0;
+  }
+
+  function invalidatePreviewsForWorld(worldId) {
+    const storyIds = db.prepare('SELECT id FROM stories WHERE world_id = ?').all(worldId);
+    for (const { id } of storyIds) invalidatePreview(id);
   }
 
   // -- payload validation ----------------------------------------------------
@@ -108,7 +124,7 @@ function createStoriesStore(db, { getWorld }) {
       'UPDATE stories SET title = ?, world_id = ?, characters = ?, tone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
     ensureCastSnapshots(storyId, payload.cast);
-    deletePreview.run(storyId);
+    invalidatePreview(storyId);
     return getStory(storyId);
   }
 
@@ -161,6 +177,7 @@ function createStoriesStore(db, { getWorld }) {
       deletePreview.run(old.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(old.story_id);
       db.exec('COMMIT');
+      previewRevisions.set(old.story_id, (previewRevisions.get(old.story_id) || 0) + 1);
     } catch (error) {
       db.exec('ROLLBACK');
       throw error;
@@ -186,6 +203,7 @@ function createStoriesStore(db, { getWorld }) {
       deletePreview.run(page.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);
       db.exec('COMMIT');
+      previewRevisions.set(page.story_id, (previewRevisions.get(page.story_id) || 0) + 1);
     } catch (error) {
       db.exec('ROLLBACK');
       throw error;
@@ -241,7 +259,7 @@ function createStoriesStore(db, { getWorld }) {
       const idOf = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
       if (cast.some((entry) => idOf(entry) === characterId)) {
         update.run(JSON.stringify(cast.filter((entry) => idOf(entry) !== characterId)), story.id);
-        deletePreview.run(story.id);
+        invalidatePreview(story.id);
         db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
       }
     }
@@ -258,6 +276,8 @@ function createStoriesStore(db, { getWorld }) {
     upsertPreview,
     getPreview,
     invalidatePreview,
+    invalidatePreviewsForWorld,
+    previewRevision,
     validateStoryPayload,
     createStory,
     updateStory,

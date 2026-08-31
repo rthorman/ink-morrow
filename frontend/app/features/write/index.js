@@ -6,6 +6,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   const { apiCall, apiFetch } = api;
   const { showError, showSuccess, showErrorRaw } = notify;
   let router = null; // set by bootstrap
+  let storyLoadToken = 0;
 
   function updateStorySelect() {
     const select = document.getElementById('currentStory');
@@ -68,6 +69,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       if (router) router.navigate('library-stories');
       return;
     }
+    features.generation.resetForStoryChange();
     document.getElementById('currentStory').value = story.id;
     state.data.currentStory = story;
     await loadStoryPages();
@@ -81,6 +83,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const storyId = event.target.value;
     features.narration.stopNarration();
     if (!storyId) {
+      features.generation.resetForStoryChange();
       state.data.currentStory = null;
       resetStoryReader();
       if (router) router.replace('write');
@@ -97,22 +100,31 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       router.navigate('write', { storyId });
       return;
     }
+    features.generation.resetForStoryChange();
     state.data.currentStory = story;
     await loadStoryPages();
   }
 
   async function loadStoryPages() {
     if (!state.data.currentStory) return;
+    const storyId = state.data.currentStory.id;
+    const token = ++storyLoadToken;
     try {
-      const data = await apiCall(`/stories/${state.data.currentStory.id}/pages`);
-      state.data.storyPages = data.pages || [];
+      const [pagesResult, previewResult] = await Promise.all([
+        apiCall(`/stories/${storyId}/pages`),
+        apiCall(`/stories/${storyId}/pages/preview`).catch(() => ({ preview: null })),
+      ]);
+      if (token !== storyLoadToken || state.data.currentStory?.id !== storyId) return;
+      state.data.storyPages = pagesResult.pages || [];
       state.data.currentPage = Math.max(1, state.data.storyPages.length);
       displayCurrentPage();
       state.resetStoryCost();
+      features.generation.restoreSpeculative(storyId, previewResult.preview || null);
       // No speculative preview here: selecting a story alone must never
-      // start paid work. The preparation only runs after a confirmed write.
+      // start paid work. This only restores already-paid server metadata.
       features.audiobook.refreshAudiobook(); // banner follows the tale (progress, or a fresh result once)
     } catch (error) {
+      if (token !== storyLoadToken || state.data.currentStory?.id !== storyId) return;
       showError(error.message);
       state.data.storyPages = [];
       displayCurrentPage();
@@ -147,6 +159,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       setPastPageBar(false, 0, 0);
       setWritingEnabled(false);
       updatePageActionButtons();
+      features.generation?.updateSpeculativeUi();
       return;
     }
 
@@ -176,11 +189,11 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       contentDiv.appendChild(direction);
     }
 
-    prevBtn.disabled = currentPage <= 1;
-    nextBtn.disabled = currentPage >= storyPages.length;
+    prevBtn.disabled = generating || currentPage <= 1;
+    nextBtn.disabled = generating || currentPage >= storyPages.length;
     // A plate has no prose to rewrite: retrying it would paint text over a picture.
     retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length || Boolean(page && page.image_media_type);
-    deletePageBtn.disabled = storyPages.length === 0 || currentPage > storyPages.length;
+    deletePageBtn.disabled = generating || storyPages.length === 0 || currentPage > storyPages.length;
     // Export and audiobook are story-level actions: they wake with a tale.
     document.getElementById('exportBtn').disabled = false;
     document.getElementById('audiobookBtn').disabled = storyPages.length === 0;
@@ -196,6 +209,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
 
     document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${Math.max(storyPages.length, 1)}`;
     updateStoryContextSummary();
+    features.generation?.updateSpeculativeUi();
   }
 
   // The context bar's plain summary: world + cast shape, at a glance.
@@ -250,6 +264,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (!bar) return;
     bar.hidden = !visible;
     if (!visible) return;
+    const deleteAfter = document.getElementById('deleteAfterBtn');
+    if (deleteAfter) deleteAfter.disabled = state.data.generating;
     const note = bar.querySelector('p');
     if (note) {
       note.textContent =
@@ -260,8 +276,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   function navigatePage(direction) {
-    const { currentStory, storyPages } = state.data;
-    if (!currentStory || storyPages.length === 0) return;
+    const { currentStory, storyPages, generating } = state.data;
+    if (!currentStory || storyPages.length === 0 || generating) return;
     features.narration.stopNarration(); // obsolete stream: the reader moved on
     state.data.currentPage = Math.max(1, Math.min(storyPages.length, state.data.currentPage + direction));
     displayCurrentPage();
@@ -270,8 +286,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   async function deleteCurrentPage() {
-    const { currentStory, currentPage, storyPages } = state.data;
-    if (!currentStory || storyPages.length === 0) return;
+    const { currentStory, currentPage, storyPages, generating } = state.data;
+    if (!currentStory || storyPages.length === 0 || generating) return;
     const page = storyPages.find((p) => p.page_number === currentPage);
     if (!page) return;
     const isPlate = Boolean(page.image_media_type);
@@ -321,8 +337,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   // The shared destructive dialog names the exact count and range.
 
   function openBurnModal() {
-    const { currentStory, currentPage, storyPages } = state.data;
-    if (!currentStory || storyPages.length === 0 || currentPage >= storyPages.length) return;
+    const { currentStory, currentPage, storyPages, generating } = state.data;
+    if (!currentStory || storyPages.length === 0 || currentPage >= storyPages.length || generating) return;
     const after = storyPages.length - currentPage;
     const range = after === 1 ? `Page ${currentPage + 1}` : `Pages ${currentPage + 1}–${storyPages.length}`;
     dialogs
@@ -341,8 +357,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   async function burnAfterCurrentPage() {
-    const { currentStory, currentPage } = state.data;
-    if (!currentStory) return;
+    const { currentStory, currentPage, generating } = state.data;
+    if (!currentStory || generating) return;
     const after = currentPage;
     try {
       const result = await apiCall(`/stories/${currentStory.id}/pages?after=${after}`, 'DELETE');
@@ -356,6 +372,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   function resetStoryReader() {
+    storyLoadToken++;
+    features.generation.resetForStoryChange();
     state.data.storyPages = [];
     state.data.currentPage = 1;
     displayCurrentPage();
@@ -429,6 +447,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     resetAfterStoryDeletion,
     __setStoryState(patch) {
       if ('currentStory' in patch) {
+        features.generation.resetForStoryChange();
         state.data.currentStory = patch.currentStory;
         state.resetStoryCost();
       }

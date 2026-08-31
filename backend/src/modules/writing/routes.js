@@ -5,11 +5,49 @@
 // BEFORE slow generation; previews are single-use and stale-checked.
 
 const express = require('express');
+const { createHash } = require('node:crypto');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText, modelOverrideOf, parseReasoningEffort, parseWordTarget, asString } = require('../../core/validation');
 
+function previewKey(preview) {
+  if (!preview) return null;
+  return createHash('sha256').update(JSON.stringify([
+    preview.story_id,
+    preview.expected_page,
+    preview.raw_content,
+    preview.model,
+    preview.prompt_tokens,
+    preview.completion_tokens,
+    preview.cost_usd,
+    preview.created_at,
+  ])).digest('base64url');
+}
+
+function publicPreview(preview) {
+  if (!preview) return null;
+  return {
+    expected_page: preview.expected_page,
+    model: preview.model || null,
+    cost_usd: preview.cost_usd ?? null,
+    preview_key: previewKey(preview),
+  };
+}
+
+function paidConflict(res, result, error, code) {
+  return res.status(409).json({
+    error,
+    code,
+    cost_usd: result.cost_usd ?? null,
+    billed_attempts: Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1,
+  });
+}
+
 function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
   const router = express.Router();
+  // Multi-tab requests can overlap even though one browser state machine does
+  // not. Only the newest request for a story may publish a prepared page.
+  const latestPreviewAttempt = new Map();
+  let previewAttemptSequence = 0;
 
   // OpenRouter catalog proxy for the unlocked settings page (no key needed).
   router.get('/api/models', async (req, res, next) => {
@@ -100,7 +138,20 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
         return badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
       }
 
+      const expectedPage = stories.nextPageNumber(story.id);
+      const contextRevision = stories.previewRevision(story.id);
       const result = await writing.completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort });
+      if (
+        stories.nextPageNumber(story.id) !== expectedPage ||
+        stories.previewRevision(story.id) !== contextRevision
+      ) {
+        return paidConflict(
+          res,
+          result,
+          'The story changed while this page was being written, so the stale prose was not saved.',
+          'WRITE_SUPERSEDED'
+        );
+      }
       const prose = writing.consumeStoryText(result.content);
       let page = stories.insertGeneratedPage(story.id, {
         content: prose,
@@ -109,6 +160,7 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
         promptTokens: result.usage?.prompt_tokens ?? null,
         completionTokens: result.usage?.completion_tokens ?? null,
         costUsd: result.cost_usd,
+        pageNumber: expectedPage,
       });
       stories.invalidatePreview(story.id);
       const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: result.model });
@@ -131,6 +183,7 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
 
       const wordTarget = parseWordTarget(req.body.words);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
+      const contextRevision = stories.previewRevision(story.id);
       const result = await writing.completePage({
         story,
         userInput: last.user_input || 'Continue the story.',
@@ -139,6 +192,21 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
         reasoningEffort,
         excludeLast: true,
       });
+      const currentPages = stories.storyPages(story.id);
+      const currentLast = currentPages[currentPages.length - 1];
+      if (
+        !currentLast ||
+        currentLast.id !== last.id ||
+        currentLast.content !== last.content ||
+        stories.previewRevision(story.id) !== contextRevision
+      ) {
+        return paidConflict(
+          res,
+          result,
+          'The story changed while this rewrite was being written, so the stale prose was not saved.',
+          'REWRITE_SUPERSEDED'
+        );
+      }
       const prose = writing.consumeStoryText(result.content);
 
       let page = stories.replaceGeneratedPage(last.id, {
@@ -158,7 +226,22 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
 
   // -- speculative next-page preview ---------------------------------------------
 
+  // A free metadata lookup restores the green button after a refresh. It
+  // deliberately never returns prose: prepared content remains server-side.
+  router.get('/api/stories/:id/pages/preview', (req, res) => {
+    const story = stories.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const preview = stories.getPreview.get(story.id);
+    if (!preview) return res.json({ preview: null });
+    if (stories.nextPageNumber(story.id) !== preview.expected_page) {
+      stories.invalidatePreview(story.id);
+      return res.json({ preview: null });
+    }
+    res.json({ preview: publicPreview(preview) });
+  });
+
   router.post('/api/stories/:id/pages/preview', async (req, res, next) => {
+    let attempt = null;
     try {
       const story = stories.getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
@@ -166,12 +249,30 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
       if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
       const wordTarget = parseWordTarget(req.body.words);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
+      if (req.body.reasoning_effort !== undefined && req.body.reasoning_effort !== null && req.body.reasoning_effort !== '' && !reasoningEffort) {
+        return badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
+      }
 
       // Snapshot the page count BEFORE the (slow) generation: a preview that
-      // raced with a live write must never commit wrong-context prose as a
-      // later page - the commit staleness check catches it instead.
-      const expectedPage = stories.storyPages(story.id).length + 1;
+      // raced with any context mutation is billed but never written into the
+      // preview slot. This prevents an old reply from overwriting a newer,
+      // valid prepared page in the database.
+      const expectedPage = stories.nextPageNumber(story.id);
+      const contextRevision = stories.previewRevision(story.id);
+      attempt = ++previewAttemptSequence;
+      latestPreviewAttempt.set(story.id, attempt);
       const result = await writing.completePage({ story, userInput: 'Continue the story.', wordTarget, modelOverride, reasoningEffort });
+      const superseded = latestPreviewAttempt.get(story.id) !== attempt;
+      const contextChanged = stories.previewRevision(story.id) !== contextRevision;
+      const pageMoved = stories.nextPageNumber(story.id) !== expectedPage;
+      if (superseded || contextChanged || pageMoved) {
+        return res.status(409).json({
+          error: 'The prepared page finished after the story moved on, so it was not saved.',
+          code: 'PREVIEW_SUPERSEDED',
+          cost_usd: result.cost_usd ?? null,
+          billed_attempts: Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1,
+        });
+      }
       stories.upsertPreview.run(
         story.id,
         expectedPage,
@@ -181,9 +282,13 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
         result.usage?.completion_tokens ?? null,
         result.cost_usd
       );
-      res.json({ preview: { expected_page: expectedPage, model: result.model, cost_usd: result.cost_usd } });
+      res.json({ preview: publicPreview(stories.getPreview.get(story.id)) });
     } catch (error) {
       next(error);
+    } finally {
+      if (attempt !== null && latestPreviewAttempt.get(req.params.id) === attempt) {
+        latestPreviewAttempt.delete(req.params.id);
+      }
     }
   });
 
@@ -193,13 +298,23 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
       if (!story) return notFound(res, 'Story not found');
       const preview = stories.getPreview.get(story.id);
       if (!preview) return notFound(res, 'No prepared page for this story. Generate normally.');
-      if (stories.storyPages(story.id).length + 1 !== preview.expected_page) {
+      if (req.body.preview_key !== undefined && typeof req.body.preview_key !== 'string') {
+        return badRequest(res, '"preview_key" must be a string');
+      }
+      const requestedKey = asString(req.body.preview_key);
+      if (requestedKey && requestedKey !== previewKey(preview)) {
+        return res.status(409).json({
+          error: 'A newer prepared page replaced this one. Refresh the writing desk before committing.',
+          code: 'PREVIEW_REPLACED',
+        });
+      }
+      if (stories.nextPageNumber(story.id) !== preview.expected_page) {
         stories.invalidatePreview(story.id);
         return res.status(409).json({ error: 'The prepared page has gone stale - the story moved on without it.' });
       }
 
       const prose = writing.consumeStoryText(preview.raw_content);
-      let page = stories.insertGeneratedPage(story.id, {
+      const page = stories.insertGeneratedPage(story.id, {
         content: prose,
         userInput: null,
         model: preview.model,
@@ -209,9 +324,14 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
         pageNumber: preview.expected_page,
       });
       stories.invalidatePreview(story.id);
-      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: preview.model });
-      page = synced.page || page;
-      res.status(201).json({ page });
+      const continuityPending = continuity.isAutoEnabled();
+      // The prepared prose is committed before another provider call begins.
+      // Respond immediately, then let the continuity clerk work behind the
+      // reader. A client sync request joins this same in-flight job.
+      res.status(201).json({ page, continuity_pending: continuityPending });
+      if (continuityPending) {
+        void continuity.maybeSyncPage(stories.getStory(story.id), page, { model: preview.model }).catch(() => {});
+      }
     } catch (error) {
       next(error);
     }
@@ -220,4 +340,4 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
   return router;
 }
 
-module.exports = { createWritingRouter };
+module.exports = { createWritingRouter, previewKey, publicPreview };

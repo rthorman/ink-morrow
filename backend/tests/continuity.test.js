@@ -112,6 +112,34 @@ describe('page-provenanced continuity ledger', () => {
     expect(view.body.continuity.coverage).toMatchObject({ total: 2, ready: 2 });
   });
 
+  it('returns a prepared commit before continuity finishes and deduplicates the client join', async () => {
+    const story = await createStory(app);
+    axios.post.mockResolvedValueOnce(reply('The prepared page appears at once.'));
+    const prepared = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+    let resolveMemory;
+    axios.post.mockImplementationOnce(() => new Promise((resolve) => { resolveMemory = resolve; }));
+    const committed = await request(app)
+      .post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_key: prepared.body.preview.preview_key })
+      .expect(201);
+    expect(committed.body.continuity_pending).toBe(true);
+    expect(committed.body.page.content).toContain('appears at once');
+
+    const joined = request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${committed.body.page.id}/sync`)
+      .send({})
+      .then((res) => res);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(axios.post).toHaveBeenCalledTimes(2); // one author + one shared clerk call
+
+    resolveMemory(reply(delta({ summary: 'The prepared page is remembered once.' })));
+    const synced = await joined;
+    expect(synced.status).toBe(200);
+    expect(synced.body.memory.status).toBe('ready');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
   it('replays surviving deltas after delete and excludes old state during regeneration', async () => {
     const character = await createCharacter(app, null, { name: 'Mara' });
     const story = await createStory(app, null, [{ id: character.id, role: 'mc', relation: null, state: null }]);
