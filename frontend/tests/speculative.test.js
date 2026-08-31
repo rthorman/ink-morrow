@@ -59,10 +59,10 @@ describe('Speculative next-page preparation', () => {
     // confirmed action starts preparation.
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/preview') && c[1]?.method === 'POST')).toBe(false);
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(false);
-    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
   });
 
-  it('a confirmed write prepares the next page; canceling the write prepares nothing', async () => {
+  it('a confirmed directed write relies on the server-owned successor; canceling writes nothing', async () => {
     mockPreviewAndCommit();
     fw.__setStoryState(storyState([{ page_number: 1, content: 'One.', user_input: null, cost_usd: 0.01 }]));
     await fw.loadStoryPages();
@@ -77,22 +77,17 @@ describe('Speculative next-page preparation', () => {
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(false);
     expect(document.getElementById('userInput').value).toBe('she opens the door');
 
-    // CONFIRM: the write goes through and the review disclosed the follow-up
-    // preparation, so the preview is fair game immediately after it.
+    // CONFIRM: the write goes through. This legacy mock reports no server
+    // successor, so the client must not invent a second paid POST.
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;
     await tick(); // let the un-awaited speculative call settle
 
-    const previewCall = fetchMock.mock.calls.find((c) => c[0].includes('/pages/preview') && c[1]?.method === 'POST');
-    expect(previewCall).toBeTruthy();
-    expect(JSON.parse(previewCall[1].body).words).toBe(400);
-
-    // The button becomes a green Next Page; the preview cost hits the session ticker
-    expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
-    expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(true);
-    expect(document.getElementById('preparedNote').textContent).toContain('already incurred');
-    expect(fw.state().costs.session).toBeCloseTo(0.021, 8); // 0.02 write + 0.001 preview
+    expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/preview') && c[1]?.method === 'POST')).toBe(false);
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
+    expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(false);
+    expect(fw.state().costs.session).toBeCloseTo(0.02, 8);
     expect(fw.state().costs.story).toBeCloseTo(0.02, 8); // the written page; preview commits later
   });
 
@@ -107,7 +102,7 @@ describe('Speculative next-page preparation', () => {
     const input = document.getElementById('userInput');
     input.value = 'she opens the door';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Generate as directed');
     expect(document.getElementById('generateBtn').classList.contains('next-page')).toBe(false);
 
     input.value = '';
@@ -136,14 +131,14 @@ describe('Speculative next-page preparation', () => {
     const input = document.getElementById('userInput');
     input.value = 'take the left stair';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    expect(button.textContent).toBe('Write next page');
+    expect(button.textContent).toBe('Generate as directed');
     expect(button.disabled).toBe(false);
 
     resolvePreview(jsonResponse(200, {
       preview: { expected_page: 2, preview_key: 'ready-2', cost_usd: 0.001 },
     }));
     await preparation;
-    expect(button.textContent).toBe('Write next page');
+    expect(button.textContent).toBe('Generate as directed');
     expect(document.getElementById('preparedNote').textContent).toContain('Confirming this direction replaces it');
   });
 
@@ -222,18 +217,22 @@ describe('Speculative next-page preparation', () => {
     const urls = fetchMock.mock.calls.map((c) => c[0]);
     expect(urls).toContain('/api/stories/s1/pages/commit-preview');
     const commitCall = fetchMock.mock.calls.find((c) => c[0].includes('/commit-preview'));
-    expect(JSON.parse(commitCall[1].body)).toEqual({ preview_key: 'preview-2' });
+    expect(JSON.parse(commitCall[1].body)).toEqual(expect.objectContaining({
+      preview_id: 'preview-2',
+      idempotency_key: expect.stringMatching(/^promote:/),
+      writer_session_id: expect.stringMatching(/^writer/),
+    }));
     expect(urls.some((u) => u.includes('/pages/generate'))).toBe(false); // no live call needed
     expect(fw.state().storyPages).toHaveLength(2);
     expect(fw.state().currentPage).toBe(2);
-    await tick(); // the mandatory successor preparation is deliberately un-awaited
-    // Session counted the prepared page once and exactly one successor. Story
-    // total gained only the page that was committed.
-    expect(fw.state().costs.session).toBeCloseTo(0.002, 8);
+    await tick();
+    // The old mock did not advertise a server successor, so no speculative
+    // cost or duplicate request is fabricated by the browser.
+    expect(fw.state().costs.session).toBeCloseTo(0.001, 8);
     expect(fw.state().costs.story).toBeCloseTo(0.001, 8);
     expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
-    expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
-    expect(fetchMock.mock.calls.filter((c) => c[0].includes('/pages/preview') && c[1]?.method === 'POST')).toHaveLength(1);
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
+    expect(fetchMock.mock.calls.filter((c) => c[0].includes('/pages/preview') && c[1]?.method === 'POST')).toHaveLength(0);
   });
 
   it('shows the committed page before continuity finishes while chaining one successor', async () => {
@@ -249,14 +248,15 @@ describe('Speculative next-page preparation', () => {
         return Promise.resolve(jsonResponse(201, {
           page: { id: 'p2', page_number: 2, content: 'Visible before memory.', cost_usd: 0.001 },
           continuity_pending: true,
+          successor_pending: true,
         }));
       }
       if (String(url).includes('/continuity/pages/p2/sync') && options?.method === 'POST') {
         return new Promise((resolve) => { resolveContinuity = resolve; });
       }
-      if (String(url).includes('/pages/preview') && options?.method === 'POST') {
+      if (String(url).includes('/pages/preview') && (!options || options.method === 'GET')) {
         return Promise.resolve(jsonResponse(200, {
-          preview: { expected_page: 3, preview_key: 'page-3', cost_usd: 0.002 },
+          preview: { expected_page: 3, preview_id: 'page-3', preview_key: 'page-3', cost_usd: 0.002 },
         }));
       }
       return Promise.resolve(jsonResponse(200, { stories: [] }));
@@ -345,9 +345,9 @@ describe('Speculative next-page preparation', () => {
       if (String(url).includes('/pages/generate') && options?.method === 'POST') {
         return new Promise((resolve) => { resolveGeneration = resolve; });
       }
-      if (String(url).includes('/pages/preview') && options?.method === 'POST') {
+      if (String(url).includes('/pages/preview') && (!options || options.method === 'GET')) {
         return Promise.resolve(jsonResponse(200, {
-          preview: { expected_page: 3, preview_key: 'typed-ahead-successor', cost_usd: 0.001 },
+          preview: { expected_page: 3, preview_id: 'typed-ahead-successor', preview_key: 'typed-ahead-successor', cost_usd: 0.001 },
         }));
       }
       return Promise.resolve(jsonResponse(200, { stories: [] }));
@@ -363,13 +363,14 @@ describe('Speculative next-page preparation', () => {
     input.value = 'then search the far bank';
     resolveGeneration(jsonResponse(201, {
       page: { id: 'p2', page_number: 2, content: 'The crossing ends.', cost_usd: 0.02 },
+      successor_pending: true,
     }));
     await generation;
     await tick();
 
     expect(input.value).toBe('then search the far bank');
     expect(fetchMock.mock.calls.some(([url, options]) =>
-      String(url).includes('/pages/preview') && options?.method === 'POST'
+      String(url).includes('/pages/preview') && (!options || options.method === 'GET')
     )).toBe(true);
     expect(document.getElementById('preparedNote').textContent).toContain('Confirming this direction replaces it');
   });
@@ -413,13 +414,11 @@ describe('Speculative next-page preparation', () => {
     expect(document.getElementById('storyContent').textContent).toContain('The selected story.');
   });
 
-  it('a stale in-flight preview resolved after a direction write never turns the button green', async () => {
-    // THE REGRESSION: an old speculative is still in flight when the writer
-    // gives a direction. Its server-side preview is invalidated by the live
-    // write, but its HTTP response arrives afterwards - it must be ignored,
-    // a FRESH preview must fire, and the green button must be real.
+  it('ignores a stale preparation reply and paints only the server-owned successor', async () => {
     let previewCalls = 0;
     const deferred = [];
+    let previewReads = 0;
+    let resolveSuccessorRead;
     fetchMock.mockImplementation((url, options) => {
       if (String(url).includes('/pages/preview') && options && options.method === 'POST') {
         previewCalls++;
@@ -430,8 +429,16 @@ describe('Speculative next-page preparation', () => {
       }
       if (String(url).includes('/pages/generate') && options && options.method === 'POST') {
         return Promise.resolve(
-          jsonResponse(201, { page: { page_number: 2, content: 'The direction page.', user_input: 'go left', cost_usd: 0.02 } })
+          jsonResponse(201, {
+            page: { page_number: 2, content: 'The direction page.', user_input: 'go left', cost_usd: 0.02 },
+            successor_pending: true,
+          })
         );
+      }
+      if (String(url).endsWith('/pages/preview') && (!options || options.method === 'GET')) {
+        previewReads++;
+        if (previewReads === 1) return Promise.resolve(jsonResponse(200, { preview: null }));
+        return new Promise((resolve) => { resolveSuccessorRead = resolve; });
       }
       if (String(url).includes('/commit-preview') && options && options.method === 'POST') {
         return Promise.resolve(
@@ -458,22 +465,24 @@ describe('Speculative next-page preparation', () => {
     expect(await paidReview('confirm')).toBe(true);
     await gen;
     await tick();
-    expect(previewCalls).toBe(2); // a FRESH preview fired for page 3
+    expect(previewCalls).toBe(1); // no second paid POST from the browser
 
-    // The STALE #A response arrives late: it must NOT turn the button green
+    // The stale POST reply arrives late: it must not turn the button green.
     deferred[0].resolve(jsonResponse(200, { preview: { expected_page: 2, cost_usd: 0.001 } }));
     await tick();
     await tick();
     const btn = document.getElementById('generateBtn');
     expect(btn.classList.contains('next-page')).toBe(false); // the stale lie is dead
 
-    // The fresh preview resolves: NOW the button is green, and pressing it
-    // commits the page that was actually prepared
-    deferred[1].resolve(jsonResponse(200, { preview: { expected_page: 3, cost_usd: 0.003 } }));
+    // Only the free reconciliation read of the server-owned successor may
+    // paint the real green action.
+    resolveSuccessorRead(jsonResponse(200, {
+      preview: { expected_page: 3, preview_id: 'successor-3', preview_key: 'successor-3', cost_usd: 0.003 },
+    }));
     await tick();
     await tick();
     expect(btn.classList.contains('next-page')).toBe(true);
-    // Both previews were provider work even though the first became stale.
+    // Both provider operations are still visible in Session spend.
     expect(fw.state().costs.session).toBeCloseTo(0.024, 8); // live .02 + stale .001 + fresh .003
 
     document.getElementById('userInput').value = '';
@@ -522,7 +531,7 @@ describe('Speculative next-page preparation', () => {
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/commit-preview'))).toBe(true);
     expect(fetchMock.mock.calls.some((c) => c[0].includes('/pages/generate'))).toBe(false);
     expect(fw.state().storyPages).toHaveLength(1);
-    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
     expect(document.querySelector('.error-message').textContent).toContain('No replacement page was generated');
   });
 
@@ -532,6 +541,7 @@ describe('Speculative next-page preparation', () => {
     fw.displayCurrentPage();
     await fw.maybeStartSpeculative();
     fetchMock.mockClear();
+    let previewReads = 0;
     fetchMock.mockImplementation((url, options) => {
       const value = String(url);
       if (value.includes('/commit-preview') && options?.method === 'POST') {
@@ -544,17 +554,15 @@ describe('Speculative next-page preparation', () => {
         ] }));
       }
       if (value.endsWith('/pages/preview') && (!options || options.method === 'GET')) {
-        return Promise.resolve(jsonResponse(200, { preview: null }));
+        previewReads++;
+        return Promise.resolve(jsonResponse(200, previewReads === 1
+          ? { preview: null }
+          : { preview: { expected_page: 3, preview_id: 'successor-3', preview_key: 'successor-3', cost_usd: 0.002 } }));
       }
       if (value.includes('/continuity/pages/p2/sync') && options?.method === 'POST') {
         return Promise.resolve(jsonResponse(200, {
           memory: { status: 'ready', cost_usd: 0 },
           page: { id: 'p2', page_number: 2, content: 'Committed despite the dropped response.', cost_usd: 0.001 },
-        }));
-      }
-      if (value.endsWith('/pages/preview') && options?.method === 'POST') {
-        return Promise.resolve(jsonResponse(200, {
-          preview: { expected_page: 3, preview_key: 'successor-3', cost_usd: 0.002 },
         }));
       }
       return Promise.resolve(jsonResponse(200, { stories: [] }));
@@ -571,7 +579,7 @@ describe('Speculative next-page preparation', () => {
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/pages/generate'))).toBe(false);
     expect(fetchMock.mock.calls.filter(([url, options]) =>
       String(url).endsWith('/pages/preview') && options?.method === 'POST'
-    )).toHaveLength(1);
+    )).toHaveLength(0);
     expect(document.getElementById('generateBtn').textContent).toBe('Use prepared page');
   });
 

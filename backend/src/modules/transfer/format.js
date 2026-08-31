@@ -78,6 +78,20 @@ const PREVIEW_FIELDS = [
   'story_id', 'expected_page', 'raw_content', 'model', 'prompt_tokens',
   'completion_tokens', 'cost_usd', 'created_at',
 ];
+// Writer-session and lease identities are deliberately absent from portable
+// archives. They are process-local coordination data, not project history.
+const WRITING_OPERATION_FIELDS = [
+  'id', 'story_id', 'sequence', 'idempotency_key', 'request_hash', 'kind',
+  'status', 'expected_tail_page_id', 'expected_tail_revision_id',
+  'context_fingerprint', 'request_json', 'provider_result_json', 'result_json',
+  'spend_usd', 'billed_attempts', 'error_code', 'error_message', 'created_at',
+  'updated_at', 'finished_at',
+];
+const PREPARED_PAGE_FIELDS = [
+  'story_id', 'id', 'operation_id', 'expected_page', 'expected_tail_page_id',
+  'expected_tail_revision_id', 'context_fingerprint', 'context_json', 'content',
+  'provider_result_json', 'spend_usd', 'created_at', 'updated_at',
+];
 const AUDIOBOOK_FIELDS = [
   'story_id', 'model', 'voice', 'status', 'pages_done', 'pages_total',
   'size_bytes', 'duration_s', 'cost_usd', 'fingerprint', 'error',
@@ -241,6 +255,14 @@ function previewRecord(row) {
   return pick(row, PREVIEW_FIELDS);
 }
 
+function writingOperationRecord(row) {
+  return pick(row, WRITING_OPERATION_FIELDS);
+}
+
+function preparedPageRecord(row) {
+  return pick(row, PREPARED_PAGE_FIELDS);
+}
+
 function audiobookRecord(row, { includeWorkingHistory } = {}) {
   const audiobook = pick(row, AUDIOBOOK_FIELDS);
   if (!includeWorkingHistory) audiobook.cost_usd = 0;
@@ -346,6 +368,33 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
       without(row, ['story_id', 'created_at', 'updated_at'])),
     corrections: (bundle.corrections || []).map((row) =>
       without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
+    writing_operations: (bundle.writing_operations || []).map((row) => {
+      const request = parseJson(row.request_json, {});
+      if (request?.page_id) request.page_number = pageNumberById.get(request.page_id) || null;
+      if (request && typeof request === 'object') delete request.page_id;
+      return {
+        sequence: row.sequence,
+        idempotency_key: row.idempotency_key,
+        kind: row.kind,
+        status: row.status,
+        expected_tail_page_number: pageNumberById.get(row.expected_tail_page_id) || null,
+        request,
+        provider_result: parseJson(row.provider_result_json, null),
+        spend_usd: row.spend_usd,
+        billed_attempts: row.billed_attempts,
+        error_code: row.error_code,
+        error_message: row.error_message,
+      };
+    }),
+    prepared_page: bundle.prepared_page ? {
+      expected_page: bundle.prepared_page.expected_page,
+      expected_tail_page_number: pageNumberById.get(bundle.prepared_page.expected_tail_page_id) || null,
+      generation: parseJson(bundle.prepared_page.context_json, {})?.generation || {},
+      content: bundle.prepared_page.content,
+      provider_result: parseJson(bundle.prepared_page.provider_result_json, null),
+      spend_usd: bundle.prepared_page.spend_usd,
+    } : null,
+    // `preview` is the schema-1..5 compatibility shape.
     preview: bundle.preview ? without(bundle.preview, ['story_id', 'created_at']) : null,
     audiobook: bundle.audiobook ? without(bundle.audiobook, ['story_id', 'created_at', 'updated_at', 'fingerprint']) : null,
   };
@@ -415,6 +464,8 @@ module.exports = {
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
   PREVIEW_FIELDS,
+  WRITING_OPERATION_FIELDS,
+  PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
   pick,
   canonicalJson,
@@ -436,6 +487,8 @@ module.exports = {
   templateSnapshotRecord,
   correctionRecord,
   previewRecord,
+  writingOperationRecord,
+  preparedPageRecord,
   audiobookRecord,
   semanticHash,
   sanitizeSettings,

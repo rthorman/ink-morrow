@@ -115,7 +115,7 @@ describe('Generation loading state', () => {
     // No story is selected: the desk stays honestly disabled - the writing
     // controls only wake with a tale.
     expect(document.getElementById('generateBtn').disabled).toBe(true);
-    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
   });
 });
 

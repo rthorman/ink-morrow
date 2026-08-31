@@ -6,6 +6,22 @@ export const API_BASE_URL = '/api';
 
 let csrfProvider = () => null;
 let unauthorizedHandler = () => {};
+const WRITER_SESSION_KEY = 'st-writer-session-v1';
+
+export function writerSessionId() {
+  try {
+    let value = window.sessionStorage.getItem(WRITER_SESSION_KEY);
+    if (!value) {
+      const id = globalThis.crypto?.randomUUID?.() ||
+        `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+      value = `writer:${id}`;
+      window.sessionStorage.setItem(WRITER_SESSION_KEY, value);
+    }
+    return value;
+  } catch {
+    return 'writer:memory-only';
+  }
+}
 
 export function configureApiSecurity({ getCsrfToken = () => null, onUnauthorized = () => {} } = {}) {
   csrfProvider = getCsrfToken;
@@ -18,6 +34,7 @@ export async function apiFetch(url, options = {}) {
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const token = csrfProvider();
     if (token) headers['X-ScribeTribe-CSRF'] = token;
+    headers['X-ScribeTribe-Writer-Session'] ||= writerSessionId();
   }
 
   let response;

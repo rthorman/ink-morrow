@@ -30,6 +30,8 @@ const {
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
   PREVIEW_FIELDS,
+  WRITING_OPERATION_FIELDS,
+  PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
   semanticHash,
   validId,
@@ -271,7 +273,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   };
   assertKnown(bundle, meta.kind === 'story'
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
-        'memory', 'continuity_deltas', 'corrections', 'preview', 'audiobook']
+        'memory', 'continuity_deltas', 'corrections', 'writing_operations',
+        'prepared_page', 'preview', 'audiobook']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -488,6 +491,60 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     const value = (() => { try { return JSON.parse(correction.correction_json); } catch { return null; } })();
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw httpError('Story archive contains an invalid correction payload');
     correctionIds.add(correction.id);
+  }
+  const writingOperations = bundle.writing_operations || [];
+  if (databaseSchemaVersion >= 6 && !Array.isArray(bundle.writing_operations)) {
+    throw httpError('Schema-6 story archive is missing writing operations');
+  }
+  if (!Array.isArray(writingOperations)) throw httpError('Story archive contains invalid writing operations');
+  const operationIds = new Set();
+  const operationSequences = new Set();
+  const operationKeys = new Set();
+  const validJson = (value) => {
+    if (typeof value !== 'string') return false;
+    try { JSON.parse(value); return true; } catch { return false; }
+  };
+  for (const operation of writingOperations) {
+    assertKnown(operation, WRITING_OPERATION_FIELDS, 'Writing operation');
+    if (!operation || !validId(operation.id) || operation.story_id !== meta.id ||
+        operationIds.has(operation.id) || !Number.isSafeInteger(operation.sequence) ||
+        operation.sequence < 1 || operationSequences.has(operation.sequence) ||
+        typeof operation.idempotency_key !== 'string' || !operation.idempotency_key.trim() ||
+        operationKeys.has(operation.idempotency_key) ||
+        typeof operation.request_hash !== 'string' || !/^[a-f0-9]{64}$/.test(operation.request_hash) ||
+        !['prepare', 'promote', 'directed_generate', 'regenerate'].includes(operation.kind) ||
+        !['requested', 'running', 'succeeded', 'committed', 'failed', 'superseded'].includes(operation.status) ||
+        typeof operation.context_fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(operation.context_fingerprint) ||
+        !validJson(operation.request_json) ||
+        (operation.provider_result_json !== null && operation.provider_result_json !== undefined && !validJson(operation.provider_result_json)) ||
+        (operation.result_json !== null && operation.result_json !== undefined && !validJson(operation.result_json)) ||
+        !Number.isFinite(operation.spend_usd) || operation.spend_usd < 0 ||
+        !Number.isSafeInteger(operation.billed_attempts) || operation.billed_attempts < 0 ||
+        (operation.expected_tail_page_id && !pageIds.has(operation.expected_tail_page_id)) ||
+        (operation.expected_tail_revision_id && !revisionIds.has(operation.expected_tail_revision_id))) {
+      throw httpError('Story archive contains an invalid writing operation');
+    }
+    operationIds.add(operation.id);
+    operationSequences.add(operation.sequence);
+    operationKeys.add(operation.idempotency_key);
+  }
+  const preparedPage = bundle.prepared_page;
+  if (preparedPage) {
+    assertKnown(preparedPage, PREPARED_PAGE_FIELDS, 'Prepared page');
+    const operation = writingOperations.find((row) => row.id === preparedPage.operation_id);
+    if (preparedPage.story_id !== meta.id || typeof preparedPage.id !== 'string' ||
+        preparedPage.id.length < 20 || preparedPage.id.length > 200 || !operation ||
+        operation.kind !== 'prepare' || operation.status !== 'succeeded' ||
+        !Number.isSafeInteger(preparedPage.expected_page) || preparedPage.expected_page !== pageIds.size + 1 ||
+        typeof preparedPage.context_fingerprint !== 'string' || !/^[a-f0-9]{64}$/.test(preparedPage.context_fingerprint) ||
+        !validJson(preparedPage.context_json) || typeof preparedPage.content !== 'string' ||
+        !preparedPage.content.trim() || preparedPage.content.length > 500000 ||
+        !validJson(preparedPage.provider_result_json) || !Number.isFinite(preparedPage.spend_usd) ||
+        preparedPage.spend_usd < 0 ||
+        (preparedPage.expected_tail_page_id && !pageIds.has(preparedPage.expected_tail_page_id)) ||
+        (preparedPage.expected_tail_revision_id && !revisionIds.has(preparedPage.expected_tail_revision_id))) {
+      throw httpError('Story archive contains an invalid prepared page');
+    }
   }
   if (bundle.preview && (bundle.preview.story_id !== meta.id || !Number.isSafeInteger(bundle.preview.expected_page))) {
     throw httpError('Story archive contains an invalid prepared page');

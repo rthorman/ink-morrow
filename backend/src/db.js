@@ -856,6 +856,85 @@ PR 05 revision-provenanced continuity ledger v2 activation:
 - freeze story-local world and character templates for reviewed field imports
 `;
 
+function activateWritingTransactions(db) {
+  // PR 01 reserved these names with deliberately conservative shapes. PR 06
+  // activates the final state machine. No shipped runtime wrote these
+  // scaffold rows, so the incompatible placeholders are replaced atomically.
+  db.exec(`
+    ALTER TABLE prepared_pages RENAME TO prepared_pages_scaffold;
+    ALTER TABLE writing_operations RENAME TO writing_operations_scaffold;
+    DROP INDEX idx_writing_operations_story_status;
+
+    CREATE TABLE writing_operations (
+      id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      sequence INTEGER NOT NULL CHECK (sequence > 0),
+      idempotency_key TEXT NOT NULL CHECK (length(trim(idempotency_key)) > 0),
+      request_hash TEXT NOT NULL CHECK (length(request_hash) = 64),
+      kind TEXT NOT NULL CHECK (kind IN ('prepare', 'promote', 'directed_generate', 'regenerate')),
+      status TEXT NOT NULL CHECK (status IN ('requested', 'running', 'succeeded', 'committed', 'failed', 'superseded')),
+      writer_session_id TEXT NOT NULL CHECK (length(trim(writer_session_id)) > 0),
+      lease_token TEXT,
+      expected_tail_page_id TEXT REFERENCES pages (id) ON DELETE SET NULL,
+      expected_tail_revision_id TEXT REFERENCES page_revisions (id) ON DELETE SET NULL,
+      context_fingerprint TEXT NOT NULL CHECK (length(context_fingerprint) = 64),
+      request_json TEXT NOT NULL CHECK (json_valid(request_json)),
+      provider_result_json TEXT CHECK (provider_result_json IS NULL OR json_valid(provider_result_json)),
+      result_json TEXT CHECK (result_json IS NULL OR json_valid(result_json)),
+      spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+      billed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (billed_attempts >= 0),
+      error_code TEXT,
+      error_message TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      finished_at TEXT,
+      UNIQUE (story_id, sequence),
+      UNIQUE (story_id, idempotency_key)
+    );
+
+    CREATE INDEX idx_writing_operations_story_status
+      ON writing_operations (story_id, status, sequence);
+
+    CREATE TABLE prepared_pages (
+      story_id TEXT PRIMARY KEY REFERENCES stories (id) ON DELETE CASCADE,
+      id TEXT NOT NULL UNIQUE CHECK (length(trim(id)) > 0),
+      operation_id TEXT NOT NULL UNIQUE REFERENCES writing_operations (id) ON DELETE CASCADE,
+      expected_page INTEGER NOT NULL CHECK (expected_page > 0),
+      expected_tail_page_id TEXT REFERENCES pages (id) ON DELETE SET NULL,
+      expected_tail_revision_id TEXT REFERENCES page_revisions (id) ON DELETE SET NULL,
+      context_fingerprint TEXT NOT NULL CHECK (length(context_fingerprint) = 64),
+      context_json TEXT NOT NULL CHECK (json_valid(context_json)),
+      content TEXT NOT NULL,
+      provider_result_json TEXT NOT NULL CHECK (json_valid(provider_result_json)),
+      spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE writer_leases (
+      story_id TEXT PRIMARY KEY REFERENCES stories (id) ON DELETE CASCADE,
+      writer_session_id TEXT NOT NULL CHECK (length(trim(writer_session_id)) > 0),
+      lease_token TEXT NOT NULL UNIQUE CHECK (length(trim(lease_token)) > 0),
+      acquired_at TEXT NOT NULL,
+      heartbeat_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+
+    CREATE INDEX idx_writer_leases_expiry ON writer_leases (expires_at);
+
+    DROP TABLE prepared_pages_scaffold;
+    DROP TABLE writing_operations_scaffold;
+  `);
+}
+
+const WRITING_V6_CHECKSUM_SOURCE = `
+PR 06 transactional writing state machine activation:
+- durable requested/running/succeeded/committed/failed/superseded operations
+- per-story expiring writer leases and deterministic operation sequencing
+- one opaque restart-safe prepared page bound to a full context fingerprint
+- authoritative provider result, billed-attempt and speculative-spend records
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -895,6 +974,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: CONTINUITY_V5_CHECKSUM_SOURCE,
     up(db) {
       activateContinuityV2(db);
+    },
+  }),
+  Object.freeze({
+    version: 6,
+    name: 'transactional writing state machine',
+    checksumSource: WRITING_V6_CHECKSUM_SOURCE,
+    up(db) {
+      activateWritingTransactions(db);
     },
   }),
 ]);

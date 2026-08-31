@@ -7,12 +7,22 @@ const express = require('express');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText } = require('../../core/validation');
 
-function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
+function createStoriesRouter({ store, imageStore, imageQueue, audio, transactions = null }) {
   const router = express.Router();
 
   function idempotencyKey(req) {
     const value = req.get('Idempotency-Key') || req.body?.idempotency_key;
     return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
+  function writerSessionId(req) {
+    const value = req.get('X-ScribeTribe-Writer-Session') || req.body?.writer_session_id ||
+      req.authSession?.tokenHash || 'legacy-client';
+    return typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : 'legacy-client';
+  }
+
+  function acquireWriter(req, storyId) {
+    transactions?.acquireLease(storyId, writerSessionId(req));
   }
 
   function optionalTitle(value, label) {
@@ -48,6 +58,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.put('/api/stories/:id', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const payload = store.validateStoryPayload(req.body, { partial: true, existing: story });
     if (payload.error) return badRequest(res, payload.error);
     res.json({ story: store.storyWithHierarchy(store.updateStory(story.id, payload)) });
@@ -56,6 +67,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.delete('/api/stories/:id', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     // Stop any audiobook work for this tale before the row cascade kills it
     // (the runner's per-page updates are guarded by status = 'pending').
     audio.abandonStory(story.id);
@@ -116,6 +128,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/volumes', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const title = optionalTitle(req.body.title, 'title');
     if (title.error) return badRequest(res, title.error);
     const chapterTitle = optionalTitle(req.body.chapter_title, 'chapter_title');
@@ -127,6 +140,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.put('/api/stories/:id/volumes/:volumeId', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const title = requiredTitle(req.body.title);
     if (title.error) return badRequest(res, title.error);
     const volume = store.hierarchy.renameVolume(story.id, req.params.volumeId, title.value);
@@ -137,6 +151,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.delete('/api/stories/:id/volumes/:volumeId', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const deleted = store.hierarchy.deleteVolume(story.id, req.params.volumeId);
     if (!deleted) return notFound(res, 'Volume not found');
     res.status(204).end();
@@ -145,6 +160,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/volumes/:volumeId/chapters', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const title = optionalTitle(req.body.title, 'title');
     if (title.error) return badRequest(res, title.error);
     const chapter = store.hierarchy.createChapter(story.id, req.params.volumeId, title.value);
@@ -155,6 +171,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.put('/api/stories/:id/chapters/:chapterId', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const title = requiredTitle(req.body.title);
     if (title.error) return badRequest(res, title.error);
     const chapter = store.hierarchy.renameChapter(story.id, req.params.chapterId, title.value);
@@ -165,6 +182,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.delete('/api/stories/:id/chapters/:chapterId', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const deleted = store.hierarchy.deleteChapter(story.id, req.params.chapterId);
     if (!deleted) return notFound(res, 'Chapter not found');
     res.status(204).end();
@@ -197,6 +215,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.put('/api/stories/:id/pages/:pageId/revisions', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const content = optionalText(req.body.content, { max: 500000 });
     if (!content) return badRequest(res, '"content" must be non-empty text of at most 500000 characters');
     const direction = optionalText(req.body.direction, { max: 10000 });
@@ -214,6 +233,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/pages/:pageId/copyedits', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const content = optionalText(req.body.content, { max: 500000 });
     if (!content) return badRequest(res, '"content" must be non-empty text of at most 500000 characters');
     const result = store.revisions.copyedit(story.id, req.params.pageId, {
@@ -240,6 +260,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/recoveries/:recoveryId/undo', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     if (typeof req.body.undo_token !== 'string' || !req.body.undo_token) {
       return badRequest(res, '"undo_token" is required');
     }
@@ -255,6 +276,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/recoveries/:recoveryId/restore', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     store.revisions.expireRecoveries(story.id, (pageId) => imageStore.deleteImage('page', pageId));
     const result = store.revisions.restoreRecovery(story.id, req.params.recoveryId, {
       idempotencyKey: idempotencyKey(req),
@@ -288,6 +310,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.post('/api/stories/:id/pages', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const content = optionalText(req.body.content, { max: 50000 });
     if (content === null || content === undefined) return badRequest(res, '"content" is required');
     const user_input = optionalText(req.body.user_input, { max: 10000 });
@@ -299,6 +322,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.delete('/api/stories/:id/pages/:number', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const page = store.getPageByNumber(story.id, parseInt(req.params.number, 10));
     if (!page) return notFound(res, 'Page not found');
     store.deletePage(page); // transactional delete + renumber + preview invalidation
@@ -310,6 +334,7 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   router.delete('/api/stories/:id/pages', (req, res) => {
     const story = store.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
     const after = parseInt(req.query.after, 10);
     if (!Number.isFinite(after) || after < 1) return badRequest(res, '"after" must be a positive page number');
     const result = store.truncateAfter(story.id, after, {

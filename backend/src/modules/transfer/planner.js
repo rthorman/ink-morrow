@@ -28,6 +28,8 @@ const {
   templateSnapshotRecord,
   correctionRecord,
   previewRecord,
+  writingOperationRecord,
+  preparedPageRecord,
   audiobookRecord,
   semanticHash,
   sanitizeSettings,
@@ -233,10 +235,22 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
     const corrections = db.prepare(`
       SELECT * FROM continuity_corrections WHERE story_id = ? ORDER BY created_at, rowid
     `).all(id).map(correctionRecord);
+    // `preview` remains readable on import for schema-1..5 beta archives.
+    // Schema 6 writes the durable operation and prepared-page forms instead.
     const preview = options.includeWorkingHistory
       ? (() => {
           const value = db.prepare('SELECT * FROM story_previews WHERE story_id = ?').get(id);
           return value ? previewRecord(value) : null;
+        })()
+      : null;
+    const writingOperations = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM writing_operations WHERE story_id = ? ORDER BY sequence').all(id)
+        .map(writingOperationRecord)
+      : [];
+    const preparedPage = options.includeWorkingHistory
+      ? (() => {
+          const value = db.prepare('SELECT * FROM prepared_pages WHERE story_id = ?').get(id);
+          return value ? preparedPageRecord(value) : null;
         })()
       : null;
     let audiobook = null;
@@ -260,6 +274,8 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         memory,
         continuity_deltas: continuityDeltas,
         corrections,
+        writing_operations: writingOperations,
+        prepared_page: preparedPage,
         preview,
         audiobook,
       },

@@ -307,6 +307,85 @@ describe('portable archives and backups', () => {
     await request(destination.app).get(committed.body.safety_backup.download_url).expect(200);
   });
 
+  it('round-trips durable writing history and an exact restart-safe prepared page', async () => {
+    const story = await createStory(source.app, null, [], { title: 'Prepared Archive' });
+    const operationId = randomUUID();
+    const previewId = 'P'.repeat(43);
+    const context = source.app.locals.writingTransactions.contextSnapshot(story.id, { model: 'test/writer' });
+    const timestamp = new Date().toISOString();
+    const provider = JSON.stringify({
+      complete: true,
+      content: 'Prepared prose survives the archive.',
+      model: 'test/writer',
+      usage: { prompt_tokens: 10, completion_tokens: 6 },
+      cost_usd: 0.004,
+      billed_attempts: 1,
+    });
+    source.db.prepare(`
+      INSERT INTO writing_operations
+        (id, story_id, sequence, idempotency_key, request_hash, kind, status,
+         writer_session_id, expected_tail_page_id, expected_tail_revision_id,
+         context_fingerprint, request_json, provider_result_json, result_json,
+         spend_usd, billed_attempts, created_at, updated_at, finished_at)
+      VALUES (?, ?, 1, 'archive-prepare', ?, 'prepare', 'succeeded', 'private-tab-id',
+              NULL, NULL, ?, '{}', ?, ?, 0.004, 1, ?, ?, ?)
+    `).run(operationId, story.id, 'a'.repeat(64), context.fingerprint, provider,
+      JSON.stringify({ preview: { preview_id: previewId } }), timestamp, timestamp, timestamp);
+    source.db.prepare(`
+      INSERT INTO prepared_pages
+        (story_id, id, operation_id, expected_page, expected_tail_page_id,
+         expected_tail_revision_id, context_fingerprint, context_json, content,
+         provider_result_json, spend_usd, created_at, updated_at)
+      VALUES (?, ?, ?, 1, NULL, NULL, ?, ?, ?, ?, 0.004, ?, ?)
+    `).run(story.id, previewId, operationId, context.fingerprint, context.json,
+      'Prepared prose survives the archive.', provider, timestamp, timestamp);
+
+    const { bytes } = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const entries = await readZipEntries(bytes);
+    const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+    const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+    const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+    expect(bundle.writing_operations).toHaveLength(1);
+    expect(bundle.writing_operations[0].writer_session_id).toBeUndefined();
+    expect(bundle.writing_operations[0].lease_token).toBeUndefined();
+    expect(bundle.prepared_page.content).toBe('Prepared prose survives the archive.');
+
+    const reviewed = await preflight(destination.app, bytes).expect(200);
+    await request(destination.app)
+      .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
+      .send({ mode: 'merge' })
+      .expect(200);
+    const imported = destination.db.prepare('SELECT * FROM prepared_pages WHERE story_id = ?').get(story.id);
+    expect(imported).toBeTruthy();
+    expect(imported.id).not.toBe(previewId);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM writing_operations WHERE story_id = ?')
+      .get(story.id).count).toBe(1);
+
+    const preview = await request(destination.app)
+      .get(`/api/stories/${story.id}/pages/preview`)
+      .expect(200);
+    expect(preview.body.preview.preview_id).toBe(imported.id);
+    const restoredArchive = await downloadPlan(destination.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const restoredEntries = await readZipEntries(restoredArchive.bytes);
+    const restoredManifest = JSON.parse(restoredEntries.get('manifest.json').toString('utf8'));
+    expect(restoredManifest.entities.find((entity) => entity.kind === 'story').semantic_sha256)
+      .toBe(storyMeta.semantic_sha256);
+    const promoted = await request(destination.app)
+      .post(`/api/stories/${story.id}/pages/commit-preview`)
+      .set('Idempotency-Key', 'promote-imported-preview')
+      .set('X-ScribeTribe-Writer-Session', 'destination-tab')
+      .send({ preview_id: imported.id })
+      .expect(201);
+    expect(promoted.body.page.content).toBe('Prepared prose survives the archive.');
+    expect(promoted.body.page.cost_usd).toBe(0.004);
+  });
+
   it('upgrades a schema-1 4.0 kernel archive to the default hierarchy on import', async () => {
     const story = await createStory(source.app, null, [], { title: 'Kernel Archive' });
     const page = await addPage(source.app, story.id, 'Compatibility prose.');
