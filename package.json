@@ -16,7 +16,7 @@
   "license": "MIT",
   "private": true,
   "devDependencies": {
-    "eslint": "^9.39.5",
+    "eslint": "^10.9.1",
     "globals": "^15.15.0"
   }
 }
