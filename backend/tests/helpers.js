@@ -52,8 +52,8 @@ function resetDb(db) {
     DELETE FROM continuity_deltas;
     DELETE FROM writing_operations;
     DELETE FROM prepared_pages;
-    DELETE FROM page_revisions;
     DELETE FROM pages;
+    DELETE FROM page_revisions;
     DELETE FROM chapters;
     DELETE FROM volumes;
     DELETE FROM auth_sessions;

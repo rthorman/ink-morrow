@@ -76,6 +76,28 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   identity levels. A schema-1 4.0 kernel archive has no hierarchy choices and
   is upgraded on import to the accepted Volume I / Chapter I default.
 
+### 4.0 revisions and recovery contract (PR 03)
+
+- Schema version 3 makes page revisions immutable and gives each page
+  page-owned canonical and display pointers. An active-tail substantive edit
+  advances both pointers and invalidates derived continuity; a historical
+  copyedit advances only display prose and keeps canonical evidence and
+  continuity intact.
+- Every initial page, tail edit, copyedit, direct deletion, truncation, and
+  restore records a terminal operation-journal entry. Idempotency keys replay
+  the original result instead of repeating canon mutations.
+- Truncation captures the exact suffix, hierarchy placement, revisions, and
+  private page state in one transaction. Its one-use undo token lasts ten
+  minutes; a fingerprint-safe restore remains available for 30 days by
+  default. Changed surviving canon refuses restore and offers JSON export
+  rather than attempting a merge.
+- Expiry scrubs the private recovery payload and removes only media owned by
+  the expired suffix. It never deletes or rewrites active canon.
+- Archive v2 story aggregates always carry revision ancestry and
+  canonical/display pointers. Direction, model, token, and cost provenance
+  remains optional working history. Recovery suffixes and undo credentials
+  never enter portable archives.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.

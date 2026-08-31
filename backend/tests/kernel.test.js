@@ -193,6 +193,8 @@ describe('ScribeTribe 4.0 kernel', () => {
     });
     expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'revisions-recovery').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('planned');
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

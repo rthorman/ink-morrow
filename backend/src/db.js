@@ -503,6 +503,111 @@ PR 02 manuscript hierarchy activation:
 - preserve compatibility page order as scoped chapter ordinals
 `;
 
+function activatePageRevisions(db) {
+  db.exec(`
+    ALTER TABLE page_revisions ADD COLUMN source TEXT NOT NULL DEFAULT 'author'
+      CHECK (source IN ('author', 'ai', 'import', 'migration'));
+    ALTER TABLE page_revisions ADD COLUMN model TEXT;
+    ALTER TABLE page_revisions ADD COLUMN prompt_tokens INTEGER CHECK (prompt_tokens IS NULL OR prompt_tokens >= 0);
+    ALTER TABLE page_revisions ADD COLUMN completion_tokens INTEGER CHECK (completion_tokens IS NULL OR completion_tokens >= 0);
+    ALTER TABLE page_revisions ADD COLUMN cost_usd REAL NOT NULL DEFAULT 0 CHECK (cost_usd >= 0);
+
+    DROP TRIGGER story_pages_invalidate_memory;
+    CREATE TRIGGER story_pages_invalidate_memory
+    AFTER UPDATE OF content ON story_pages
+    WHEN OLD.content <> NEW.content
+      AND EXISTS (
+        SELECT 1 FROM pages p
+         WHERE p.id = NEW.id
+           AND p.canonical_revision_id = p.display_revision_id
+      )
+    BEGIN
+      DELETE FROM story_memory_pages WHERE page_id = OLD.id;
+      DELETE FROM story_memory_search WHERE page_id = OLD.id;
+    END;
+
+    CREATE TRIGGER page_revisions_immutable
+    BEFORE UPDATE ON page_revisions
+    BEGIN
+      SELECT RAISE(ABORT, 'Page revisions are immutable');
+    END;
+
+    CREATE TRIGGER page_revision_parent_same_page
+    BEFORE INSERT ON page_revisions
+    WHEN NEW.parent_revision_id IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM page_revisions parent
+         WHERE parent.id = NEW.parent_revision_id
+           AND parent.page_id = NEW.page_id
+      )
+    BEGIN
+      SELECT RAISE(ABORT, 'Revision parent belongs to another page');
+    END;
+
+    CREATE TRIGGER page_revision_pointers_same_page
+    BEFORE UPDATE OF canonical_revision_id, display_revision_id ON pages
+    WHEN NEW.canonical_revision_id IS NOT NULL
+      AND (
+        NOT EXISTS (
+          SELECT 1 FROM page_revisions canonical
+           WHERE canonical.id = NEW.canonical_revision_id
+             AND canonical.page_id = NEW.id
+             AND canonical.kind = 'canonical'
+        )
+        OR NOT EXISTS (
+          SELECT 1 FROM page_revisions display
+           WHERE display.id = NEW.display_revision_id
+             AND display.page_id = NEW.id
+        )
+      )
+    BEGIN
+      SELECT RAISE(ABORT, 'Revision pointer belongs to another page');
+    END;
+  `);
+
+  const insertRevision = db.prepare(`
+    INSERT INTO page_revisions
+      (id, page_id, parent_revision_id, kind, content, direction, created_at,
+       source, model, prompt_tokens, completion_tokens, cost_usd)
+    VALUES (?, ?, NULL, 'canonical', ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const setPointers = db.prepare(`
+    UPDATE pages SET canonical_revision_id = ?, display_revision_id = ?, updated_at = CURRENT_TIMESTAMP
+     WHERE id = ?
+  `);
+  const legacyPages = db.prepare(`
+    SELECT sp.*, p.canonical_revision_id
+      FROM story_pages sp
+      JOIN pages p ON p.id = sp.id
+     ORDER BY sp.story_id, sp.page_number
+  `).all();
+  for (const page of legacyPages) {
+    if (page.canonical_revision_id) continue;
+    const revisionId = randomUUID();
+    insertRevision.run(
+      revisionId,
+      page.id,
+      page.content,
+      page.user_input,
+      page.created_at,
+      page.model ? 'ai' : 'author',
+      page.model,
+      page.prompt_tokens,
+      page.completion_tokens,
+      page.cost_usd || 0
+    );
+    setPointers.run(revisionId, revisionId, page.id);
+  }
+}
+
+const REVISIONS_V3_CHECKSUM_SOURCE = `
+PR 03 immutable page revisions and recovery activation:
+- add immutable author/AI revision provenance and usage metadata
+- backfill each compatibility page with one canonical/display revision
+- enforce same-page ancestry and canonical/display pointer ownership
+- preserve continuity rows during display-only copyedits
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -518,6 +623,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: HIERARCHY_V2_CHECKSUM_SOURCE,
     up(db) {
       backfillManuscriptHierarchy(db);
+    },
+  }),
+  Object.freeze({
+    version: 3,
+    name: 'immutable page revisions and recovery activation',
+    checksumSource: REVISIONS_V3_CHECKSUM_SOURCE,
+    up(db) {
+      activatePageRevisions(db);
     },
   }),
 ]);

@@ -45,7 +45,13 @@ const CHAPTER_FIELDS = [
   'id', 'volume_id', 'ordinal', 'title', 'created_at', 'updated_at',
 ];
 const HIERARCHY_PAGE_FIELDS = [
-  'id', 'chapter_id', 'ordinal', 'created_at', 'updated_at',
+  'id', 'chapter_id', 'ordinal', 'canonical_revision_id',
+  'display_revision_id', 'created_at', 'updated_at',
+];
+const REVISION_FIELDS = [
+  'id', 'page_id', 'parent_revision_id', 'kind', 'content', 'direction',
+  'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd',
+  'created_at',
 ];
 const SNAPSHOT_FIELDS = [
   'story_id', 'character_id', 'name', 'description', 'personality',
@@ -169,6 +175,18 @@ function hierarchyPageRecord(row) {
   return pick(row, HIERARCHY_PAGE_FIELDS);
 }
 
+function revisionRecord(row, { includeWorkingHistory }) {
+  const revision = pick(row, REVISION_FIELDS);
+  if (!includeWorkingHistory) {
+    revision.direction = null;
+    revision.model = null;
+    revision.prompt_tokens = null;
+    revision.completion_tokens = null;
+    revision.cost_usd = 0;
+  }
+  return revision;
+}
+
 function snapshotRecord(row) {
   return pick(row, SNAPSHOT_FIELDS);
 }
@@ -248,6 +266,34 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
             .map((page) => pageNumberById.get(page.id) || null),
         })),
     }));
+  const revisionsByPage = new Map();
+  for (const revision of bundle.revisions || []) {
+    if (!revisionsByPage.has(revision.page_id)) revisionsByPage.set(revision.page_id, []);
+    revisionsByPage.get(revision.page_id).push(revision);
+  }
+  const hierarchyPageById = new Map((hierarchy.pages || []).map((page) => [page.id, page]));
+  const semanticRevisions = (bundle.pages || []).map((page) => {
+    const rows = (revisionsByPage.get(page.id) || []).slice()
+      .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)) || left.id.localeCompare(right.id));
+    const indexById = new Map(rows.map((row, index) => [row.id, index + 1]));
+    const placement = hierarchyPageById.get(page.id) || {};
+    return {
+      page_number: page.page_number,
+      canonical: indexById.get(placement.canonical_revision_id) || null,
+      display: indexById.get(placement.display_revision_id) || null,
+      revisions: rows.map((row) => ({
+        parent: indexById.get(row.parent_revision_id) || null,
+        kind: row.kind,
+        content: row.content,
+        direction: row.direction,
+        source: row.source,
+        model: row.model,
+        prompt_tokens: row.prompt_tokens,
+        completion_tokens: row.completion_tokens,
+        cost_usd: row.cost_usd,
+      })),
+    };
+  });
   return {
     record: without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
@@ -255,6 +301,7 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
     ]),
     pages: (bundle.pages || []).map((page) => without(page, ['id', 'story_id', 'created_at'])),
     ...(includeHierarchy ? { hierarchy: semanticHierarchy } : {}),
+    revisions: semanticRevisions,
     snapshots: (bundle.snapshots || []).map((row) => without(row, ['story_id', 'created_at'])),
     memory: (bundle.memory || []).map((row) => ({
       ...without(row, ['page_id', 'story_id', 'created_at', 'updated_at']),
@@ -322,6 +369,7 @@ module.exports = {
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
   HIERARCHY_PAGE_FIELDS,
+  REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
@@ -339,6 +387,7 @@ module.exports = {
   volumeRecord,
   chapterRecord,
   hierarchyPageRecord,
+  revisionRecord,
   snapshotRecord,
   memoryRecord,
   previewRecord,

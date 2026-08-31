@@ -48,6 +48,8 @@ function createApp(
     allowLan = false,
     allowedHosts = [],
     trustProxy = false,
+    recoveryRetentionDays = process.env.RECOVERY_RETENTION_DAYS,
+    clock = () => new Date(),
     // Logger seam: tests inject a collector so expected provider/quality
     // failures can be asserted without spilling stderr; production keeps
     // the console and unexpected errors remain visible.
@@ -91,7 +93,11 @@ function createApp(
   // -- runtime / service set -------------------------------------------------
 
   const catalog = createCatalogStore(db);
-  const stories = createStoriesStore(db, { getWorld: catalog.getWorld });
+  const stories = createStoriesStore(db, {
+    getWorld: catalog.getWorld,
+    recoveryRetentionDays,
+    clock,
+  });
   const ai = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost };
   // Automatic continuity is silenced in ordinary unit tests so old one-call
   // provider mocks remain deterministic. Dedicated continuity tests opt in.

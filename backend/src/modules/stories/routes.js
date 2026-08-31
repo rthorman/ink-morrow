@@ -10,6 +10,11 @@ const { optionalText } = require('../../core/validation');
 function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
   const router = express.Router();
 
+  function idempotencyKey(req) {
+    const value = req.get('Idempotency-Key') || req.body?.idempotency_key;
+    return typeof value === 'string' && value.trim() ? value.trim() : null;
+  }
+
   function optionalTitle(value, label) {
     if (value === undefined) return { value: null };
     const title = optionalText(value, { max: 500 });
@@ -56,6 +61,9 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
     audio.abandonStory(story.id);
     for (const page of store.storyPages(story.id)) {
       if (page.image_media_type) imageStore.deleteImage('page', page.id); // never leave orphans
+    }
+    for (const pageId of store.revisions.recoveryPageIds(story.id)) {
+      imageStore.deleteImage('page', pageId);
     }
     imageStore.deleteImage('story', story.id);
     store.deleteStoryCascade(story.id);
@@ -173,7 +181,100 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
     if (!story) return notFound(res, 'Story not found');
     const page = store.hierarchy.stablePage(story.id, req.params.pageId);
     if (!page) return notFound(res, 'Page not found');
-    res.json({ page });
+    res.json({ page: { ...page, revisions: store.revisions.revisionState(story.id, page.id) } });
+  });
+
+  router.get('/api/stories/:id/pages/:pageId/revisions', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const history = store.revisions.listPageRevisions(story.id, req.params.pageId);
+    if (!history) return notFound(res, 'Page not found');
+    res.json(history);
+  });
+
+  // Substantive prose changes are canonical only at the active tail. The new
+  // immutable revision becomes both canonical and displayed prose.
+  router.put('/api/stories/:id/pages/:pageId/revisions', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const content = optionalText(req.body.content, { max: 500000 });
+    if (!content) return badRequest(res, '"content" must be non-empty text of at most 500000 characters');
+    const direction = optionalText(req.body.direction, { max: 10000 });
+    const result = store.revisions.tailEdit(story.id, req.params.pageId, {
+      content,
+      direction,
+      idempotencyKey: idempotencyKey(req),
+    });
+    if (!result) return notFound(res, 'Page not found');
+    res.json(result);
+  });
+
+  // Historical copyedits alter only the display pointer. Canonical evidence
+  // and the page's established continuity row stay intact.
+  router.post('/api/stories/:id/pages/:pageId/copyedits', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const content = optionalText(req.body.content, { max: 500000 });
+    if (!content) return badRequest(res, '"content" must be non-empty text of at most 500000 characters');
+    const result = store.revisions.copyedit(story.id, req.params.pageId, {
+      content,
+      idempotencyKey: idempotencyKey(req),
+    });
+    if (!result) return notFound(res, 'Page not found');
+    res.status(201).json(result);
+  });
+
+  // -- truncation recovery -------------------------------------------------
+
+  router.get('/api/stories/:id/recoveries', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    res.json({
+      recoveries: store.revisions.listRecoveries(
+        story.id,
+        (pageId) => imageStore.deleteImage('page', pageId)
+      ),
+    });
+  });
+
+  router.post('/api/stories/:id/recoveries/:recoveryId/undo', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    if (typeof req.body.undo_token !== 'string' || !req.body.undo_token) {
+      return badRequest(res, '"undo_token" is required');
+    }
+    store.revisions.expireRecoveries(story.id, (pageId) => imageStore.deleteImage('page', pageId));
+    const result = store.revisions.restoreRecovery(story.id, req.params.recoveryId, {
+      undoToken: req.body.undo_token,
+      idempotencyKey: idempotencyKey(req),
+    });
+    if (!result) return notFound(res, 'Recovery suffix not found');
+    res.json(result);
+  });
+
+  router.post('/api/stories/:id/recoveries/:recoveryId/restore', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    store.revisions.expireRecoveries(story.id, (pageId) => imageStore.deleteImage('page', pageId));
+    const result = store.revisions.restoreRecovery(story.id, req.params.recoveryId, {
+      idempotencyKey: idempotencyKey(req),
+    });
+    if (!result) return notFound(res, 'Recovery suffix not found');
+    res.json(result);
+  });
+
+  router.get('/api/stories/:id/recoveries/:recoveryId/export', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const recovery = store.revisions.exportRecovery(
+      story.id,
+      req.params.recoveryId,
+      (pageId) => imageStore.deleteImage('page', pageId)
+    );
+    if (!recovery) return notFound(res, 'Recovery suffix not found');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="recovery-${req.params.recoveryId}.json"`);
+    res.send(`${JSON.stringify(recovery, null, 2)}\n`);
   });
 
   // -- direct page CRUD -------------------------------------------------------
@@ -211,8 +312,9 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio }) {
     if (!story) return notFound(res, 'Story not found');
     const after = parseInt(req.query.after, 10);
     if (!Number.isFinite(after) || after < 1) return badRequest(res, '"after" must be a positive page number');
-    const result = store.truncateAfter(story.id, after, (pageId) => imageStore.deleteImage('page', pageId));
-    store.invalidatePreview(story.id);
+    const result = store.truncateAfter(story.id, after, {
+      idempotencyKey: idempotencyKey(req),
+    });
     res.json(result);
   });
 

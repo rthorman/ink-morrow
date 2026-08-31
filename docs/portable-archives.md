@@ -18,7 +18,7 @@ archive. PR 01 establishes the v2 identity and strict manifest scaffold; later
 | Story | Story, every committed page, continuity, frozen cast snapshots, story world, every current cast member, and each cast member's different home world | Paintings/plates; audiobook MP3; working history |
 | Full backup | Every world, character, story, page, continuity row, snapshot, and sanitized device setting | Paintings/plates; audiobook MP3; working history |
 
-Story continuity is functional data, not optional history. A story would narrate differently without it, so ready continuity rows always travel. Prepared pages are not committed story state and travel only with working history.
+Story continuity is functional data, not optional history. A story would narrate differently without it, so ready continuity rows always travel. Immutable page-revision ancestry and canonical/display pointers are likewise authored manuscript evidence and always travel. Prepared pages are not committed story state and travel only with working history. Truncation-recovery suffixes and undo credentials are private local safety state and never enter portable archives.
 
 The UI defaults portable entity exports to paintings on, audio off, and working history off. A full backup defaults all three on. Audio is always an explicit switch because an audiobook can be much larger than the remaining archive.
 
@@ -33,7 +33,7 @@ When enabled, an archive can contain:
 - image-generation prompts;
 - continuity extraction diagnostics and errors.
 
-When disabled, the authored manuscript and ready continuity state remain, but those provenance and diagnostic fields are cleared. Audiobook model and voice remain when audio is included because they describe the file; its cost trace is cleared.
+When disabled, the authored manuscript, complete revision ancestry, canonical/display choices, and ready continuity state remain, but direction, model, token, cost, and diagnostic provenance fields are cleared. Audiobook model and voice remain when audio is included because they describe the file; its cost trace is cleared.
 
 API keys, provider credentials, passwords, and the remembered paid-action-consent flag never enter an archive. Full backups carry only the application's explicit settings whitelist (model choices, reading appearance, word target, narrator choice, reasoning level, render quality, and cost-ticker preference).
 
@@ -75,8 +75,9 @@ assets/
 count, SHA-256 digest, and semantic digest. The checked-in
 `archive-manifest-v2.schema.json` is the machine-readable field contract. Story
 JSON is an aggregate containing its story row, ordered volume/chapter/page
-hierarchy, temporary ordered compatibility prose rows, current cast snapshots,
-continuity rows, optional prepared page, and optional ready-audiobook metadata.
+hierarchy, immutable revision ancestry with canonical/display pointers,
+temporary ordered compatibility prose rows, current cast snapshots, continuity
+rows, optional prepared page, and optional ready-audiobook metadata.
 Hierarchy identities and scoped ordinals are functional manuscript data, not
 working history, so they always travel. Derived continuity search/FTS tables
 are not exported; they are rebuilt locally from verified continuity rows during
@@ -84,8 +85,10 @@ import.
 
 3.x, unknown-family, and future format/manifest/database versions are rejected
 rather than guessed at. A schema-1 `scribetribe-4` kernel archive is the one
-supported older case: it predates hierarchy behavior, so import gives each
-story the accepted Volume I / Chapter I default while preserving page order.
+supported older case: it predates hierarchy and revision behavior, so import
+gives each story the accepted Volume I / Chapter I default and synthesizes one
+canonical/display revision per page while preserving page order. Schema-2
+archives retain hierarchy and receive the same one-revision-per-page upgrade.
 A future format can add an explicit migration without binding portable data to
 an old SQLite layout.
 

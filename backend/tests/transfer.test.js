@@ -165,6 +165,10 @@ describe('portable archives and backups', () => {
     const secondVolume = (await request(source.app).post(`/api/stories/${story.id}/volumes`)
       .send({ title: 'Beyond', chapter_title: 'The Road' }).expect(201)).body.volume;
     const thirdPage = await addPage(source.app, story.id, 'The road begins.');
+    await request(source.app)
+      .post(`/api/stories/${story.id}/pages/${page.id}/copyedits`)
+      .send({ content: 'The visitor carefully crosses the threshold.' })
+      .expect(201);
     // Stale database metadata without a file must not create a broken image
     // reference in the portable story.
     source.db.prepare("UPDATE story_pages SET image_media_type='image/png' WHERE id=?").run(page.id);
@@ -205,10 +209,16 @@ describe('portable archives and backups', () => {
     const importedStory = destination.db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id);
     expect(JSON.parse(importedStory.characters).map((entry) => entry.id)).toEqual([lead.id, visitor.id]);
     const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE id = ?').get(page.id);
-    expect(importedPage.content).toContain('threshold');
+    expect(importedPage.content).toBe('The visitor carefully crosses the threshold.');
     expect(importedPage.user_input).toBeNull(); // portable history switch was off
     expect(importedPage.image_media_type).toBeNull();
     expect(destination.db.prepare('SELECT summary FROM story_memory_pages WHERE page_id = ?').get(page.id).summary).toBe('The visitor arrived.');
+    const importedRevisionPointers = destination.db.prepare('SELECT * FROM pages WHERE id = ?').get(page.id);
+    expect(importedRevisionPointers.display_revision_id).not.toBe(importedRevisionPointers.canonical_revision_id);
+    expect(destination.db.prepare('SELECT content FROM page_revisions WHERE id = ?')
+      .get(importedRevisionPointers.canonical_revision_id).content).toBe('The visitor crosses the threshold.');
+    expect(destination.db.prepare('SELECT content FROM page_revisions WHERE id = ?')
+      .get(importedRevisionPointers.display_revision_id).content).toBe('The visitor carefully crosses the threshold.');
     const importedVolumes = destination.db.prepare('SELECT id, ordinal, title FROM volumes WHERE story_id = ? ORDER BY ordinal').all(story.id);
     expect(importedVolumes).toEqual([
       { id: volumeOne.id, ordinal: 1, title: 'Volume I' },
@@ -354,6 +364,12 @@ describe('portable archives and backups', () => {
       { id: character.id, role: 'mc', relation: 'self', state: null },
     ], { title: 'Graph Tale' });
     const page = await addPage(source.app, story.id, 'The hero changes.', 'Change them');
+    await request(source.app)
+      .put(`/api/stories/${story.id}/pages/${page.id}/revisions`)
+      .send({ content: 'The hero changes decisively.', direction: 'Strengthen the change' })
+      .expect(200);
+    const sourceRevisionIds = source.db.prepare('SELECT id FROM page_revisions WHERE page_id = ? ORDER BY created_at, rowid')
+      .all(page.id).map((row) => row.id);
     source.db.prepare(`
       INSERT INTO story_memory_pages
         (page_id, story_id, content_hash, status, summary, delta_json)
@@ -402,6 +418,11 @@ describe('portable archives and backups', () => {
     `).get(importedStory.id);
     expect(importedVolume.id).not.toBe(sourceVolume.id);
     expect(importedHierarchyPage).toMatchObject({ id: importedPage.id, volume_id: importedVolume.id });
+    const importedRevisions = destination.db.prepare('SELECT * FROM page_revisions WHERE page_id = ? ORDER BY created_at, rowid')
+      .all(importedPage.id);
+    expect(importedRevisions).toHaveLength(2);
+    expect(importedRevisions.every((revision) => !sourceRevisionIds.includes(revision.id))).toBe(true);
+    expect(importedRevisions[1].parent_revision_id).toBe(importedRevisions[0].id);
     const snapshot = destination.db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ?').get(importedStory.id);
     expect(snapshot.character_id).toBe(importedCharacter.id);
     const memory = destination.db.prepare('SELECT * FROM story_memory_pages WHERE page_id = ?').get(importedPage.id);
