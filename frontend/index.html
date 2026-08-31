@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
+    <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
+    <link rel="stylesheet" href="styles/fonts.css">
+    <link rel="stylesheet" href="styles/tokens.css">
+    <link rel="stylesheet" href="styles/base.css">
+    <link rel="stylesheet" href="styles/shell.css">
+    <link rel="stylesheet" href="styles/components.css">
+    <link rel="stylesheet" href="styles/features/home.css">
+    <link rel="stylesheet" href="styles/features/catalogs.css">
+    <link rel="stylesheet" href="styles/features/library.css">
+    <link rel="stylesheet" href="styles/features/write.css">
+    <link rel="stylesheet" href="styles/features/settings.css">
+    <link rel="stylesheet" href="styles/features/auth.css">
+</head>
+<body class="st-gated">
+    <a class="skip-link" href="#mainContent">Skip to content</a>
+    <div id="authRoot" class="auth-root" role="region" aria-live="polite">
+        <p class="auth-loading">Checking the scriptorium seal…</p>
+    </div>
+    <div class="container">
+        <header class="main-header">
+            <div class="cat-scribe" aria-hidden="true">
+                <svg viewBox="0 0 256 256" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
+                    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
+                    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
+                    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
+                    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
+                    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
+                </svg>
+            </div>
+            <div class="wordmark">
+                <h1>ScribeTribe</h1>
+                <p class="subtitle">Interactive tales, scribed by candlelight</p>
+            </div>
+            <p id="scribeStatus" class="scribe-status" aria-live="polite">The scribe waits, quill at the ready…</p>
+        </header>
+
+        <nav class="main-nav" aria-label="Primary">
+            <button id="homeBtn" class="nav-btn active" type="button">Home</button>
+            <button id="writeBtn" class="nav-btn" type="button">Write</button>
+            <button id="libraryBtn" class="nav-btn" type="button">Library</button>
+            <button id="worldsBtn" class="nav-btn" type="button">Worlds</button>
+            <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
+            <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button">Settings</button>
+            <button id="lockBtn" class="nav-btn nav-btn--lock" type="button">Lock</button>
+        </nav>
+
+        <div id="diskBanner" class="disk-banner" role="alert" hidden>
+            <p id="diskBannerText"></p>
+        </div>
+
+        <main class="main-content" id="mainContent">
+            <!-- Home Section (manuscript hall) -->
+            <section id="homeSection" class="content-section active" aria-label="Home">
+                <div class="hero">
+                    <picture class="hero__picture" aria-hidden="true">
+                        <source
+                            media="(min-width: 1200px) and (pointer: fine)"
+                            srcset="brand/hero-scriptorium-desktop.webp"
+                            width="1672"
+                            height="941"
+                        >
+                        <source
+                            media="(min-width: 768px) and (orientation: portrait)"
+                            srcset="brand/hero-scriptorium-tablet-portrait.webp"
+                            width="941"
+                            height="1672"
+                        >
+                        <source
+                            media="(min-width: 768px)"
+                            srcset="brand/hero-scriptorium-tablet-landscape.webp"
+                            width="1448"
+                            height="1086"
+                        >
+                        <img
+                            src="brand/vesper-quill.webp"
+                            alt=""
+                            width="941"
+                            height="1672"
+                            decoding="async"
+                            fetchpriority="high"
+                        >
+                    </picture>
+                    <div class="hero__copy">
+                        <p class="hero__kicker">The manuscript hall</p>
+                        <h2 class="hero__line">Where stories grow claws.</h2>
+                        <p class="hero__support">Build worlds, cast your characters, and let the scribes write with you.</p>
+                        <div class="hero__actions">
+                            <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
+                            <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
+                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="homeRecent" class="home-recent" hidden>
+                    <h2>Recent manuscripts</h2>
+                    <div id="homeRecentList" class="items-grid"></div>
+                </div>
+
+                <div id="homePath" class="home-path">
+                    <h2>Your scriptorium</h2>
+                    <div class="home-path__row">
+                        <a href="#/worlds" class="home-path__step">
+                            <strong>Worlds</strong>
+                            <span>optional — gives the scribe a setting and canon</span>
+                        </a>
+                        <a href="#/characters" class="home-path__step">
+                            <strong>Characters</strong>
+                            <span>optional — reusable people and portraits</span>
+                        </a>
+                        <a href="#/library/stories" class="home-path__step">
+                            <strong>Stories</strong>
+                            <span>required only for writing; can start as an ensemble</span>
+                        </a>
+                        <a href="#/write" class="home-path__step">
+                            <strong>Write</strong>
+                            <span>the desk where pages happen</span>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Worlds Section -->
+            <section id="worldsSection" class="content-section" aria-label="Worlds">
+                <div class="catalog-head">
+                    <h2>Worlds &amp; Settings</h2>
+                    <button id="worldNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="worldCreateWrap">New world</button>
+                </div>
+                <p class="setting-hint">World edits are canon for future pages.</p>
+                <div class="list-container">
+                    <div id="worldsList" class="items-grid"></div>
+                </div>
+                <div id="worldCreateWrap" class="create-form" hidden>
+                    <h3>Create New World</h3>
+                    <form id="worldForm">
+                        <label for="worldName">Name</label>
+                        <input type="text" id="worldName" placeholder="e.g. The Ashen Marches" maxlength="200" required>
+                        <label for="worldDescription">Description</label>
+                        <textarea id="worldDescription" placeholder="What rules this place? What does it fear?" rows="3" maxlength="10000"></textarea>
+                        <label for="worldGenre">Genre</label>
+                        <input type="text" id="worldGenre" placeholder="e.g. Fantasy, Gothic, Sci-Fi" maxlength="100">
+                        <label for="worldSetting">Setting</label>
+                        <input type="text" id="worldSetting" placeholder="e.g. Medieval, Modern, Futuristic" maxlength="200">
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create and paint (≈$0.04)</button>
+                            <button id="worldNoImageBtn" class="btn btn-secondary" type="submit">Create without image</button>
+                            <button id="worldAiBtn" class="btn btn-secondary" type="button">Flesh out with AI</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Characters Section -->
+            <section id="charactersSection" class="content-section" aria-label="Characters">
+                <div class="catalog-head">
+                    <h2>Characters</h2>
+                    <button id="characterNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="characterCreateWrap">New character</button>
+                </div>
+                <p class="setting-hint">Stories copy this sheet when cast; later base edits do not rewrite a running story.</p>
+                <div class="list-container">
+                    <div id="charactersList" class="items-grid"></div>
+                </div>
+                <div id="characterCreateWrap" class="create-form" hidden>
+                    <h3>Create New Character</h3>
+                    <form id="characterForm">
+                        <label for="characterName">Name</label>
+                        <input type="text" id="characterName" placeholder="Every story needs a name to haunt" maxlength="200" required>
+                        <label for="characterDescription">Description</label>
+                        <textarea id="characterDescription" placeholder="Who are they when the candles gutter?" rows="3" maxlength="10000"></textarea>
+                        <label for="characterPersonality">Personality</label>
+                        <textarea id="characterPersonality" placeholder="Temper, habits, appetites" rows="2" maxlength="10000"></textarea>
+                        <label for="characterAppearance">Appearance</label>
+                        <textarea id="characterAppearance" placeholder="The details the reader will not forget" rows="2" maxlength="10000"></textarea>
+                        <label for="characterBackground">Background</label>
+                        <textarea id="characterBackground" placeholder="Scars, debts, secrets" rows="2" maxlength="10000"></textarea>
+                        <label for="characterWorld">World</label>
+                        <select id="characterWorld">
+                            <option value="">No world (free-roaming character)</option>
+                        </select>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create and paint (≈$0.06)</button>
+                            <button id="characterNoImageBtn" class="btn btn-secondary" type="submit">Create without image</button>
+                            <button id="characterAiBtn" class="btn btn-secondary" type="button">Flesh out with AI</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Library Section (Stories + Bookshelf tabs) -->
+            <section id="librarySection" class="content-section" aria-label="Library">
+                <h2>Library</h2>
+                <div class="library-tabs" role="tablist" aria-label="Library">
+                    <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Stories</button>
+                    <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
+                </div>
+                <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
+                    <div class="catalog-head library-story-head">
+                        <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
+                        <a class="btn btn-primary" href="#/write">Create at the writing desk</a>
+                    </div>
+                    <div id="storiesList" class="items-grid stories-grid"></div>
+                </div>
+                <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
+                    <p class="section-note">Every kept audiobook and painted plate across the whole scriptorium. Download or let them go.</p>
+                    <div id="bookshelfList" class="bookshelf-list"></div>
+                </div>
+            </section>
+
+            <!-- Write Section -->
+            <section id="writeSection" class="content-section" aria-label="Write">
+                <h2 class="sr-only">Writing desk</h2>
+                <div class="write-container">
+                    <div class="story-context" aria-label="Story context">
+                        <label class="sr-only" for="currentStory">Select or create a story</label>
+                        <select id="currentStory">
+                            <option value="">Select a story</option>
+                        </select>
+                        <button id="storyNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
+                        <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
+                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
+                    </div>
+
+                    <div id="storyCreateWrap" class="create-form story-create-at-desk" hidden>
+                        <h3>Create New Story</h3>
+                        <p class="setting-hint">Bind the manuscript before writing its first page. The cast is copied into this tale so it can evolve independently.</p>
+                        <form id="storyForm">
+                            <label for="storyTitle">Title</label>
+                            <input type="text" id="storyTitle" placeholder="Give the manuscript a name" maxlength="300" required>
+                            <label for="storyWorld">World</label>
+                            <select id="storyWorld">
+                                <option value="">No world</option>
+                            </select>
+                            <label for="storyTone">Maturity level</label>
+                            <select id="storyTone">
+                                <option value="fade-to-black">Tasteful — intimate moments fade to black</option>
+                                <option value="romantic">Romantic — sensual, not graphic</option>
+                                <option value="explicit">Explicit — adult prose (18+)</option>
+                            </select>
+                            <p class="setting-hint">This guides every generated page. Cover artwork remains non-explicit at every level so image providers can render it.</p>
+                            <div class="character-selection">
+                                <fieldset class="cast-mode">
+                                    <legend>Cast shape</legend>
+                                    <img class="cast-mode__art" src="brand/cinder-cast.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async">
+                                    <div class="seg" role="radiogroup" aria-label="Cast shape">
+                                        <button type="button" class="seg-btn" id="castModeCentered" role="radio" aria-checked="false">Centered on a lead</button>
+                                        <button type="button" class="seg-btn" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
+                                    </div>
+                                    <p class="setting-hint" id="castModeHint">No lead character. Direction and scene determine focus — no throne at this table.</p>
+                                </fieldset>
+                                <div class="cast-mc" id="castLeadRow" hidden>
+                                    <label for="mcSelect">Lead</label>
+                                    <select id="mcSelect"><option value="">— Choose who the story follows —</option></select>
+                                </div>
+                                <div class="cast-add">
+                                    <label for="castCharSelect">Add cast member</label>
+                                    <select id="castCharSelect"></select>
+                                    <label for="castTierSelect">Role</label>
+                                    <select id="castTierSelect">
+                                        <option value="supporting">Supporting</option>
+                                        <option value="background">Background</option>
+                                    </select>
+                                    <label for="castRelation" id="castRelationLabel">Starting connection or story note</label>
+                                    <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
+                                    <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
+                                </div>
+                                <div id="castList" class="cast-list" aria-label="Story cast"></div>
+                                <div id="storyReview" class="story-review" aria-live="polite"></div>
+                            </div>
+                            <div class="form-actions">
+                                <button id="storyWithCoverBtn" type="submit" class="btn btn-primary">Create &amp; paint cover (≈$0.06)</button>
+                                <button id="storyNoImageBtn" type="submit" class="btn btn-secondary">Create without cover</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="story-reader">
+                        <div class="desk-groups">
+                            <div class="desk-group desk-group--pages" role="group" aria-label="Page navigation">
+                                <button id="prevPageBtn" class="btn btn-secondary" type="button">← Previous</button>
+                                <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
+                                <button id="nextPageBtn" class="btn btn-secondary" type="button">Next →</button>
+                            </div>
+                            <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
+                                <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
+                                <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
+                                <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
+                                <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
+                            </div>
+                        </div>
+
+                        <div id="storyContent" class="story-content">
+                            <p class="placeholder">Select a story to begin reading and writing…</p>
+                        </div>
+
+                        <div id="pastPageBar" class="past-page-bar" hidden>
+                            <p>You are reading an earlier page. Old pages cannot be changed.</p>
+                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Delete everything after this page</button>
+                        </div>
+
+                        <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
+                            <p id="audiobookBannerText" class="audiobook-banner__text"></p>
+                            <div id="audiobookProgress" class="progress-track" hidden>
+                                <div id="audiobookProgressFill" class="progress-fill"></div>
+                            </div>
+                            <div id="audiobookBannerActions" class="audiobook-banner__actions" hidden></div>
+                        </div>
+
+                        <div class="writing-interface">
+                            <div class="composer-head">
+                                <label for="userInput">Direction for the next page</label>
+                                <p class="setting-hint composer-hint">Leave blank to continue naturally. Ctrl/⌘ + Enter writes.</p>
+                                <p id="preparedNote" class="prepared-note" hidden></p>
+                            </div>
+                            <textarea id="userInput" placeholder="Enter your direction for the next page… (or leave empty to just continue)"></textarea>
+                            <div class="action-buttons">
+                                <button id="generateBtn" class="btn btn-primary" type="button">Write next page</button>
+                                <button id="retryBtn" class="btn btn-secondary" type="button" title="Rewrite the current (last) page with the same direction (billed again)">Rewrite last page</button>
+                            </div>
+                            <div class="desk-group desk-group--management" role="group" aria-label="Story management">
+                                <button id="exportBtn" class="btn btn-secondary" type="button">Export EPUB</button>
+                                <button id="audiobookBtn" class="btn btn-secondary" type="button" title="Generate a whole-story audiobook with the narrator chosen in Settings">Audiobook</button>
+                                <button id="deletePageBtn" class="btn btn-danger" type="button" title="Delete the page you are viewing">Delete page</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Settings Section -->
+            <section id="settingsSection" class="content-section" aria-label="Settings">
+                <h2>Settings</h2>
+                <p class="setting-hint">Preferences save on this device immediately.</p>
+                <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
+
+                <details class="create-form settings-group" open>
+                    <summary><h3>Writing AI</h3><span id="writingAiSummary" class="settings-group__summary">Server default model · ≈400 words per page</span></summary>
+                    <p id="currentModel" class="current-model">Using the server default model</p>
+                    <details class="model-disclosure">
+                        <summary>Choose another model</summary>
+                        <label for="modelSearch">Search models</label>
+                        <input type="text" id="modelSearch" placeholder="Search by name or id… (e.g. claude, glm, gemini)" autocomplete="off">
+                        <div id="modelList" class="model-list" aria-label="Available models"></div>
+                        <button id="modelResetBtn" type="button" class="btn btn-secondary">Use the server default model</button>
+                    </details>
+                    <div id="reasoningBlock" hidden>
+                        <label for="reasoningSelect">Reasoning level (this model thinks before writing)</label>
+                        <select id="reasoningSelect"></select>
+                    </div>
+                    <label for="wordsPerPageInput">Target words per generated page (approximate)</label>
+                    <input type="number" id="wordsPerPageInput" min="50" max="2000" step="50" value="400" inputmode="numeric">
+                    <p class="setting-hint">Shorter pages generate faster. The scribe treats this as a suggestion, not a contract.</p>
+                </details>
+
+                <details class="create-form settings-group" open>
+                    <summary><h3>Narration</h3><span id="narrationSummary" class="settings-group__summary">No narrator chosen</span></summary>
+                    <p class="current-model" id="narrationStatus">Reading aloud uses a speech model through OpenRouter. The current page's text is sent to the selected provider.</p>
+                    <label for="narrationModelSelect">Speech model</label>
+                    <select id="narrationModelSelect">
+                        <option value="">— Choose a speech model —</option>
+                    </select>
+                    <label for="narrationVoiceSelect">Voice</label>
+                    <select id="narrationVoiceSelect" disabled>
+                        <option value="">— Choose a voice —</option>
+                    </select>
+                </details>
+
+                <details class="create-form settings-group" open>
+                    <summary><h3>Reading appearance</h3><span id="readingSummary" class="settings-group__summary">Literata · 18px</span></summary>
+                    <div id="fontList" class="font-list" aria-label="Story typeface"></div>
+                    <label for="fontSizeSelect">Story text size</label>
+                    <select id="fontSizeSelect">
+                        <option value="16">Small (16px)</option>
+                        <option value="18">Medium (18px)</option>
+                        <option value="20">Large (20px)</option>
+                        <option value="22">Extra large (22px)</option>
+                    </select>
+                    <label class="toggle-row" for="scriptoriumBgToggle">
+                        <input type="checkbox" id="scriptoriumBgToggle">
+                        <span>Toned-down scriptorium artwork behind the writing page</span>
+                    </label>
+                </details>
+
+                <details class="create-form settings-group" open>
+                    <summary><h3>Costs &amp; storage</h3><span class="settings-group__summary">One approval, then quiet cost tracking</span></summary>
+                    <label class="toggle-row" for="costTickerToggle">
+                        <input type="checkbox" id="costTickerToggle" checked>
+                        <span>Session &amp; story cost ticker on the writing page</span>
+                    </label>
+                    <p class="setting-hint">After you approve one paid action, this device remembers your consent until its site data is cleared.</p>
+                    <p class="setting-hint">Costs are approximate until the provider reports the authoritative number; the ticker is a running meter, not a guarantee.</p>
+                </details>
+
+                <details class="create-form settings-group" id="dataBackupsGroup">
+                    <summary><h3>Data &amp; backups</h3><span class="settings-group__summary">Portable archives with dependency checks</span></summary>
+                    <p class="current-model">Carry one asset, a linked bundle, or the whole scriptorium to another installation.</p>
+                    <p class="setting-hint">Exports are reviewed before download. Imports are staged and collision-checked before anything local changes; no AI calls or provider charges are involved.</p>
+                    <div class="data-transfer-actions">
+                        <button id="dataExportBtn" type="button" class="btn btn-primary">Export or back up…</button>
+                        <button id="dataImportBtn" type="button" class="btn btn-secondary">Import or restore…</button>
+                        <input id="dataImportFile" class="sr-only" type="file" accept=".scribetribe,.zip,application/zip">
+                    </div>
+                    <p id="dataTransferStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
+                    <p class="setting-hint">Audio is always optional. Your login and browser sessions never enter an archive; portable archives are not encrypted.</p>
+                </details>
+
+                <details class="create-form settings-group" id="securityGroup">
+                    <summary><h3>Security</h3><span class="settings-group__summary">Password and local sessions</span></summary>
+                    <p class="current-model">Change the password for this installation. This immediately locks every other browser session.</p>
+                    <form id="passwordChangeForm" class="security-form">
+                        <label for="passwordCurrent">Current password</label>
+                        <div class="auth-password">
+                            <input id="passwordCurrent" type="password" autocomplete="current-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordCurrent" aria-pressed="false">Show</button>
+                        </div>
+                        <label for="passwordNew">New password or passphrase</label>
+                        <div class="auth-password">
+                            <input id="passwordNew" type="password" autocomplete="new-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordNew" aria-pressed="false">Show</button>
+                        </div>
+                        <label for="passwordConfirm">Repeat new password</label>
+                        <div class="auth-password">
+                            <input id="passwordConfirm" type="password" autocomplete="new-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordConfirm" aria-pressed="false">Show</button>
+                        </div>
+                        <p class="setting-hint">Use at least 15 characters. Spaces and Unicode are welcome; arbitrary symbol rules and forced expiry are not.</p>
+                        <p id="passwordChangeStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
+                        <button type="submit" class="btn btn-primary">Change password</button>
+                    </form>
+                    <p class="setting-hint">Forgotten password? Stop the server and run <code>cd backend &amp;&amp; npm run auth:reset -- --yes</code>. Manuscripts and assets are preserved.</p>
+                </details>
+
+                <details class="create-form settings-group">
+                    <summary><h3>Keyboard shortcuts</h3><span class="settings-group__summary">The desk in fewer motions</span></summary>
+                    <dl class="shortcut-list">
+                        <div><dt>Ctrl/⌘ + Enter</dt><dd>Write the next page</dd></div>
+                        <div><dt>[ and ]</dt><dd>Previous / next page (outside form fields)</dd></div>
+                        <div><dt>Escape</dt><dd>Close a dialog</dd></div>
+                    </dl>
+                </details>
+            </section>
+        </main>
+
+        <footer class="main-footer">            <img class="ornament" src="brand/ornament-divider.svg" alt="" width="320" height="32" decoding="async">
+            <p>Ink remembers.</p>
+        </footer>
+    </div>
+
+    <div id="imagePromptModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="imagePromptTitle" aria-describedby="imagePromptHint">
+            <h2 id="imagePromptTitle">Scene image prompt</h2>
+            <p id="imagePromptHint" class="burn-modal__body">
+                Condensed from the world, the cast as they stand in this scene, and the pages so far.
+                Edit freely before feeding it to an image generator.
+            </p>
+            <label class="setting-label" for="imageQualitySelect">Render</label>
+            <select id="imageQualitySelect">
+                <option value="low_1k">1K · low — fast, ≈$0.04</option>
+                <option value="medium_2k">2K · medium — finest, ≈$0.08</option>
+            </select>
+            <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
+            <p id="sceneImageCost" class="scene-image-cost" hidden></p>
+            <div class="burn-modal__actions">
+                <button id="imagePromptGenerateBtn" type="button" class="btn btn-primary">Generate image</button>
+                <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sceneImageViewerModal" class="scene-viewer" hidden>
+        <img id="sceneViewerImg" alt="The painted scene" draggable="false">
+        <div class="scene-viewer__actions">
+            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Bind this painting into the story as a page after the one it illustrates">Add as page</button>
+            <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
+            <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
+        </div>
+    </div>
+
+    <div id="audiobookModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel" role="dialog" aria-modal="true" aria-labelledby="audiobookTitle" aria-describedby="audiobookModalBody">
+            <h2 id="audiobookTitle">Bind the tale into an audiobook</h2>
+            <div id="audiobookModalBody" class="burn-modal__body"></div>
+            <p id="audiobookExisting" class="audiobook-existing" hidden></p>
+            <div class="burn-modal__actions">
+                <button id="audiobookCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+                <button id="audiobookStartBtn" type="button" class="btn btn-primary">Create audiobook</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storyAssetsModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel story-assets-panel" role="dialog" aria-modal="true" aria-labelledby="storyAssetsTitle">
+            <div class="story-assets__head">
+                <div>
+                    <p class="hero__kicker">The kept things</p>
+                    <h2 id="storyAssetsTitle">Story assets</h2>
+                </div>
+                <p id="storyAssetsTotal" class="story-assets__total"></p>
+            </div>
+            <div id="storyAssetsBody" class="story-assets__body"></div>
+            <div class="burn-modal__actions">
+                <button id="storyAssetsWriteBtn" type="button" class="btn btn-primary">Open writing desk</button>
+                <button id="storyAssetsCastBtn" type="button" class="btn btn-secondary">Edit cast</button>
+                <button id="storyAssetsExportBtn" type="button" class="btn btn-secondary">Export archive…</button>
+                <button id="storyAssetsCloseBtn" type="button" class="btn btn-secondary">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="characterEditorModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel" role="dialog" aria-modal="true" aria-labelledby="characterEditorTitle">
+            <h2 id="characterEditorTitle">Edit character</h2>
+            <form id="characterEditorForm" class="create-form editor-form">
+                <label for="charEditName">Name</label>
+                <input type="text" id="charEditName" maxlength="200" autocomplete="off">
+                <label for="charEditWorld">World</label>
+                <select id="charEditWorld">
+                    <option value="">No world (free-roaming character)</option>
+                </select>
+                <p class="setting-hint">Moving a character changes their catalogue home, not existing story casts. Saving alone never repaints the portrait.</p>
+                <label for="charEditDescription">Description</label>
+                <textarea id="charEditDescription" rows="3" maxlength="10000"></textarea>
+                <label for="charEditPersonality">Personality</label>
+                <textarea id="charEditPersonality" rows="2" maxlength="10000"></textarea>
+                <label for="charEditAppearance">Appearance</label>
+                <textarea id="charEditAppearance" rows="2" maxlength="10000"></textarea>
+                <label for="charEditBackground">Background</label>
+                <textarea id="charEditBackground" rows="2" maxlength="10000"></textarea>
+                <label for="charEditImagePrompt">Portrait blurb — sent to the image generator (empty = composed from the sheet)</label>
+                <textarea id="charEditImagePrompt" rows="3" maxlength="2000"></textarea>
+            </form>
+            <div class="burn-modal__actions">
+                <button id="charEditSaveBtn" type="submit" form="characterEditorForm" class="btn btn-primary">Save</button>
+                <button id="charEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
+                <button id="charEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="worldEditorModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel" role="dialog" aria-modal="true" aria-labelledby="worldEditorTitle">
+            <h2 id="worldEditorTitle">Edit world</h2>
+            <form id="worldEditorForm" class="create-form editor-form">
+                <label for="worldEditName">Name</label>
+                <input type="text" id="worldEditName" maxlength="200" autocomplete="off">
+                <label for="worldEditDescription">Description</label>
+                <textarea id="worldEditDescription" rows="3" maxlength="10000"></textarea>
+                <label for="worldEditGenre">Genre</label>
+                <input type="text" id="worldEditGenre" maxlength="100" autocomplete="off">
+                <label for="worldEditSetting">Setting</label>
+                <input type="text" id="worldEditSetting" maxlength="200" autocomplete="off">
+                <label for="worldEditLore">Lorebook — canonical facts of this world; honored by every future page</label>
+                <textarea id="worldEditLore" rows="7" maxlength="20000"></textarea>
+                <label for="worldEditImagePrompt">Scene blurb — sent to the image generator (empty = composed from the world)</label>
+                <textarea id="worldEditImagePrompt" rows="3" maxlength="2000"></textarea>
+            </form>
+            <div class="burn-modal__actions">
+                <button id="worldEditSaveBtn" type="submit" form="worldEditorForm" class="btn btn-primary">Save</button>
+                <button id="worldEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
+                <button id="worldEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="storyCastModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
+            <div class="cast-edit__head">
+                <h2 id="storyCastTitle">Story cast</h2>
+                <p id="storyCastMode" class="cast-edit__mode"></p>
+                <p id="storyCastStatus" class="cast-edit__status" role="status"></p>
+            </div>
+            <div class="cast-edit__body">
+                <div class="cast-edit__roster">
+                    <div id="storyCastList" class="cast-edit-list" role="list"></div>
+                    <div class="cast-edit-add">
+                        <label class="sr-only" for="storyCastAddSelect">Character to add</label>
+                        <select id="storyCastAddSelect"></select>
+                        <label class="sr-only" for="storyCastAddRole">Role for the new member</label>
+                        <select id="storyCastAddRole">
+                            <option value="supporting">Supporting</option>
+                            <option value="background">Background</option>
+                            <option value="mc">Lead</option>
+                        </select>
+                        <label class="sr-only" for="storyCastAddRelation">Starting connection</label>
+                        <input type="text" id="storyCastAddRelation" maxlength="2000" placeholder="starting connection…">
+                        <button id="storyCastAddBtn" type="button" class="btn btn-secondary">Add to cast</button>
+                    </div>
+                </div>
+                <div id="storyCastDetail" class="cast-edit__detail"></div>
+            </div>
+            <p id="storyCastNote" class="cast-edit-note" hidden></p>
+            <div class="burn-modal__actions">
+                <button id="storyCastSaveBtn" type="button" class="btn btn-primary">Save cast</button>
+                <button id="storyCastCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="aiDraftModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel" role="dialog" aria-modal="true" aria-labelledby="aiDraftTitle">
+            <h2 id="aiDraftTitle">The scribe offers a draft</h2>
+            <div id="aiDraftBody"></div>
+        </div>
+    </div>
+
+    <script type="module" src="app/bootstrap.js"></script>
+</body>
+</html>

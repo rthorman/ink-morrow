@@ -1,0 +1,344 @@
+'use strict';
+
+// The extractor is deliberately separate from the author. It observes one
+// committed page, emits bounded structured deltas, and never gets to rewrite
+// the prose. A failed extraction leaves the page valid and visibly retryable.
+
+const CONTINUITY_SCHEMA = {
+  type: 'json_schema',
+  json_schema: {
+    name: 'scribe_tribe_continuity_delta',
+    strict: true,
+    schema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['summary', 'events', 'character_updates', 'goal_updates', 'thread_updates', 'world_fact_updates'],
+      properties: {
+        summary: { type: 'string' },
+        events: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['text', 'character_ids', 'importance', 'type'],
+            properties: {
+              text: { type: 'string' },
+              character_ids: { type: 'array', items: { type: 'string' } },
+              importance: { type: 'string', enum: ['minor', 'major'] },
+              type: { type: 'string', enum: ['action', 'revelation', 'transition', 'relationship', 'world'] },
+            },
+          },
+        },
+        character_updates: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['character_id', 'location', 'condition', 'knowledge_gained', 'knowledge_lost',
+              'possessions_gained', 'possessions_lost', 'personality', 'appearance', 'relationship_to_mc'],
+            properties: {
+              character_id: { type: 'string' },
+              location: { type: ['string', 'null'] },
+              condition: { type: ['string', 'null'] },
+              knowledge_gained: { type: 'array', items: { type: 'string' } },
+              knowledge_lost: { type: 'array', items: { type: 'string' } },
+              possessions_gained: { type: 'array', items: { type: 'string' } },
+              possessions_lost: { type: 'array', items: { type: 'string' } },
+              personality: { type: ['string', 'null'] },
+              appearance: { type: ['string', 'null'] },
+              relationship_to_mc: { type: ['string', 'null'] },
+            },
+          },
+        },
+        goal_updates: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['id', 'character_id', 'text', 'status'],
+            properties: {
+              id: { type: ['string', 'null'] },
+              character_id: { type: ['string', 'null'] },
+              text: { type: ['string', 'null'] },
+              status: { type: 'string', enum: ['pending', 'active', 'fulfilled', 'abandoned'] },
+            },
+          },
+        },
+        thread_updates: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['id', 'text', 'status'],
+            properties: {
+              id: { type: ['string', 'null'] },
+              text: { type: ['string', 'null'] },
+              status: { type: 'string', enum: ['open', 'resolved'] },
+            },
+          },
+        },
+        world_fact_updates: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['id', 'text', 'status'],
+            properties: {
+              id: { type: ['string', 'null'] },
+              text: { type: ['string', 'null'] },
+              status: { type: 'string', enum: ['established', 'superseded'] },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const EXTRACTOR_CHARACTER_LIST_LIMIT = 50;
+const EXTRACTOR_ACTIVE_ITEM_LIMIT = 40;
+const EXTRACTOR_CLOSED_ITEM_LIMIT = 20;
+const EXTRACTOR_FACT_LIMIT = 50;
+const EXTRACTOR_PAGE_CHARS = 50000;
+
+function clipped(value, max) {
+  const raw = String(value || '');
+  return raw.length > max ? raw.slice(0, max) + '… [clipped]' : raw;
+}
+
+function latest(items, limit) {
+  return [...items]
+    .sort((a, b) => (Number(a.page_number) || 0) - (Number(b.page_number) || 0))
+    .slice(-limit);
+}
+
+function boundedStatusItems(items, activeStatuses) {
+  const active = latest(items.filter((item) => activeStatuses.has(item.status)), EXTRACTOR_ACTIVE_ITEM_LIMIT);
+  const closed = latest(items.filter((item) => !activeStatuses.has(item.status)), EXTRACTOR_CLOSED_ITEM_LIMIT);
+  return [...active, ...closed];
+}
+
+function parseJson(content) {
+  const clean = String(content || '').replace(/```json|```/gi, '').trim();
+  const start = clean.indexOf('{');
+  const end = clean.lastIndexOf('}');
+  if (start < 0 || end <= start) return null;
+  try { return JSON.parse(clean.slice(start, end + 1)); } catch { return null; }
+}
+
+function spendOf(value) {
+  return {
+    model: value?.model || null,
+    usage: value?.usage || null,
+    cost_usd: typeof value?.cost_usd === 'number'
+      ? value.cost_usd
+      : typeof value?.costUsd === 'number' ? value.costUsd : null,
+    billed_attempts: Number.isInteger(value?.billed_attempts)
+      ? value.billed_attempts
+      : Number.isInteger(value?.billedAttempts) ? value.billedAttempts : 0,
+  };
+}
+
+function combineSpend(total, value) {
+  const next = spendOf(value);
+  total.model = next.model || total.model;
+  total.billed_attempts += next.billed_attempts;
+  if (next.usage) {
+    total.usage.prompt_tokens += Number(next.usage.prompt_tokens) || 0;
+    total.usage.completion_tokens += Number(next.usage.completion_tokens) || 0;
+  }
+  if (typeof next.cost_usd === 'number' && Number.isFinite(next.cost_usd)) total.cost_usd += next.cost_usd;
+  else if (next.billed_attempts > 0) total.cost_known = false;
+  return total;
+}
+
+function publicMemory(row) {
+  if (!row) return null;
+  return {
+    page_id: row.page_id,
+    status: row.status,
+    summary: row.summary || null,
+    model: row.model || null,
+    prompt_tokens: row.prompt_tokens ?? null,
+    completion_tokens: row.completion_tokens ?? null,
+    cost_usd: row.cost_usd ?? 0,
+    error: row.error || null,
+  };
+}
+
+function createContinuityService({ db, stories, store, chatCompletion, autoEnabled = true }) {
+  // A prepared-page commit starts extraction after responding, while the
+  // browser may immediately ask for that result to update its cost ticker.
+  // Both callers must join one provider job, never purchase duplicate memory.
+  const pageSyncs = new Map();
+
+  function extractionMessages(story, page) {
+    // Crucially, page N is interpreted against the fold through N-1. Later
+    // pages can never leak facts backward during a manual memory build.
+    const before = store.project(story, { throughPageNumber: page.page_number - 1 });
+    const characterLines = before.characters.map((character) => {
+      const current = character.current;
+      return `- ${character.name} [${character.id}], ${character.role}: ` +
+        `location=${current.location || 'unknown'}; condition=${current.condition || 'normal'}; ` +
+        `personality=${clipped(current.personality || 'unspecified', 1200)}; ` +
+        `appearance=${clipped(current.appearance || 'unspecified', 1200)}; ` +
+        `relationship=${clipped(current.relationship_to_mc || 'unspecified', 800)}; ` +
+        `recent knowledge=${clipped(current.knowledge.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 5000)}; ` +
+        `recent possessions=${clipped(current.possessions.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 5000)}`;
+    });
+    const goals = boundedStatusItems(before.goals, new Set(['pending', 'active']))
+      .map((goal) => `- [${goal.id}] ${clipped(goal.text || '(untitled)', 1000)} — ${goal.status}`).join('\n');
+    const threads = boundedStatusItems(before.threads, new Set(['open']))
+      .map((thread) => `- [${thread.id}] ${clipped(thread.text || '(untitled)', 1000)} — ${thread.status}`).join('\n');
+    const worldFacts = latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
+      .map((fact) => `- [${fact.id}] ${fact.text || '(untitled)'}`).join('\n');
+    const system = [
+      'You are ScribeTribe’s continuity clerk. Extract durable changes from ONE already-written story page.',
+      'Report only facts caused or made true by this page. Do not treat character sheets, plans, desires, hypothetical language, dialogue commands, or user direction as events unless the prose says they happened.',
+      'A goal may move to fulfilled or abandoned when the page resolves it. Do not recreate a resolved goal under a new id.',
+      'Reuse the listed id when changing an existing goal, thread, or fact. For knowledge_lost or possessions_lost, copy the prior item text exactly so the local fold can remove it.',
+      'Use only listed character ids. Keep summaries factual and compact. Empty arrays are correct when nothing durable changed.',
+      'Return one strict JSON object matching the supplied schema and no prose.',
+    ].join(' ');
+    const user = [
+      `STORY: ${story.title}`,
+      `STATE BEFORE PAGE ${page.page_number}:`,
+      characterLines.join('\n') || '(no fixed cast)',
+      `GOALS BEFORE:\n${goals || '(none)'}`,
+      `OPEN/RESOLVED THREADS BEFORE:\n${threads || '(none)'}`,
+      `ESTABLISHED STORY FACTS BEFORE:\n${worldFacts || '(none)'}`,
+      page.user_input ? `AUTHOR DIRECTION THAT LED TO THIS PAGE (context only; not proof it happened):\n${clipped(page.user_input, 4000)}` : '',
+      `COMMITTED PAGE ${page.page_number}:\n${clipped(page.content, EXTRACTOR_PAGE_CHARS)}`,
+    ].filter(Boolean).join('\n\n');
+    return [{ role: 'system', content: system }, { role: 'user', content: user }];
+  }
+
+  async function extract(story, page, modelOverride) {
+    const messages = extractionMessages(story, page);
+    const total = { model: null, usage: { prompt_tokens: 0, completion_tokens: 0 }, cost_usd: 0, cost_known: true, billed_attempts: 0 };
+
+    async function call(useSchema, correction = false) {
+      const callMessages = correction
+        ? [...messages, { role: 'system', content: 'The previous reply was invalid. Return ONLY one valid JSON object matching every required field.' }]
+        : messages;
+      try {
+        return await chatCompletion(callMessages, {
+          model: process.env.CONTINUITY_MODEL || modelOverride || undefined,
+          temperature: 0.1,
+          maxTokens: 2200,
+          maxBillableAttempts: 1,
+          ...(useSchema ? { responseFormat: CONTINUITY_SCHEMA } : {}),
+        });
+      } catch (error) {
+        // Some OpenRouter providers advertise chat but reject JSON Schema.
+        // A schema-validation 400 has no successful completion and can safely
+        // fall back to the same strict instruction without double-counting.
+        if (useSchema && error.upstreamStatus === 400 && !error.billedAttempts) {
+          return chatCompletion(callMessages, {
+            model: process.env.CONTINUITY_MODEL || modelOverride || undefined,
+            temperature: 0.1,
+            maxTokens: 2200,
+            maxBillableAttempts: 1,
+          });
+        }
+        throw error;
+      }
+    }
+
+    let result;
+    try {
+      result = await call(true);
+      combineSpend(total, result);
+      let parsed = parseJson(result.content);
+      if (!parsed) {
+        result = await call(false, true);
+        combineSpend(total, result);
+        parsed = parseJson(result.content);
+      }
+      if (!parsed) {
+        const error = new Error('The continuity clerk returned invalid structured data twice.');
+        error.extractionSpend = total;
+        throw error;
+      }
+      const castIds = store.snapshots(story).map((character) => character.character_id);
+      return {
+        delta: store.sanitizeDelta(parsed, castIds),
+        spend: {
+          model: total.model || result.model,
+          usage: total.usage,
+          cost_usd: total.cost_known ? total.cost_usd : null,
+          billed_attempts: total.billed_attempts,
+        },
+      };
+    } catch (error) {
+      if (!error.extractionSpend) {
+        combineSpend(total, error);
+        error.extractionSpend = total;
+      }
+      throw error;
+    }
+  }
+
+  async function runSyncPage(story, page, { model, force = false } = {}) {
+    if (!page || page.story_id !== story.id) throw new Error('Page does not belong to this story');
+    if (page.image_media_type || !String(page.content || '').trim()) return { skipped: true, reason: 'non-text page' };
+    const hash = store.contentHash(page.content);
+    const current = store.getPageMemory(page.id);
+    if (!force && current?.status === 'ready' && current.content_hash === hash) {
+      return { memory: publicMemory(current), page: stories.getPageById(page.id), unchanged: true };
+    }
+
+    store.beginPage(page);
+    try {
+      const { delta, spend } = await extract(story, page, model || page.model || undefined);
+      const row = store.finishPage(page, hash, delta, spend);
+      return { memory: publicMemory(row), page: stories.getPageById(page.id), delta };
+    } catch (error) {
+      const raw = error.extractionSpend || spendOf(error);
+      const spend = {
+        model: raw.model || model || page.model || process.env.CONTINUITY_MODEL || null,
+        usage: raw.usage || { prompt_tokens: 0, completion_tokens: 0 },
+        cost_usd: raw.cost_known === false ? null : raw.cost_usd,
+        billed_attempts: raw.billed_attempts || 0,
+      };
+      const row = store.failPage(page, hash, error, spend);
+      return { memory: publicMemory(row), page: stories.getPageById(page.id), failed: true };
+    }
+  }
+
+  function syncPage(story, page, options = {}) {
+    const existing = pageSyncs.get(page?.id);
+    if (existing) return existing;
+    let task;
+    task = runSyncPage(story, page, options).finally(() => {
+      if (pageSyncs.get(page?.id) === task) pageSyncs.delete(page?.id);
+    });
+    pageSyncs.set(page?.id, task);
+    return task;
+  }
+
+  async function maybeSyncPage(story, page, options = {}) {
+    if (!autoEnabled) return { page };
+    return syncPage(story, page, options);
+  }
+
+  function contextForPrompt(story, { userInput = '', excludePageIds = [], throughPageNumber = null, recentPageIds = [] } = {}) {
+    const projection = store.project(story, { throughPageNumber, excludePageIds });
+    const relevant = store.searchRelevant(
+      story.id,
+      `${userInput} ${projection.characters.map((character) => character.name).join(' ')}`,
+      { excludePageIds: [...excludePageIds, ...recentPageIds], limit: 6 }
+    );
+    return { ...projection, relevant, coverage: store.coverageSummary(story) };
+  }
+
+  function view(story) {
+    return store.continuityView(story);
+  }
+
+  return {
+    extract,
+    syncPage,
+    maybeSyncPage,
+    contextForPrompt,
+    view,
+    isAutoEnabled: () => autoEnabled,
+  };
+}
+
+module.exports = { createContinuityService, CONTINUITY_SCHEMA, parseJson, publicMemory };

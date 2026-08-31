@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ScribeTribe project archive manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "format",
+    "version",
+    "manifest_schema_version",
+    "database_schema",
+    "created_at",
+    "created_by",
+    "scope",
+    "options",
+    "settings",
+    "entities",
+    "assets",
+    "exposure"
+  ],
+  "properties": {
+    "format": { "const": "scribetribe-project-archive" },
+    "version": { "const": 2 },
+    "manifest_schema_version": { "const": 1 },
+    "database_schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["family", "version"],
+      "properties": {
+        "family": { "const": "scribetribe-4" },
+        "version": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "created_by": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["application", "version"],
+      "properties": {
+        "application": { "const": "ScribeTribe" },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scope": { "enum": ["world", "character", "story", "full"] },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["include_visuals", "include_audio", "include_working_history"],
+      "properties": {
+        "include_visuals": { "type": "boolean" },
+        "include_audio": { "type": "boolean" },
+        "include_working_history": { "type": "boolean" }
+      }
+    },
+    "settings": { "type": ["object", "null"] },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "id", "name", "path", "size_bytes", "sha256", "semantic_sha256", "dependencies"],
+        "properties": {
+          "kind": { "enum": ["world", "character", "story"] },
+          "id": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "name": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "path": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "semantic_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "dependencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["kind", "id"],
+              "properties": {
+                "kind": { "enum": ["world", "character", "story"] },
+                "id": { "type": "string", "minLength": 1, "maxLength": 200 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "owner_kind", "owner_id", "story_id", "page_number", "archive_path", "media_type", "size_bytes", "sha256"],
+        "properties": {
+          "kind": { "enum": ["image", "audio"] },
+          "owner_kind": { "enum": ["world", "character", "story", "page"] },
+          "owner_id": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "story_id": { "type": ["string", "null"] },
+          "page_number": { "type": ["integer", "null"], "minimum": 1 },
+          "archive_path": { "type": "string", "minLength": 1 },
+          "media_type": { "type": "string", "minLength": 1 },
+          "size_bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      }
+    },
+    "exposure": { "type": "object" }
+  }
+}

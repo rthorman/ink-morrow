@@ -1,0 +1,441 @@
+/* ------------------------------------------------------------------ settings */
+
+.current-model {
+  margin: 0 0 14px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  color: var(--st-gold-300);
+}
+
+.model-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  padding: 4px;
+}
+
+.model-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas: 'name meta' 'id meta';
+  align-items: center;
+  column-gap: 14px;
+  width: 100%;
+  min-height: var(--st-touch-min);
+  padding: 10px 14px;
+  text-align: left;
+  background: var(--st-surface-3);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+  transition:
+    border-color var(--st-duration-fast) ease,
+    background-color var(--st-duration-fast) ease;
+}
+
+.model-item:hover {
+  border-color: var(--st-border-bright);
+  background: var(--st-ink-700);
+}
+
+.model-item.selected {
+  border-color: var(--st-gold-500);
+  background: rgb(110 24 52 / 0.25);
+}
+
+.model-item__name {
+  grid-area: name;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--st-vellum-100);
+}
+
+.model-item__id {
+  grid-area: id;
+  font-family: var(--st-font-mono);
+  font-size: 0.75rem;
+  color: var(--st-text-muted);
+}
+
+.model-item__meta {
+  grid-area: meta;
+  font-family: var(--st-font-mono);
+  font-size: 0.78rem;
+  color: var(--st-violet-300);
+  white-space: nowrap;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: var(--st-touch-min);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: var(--st-vellum-200);
+  background: var(--st-surface-3);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+}
+
+.toggle-row:hover {
+  border-color: var(--st-border-bright);
+}
+
+.toggle-row input[type='checkbox'] {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0;
+  accent-color: var(--st-oxblood-500);
+  flex: 0 0 auto;
+}
+
+.story-content .placeholder {
+  font-family: var(--st-prose-family, var(--st-font-reading));
+  font-size: var(--st-prose-size, 1.12rem);
+}
+
+.setting-hint {
+  margin: -6px 0 0 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.78rem;
+  color: var(--st-text-muted);
+}
+
+/* ------------------------------------------------------------------ font picker */
+
+.font-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.font-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--st-touch-min);
+  padding: 8px 16px;
+  background: var(--st-surface-3);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  color: var(--st-vellum-100);
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition:
+    border-color var(--st-duration-fast) ease,
+    background-color var(--st-duration-fast) ease;
+}
+
+.font-item:hover {
+  border-color: var(--st-border-bright);
+}
+
+.font-item.selected {
+  border-color: var(--st-gold-500);
+  background: rgb(110 24 52 / 0.25);
+}
+
+.font-item__sample {
+  font-size: 1.25rem;
+  color: var(--st-gold-300);
+  line-height: 1;
+}
+
+.font-item__label {
+  font-size: 0.95rem;
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Settings: intent-led groups                                          */
+/* ------------------------------------------------------------------ */
+
+.settings-group summary {
+  display: flex;
+  align-items: baseline;
+  gap: 0.9rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-group summary::after {
+  content: '▸';
+  color: var(--st-gold-500);
+  margin-left: auto;
+  transition: transform 160ms ease;
+}
+
+.settings-group[open] summary::after {
+  transform: rotate(90deg);
+}
+
+.settings-group summary h3 {
+  margin: 0;
+}
+
+.settings-group__summary {
+  color: var(--st-vellum-200);
+  font-size: 0.85rem;
+}
+
+.settings-saved {
+  min-height: 1.2em;
+  margin: 0.2rem 0 0.8rem;
+  color: var(--st-witchlight-400);
+  font-size: 0.88rem;
+}
+
+.model-disclosure {
+  border: 1px dashed var(--st-gold-700);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.6rem 0;
+}
+
+.model-disclosure summary {
+  cursor: pointer;
+  color: var(--st-gold-300);
+}
+
+.shortcut-list {
+  margin: 0.4rem 0 0;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.shortcut-list div {
+  display: flex;
+  gap: 0.9rem;
+  align-items: baseline;
+}
+
+.shortcut-list dt {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: var(--st-gold-300);
+  min-width: 9.5rem;
+}
+
+.shortcut-list dd {
+  margin: 0;
+  color: var(--st-vellum-200);
+  font-size: 0.9rem;
+}
+
+/* ------------------------------------------------------------------ portable data */
+
+.data-transfer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0 0.5rem;
+}
+
+.data-transfer-status {
+  min-height: 1.4em;
+  margin: 0.4rem 0;
+  color: var(--st-witchlight-400);
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+}
+
+.transfer-dialog,
+.transfer-dialog p,
+.transfer-dialog label,
+.transfer-dialog h3,
+.transfer-dialog dt,
+.transfer-dialog dd {
+  text-align: left;
+}
+
+.transfer-dialog {
+  display: grid;
+  gap: 0.85rem;
+  width: min(100%, 52rem);
+}
+
+.transfer-dialog > * {
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.transfer-intro {
+  color: var(--st-vellum-100);
+  line-height: 1.55;
+}
+
+.transfer-field {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.transfer-field__label {
+  color: var(--st-gold-300);
+  font-family: var(--st-font-ui);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.transfer-fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0.8rem;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+}
+
+.transfer-fieldset legend {
+  padding: 0 0.4rem;
+  color: var(--st-gold-300);
+}
+
+.transfer-residents {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.45rem 0.9rem;
+  max-height: 13rem;
+  overflow: auto;
+}
+
+.transfer-resident {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.5rem;
+  margin: 0;
+  color: var(--st-vellum-100);
+  font-weight: 400;
+}
+
+.transfer-resident input {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--st-oxblood-500);
+}
+
+.transfer-toggle {
+  margin: 0;
+}
+
+.transfer-toggle span {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.transfer-toggle__hint {
+  color: var(--st-text-muted);
+  font-family: var(--st-font-mono);
+  font-size: 0.72rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
+.transfer-privacy,
+.transfer-collision {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  background: var(--st-surface-3);
+}
+
+.transfer-privacy h3,
+.transfer-collision h3 {
+  margin: 0 0 0.4rem;
+  color: var(--st-gold-300);
+  font-size: 1rem;
+}
+
+.transfer-privacy p,
+.transfer-collision p {
+  margin: 0.35rem 0;
+}
+
+.transfer-exposure {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.transfer-exposure div {
+  padding: 0.55rem 0.7rem;
+  border-left: 2px solid var(--st-gold-700);
+  background: rgb(28 18 36 / 0.75);
+}
+
+.transfer-exposure dt {
+  color: var(--st-text-muted);
+  font-family: var(--st-font-mono);
+  font-size: 0.7rem;
+}
+
+.transfer-exposure dd {
+  margin: 0.15rem 0 0;
+  color: var(--st-vellum-100);
+  font-size: 1.05rem;
+}
+
+.transfer-size {
+  color: var(--st-witchlight-400);
+  font-family: var(--st-font-mono);
+}
+
+.transfer-warning {
+  padding: 0.7rem 0.8rem;
+  color: var(--st-vellum-100);
+  border-left: 3px solid var(--st-oxblood-400);
+  background: rgb(110 24 52 / 0.18);
+}
+
+.transfer-replace-warning {
+  opacity: 0.7;
+}
+
+.transfer-replace-warning.active {
+  opacity: 1;
+  border-color: var(--st-danger-500);
+}
+
+.transfer-collisions {
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(48vh, 34rem);
+  overflow: auto;
+  padding-right: 0.25rem;
+}
+
+.transfer-collision--conflict {
+  border-color: var(--st-oxblood-400);
+}
+
+.transfer-collision--identical {
+  border-color: var(--st-witchlight-400);
+}
+
+.transfer-collision__status {
+  color: var(--st-vellum-200);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 600px) {
+  .data-transfer-actions .btn {
+    width: 100%;
+  }
+
+  .transfer-exposure {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

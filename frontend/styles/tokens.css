@@ -1,0 +1,115 @@
+/* ScribeTribe — living manuscript theme.
+   Tokens adapted from ScribeTribe-OpenCode-Branding/scribetribe.tokens.css */
+
+:root {
+  color-scheme: dark;
+
+  --st-ink-950: #09060d;
+  --st-ink-900: #100a16;
+  --st-ink-850: #17101f;
+  --st-ink-800: #21142b;
+  --st-ink-700: #2d1a39;
+
+  --st-oxblood-700: #6e1834;
+  --st-oxblood-500: #a62b58;
+  --st-oxblood-400: #c94a79;
+  --st-rose-400: #df6e9d;
+
+  --st-violet-600: #68459e;
+  --st-violet-500: #8e63d8;
+  --st-violet-300: #ba9bea;
+  --st-witchlight-400: #69d9cb;
+
+  --st-gold-700: #806333;
+  --st-gold-500: #c7a35b;
+  --st-gold-300: #e0c584;
+
+  --st-vellum-50: #fbf5e9;
+  --st-vellum-100: #f2e7d2;
+  --st-vellum-200: #dfceae;
+  --st-vellum-900: #2c211b;
+
+  --st-ash-400: #a99fb1;
+  --st-ash-600: #726879;
+  --st-danger-500: #d64b58;
+  --st-success-500: #64b98a;
+  --st-success-700: #2f5c44;
+  --st-success-600: #3d7a58;
+
+  --st-bg: var(--st-ink-950);
+  --st-surface-1: var(--st-ink-900);
+  --st-surface-2: var(--st-ink-850);
+  --st-surface-3: var(--st-ink-800);
+  --st-text: var(--st-vellum-100);
+  --st-text-muted: var(--st-ash-400);
+  --st-primary: var(--st-oxblood-500);
+  --st-accent: var(--st-violet-500);
+  --st-focus: var(--st-witchlight-400);
+  --st-border: rgb(199 163 91 / 0.35);
+  --st-border-bright: rgb(224 197 132 / 0.55);
+
+  --st-font-display: "Cormorant Garamond", Georgia, serif;
+  --st-font-reading: Literata, Charter, Georgia, serif;
+  --st-font-ui: Inter, system-ui, sans-serif;
+  --st-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --st-radius-sm: 7px;
+  --st-radius-md: 12px;
+  --st-radius-lg: 16px;
+  --st-touch-min: 44px;
+  --st-content-max: 1440px;
+  --st-prose-max: 68ch;
+
+  --st-shadow-raised:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 18px 45px rgb(0 0 0 / 0.38);
+  --st-shadow-hero:
+    0 28px 80px rgb(0 0 0 / 0.58),
+    0 0 80px rgb(110 24 52 / 0.14);
+
+  --st-duration-fast: 140ms;
+  --st-duration-normal: 220ms;
+  --st-duration-reveal: 520ms;
+  --st-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  color: var(--st-vellum-50);
+  background: rgb(166 43 88 / 0.85);
+}
+
+/* Semantic state tokens: one alias per product state, so features never
+   repeat raw color values. Status is never color-only - text/labels carry
+   the meaning; these drive the material. */
+:root {
+  --surface-manuscript: var(--st-vellum-50); /* active prose plane */
+  --surface-archive: var(--st-ink-850); /* kept media / lore surfaces */
+  --surface-annotation: rgb(142 99 216 / 0.12); /* mutable/prepared tint */
+  --state-prepared: var(--st-violet-500); /* a page waits in the margin */
+  --state-queued: var(--st-gold-500); /* work pending in a queue */
+  --state-stale: var(--st-gold-700); /* the tale moved on */
+  --state-refused: var(--st-oxblood-400); /* provider said no */
+  --state-danger: var(--st-oxblood-500); /* destructive consequences */
+  --state-cost: var(--st-gold-300); /* money facts */
+}
+
+:focus-visible {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

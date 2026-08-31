@@ -1,0 +1,575 @@
+schema_version: 2
+release: "4.0.0-beta.1"
+decision_status: accepted
+decision_date: "2026-08-31"
+current_release_at_planning: "3.2.2"
+documentation_snapshot: release-root
+integration_branch: release/4.0.0
+final_target: main
+
+project_license:
+  spdx_expression: AGPL-3.0-only
+  license_file: LICENSE
+  license_sha256: d8a6cc31abc16b6748c7a21f21611f5a1ec33f67d22ca23d7da1c19b95496bee
+  applies_to: 4.0_release_line_and_generated_distributions
+  allow_mit_project_metadata: false
+  preserve_third_party_license_metadata: true
+  modified_network_corresponding_source_offer: required
+
+automation_policy:
+  generated_4_0_project_license: AGPL-3.0-only
+  allow_mit_licensed_4_0_output: false
+  allow_project_license_downgrade: false
+  require_license_notice_in_generated_output: true
+
+history_policy:
+  release_line:
+    branch: release/4.0.0
+    topology: parentless_root
+    prohibited_ancestors:
+      - main
+    merge_from_main: forbidden
+    rebase_onto_main: forbidden
+  implementation_branches:
+    fork_from: release/4.0.0
+    target: release/4.0.0
+  historical_main:
+    through_version: "3.2.2"
+    spdx_expression: MIT
+    mutate: false
+    hosting_commitment: none
+  final_cutover:
+    target: main
+    method: reviewed_unrelated_history_cutover
+    required_tree: exact_release_tip
+    release_branch_mutation: forbidden
+
+authority:
+  product: WORKSHOP-DECISIONS.md
+  round_table: ROUND-TABLE.md
+  architecture: SYSTEM-ARCHITECTURE.md
+  security: SECURITY-THREAT-MODEL.md
+  ux: UX-ARCHITECTURE.md
+  art: ART-DIRECTION.md
+  quality: QA-RELEASE-GATES.md
+  details: IMPLEMENTATION-PLAN.md
+
+global_invariants:
+  - 4.0 project-owned material remains AGPL-3.0-only
+  - automation never emits a MIT-licensed 4.0 project variant
+  - release/4.0.0 never gains main ancestry
+  - third-party license notices and metadata remain intact
+  - one canonical linear timeline
+  - only the active tail is substantively editable
+  - historical copyediting changes display prose without recalculating state
+  - a prepared page is speculative and contributes no continuity
+  - Next Page promotes the exact prepared prose
+  - one deliberate action cannot duplicate canon or provider spend
+  - art is noncanonical and never changes narrative state implicitly
+  - uploaded images receive technical validation but no semantic moderation
+  - reusable templates become story-local snapshots
+  - shares are immutable read-only publication snapshots
+  - provider credentials never enter exports, logs, snapshots, or frontend persistence
+  - no 3.x database or archive migration
+
+pull_requests:
+  - id: "00"
+    slug: plan-legal
+    title: Planning, legal, and release contract
+    status: merged
+    target: main
+    depends_on: []
+    risk: low
+    domains:
+      - product
+      - architecture
+      - security
+      - ux
+      - legal
+      - qa
+    deliverables:
+      - accepted workshop and round-table record
+      - implementation plan and machine-readable queue
+      - architecture, security, UX, art, and QA contracts
+      - legal and privacy notices
+      - repository documentation pointers
+    acceptance:
+      - internal links resolve
+      - this YAML parses and matches IMPLEMENTATION-PLAN.md
+      - shipped and planned behavior are clearly distinguished
+      - historical main through 3.2.2 remains unchanged under MIT
+      - the 4.0 release root and generated output are AGPL-3.0-only
+
+  - id: "01"
+    slug: v4-kernel
+    title: Clean 4.0 kernel and schema identity
+    status: merged
+    target: release/4.0.0
+    depends_on:
+      - "00"
+    risk: high
+    domains:
+      - backend
+      - database
+      - transfer
+      - security
+    deliverables:
+      - explicit scribetribe-4 schema family and migrations
+      - 3.x database refusal before mutation
+      - archive v2 identity and manifest scaffold
+      - operation journal and boot reconciliation
+    acceptance:
+      - clean and repeated boots are valid
+      - 3.x and future fixtures fail closed
+      - migrations are transactional
+      - existing auth boundary remains fail closed
+
+  - id: "02"
+    slug: manuscript-hierarchy
+    title: Volume, chapter, and page hierarchy
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "01"
+    risk: high
+    domains:
+      - backend
+      - database
+      - transfer
+    deliverables:
+      - story-volume-chapter-page data model
+      - default Volume I and Chapter I
+      - stable identities and transactional scoped order
+      - hierarchy APIs and archive aggregates
+    acceptance:
+      - order is deterministic under concurrent inserts
+      - renames preserve page identity
+      - active-tail and neighbor queries are indexed
+      - scenes are not entities
+
+  - id: "03"
+    slug: revisions-recovery
+    title: Revisions, copyediting, and truncation recovery
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "02"
+    risk: very_high
+    domains:
+      - backend
+      - database
+      - transfer
+    deliverables:
+      - immutable page revisions
+      - canonical and display revision pointers
+      - tail editing and historical copyediting
+      - truncation, immediate undo, and expiring recovery suffixes
+    acceptance:
+      - tail edit updates canonical and display text
+      - copyedit changes display text only
+      - truncate and restore are atomic
+      - unsafe restore refuses rather than merges
+
+  - id: "04"
+    slug: providers-vault
+    title: Provider profiles, secret vault, and AI roles
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "03"
+    risk: very_high
+    domains:
+      - auth
+      - providers
+      - backend
+      - security
+      - settings
+    deliverables:
+      - OpenAI-compatible provider profiles
+      - Scribe, Archivist, and Narrator assignments
+      - environment and session-only credentials
+      - reviewed encrypted persistent vault or disabled persistence
+    acceptance:
+      - APIs never return secrets
+      - canaries are absent from logs, archives, snapshots, and browser storage
+      - password change rewraps saved secrets
+      - restart requires passphrase re-entry before saved-secret use
+      - terminal password recovery clears unrecoverable saved secrets but preserves manuscripts
+      - manual work requires no provider
+
+  - id: "05"
+    slug: continuity-v2
+    title: Continuity ledger v2
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "04"
+    risk: very_high
+    domains:
+      - continuity
+      - database
+      - providers
+      - catalog
+    deliverables:
+      - versioned page-revision continuity schema
+      - deterministic fold and rebuildable projections
+      - story-local world and character snapshots
+      - author corrections and impact analysis
+    acceptance:
+      - prepared pages have no continuity
+      - copyedits do not replace canonical deltas
+      - truncation removes suffix effects deterministically
+      - long-story context remains bounded
+
+  - id: "06"
+    slug: writing-transactions
+    title: Transactional writing state machine
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "05"
+    risk: critical
+    domains:
+      - writing
+      - database
+      - providers
+      - continuity
+    deliverables:
+      - durable idempotent writing operations
+      - per-story writer lease
+      - context fingerprints and opaque preview identity
+      - exact prepared promotion and directed-generation semantics
+    acceptance:
+      - Next Page has no live-generation fallback
+      - typing and clearing preserves the same prepared page
+      - stale replies cannot mutate canon
+      - one action produces at most one canonical page and attributed spend
+
+  - id: "07"
+    slug: art-upload
+    title: Noncanonical art store and safe upload
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "06"
+    risk: high
+    domains:
+      - imagery
+      - database
+      - transfer
+      - security
+    deliverables:
+      - separate assets and placements
+      - streamed user image upload
+      - signature, decode, size, pixel, and metadata controls
+      - explicit provider-reference selection
+    acceptance:
+      - arbitrary image subjects are not classified
+      - upload makes no provider call
+      - malformed and active inputs fail safely
+      - art never changes page numbers or continuity
+
+  - id: "08"
+    slug: grok-sanitization
+    title: Grok sanitation adapter
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "07"
+    risk: medium
+    domains:
+      - imagery
+      - providers
+      - security
+    deliverables:
+      - renderable-by-design Grok prompts
+      - visible announce-and-wait sanitized prompt
+      - explicit reference-dropping path
+      - isolated provider-specific refusal behavior
+    acceptance:
+      - refusal never silently retries image generation
+      - sanitation cost and prompt are shown
+      - generation waits for a new action
+      - original assets remain unchanged
+
+  - id: "09"
+    slug: adaptive-shell
+    title: Adaptive Scriptorium shell
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "08"
+    risk: high
+    domains:
+      - frontend
+      - design_system
+      - accessibility
+    deliverables:
+      - fresh visual tokens and manuscript surfaces
+      - Library plus five-destination story workspace
+      - bottom navigation and navigation rail
+      - shared interaction and accessibility primitives
+    acceptance:
+      - private shell remains fail closed
+      - navigation vocabulary is stable across widths
+      - critical viewports and 200 percent zoom work
+      - manuscript legibility wins over ornament
+
+  - id: "10"
+    slug: library-start
+    title: Library and manuscript start
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "09"
+    risk: medium_high
+    domains:
+      - frontend
+      - catalog
+      - stories
+      - providers
+    deliverables:
+      - manuscript-first Library
+      - manual, seed, and import start paths
+      - optional Foundations
+      - contextual provider setup and at most three hints
+    acceptance:
+      - manual writing starts without provider setup
+      - default hierarchy is valid
+      - cancel preserves entered work
+      - no blocking setup wizard or tour
+
+  - id: "11"
+    slug: desk
+    title: The Desk
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "10"
+    risk: critical
+    domains:
+      - frontend
+      - writing
+      - audio
+      - accessibility
+    deliverables:
+      - active page editing and quiet autosave
+      - prepared and directed generation UI
+      - history reading and copyediting
+      - return-to-page and recovery UX
+    acceptance:
+      - all writing states are truthful and operable
+      - historical copyedit does not invoke Archivist
+      - provider failure preserves author input
+      - desktop and portrait authoring journeys pass
+
+  - id: "12"
+    slug: chronicle
+    title: Chronicle
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "11"
+    risk: medium_high
+    domains:
+      - frontend
+      - stories
+      - recovery
+      - accessibility
+    deliverables:
+      - hierarchy outline
+      - tail and coverage status
+      - volume and chapter maintenance
+      - recovery list, restore, and export fallback
+    acceptance:
+      - 3000-page fixture is navigable
+      - order matches publication model
+      - scenes remain prose markers
+      - unsafe recovery never silently merges
+
+  - id: "13"
+    slug: codex
+    title: Codex
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "12"
+    risk: high
+    domains:
+      - frontend
+      - continuity
+      - catalog
+      - providers
+    deliverables:
+      - Foundations, remembered canon, and corrections
+      - evidence and coverage views
+      - correction impact workflow
+      - reviewed template snapshot updates
+    acceptance:
+      - every fact exposes evidence
+      - corrections never rewrite prose
+      - template imports are field selective
+      - prepared prose is absent from remembered canon
+
+  - id: "14"
+    slug: gallery
+    title: Gallery
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "13"
+    risk: high
+    domains:
+      - frontend
+      - imagery
+      - accessibility
+    deliverables:
+      - unified generated and uploaded assets
+      - equal AI paint and upload paths
+      - placement, unplacement, download, and deletion
+      - Grok refusal and explicit reference UI
+    acceptance:
+      - upload path has no semantic moderation or AI call
+      - placement changes no narrative state
+      - technical errors are accurate
+      - provider refusal preserves originals
+
+  - id: "15"
+    slug: publication-core
+    title: Publication document and core format adapters
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "14"
+    risk: high
+    domains:
+      - publication
+      - export
+      - security
+    deliverables:
+      - normalized immutable PublicationDocument and schema
+      - DOCX, ODT, RTF, HTML, Markdown, TXT, and JSON adapters
+      - semantic re-read fixtures
+      - publication allowlist
+    acceptance:
+      - adapters agree semantically
+      - display copyedits and selected art are present
+      - private working state is absent
+      - long export does not buffer the whole novel
+
+  - id: "16"
+    slug: epub-pdf-gate
+    title: EPUB, PDF, and Gate
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "15"
+    risk: high
+    domains:
+      - publication
+      - export
+      - frontend
+      - accessibility
+    deliverables:
+      - EPUB 3.3 adapter
+      - PDF adapter
+      - publication and backup Gate UI
+      - multi-format export jobs
+    acceptance:
+      - EPUB and PDF validators pass
+      - selected formats share one snapshot
+      - cancelled jobs clean staging
+      - exports invoke no provider
+
+  - id: "17"
+    slug: snapshot-sharing
+    title: Immutable snapshot sharing
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "16"
+    risk: critical
+    domains:
+      - sharing
+      - frontend
+      - security
+      - publication
+    deliverables:
+      - immutable snapshot publication
+      - hashed high-entropy capabilities
+      - isolated read-only viewer
+      - expiry, revocation, TLS and reverse-proxy guidance
+    acceptance:
+      - live edits never mutate a snapshot
+      - viewer has no private or provider access
+      - tokens and private canaries never leak
+      - revoked and expired shares fail closed
+
+  - id: "18"
+    slug: beta-hardening
+    title: Archive completion, hardening, and release evidence
+    status: planned
+    target: release/4.0.0
+    depends_on:
+      - "17"
+    risk: critical
+    domains:
+      - transfer
+      - security
+      - qa
+      - accessibility
+      - performance
+      - documentation
+    deliverables:
+      - complete .scribetribe v2 round trip
+      - malicious fixture and canary passes
+      - long-manuscript and responsive evidence
+      - operator backup, restore, and public-share guidance
+    acceptance:
+      - every QA release gate passes
+      - same-version archive round trip is lossless
+      - 3.x and future archives refuse before writes
+      - no critical or high supported-path vulnerability remains
+
+  - id: "19"
+    slug: beta-release
+    title: Beta release cutover
+    status: planned
+    target: main
+    source: release/4.0.0
+    integration_method: reviewed_unrelated_history_cutover
+    depends_on:
+      - "18"
+    risk: controlled_release
+    domains:
+      - release
+      - documentation
+      - qa
+      - security
+    deliverables:
+      - version, changelog, screenshots, current feature claims
+      - test and manual release evidence
+      - explicit two-parent unrelated-history cutover
+      - v4.0.0-beta.1 tag and release notes
+    acceptance:
+      - cutover tree equals the reviewed release branch tip
+      - first parent preserves historical main and other parent records release tip
+      - release/4.0.0 remains free of main ancestry
+      - clean-clone CI and manual smoke pass
+      - no deferred feature is advertised as shipped
+      - stakeholder records the go decision
+
+release_blockers:
+  - manuscript or continuity loss or corruption
+  - speculative prose entering canon or state
+  - wrong prepared prose committed
+  - duplicate provider work from one action
+  - stale response mutating another context
+  - credential, session, private prose, recovery, or capability disclosure
+  - upload invoking AI or semantic moderation without consent
+  - active or malformed upload escaping the media boundary
+  - mutable or private public-share access
+  - failed same-version project round trip
+  - invalid core publication formats
+  - broken desktop or portrait-tablet authoring loop
+  - authentication bypass or known critical or high supported-path vulnerability

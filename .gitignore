@@ -1,0 +1,59 @@
+# Dependencies
+node_modules/
+
+# Runtime data - the whole directory is generated at runtime and NEVER
+# belongs in the repo: the SQLite database (plus wal/shm/journal side files),
+# generated reference portraits and world scenes, any future exports.
+database/
+
+# Environment variables (the example file IS committed)
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+nohup.out
+
+# Coverage
+coverage/
+lcov.info
+.nyc_output/
+
+# Build outputs
+dist/
+build/
+
+# Test artifacts
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Patch/merge/editor droppings
+*.orig
+*.rej
+*.bak
+*.swp
+*.swo
+*~
+.history/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+._*
+Thumbs.db
+
+# UX architecture + bugfix instruction packages (kept locally as reference
+# material, with their PNG art masters; only the production WebPs ship in
+# frontend/brand)
+ScribeTribe-UX-Architecture-OpenCode-2026-08-30/
+ScribeTribe-UX-Architecture-OpenCode-2026-08-30.zip
+ScribeTribe-v3.0.1-Bugfix-OpenCode-2026-08-30/
+ScribeTribe-v3.0.1-Bugfix-OpenCode-2026-08-30.zip

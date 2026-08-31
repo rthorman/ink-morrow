@@ -1,0 +1,106 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "brand": {
+    "name": "ScribeTribe",
+    "tagline": "Where stories grow claws."
+  },
+  "color": {
+    "ink": {
+      "950": { "$value": "#09060D", "$type": "color" },
+      "900": { "$value": "#100A16", "$type": "color" },
+      "850": { "$value": "#17101F", "$type": "color" },
+      "800": { "$value": "#21142B", "$type": "color" },
+      "700": { "$value": "#2D1A39", "$type": "color" }
+    },
+    "oxblood": {
+      "700": { "$value": "#6E1834", "$type": "color" },
+      "500": { "$value": "#A62B58", "$type": "color" },
+      "400": { "$value": "#C94A79", "$type": "color" }
+    },
+    "rose": {
+      "400": { "$value": "#DF6E9D", "$type": "color" }
+    },
+    "violet": {
+      "600": { "$value": "#68459E", "$type": "color" },
+      "500": { "$value": "#8E63D8", "$type": "color" },
+      "300": { "$value": "#BA9BEA", "$type": "color" }
+    },
+    "witchlight": {
+      "400": { "$value": "#69D9CB", "$type": "color" }
+    },
+    "gold": {
+      "700": { "$value": "#806333", "$type": "color" },
+      "500": { "$value": "#C7A35B", "$type": "color" },
+      "300": { "$value": "#E0C584", "$type": "color" }
+    },
+    "vellum": {
+      "50": { "$value": "#FBF5E9", "$type": "color" },
+      "100": { "$value": "#F2E7D2", "$type": "color" },
+      "200": { "$value": "#DFCEAE", "$type": "color" },
+      "700": { "$value": "#5A4635", "$type": "color" },
+      "900": { "$value": "#2C211B", "$type": "color" }
+    },
+    "ash": {
+      "400": { "$value": "#A99FB1", "$type": "color" },
+      "600": { "$value": "#726879", "$type": "color" }
+    },
+    "danger": {
+      "500": { "$value": "#D64B58", "$type": "color" }
+    },
+    "success": {
+      "500": { "$value": "#64B98A", "$type": "color" }
+    }
+  },
+  "font": {
+    "family": {
+      "display": { "$value": "'Cormorant Garamond', Georgia, serif", "$type": "fontFamily" },
+      "reading": { "$value": "Literata, Charter, Georgia, serif", "$type": "fontFamily" },
+      "ui": { "$value": "Inter, system-ui, sans-serif", "$type": "fontFamily" },
+      "mono": { "$value": "'IBM Plex Mono', ui-monospace, monospace", "$type": "fontFamily" }
+    },
+    "size": {
+      "xs": { "$value": "0.75rem", "$type": "dimension" },
+      "sm": { "$value": "0.875rem", "$type": "dimension" },
+      "md": { "$value": "1rem", "$type": "dimension" },
+      "lg": { "$value": "1.125rem", "$type": "dimension" },
+      "xl": { "$value": "1.375rem", "$type": "dimension" },
+      "2xl": { "$value": "clamp(1.75rem, 2.5vw, 2.5rem)", "$type": "string" },
+      "hero": { "$value": "clamp(2.75rem, 6vw, 6.5rem)", "$type": "string" }
+    }
+  },
+  "space": {
+    "1": { "$value": "0.25rem", "$type": "dimension" },
+    "2": { "$value": "0.5rem", "$type": "dimension" },
+    "3": { "$value": "0.75rem", "$type": "dimension" },
+    "4": { "$value": "1rem", "$type": "dimension" },
+    "6": { "$value": "1.5rem", "$type": "dimension" },
+    "8": { "$value": "2rem", "$type": "dimension" },
+    "12": { "$value": "3rem", "$type": "dimension" },
+    "16": { "$value": "4rem", "$type": "dimension" },
+    "24": { "$value": "6rem", "$type": "dimension" }
+  },
+  "radius": {
+    "sm": { "$value": "0.5rem", "$type": "dimension" },
+    "md": { "$value": "0.75rem", "$type": "dimension" },
+    "lg": { "$value": "1rem", "$type": "dimension" },
+    "seal": { "$value": "999px", "$type": "dimension" }
+  },
+  "motion": {
+    "fast": { "$value": "140ms", "$type": "duration" },
+    "normal": { "$value": "220ms", "$type": "duration" },
+    "reveal": { "$value": "520ms", "$type": "duration" },
+    "ease": { "$value": "cubic-bezier(0.22, 1, 0.36, 1)", "$type": "cubicBezier" }
+  },
+  "breakpoint": {
+    "phoneMax": { "$value": "767px", "$type": "dimension" },
+    "tabletMin": { "$value": "768px", "$type": "dimension" },
+    "desktopMin": { "$value": "1200px", "$type": "dimension" },
+    "wideMin": { "$value": "1600px", "$type": "dimension" }
+  },
+  "layout": {
+    "contentMax": { "$value": "1440px", "$type": "dimension" },
+    "proseMax": { "$value": "72ch", "$type": "dimension" },
+    "touchMin": { "$value": "44px", "$type": "dimension" }
+  }
+}
+

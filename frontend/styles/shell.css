@@ -1,0 +1,186 @@
+/* ------------------------------------------------------------------ header */
+
+.main-header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: clamp(14px, 2vw, 22px) clamp(16px, 2.5vw, 28px);
+  background: rgb(16 10 22 / 0.82);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-raised);
+}
+
+.cat-scribe {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 10px rgb(199 163 91 / 0.25));
+}
+
+.wordmark {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.main-header h1 {
+  margin: 0;
+  font-family: var(--st-font-display);
+  font-weight: 700;
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--st-vellum-100);
+  text-shadow: 0 2px 14px rgb(0 0 0 / 0.6);
+}
+
+.subtitle {
+  margin: 2px 0 0 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--st-gold-300);
+}
+
+.scribe-status {
+  margin: 0 0 0 auto;
+  min-height: 1.6em;
+  max-width: 36ch;
+  text-align: right;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--st-violet-300);
+  transition: opacity var(--st-duration-normal) ease;
+}
+
+/* ------------------------------------------------------------------ nav */
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Persistent low-storage banner: sits under the nav, visible on every
+   section, candle-amber on dark vellum — a warning, not an alarm. */
+.disk-banner {
+  margin: 14px 0 0 0;
+  padding: 12px 18px;
+  background: rgb(60 38 12 / 0.55);
+  border: 1px solid var(--st-gold-500);
+  border-left: 4px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+}
+
+.disk-banner[hidden] {
+  display: none;
+}
+
+.disk-banner p {
+  margin: 0;
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--st-gold-300);
+}
+
+
+/* ------------------------------------------------------------------ main frame */
+
+.main-content {
+  flex: 1;
+  background: rgb(9 6 13 / 0.62);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-lg);
+  padding: clamp(16px, 2.5vw, 32px);
+  box-shadow: var(--st-shadow-raised);
+}
+
+.content-section {
+  display: none;
+}
+
+.content-section.active {
+  display: block;
+  animation: inkReveal var(--st-duration-reveal) var(--st-ease-out) both;
+}
+
+@keyframes inkReveal {
+  from {
+    opacity: 0;
+    filter: brightness(1.06);
+  }
+  to {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+.content-section h2 {
+  margin: 0 0 22px 0;
+  padding-bottom: 10px;
+  font-family: var(--st-font-display);
+  font-weight: 700;
+  font-size: clamp(1.9rem, 3.5vw, 2.4rem);
+  line-height: 1.15;
+  color: var(--st-gold-300);
+  border-bottom: 1px solid var(--st-border);
+}
+
+
+/* ------------------------------------------------------------------ age gate */
+
+.age-gate {
+  background: rgb(110 24 52 / 0.28);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-md);
+  padding: 14px 18px;
+  text-align: center;
+  color: var(--st-vellum-200);
+  font-size: 0.95rem;
+}
+
+.age-gate button {
+  min-height: var(--st-touch-min);
+  margin-left: 12px;
+  padding: 8px 18px;
+  background: var(--st-oxblood-700);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-gold-500);
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.age-gate button:hover {
+  background: var(--st-oxblood-500);
+}
+
+/* ------------------------------------------------------------------ footer */
+
+.main-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0 4px 0;
+  color: var(--st-gold-300);
+}
+
+.main-footer .ornament {
+  opacity: 0.6;
+  max-width: min(320px, 70vw);
+  height: auto;
+}
+
+.main-footer p {
+  margin: 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.12em;
+}
+

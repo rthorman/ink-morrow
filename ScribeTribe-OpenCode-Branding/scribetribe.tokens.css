@@ -1,0 +1,91 @@
+:root {
+  color-scheme: dark;
+
+  --st-ink-950: #09060d;
+  --st-ink-900: #100a16;
+  --st-ink-850: #17101f;
+  --st-ink-800: #21142b;
+  --st-ink-700: #2d1a39;
+
+  --st-oxblood-700: #6e1834;
+  --st-oxblood-500: #a62b58;
+  --st-oxblood-400: #c94a79;
+  --st-rose-400: #df6e9d;
+
+  --st-violet-600: #68459e;
+  --st-violet-500: #8e63d8;
+  --st-violet-300: #ba9bea;
+  --st-witchlight-400: #69d9cb;
+
+  --st-gold-700: #806333;
+  --st-gold-500: #c7a35b;
+  --st-gold-300: #e0c584;
+
+  --st-vellum-50: #fbf5e9;
+  --st-vellum-100: #f2e7d2;
+  --st-vellum-200: #dfceae;
+  --st-vellum-700: #5a4635;
+  --st-vellum-900: #2c211b;
+
+  --st-ash-400: #a99fb1;
+  --st-ash-600: #726879;
+  --st-danger-500: #d64b58;
+  --st-success-500: #64b98a;
+
+  --st-bg: var(--st-ink-950);
+  --st-surface-1: var(--st-ink-900);
+  --st-surface-2: var(--st-ink-850);
+  --st-surface-3: var(--st-ink-800);
+  --st-text: var(--st-vellum-100);
+  --st-text-muted: var(--st-ash-400);
+  --st-primary: var(--st-oxblood-500);
+  --st-accent: var(--st-violet-500);
+  --st-focus: var(--st-witchlight-400);
+  --st-border: color-mix(in srgb, var(--st-gold-500) 35%, transparent);
+
+  --st-font-display: "Cormorant Garamond", Georgia, serif;
+  --st-font-reading: Literata, Charter, Georgia, serif;
+  --st-font-ui: Inter, system-ui, sans-serif;
+  --st-font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --st-radius-sm: 0.5rem;
+  --st-radius-md: 0.75rem;
+  --st-radius-lg: 1rem;
+  --st-touch-min: 44px;
+  --st-content-max: 1440px;
+  --st-prose-max: 72ch;
+
+  --st-shadow-raised:
+    0 1px 0 rgb(255 255 255 / 0.04) inset,
+    0 18px 45px rgb(0 0 0 / 0.38);
+  --st-shadow-hero:
+    0 28px 80px rgb(0 0 0 / 0.58),
+    0 0 80px rgb(110 24 52 / 0.14);
+
+  --st-duration-fast: 140ms;
+  --st-duration-normal: 220ms;
+  --st-duration-reveal: 520ms;
+  --st-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+::selection {
+  color: var(--st-vellum-50);
+  background: color-mix(in srgb, var(--st-oxblood-500) 78%, black);
+}
+
+:focus-visible {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+

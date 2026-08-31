@@ -1,0 +1,109 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint (ESLint)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install lint dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+  test:
+    name: Jest (backend + frontend)
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend
+        run: cd backend && npm ci
+
+      - name: Backend tests
+        run: cd backend && npm test
+
+      - name: Install frontend
+        run: cd frontend && npm ci
+
+      - name: Frontend tests
+        run: cd frontend && npm test
+
+  security:
+    name: Production dependency audit
+    runs-on: ubuntu-latest
+    needs: lint
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Audit production dependencies
+        run: cd backend && npm audit --omit=dev --audit-level=moderate
+
+  e2e:
+    name: Playwright e2e
+    runs-on: ubuntu-latest
+    needs: [test, security]
+
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            e2e/package-lock.json
+            backend/package-lock.json
+
+      - name: Install e2e dependencies
+        run: cd e2e && npm ci
+
+      # The webServer boots backend/server.js, so its dependencies must be
+      # present too (the frontend is served as static files - no install needed).
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: Install Playwright browsers
+        run: cd e2e && npx playwright install --with-deps chromium
+
+      # Each project gets its own invocation so each gets a fresh webServer
+      # (and a fresh in-memory DB). One invocation spans both projects and
+      # would leak data between them.
+      - name: Run e2e (chromium)
+        run: cd e2e && npx playwright test --project=chromium
+
+      - name: Run e2e (Mobile Chrome)
+        run: cd e2e && npx playwright test --project="Mobile Chrome"

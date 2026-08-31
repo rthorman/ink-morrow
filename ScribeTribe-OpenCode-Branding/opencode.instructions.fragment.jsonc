@@ -1,0 +1,11 @@
+{
+  // Merge this property into the project's existing opencode.json or
+  // opencode.jsonc. Do not overwrite existing instructions.
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": [
+    "ScribeTribe-OpenCode-Branding/OPENCODE-GLM53-TASK.md",
+    "ScribeTribe-OpenCode-Branding/SCRIBETRIBE-FRONTEND-BRAND.md",
+    "ScribeTribe-OpenCode-Branding/ACCEPTANCE-CHECKLIST.md"
+  ]
+}
+

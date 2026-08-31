@@ -1,0 +1,544 @@
+/* ------------------------------------------------------------------ buttons */
+
+.btn {
+  min-height: var(--st-touch-min);
+  padding: 10px 24px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: var(--st-radius-md);
+  cursor: pointer;
+  /* Base fallback: a bare .btn must never fall back to the browser's native
+     grey control. Variants (primary/secondary/danger) override these. */
+  background: var(--st-surface-3);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-border-bright);
+  transition:
+    background-color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    transform var(--st-duration-fast) var(--st-ease-out),
+    box-shadow var(--st-duration-fast) ease;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--st-oxblood-700);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-gold-700);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--st-oxblood-500);
+  border-color: var(--st-gold-500);
+  box-shadow: 0 0 0 1px rgb(199 163 91 / 0.4), 0 10px 26px rgb(0 0 0 / 0.35);
+}
+
+.btn-secondary {
+  background: var(--st-surface-3);
+  color: var(--st-vellum-200);
+  border: 1px solid var(--st-gold-500);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  color: var(--st-vellum-50);
+  border-color: var(--st-gold-300);
+}
+
+.btn-danger {
+  background: var(--st-surface-3);
+  color: var(--st-danger-500);
+  border: 1px solid rgb(214 75 88 / 0.55);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgb(214 75 88 / 0.16);
+  color: #edaab1;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ------------------------------------------------------------------ forms */
+
+.create-form {
+  background: rgb(23 16 31 / 0.72);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: clamp(16px, 2.5vw, 26px);
+  margin-bottom: 30px;
+}
+
+.create-form h3 {
+  margin: 0 0 16px 0;
+  font-family: var(--st-font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--st-gold-300);
+}
+
+.create-form label,
+.character-selection__label,
+.writing-interface label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: var(--st-vellum-200);
+}
+
+.create-form input,
+.create-form textarea,
+.create-form select,
+.story-selector select,
+.writing-interface textarea {
+  width: 100%;
+  min-height: var(--st-touch-min);
+  background-color: var(--st-surface-3);
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+}
+
+.create-form textarea,
+.writing-interface textarea {
+  font-family: var(--st-font-reading);
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.create-form input::placeholder,
+.create-form textarea::placeholder,
+.writing-interface textarea::placeholder {
+  color: var(--st-ash-600);
+}
+
+.create-form input:focus,
+.create-form textarea:focus,
+.create-form select:focus,
+.story-selector select:focus,
+.writing-interface textarea:focus {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 2px;
+  border-color: var(--st-gold-500);
+}
+
+/* ------------------------------------------------------------------ selects (brand identity) */
+
+/* Every dropdown speaks vellum on ink with the house gold caret - no gray
+   OS boxes anywhere. A bare-element rule fills every gap the section rules
+   miss (e.g. the render-quality picker in the scene-image modal). */
+select:not([multiple]) {
+  min-height: var(--st-touch-min);
+  background-color: var(--st-surface-3);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23c7a35b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--st-vellum-100);
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: 10px 36px 10px 14px;
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color var(--st-duration-fast) ease;
+}
+
+select:not([multiple]):hover:not(:disabled) {
+  border-color: var(--st-border-bright);
+}
+
+select:focus {
+  outline: 2px solid var(--st-focus);
+  outline-offset: 2px;
+  border-color: var(--st-gold-500);
+}
+
+select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Room for the caret inside the section-styled selects (their own padding
+   rules out-specify the bare-element one, so repeat it at their level). */
+.create-form select,
+.story-selector select,
+.cast-mc select,
+.cast-add select {
+  padding-right: 36px;
+}
+
+/* The opened list: vellum on ink where the platform honors option styling;
+   the color-scheme meta keeps native lists (Android) dark regardless. */
+select option,
+select optgroup {
+  background-color: var(--st-ink-900);
+  color: var(--st-vellum-100);
+}
+
+/* ------------------------------------------------------------------ lists / cards */
+
+.list-container h3 {
+  margin: 0 0 16px 0;
+  font-family: var(--st-font-display);
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--st-gold-300);
+}
+
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 20px;
+}
+
+.item-card {
+  background: linear-gradient(165deg, var(--st-surface-3), var(--st-surface-2));
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition:
+    border-color var(--st-duration-normal) ease,
+    box-shadow var(--st-duration-normal) ease,
+    transform var(--st-duration-normal) var(--st-ease-out);
+}
+
+.item-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  background: linear-gradient(180deg, var(--st-oxblood-500), var(--st-violet-600));
+  opacity: 0;
+  transition: opacity var(--st-duration-normal) ease;
+}
+
+.item-card:hover,
+.item-card:focus-within {
+  border-color: var(--st-border-bright);
+  transform: translateY(-2px);
+  box-shadow: 0 14px 30px rgb(0 0 0 / 0.45);
+}
+
+.item-card:hover::before,
+.item-card:focus-within::before {
+  opacity: 1;
+}
+
+/* Catalog card previews are BOUNDED: long prose clamps to a consistent
+   band. The full text stays in the DOM (assistive tech reads it all) and
+   stays fully editable in the entity editors. */
+.item-card__desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.item-card h4 {
+  margin: 0 0 10px 0;
+  font-family: var(--st-font-display);
+  font-weight: 700;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  color: var(--st-vellum-100);
+}
+
+.item-card p {
+  margin: 0 0 8px 0;
+  font-family: var(--st-font-reading);
+  font-size: 0.98rem;
+  color: var(--st-vellum-200);
+}
+
+.item-meta {
+  font-family: var(--st-font-mono);
+  font-size: 0.8rem;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  color: var(--st-violet-300);
+}
+
+.item-card .card-delete,
+.item-card .card-open {
+  min-height: var(--st-touch-min);
+  margin-top: 14px;
+  margin-right: 8px;
+  padding: 8px 16px;
+  font-family: var(--st-font-ui);
+  font-size: 0.9rem;
+  border-radius: var(--st-radius-sm);
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--st-border);
+  color: var(--st-vellum-200);
+  transition:
+    background-color var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease;
+}
+
+.item-card .card-delete {
+  border-color: rgb(214 75 88 / 0.45);
+  color: var(--st-danger-500);
+}
+
+.item-card .card-delete:hover {
+  background: rgb(214 75 88 / 0.16);
+  border-color: var(--st-danger-500);
+  color: #edaab1;
+}
+
+.item-card .card-open:hover {
+  background: var(--st-oxblood-700);
+  border-color: var(--st-gold-500);
+  color: var(--st-vellum-100);
+}
+
+/* ------------------------------------------------------------------ messages */
+
+.error-message,
+.success-message {
+  padding: 12px 16px;
+  margin-bottom: 18px;
+  border-radius: var(--st-radius-sm);
+  font-family: var(--st-font-ui);
+  font-size: 0.95rem;
+}
+
+.error-message {
+  background: rgb(214 75 88 / 0.14);
+  border: 1px solid rgb(214 75 88 / 0.55);
+  border-left: 4px solid var(--st-danger-500);
+  color: #edaab1;
+}
+
+.success-message {
+  background: rgb(100 185 138 / 0.12);
+  border: 1px solid rgb(100 185 138 / 0.5);
+  border-left: 4px solid var(--st-success-500);
+  color: #a9dfc2;
+}
+
+/* While a modal is open, messages float on top of it (modals are z-100,
+   the scene viewer z-120) - an error buried under an overlay is unreadable. */
+.message--floating {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  width: min(680px, 92vw);
+  margin-bottom: 0;
+  box-shadow: 0 18px 50px rgb(0 0 0 / 0.65);
+}
+
+/* ------------------------------------------------------------------ empty states */
+
+.placeholder {
+  margin: 0;
+  padding: 26px 12px;
+  text-align: center;
+  font-family: var(--st-font-reading);
+  font-style: italic;
+  font-size: 1.05rem;
+  color: var(--st-text-muted);
+  border: 1px dashed var(--st-border);
+  border-radius: var(--st-radius-md);
+  background: rgb(23 16 31 / 0.45);
+}
+
+
+/* ------------------------------------------------------------------ burn modal */
+
+.burn-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgb(9 6 13 / 0.8);
+}
+
+.burn-modal[hidden] {
+  display: none;
+}
+
+.burn-modal__panel {
+  width: min(520px, 100%);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: clamp(22px, 4vw, 34px);
+  background: linear-gradient(170deg, var(--st-ink-850), var(--st-ink-900));
+  border: 1px solid var(--st-danger-500);
+  border-radius: var(--st-radius-lg);
+  box-shadow: 0 30px 90px rgb(0 0 0 / 0.7);
+  text-align: left;
+}
+
+.burn-modal__panel h2 {
+  margin: 0 0 14px 0;
+  font-family: var(--st-font-display);
+  font-weight: 700;
+  font-size: clamp(1.7rem, 4vw, 2.2rem);
+  color: #edaab1;
+  text-align: center;
+}
+
+.burn-modal__body {
+  margin: 0 0 24px 0;
+  font-family: var(--st-font-reading);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--st-vellum-200);
+  text-align: left;
+}
+
+
+.burn-modal__actions {
+  display: flex;
+  justify-content: center;
+}
+
+
+/* Ghost buttons: quiet until hovered, then vellum and gold */
+.ghost-btn {
+  padding: 10px 30px;
+  background: transparent;
+  border: 1px solid rgb(230 221 202 / 0.3);
+  border-radius: var(--st-radius-sm);
+  color: var(--st-vellum-200);
+  font-family: var(--st-font-ui);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  cursor: pointer;
+  transition:
+    opacity var(--st-duration-fast) ease,
+    color var(--st-duration-fast) ease,
+    border-color var(--st-duration-fast) ease;
+}
+
+.ghost-btn:hover {
+  opacity: 1;
+  color: var(--st-vellum-50);
+  border-color: var(--st-gold-500);
+}
+
+#sceneImageCost {
+  margin: 0 0 18px 0;
+  font-family: var(--st-font-mono);
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  color: var(--st-gold-300);
+}
+
+
+/* ------------------------------------------------------------------ */
+/* Shared dialog manager (destructive + paid-review dialogs)           */
+/* ------------------------------------------------------------------ */
+
+.dialog-manager__panel {
+  max-width: 460px;
+  text-align: left;
+}
+
+.dialog-manager__title {
+  font-family: var(--st-display, "Cormorant Garamond", Georgia, serif);
+  font-size: 1.4rem;
+  margin: 0 0 0.6rem;
+  color: var(--st-vellum-50);
+}
+
+.dialog-manager__body {
+  color: var(--st-vellum-200);
+  line-height: 1.55;
+  margin-bottom: 1.1rem;
+  text-align: left;
+}
+
+.review-lead,
+.review-note,
+.review-consent {
+  margin: 0 0 0.9rem;
+  text-align: left;
+}
+
+.review-list {
+  display: grid;
+  grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr);
+  margin: 0 0 1rem;
+  text-align: left;
+}
+
+.review-list dt,
+.review-list dd {
+  margin: 0;
+  padding: 0.45rem 0;
+  border-top: 1px solid rgb(230 221 202 / 0.12);
+  text-align: left;
+}
+
+.review-list dt {
+  padding-right: 0.9rem;
+  color: var(--st-gold-300);
+  font-family: var(--st-font-ui);
+  font-weight: 650;
+}
+
+.review-list dd {
+  color: var(--st-vellum-100);
+}
+
+.review-note {
+  color: var(--st-text-muted);
+}
+
+.review-consent {
+  padding: 0.65rem 0.75rem;
+  border-left: 3px solid var(--st-gold-500);
+  background: rgb(199 163 91 / 0.08);
+  color: var(--st-vellum-200);
+  font-family: var(--st-font-ui);
+  font-size: 0.88rem;
+}
+
+.dialog-manager__actions {
+  display: flex;
+  gap: 0.7rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+/* Danger variant: ash and oxblood facts, no character illustration. */
+.dialog-manager__panel--danger .dialog-manager__title {
+  color: var(--st-rose-400);
+}
+.dialog-manager__panel--danger .dialog-manager__panel,
+.dialog-manager__panel--danger {
+  --panel-accent: var(--state-danger);
+}
+
+/* Cost variant: gold metadata, the price rides the button. */
+.dialog-manager__panel--cost .dialog-manager__panel,
+.dialog-manager__panel--cost {
+  --panel-accent: var(--state-cost);
+}
