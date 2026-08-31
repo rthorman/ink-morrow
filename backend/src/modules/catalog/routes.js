@@ -68,7 +68,11 @@ function createCatalogRouter({ store, imageQueue, imageStore, stories }) {
     if (!world) return notFound(res, 'World not found');
     const payload = store.validateWorldUpdatePayload(req.body, world);
     if (payload.error) return badRequest(res, payload.error);
-    res.json({ world: store.updateWorld(world, payload) });
+    const updated = store.updateWorld(world, payload);
+    // Worlds are live canonical prompt context. Existing and in-flight
+    // prepared prose must not survive a lore/world edit.
+    stories.invalidatePreviewsForWorld(world.id);
+    res.json({ world: updated });
   });
 
   router.delete('/api/worlds/:id', (req, res) => {

@@ -160,6 +160,22 @@ export function createSharedState() {
     updateCostTicker();
   }
 
+  // Async work belongs to the story that started it, not whichever story is
+  // open when the response arrives. Session spend is always counted; the
+  // visible Story ticker changes only when it still represents that story.
+  function addCostForStory(storyId, costUsd) {
+    if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
+    sessionCost += costUsd;
+    if (data.currentStory?.id === storyId) storyCostExtra += costUsd;
+    updateCostTicker();
+  }
+
+  function addStoryCostForStory(storyId, costUsd) {
+    if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
+    if (data.currentStory?.id === storyId) storyCostExtra += costUsd;
+    updateCostTicker();
+  }
+
   function resetStoryCost() {
     storyCostBase = typeof data.currentStory?.total_cost_usd === 'number' ? data.currentStory.total_cost_usd : 0;
     storyCostExtra = 0;
@@ -207,8 +223,10 @@ export function createSharedState() {
     updateCostTicker,
     resetStoryCost,
     addCost,
+    addCostForStory,
     addSessionCost,
     addStoryCost,
+    addStoryCostForStory,
     chargeEntityImageCosts,
     clearPrivateData,
     get modelsCache() { return modelsCache; },

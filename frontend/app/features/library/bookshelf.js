@@ -363,7 +363,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
         const result = await apiCall(`/stories/${story.id}/continuity/pages/${page.page_id}/sync`, 'POST', {
           ...(state.settings.model ? { model: state.settings.model } : {}),
         });
-        state.addCost(result.memory?.cost_usd);
+        state.addCostForStory(story.id, result.memory?.cost_usd);
         if (result.memory?.status !== 'ready') failed.push(page.page_number);
       }
       activeContinuity = await continuityData(story.id);
@@ -371,7 +371,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       if (failed.length) showError(`Continuity still needs attention on page${failed.length === 1 ? '' : 's'} ${failed.join(', ')}.`);
       else showSuccess(`Continuity now covers ${pages.length} page${pages.length === 1 ? '' : 's'}.`);
     } catch (error) {
-      if (typeof error.costUsd === 'number') state.addCost(error.costUsd);
+      if (typeof error.costUsd === 'number') state.addCostForStory(story.id, error.costUsd);
       showError(scribeErrorMessage(error.message));
       if (activeStoryId === story.id) await refreshActiveAssets();
     }

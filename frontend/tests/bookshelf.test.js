@@ -183,7 +183,9 @@ describe('Bookshelf page', () => {
 
     expect(global.fetch.mock.calls.some(([url]) => String(url).includes('/continuity/pages/p2/sync'))).toBe(true);
     expect(document.getElementById('storyContinuitySection').textContent).toContain('2 of 2 text pages remembered');
-    expect(fw.state().costs).toMatchObject({ session: 0.003, story: 0.003 });
+    // The work belongs to the inspected Library story, not whichever tale is
+    // open on the writing desk. With no current story, only Session changes.
+    expect(fw.state().costs).toMatchObject({ session: 0.003, story: 0 });
   });
 
   it('deleting the audiobook asks, then clears it from the shelf', async () => {

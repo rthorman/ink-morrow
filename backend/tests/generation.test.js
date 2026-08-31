@@ -179,6 +179,30 @@ describe('POST /api/stories/:id/pages/generate', () => {
     mockAi();
     await request(app).post('/api/stories/nope/pages/generate').send({ user_input: 'x' }).expect(404);
   });
+
+  it('does not save live prose produced against a story that changed in flight', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    let resolveAuthor;
+    axios.post.mockImplementationOnce(() => new Promise((resolve) => { resolveAuthor = resolve; }));
+    const generation = request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'continue' })
+      .then((res) => res);
+    while (!resolveAuthor) await new Promise((resolve) => setImmediate(resolve));
+
+    await request(app)
+      .post(`/api/stories/${story.id}/pages`)
+      .send({ content: 'A page was added from another tab.' })
+      .expect(201);
+    resolveAuthor({ data: { choices: [{ message: { content: 'Stale generated prose.' } }] } });
+
+    const stale = await generation;
+    expect(stale.status).toBe(409);
+    expect(stale.body.code).toBe('WRITE_SUPERSEDED');
+    const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(pages.body.pages.map((page) => page.content)).toEqual(['A page was added from another tab.']);
+  });
 });
 
 describe('POST /api/stories/:id/pages/regenerate', () => {
@@ -218,6 +242,30 @@ describe('POST /api/stories/:id/pages/regenerate', () => {
     mockAi();
     const story = await createStory(app);
     await request(app).post(`/api/stories/${story.id}/pages/regenerate`).send({}).expect(400);
+  });
+
+  it('does not replace a last page that changed while its rewrite was in flight', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    await request(app)
+      .post(`/api/stories/${story.id}/pages`)
+      .send({ content: 'The original last page.', user_input: 'begin' })
+      .expect(201);
+    let resolveRewrite;
+    axios.post.mockImplementationOnce(() => new Promise((resolve) => { resolveRewrite = resolve; }));
+    const rewrite = request(app)
+      .post(`/api/stories/${story.id}/pages/regenerate`)
+      .send({})
+      .then((res) => res);
+    while (!resolveRewrite) await new Promise((resolve) => setImmediate(resolve));
+
+    await request(app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
+    resolveRewrite({ data: { choices: [{ message: { content: 'A stale rewrite.' } }] } });
+    const stale = await rewrite;
+    expect(stale.status).toBe(409);
+    expect(stale.body.code).toBe('REWRITE_SUPERSEDED');
+    const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
+    expect(pages.body.pages).toEqual([]);
   });
 });
 // ---------------------------------------------------------------------------
@@ -605,6 +653,99 @@ describe('Mutable per-story character state', () => {
 // ---------------------------------------------------------------------------
 
 describe('Speculative next-page preview', () => {
+  it('exposes free restart-safe metadata without exposing prepared prose', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    mockAi('A secret prepared continuation.');
+
+    const created = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    expect(created.body.preview.preview_key).toMatch(/^[A-Za-z0-9_-]{40,}$/);
+
+    const status = await request(app).get(`/api/stories/${story.id}/pages/preview`).expect(200);
+    expect(status.body.preview).toEqual(created.body.preview);
+    expect(JSON.stringify(status.body)).not.toContain('secret prepared continuation');
+  });
+
+  it('rejects an old preview identity without deleting the newer prepared page', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    mockAi('Prepared version A.');
+    const first = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+    mockAi('Prepared version B.');
+    const second = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    expect(second.body.preview.preview_key).not.toBe(first.body.preview.preview_key);
+
+    const staleCommit = await request(app)
+      .post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_key: first.body.preview.preview_key })
+      .expect(409);
+    expect(staleCommit.body.code).toBe('PREVIEW_REPLACED');
+
+    const status = await request(app).get(`/api/stories/${story.id}/pages/preview`).expect(200);
+    expect(status.body.preview.preview_key).toBe(second.body.preview.preview_key);
+    const committed = await request(app)
+      .post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_key: second.body.preview.preview_key })
+      .expect(201);
+    expect(committed.body.page.content).toBe('Prepared version B.');
+  });
+
+  it('does not let an older overlapping request overwrite the newest preview', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    const replies = [];
+    axios.post.mockImplementation(() => new Promise((resolve) => replies.push(resolve)));
+
+    const firstPromise = request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).then((res) => res);
+    while (replies.length < 1) await new Promise((resolve) => setImmediate(resolve));
+    const secondPromise = request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).then((res) => res);
+    while (replies.length < 2) await new Promise((resolve) => setImmediate(resolve));
+
+    replies[1]({ data: { choices: [{ message: { content: 'The newest prepared page.' } }] } });
+    const second = await secondPromise;
+    expect(second.status).toBe(200);
+
+    replies[0]({ data: { choices: [{ message: { content: 'The late old page.' } }] } });
+    const first = await firstPromise;
+    expect(first.status).toBe(409);
+    expect(first.body.code).toBe('PREVIEW_SUPERSEDED');
+
+    const committed = await request(app)
+      .post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_key: second.body.preview.preview_key })
+      .expect(201);
+    expect(committed.body.page.content).toBe('The newest prepared page.');
+  });
+
+  it('does not resurrect a preview that finishes after a live page advances the story', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await createStory(app);
+    let resolvePreview;
+    axios.post
+      .mockImplementationOnce(() => new Promise((resolve) => { resolvePreview = resolve; }))
+      .mockResolvedValueOnce({ data: { choices: [{ message: { content: 'The directed live page.' } }] } });
+
+    const previewPromise = request(app)
+      .post(`/api/stories/${story.id}/pages/preview`)
+      .send({})
+      .then((res) => res);
+    while (!resolvePreview) await new Promise((resolve) => setImmediate(resolve));
+
+    const live = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'take the other road' })
+      .expect(201);
+    expect(live.body.page.content).toBe('The directed live page.');
+
+    resolvePreview({ data: { choices: [{ message: { content: 'The obsolete prepared page.' } }] } });
+    const late = await previewPromise;
+    expect(late.status).toBe(409);
+    expect(late.body.code).toBe('PREVIEW_SUPERSEDED');
+    const status = await request(app).get(`/api/stories/${story.id}/pages/preview`).expect(200);
+    expect(status.body.preview).toBeNull();
+  });
+
   it('previews without saving, then commits instantly', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const world = await createWorld(app, { name: 'Preview Realm' });
@@ -685,6 +826,21 @@ describe('Speculative next-page preview', () => {
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(pages.body.pages).toHaveLength(1);
     expect(pages.body.pages[0].content).toBe('The real page.');
+  });
+
+  it('a canonical world edit invalidates prepared prose made from the old lore', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const world = await createWorld(app, { name: 'Changing Realm' });
+    const story = await createStory(app, world.id, []);
+    mockAi('A page based on the old world.');
+    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+
+    await request(app)
+      .put(`/api/worlds/${world.id}`)
+      .send({ lore: 'The old kingdom vanished overnight.' })
+      .expect(200);
+    const status = await request(app).get(`/api/stories/${story.id}/pages/preview`).expect(200);
+    expect(status.body.preview).toBeNull();
   });
 
   it('preview honors model and word target, and its legacy state block stays inert on commit', async () => {

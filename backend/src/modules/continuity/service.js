@@ -162,6 +162,11 @@ function publicMemory(row) {
 }
 
 function createContinuityService({ db, stories, store, chatCompletion, autoEnabled = true }) {
+  // A prepared-page commit starts extraction after responding, while the
+  // browser may immediately ask for that result to update its cost ticker.
+  // Both callers must join one provider job, never purchase duplicate memory.
+  const pageSyncs = new Map();
+
   function extractionMessages(story, page) {
     // Crucially, page N is interpreted against the fold through N-1. Later
     // pages can never leak facts backward during a manual memory build.
@@ -269,7 +274,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     }
   }
 
-  async function syncPage(story, page, { model, force = false } = {}) {
+  async function runSyncPage(story, page, { model, force = false } = {}) {
     if (!page || page.story_id !== story.id) throw new Error('Page does not belong to this story');
     if (page.image_media_type || !String(page.content || '').trim()) return { skipped: true, reason: 'non-text page' };
     const hash = store.contentHash(page.content);
@@ -296,6 +301,17 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     }
   }
 
+  function syncPage(story, page, options = {}) {
+    const existing = pageSyncs.get(page?.id);
+    if (existing) return existing;
+    let task;
+    task = runSyncPage(story, page, options).finally(() => {
+      if (pageSyncs.get(page?.id) === task) pageSyncs.delete(page?.id);
+    });
+    pageSyncs.set(page?.id, task);
+    return task;
+  }
+
   async function maybeSyncPage(story, page, options = {}) {
     if (!autoEnabled) return { page };
     return syncPage(story, page, options);
@@ -315,7 +331,14 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     return store.continuityView(story);
   }
 
-  return { extract, syncPage, maybeSyncPage, contextForPrompt, view };
+  return {
+    extract,
+    syncPage,
+    maybeSyncPage,
+    contextForPrompt,
+    view,
+    isAutoEnabled: () => autoEnabled,
+  };
 }
 
 module.exports = { createContinuityService, CONTINUITY_SCHEMA, parseJson, publicMemory };

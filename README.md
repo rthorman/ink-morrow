@@ -2,6 +2,10 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
+**v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
+
+Prepared pages now carry opaque identities, stale provider replies cannot overwrite newer previews, and a free metadata read restores the green button after refresh. While preparation is in flight the empty-direction button says so and cannot launch a competing write; canceling a directed write keeps the paid preview. Live writes and rewrites revalidate their story snapshot after the provider returns, story-load and generation tokens prevent late responses from painting the wrong manuscript, and async continuity costs stay attached to the story that started them.
+
 **v3.2.1** seals each installation for one local owner. On first launch, the server prints a one-time setup code; the browser uses it to set a password or passphrase before any manuscript API or private screen can load. Later visits unlock with that password. **Lock** revokes the current server-side session, changing the password revokes every other session, and a terminal-only recovery command removes the password without touching stories or assets.
 
 The boundary is deliberately small and local-machine friendly: asynchronous scrypt password hashing, random opaque sessions stored only as hashes, HttpOnly/SameSite cookies, per-session CSRF tokens, same-origin and Host/DNS-rebinding checks, login throttling, bounded request bodies, private caching, sanitized provider errors, restrictive browser headers, local-only binding by default, and private database/config permissions. Fonts are bundled, so the sealed screen makes no third-party typography request. This is access control—not disk encryption: the database, media, and portable archives remain readable to anyone who can read those files. See [SECURITY.md](SECURITY.md) for the exact boundary and safe LAN/HTTPS setup.
@@ -54,7 +58,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 ## Features
 
 - **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
-- **Prepared next page** — after a confirmed write, the next page is quietly prepared and its provider cost enters Session immediately; an empty Write commits it instantly, while a direction discards it. Prepared prose has no continuity state until it is actually committed
+- **Prepared next page** — after every successful write, rewrite, or prepared commit, exactly one successor is quietly prepared and its provider cost enters Session immediately. An empty Write commits the identified prose instantly and starts the following preview behind the reader; a confirmed direction replaces it, while canceling keeps it. Prepared prose has no continuity state until committed
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
 - **Explicit cast shapes** — every story declares itself *Centered on a lead* or an *Ensemble* up front, in creation and mid-story editing alike; relation labels follow the named lead (and never mention one that does not exist), the mid-story editor offers direct **Make lead / Switch to ensemble** actions, and an empty cast can add a lead directly — never add-then-promote
@@ -246,8 +250,8 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | DELETE | `/api/stories/:id/pages?after=N` | Burn every page after N (destructive dialog in the UI) |
 | POST | `/api/stories/:id/pages/generate` | AI-generate the next page (saves it) |
 | POST | `/api/stories/:id/pages/regenerate` | Rewrite the last page, same direction |
-| POST | `/api/stories/:id/pages/preview` | Prepare the next page ahead of time (nothing saved until committed). The client only calls this as a disclosed follow-up of a confirmed action — never on passive story selection |
-| POST | `/api/stories/:id/pages/commit-preview` | Save the prepared page and book its cost |
+| GET/POST | `/api/stories/:id/pages/preview` | Read free prepared-page metadata / prepare the next page ahead of time (nothing saved until committed). The client only POSTs as a disclosed follow-up of a confirmed action — never on passive story selection |
+| POST | `/api/stories/:id/pages/commit-preview` | Atomically save the identified prepared page, return it immediately, then extract continuity in the background |
 | GET | `/api/stories/:id/continuity` | Inspect memory coverage, folded state, goals, threads and recent events |
 | POST | `/api/stories/:id/continuity/pages/:pageId/sync` | Build or repair one committed text page's memory delta |
 | DELETE | `/api/stories/:id/continuity` | Clear derived memory only (pages, snapshots, corrections and spent-cost ledger remain) |

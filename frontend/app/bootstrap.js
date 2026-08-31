@@ -214,6 +214,7 @@ export function initApp() {
     features.stories.stopCoverPoll();
     catalogPoll.stop();
     shell.stopDiskBanner();
+    features.generation.resetForStoryChange();
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
@@ -316,7 +317,9 @@ function buildFacade(ctx) {
     showError: notify.showError,
     scribeErrorMessage: notify.scribeErrorMessage,
     maybeStartSpeculative: generation.maybeStartSpeculative,
+    restoreSpeculative: generation.restoreSpeculative,
     discardSpeculative: generation.discardSpeculative,
+    resetGenerationForStoryChange: generation.resetForStoryChange,
     loadSpeechModels: settings.loadSpeechModels,
     renderNarrationSettings: settings.renderNarrationSettings,
     __lastNarrationAudio: narration.__lastNarrationAudio,

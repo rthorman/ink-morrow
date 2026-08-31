@@ -1,10 +1,6 @@
-// Page generation + the speculative next-page state machine. The speculative
-// preview survives server restarts server-side; on this side a per-attempt
-// token guarantees a stale in-flight response can never turn the button
-// green, and a direction-generate always discards first so a FRESH preview
-// fires after it. Paid boundaries: every write/rewrite/commit passes the
-// shared paid-consent gate; only the first accepted action opens its review.
-// A story selection alone never spends anything.
+// Page generation + the speculative next-page state machine. Prepared prose
+// remains server-side until committed. Client tokens protect both preview and
+// live-writing responses from story switches and other superseding actions.
 
 import { SCRIBE_FLAVOR, SCRIBE_DONE, SCRIBE_ERROR } from '../../shell.js';
 import { approxCostText, estimatePageCost, estimateContinuityCost } from '../../core/cost.js';
@@ -12,21 +8,22 @@ import { approxCostText, estimatePageCost, estimateContinuityCost } from '../../
 const QUALITY_ATTEMPTS_MAX = 3; // must match backend/src/ai.js
 const CONTINUITY_ATTEMPTS_MAX = 2; // initial structured reply + one correction
 
-export function createGeneration({ api, state, notify, shell, features, dialogs }) {
+export function createGeneration({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
-  const { showError } = notify;
+  const { showError, showSuccess } = notify;
   const { settings, data } = state;
 
-  let speculative = null; // { storyId, ready, token }
-  let speculativeToken = 0; // in-flight responses must match their own token
+  let speculative = null; // { storyId, expectedPage, ready, token, previewKey }
+  let speculativeToken = 0;
+  let actionToken = 0;
   let flavorTimer = null;
-  let reviewing = false; // a paid-consent check is running: no second submission path
+  let reviewing = false;
+  const previewFlights = new Map(); // storyId -> Set(attempt tokens)
+  const refreshAfterPreview = new Set();
 
-  // Rough context size (the provider bills prompt tokens for it): the last
-  // CONTEXT_WINDOW pages are sent verbatim.
   function contextChars() {
     const pages = (data.storyPages || []).slice(-5);
-    return pages.reduce((sum, p) => sum + (p.content || '').length, 0);
+    return pages.reduce((sum, page) => sum + (page.content || '').length, 0);
   }
 
   function pageEstimate() {
@@ -55,22 +52,20 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     return typeof estimate === 'number' && Number.isFinite(estimate) ? estimate * count : null;
   }
 
-  function bookFailedSpend(error, { story = false } = {}) {
+  function bookFailedSpend(error, { storyId = null, persisted = false } = {}) {
     if (typeof error?.costUsd !== 'number' || !Number.isFinite(error.costUsd)) return;
-    if (story) state.addCost(error.costUsd);
+    if (persisted && storyId) state.addCostForStory(storyId, error.costUsd);
     else state.addSessionCost(error.costUsd);
   }
 
-  // The review every write shares: the page itself plus the follow-up
-  // preparation, disclosed as one commitment.
   async function reviewWrite({ action, object, quantity, sends, also }) {
     const singleEstimate = pageEstimate();
     const memoryEstimate = continuityEstimate();
-    const estimate = multipliedEstimate(singleEstimate, 2) + memoryEstimate; // page + ledger + successor preview
+    const estimate = multipliedEstimate(singleEstimate, 2) + memoryEstimate;
     const maximum = multipliedEstimate(singleEstimate, QUALITY_ATTEMPTS_MAX * 2) +
       multipliedEstimate(memoryEstimate, CONTINUITY_ATTEMPTS_MAX);
     const note = 'This rough estimate covers the page, its compact continuity record, and its prepared successor. Authoring may need up to three billable quality attempts; malformed continuity JSON gets one correction. Longer tales still send only bounded recent context.';
-    const yes = await dialogs.confirmPaid({
+    return dialogs.confirmPaid({
       title: 'Send this to the paid scribe?',
       review: {
         action,
@@ -83,9 +78,14 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
         maximum,
         note,
       },
-        confirmLabel: `Write it, remember + prepare (${approxCostText(estimate)})`,
+      confirmLabel: `Write it, remember + prepare (${approxCostText(estimate)})`,
     });
-    return yes;
+  }
+
+  function currentSpeculative() {
+    return speculative && data.currentStory && speculative.storyId === data.currentStory.id
+      ? speculative
+      : null;
   }
 
   function updateSpeculativeUi() {
@@ -93,76 +93,150 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
     if (!btn) return;
     const input = document.getElementById('userInput');
     const inputEmpty = !input || !input.value.trim();
-    const previewReady =
-      !data.generating && speculative && speculative.ready && data.currentStory && speculative.storyId === data.currentStory.id;
-    const previewUsable = previewReady && inputEmpty;
-    btn.textContent = data.generating ? 'The scribe is writing…' : previewUsable ? 'Use prepared page' : 'Write next page';
-    btn.classList.toggle('next-page', previewUsable);
-    // The prepared state says exactly what it is and what a direction costs it.
+    const current = currentSpeculative();
+    const preparing = Boolean(current && !current.ready);
+    const ready = Boolean(current && current.ready);
+    const writable = Boolean(data.currentStory) &&
+      (data.storyPages.length === 0 || data.currentPage === data.storyPages.length);
+    const usable = ready && inputEmpty && !data.generating && writable;
+
+    btn.textContent = data.generating
+      ? 'The scribe is writing…'
+      : preparing && inputEmpty
+        ? 'Preparing next page…'
+        : usable
+          ? 'Use prepared page'
+          : 'Write next page';
+    btn.classList.toggle('next-page', usable);
+    btn.disabled = data.generating || !writable || (preparing && inputEmpty);
+
     const note = document.getElementById('preparedNote');
-    if (note) {
-      if (previewUsable) {
-        note.hidden = false;
-        note.textContent = 'Next page prepared. Its provider cost is already in Session; it joins Story when used.';
-      } else if (previewReady && !inputEmpty) {
-        note.hidden = false;
-        note.textContent = 'A page is prepared — writing with this direction discards it.';
-      } else {
-        note.hidden = true;
-      }
+    if (!note) return;
+    if (usable) {
+      note.hidden = false;
+      note.textContent = 'Next page prepared. Its provider cost was already incurred; it joins Story when used.';
+    } else if (ready && !inputEmpty) {
+      note.hidden = false;
+      note.textContent = 'A page is prepared. Confirming this direction replaces it; canceling keeps it.';
+    } else if (preparing && !inputEmpty) {
+      note.hidden = false;
+      note.textContent = 'A page is already being prepared. You may write from this direction instead, but that first request has already started.';
+    } else {
+      note.hidden = true;
     }
   }
 
-  async function maybeStartSpeculative() {
+  function previewMatchesStory(storyId, expectedPage) {
+    return data.currentStory?.id === storyId &&
+      data.storyPages.length + 1 === expectedPage &&
+      (data.storyPages.length === 0 || data.currentPage === data.storyPages.length);
+  }
+
+  async function maybeStartSpeculative({ ignoreDirection = false } = {}) {
     const { currentStory, storyPages, currentPage } = data;
     if (!currentStory || data.generating) return;
     if (storyPages.length === 0 || currentPage !== storyPages.length) return;
     const input = document.getElementById('userInput');
-    if (input && input.value.trim()) return;
-    if (speculative && speculative.storyId === currentStory.id) return; // already in flight or ready
+    if (!ignoreDirection && input && input.value.trim()) return;
+    if (speculative && speculative.storyId === currentStory.id) return;
 
     const storyId = currentStory.id;
+    const expectedPage = storyPages.length + 1;
     const token = ++speculativeToken;
-    speculative = { storyId, ready: false, token };
+    speculative = { storyId, expectedPage, ready: false, token, previewKey: null };
+    if (!previewFlights.has(storyId)) previewFlights.set(storyId, new Set());
+    previewFlights.get(storyId).add(token);
+    updateSpeculativeUi();
     try {
       const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
-      // Even a response made stale by a direction change consumed provider
-      // work. Book it before deciding whether it may affect the button.
       state.addSessionCost(res.preview?.cost_usd);
-      // Only the CURRENT attempt may turn the button green: a stale attempt
-      // whose story slot got written in the meantime (a direction-generate
-      // invalidated its server-side preview) must never masquerade as ready.
       if (!speculative || speculative.storyId !== storyId || speculative.token !== token) return;
-      speculative = { storyId, ready: true, token };
+      if (!res.preview || res.preview.expected_page !== expectedPage || !previewMatchesStory(storyId, expectedPage)) {
+        speculative = null;
+        return;
+      }
+      speculative = {
+        storyId,
+        expectedPage,
+        ready: true,
+        token,
+        previewKey: res.preview.preview_key || null,
+      };
     } catch (error) {
-      bookFailedSpend(error); // locally rejected provider replies can still bill
+      bookFailedSpend(error);
       if (speculative && speculative.storyId === storyId && speculative.token === token) speculative = null;
+    } finally {
+      const flights = previewFlights.get(storyId);
+      flights?.delete(token);
+      if (flights?.size === 0) previewFlights.delete(storyId);
+      updateSpeculativeUi();
+      if (
+        !previewFlights.has(storyId) &&
+        refreshAfterPreview.delete(storyId) &&
+        data.currentStory?.id === storyId &&
+        !data.generating
+      ) {
+        void refreshSpeculative(storyId);
+      }
     }
+  }
+
+  function restoreSpeculative(storyId, preview) {
+    const token = ++speculativeToken;
+    const expectedPage = data.storyPages.length + 1;
+    speculative = preview && preview.expected_page === expectedPage
+      ? {
+          storyId,
+          expectedPage,
+          ready: true,
+          token,
+          previewKey: preview.preview_key || null,
+        }
+      : null;
     updateSpeculativeUi();
   }
 
+  async function refreshSpeculative(storyId) {
+    try {
+      const result = await apiCall(`/stories/${storyId}/pages/preview`);
+      if (data.currentStory?.id === storyId) restoreSpeculative(storyId, result.preview);
+    } catch {
+      // This free reconciliation read can be retried by the next story load.
+    }
+  }
+
   function discardSpeculative() {
-    speculativeToken++; // any in-flight response is now stale by definition
+    speculativeToken++;
     speculative = null;
     updateSpeculativeUi();
+  }
+
+  function resetForStoryChange() {
+    speculativeToken++;
+    speculative = null;
+    actionToken++;
+    reviewing = false;
+    refreshAfterPreview.clear();
+    if (data.generating) setGenerating(false);
+    else updateSpeculativeUi();
   }
 
   function setGenerating(active) {
     data.generating = active;
     for (const id of ['generateBtn', 'retryBtn']) {
-      document.getElementById(id).disabled = active;
+      const button = document.getElementById(id);
+      if (button) button.disabled = active;
     }
-    features.write.updatePageActionButtons(); // narration & illustration pause while the scribe writes
+    features.write.updatePageActionButtons();
     const generateBtn = document.getElementById('generateBtn');
-    generateBtn.classList.toggle('busy', active);
-    updateSpeculativeUi();
+    if (generateBtn) generateBtn.classList.toggle('busy', active);
 
     const status = document.getElementById('scribeStatus');
-    if (active) {
+    if (active && status) {
       let i = 0;
       status.textContent = SCRIBE_FLAVOR[0];
       flavorTimer = setInterval(() => {
@@ -174,6 +248,112 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       flavorTimer = null;
     }
     features.write.displayCurrentPage();
+    updateSpeculativeUi();
+  }
+
+  function beginAction() {
+    const token = ++actionToken;
+    setGenerating(true);
+    return token;
+  }
+
+  function actionIsCurrent(token, storyId) {
+    return token === actionToken && data.currentStory?.id === storyId;
+  }
+
+  function finishAction(token) {
+    if (token === actionToken) setGenerating(false);
+  }
+
+  function applyPage(storyId, page, { moveToPage = true } = {}) {
+    if (data.currentStory?.id !== storyId || !page) return false;
+    const index = data.storyPages.findIndex((candidate) =>
+      (page.id && candidate.id === page.id) || candidate.page_number === page.page_number
+    );
+    if (index === -1) data.storyPages.push(page);
+    else data.storyPages[index] = page;
+    data.storyPages.sort((a, b) => a.page_number - b.page_number);
+    if (moveToPage) data.currentPage = page.page_number;
+    return true;
+  }
+
+  async function syncCommittedContinuity(storyId, page, originToken) {
+    if (!page?.id) return;
+    try {
+      const result = await apiCall(`/stories/${storyId}/continuity/pages/${page.id}/sync`, 'POST', {
+        ...(settings.model ? { model: settings.model } : {}),
+      });
+      const cost = result.memory?.cost_usd;
+      state.addSessionCost(cost);
+      if (originToken === actionToken && data.currentStory?.id === storyId) state.addStoryCost(cost);
+      if (originToken !== actionToken || data.currentStory?.id !== storyId) return;
+      if (result.page) applyPage(storyId, result.page, { moveToPage: false });
+      features.write.displayCurrentPage();
+      if (result.failed || result.memory?.status === 'failed') {
+        showError('Page saved, but its continuity record needs attention in the Library.');
+      }
+    } catch (error) {
+      bookFailedSpend(error);
+      if (originToken === actionToken && data.currentStory?.id === storyId) {
+        showError(`Page saved, but continuity could not finish: ${error.message}`);
+      }
+    }
+  }
+
+  async function reconcileAfterCommit(storyId, { bookRecoveredCommit = false } = {}) {
+    const before = new Set(data.currentStory?.id === storyId
+      ? data.storyPages.map((page) => page.id || `page:${page.page_number}`)
+      : []);
+    const pagesResult = await apiCall(`/stories/${storyId}/pages`);
+    let previewResult = null;
+    try {
+      previewResult = await apiCall(`/stories/${storyId}/pages/preview`);
+    } catch {
+      // Page reconciliation is authoritative even if preview metadata fails.
+    }
+    if (data.currentStory?.id !== storyId) return { changed: false, newestPage: null };
+    const pages = pagesResult.pages || [];
+    let changed = false;
+    let newestPage = null;
+    for (const page of pages) {
+      const key = page.id || `page:${page.page_number}`;
+      if (before.has(key)) continue;
+      changed = true;
+      newestPage = page;
+      if (bookRecoveredCommit) {
+        state.addStoryCostForStory(storyId, typeof page.cost_usd === 'number' ? page.cost_usd : 0);
+        state.addCostForStory(storyId, typeof page.continuity_cost_usd === 'number' ? page.continuity_cost_usd : 0);
+      }
+    }
+    data.storyPages = pages;
+    data.currentPage = Math.max(1, pages.length);
+    if (previewResult) restoreSpeculative(storyId, previewResult.preview);
+    else if (changed) discardSpeculative();
+    features.write.displayCurrentPage();
+    return { changed, newestPage };
+  }
+
+  async function confirmPreparedCommit(story, pageNumber) {
+    const memoryEstimate = continuityEstimate();
+    const successorEstimate = pageEstimate();
+    const estimate = memoryEstimate + successorEstimate;
+    const maximum = multipliedEstimate(memoryEstimate, CONTINUITY_ATTEMPTS_MAX) +
+      multipliedEstimate(successorEstimate, QUALITY_ATTEMPTS_MAX);
+    return dialogs.confirmPaid({
+      title: 'Use the prepared page and prepare another?',
+      review: {
+        action: `Commit prepared page ${pageNumber} of "${story.title}".`,
+        object: `"${story.title}", prepared page ${pageNumber}`,
+        model: settings.model || 'the scribe\u2019s default model',
+        quantity: 'the already-written page (no new prose generation)',
+        sends: 'the committed page to the continuity clerk after it appears',
+        also: `record continuity (${approxCostText(memoryEstimate)}), then prepare page ${pageNumber + 1} (${approxCostText(successorEstimate)} before retries)`,
+        estimate,
+        maximum,
+        note: 'The page you are entering has already been billed and appears immediately. Continuity and exactly one speculative successor run behind the reader; the successor is not committed unless you use it.',
+      },
+      confirmLabel: `Use prepared page, remember + prepare (${approxCostText(estimate)})`,
+    });
   }
 
   async function generateNextPage() {
@@ -188,117 +368,144 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       return;
     }
 
+    const storyId = currentStory.id;
+    const pageCount = storyPages.length;
     const userInput = document.getElementById('userInput').value.trim();
+    const prepared = currentSpeculative();
 
-    // No direction given and the scribe already prepared the next page: commit it.
-    if (
-      !userInput &&
-      speculative &&
-      speculative.ready &&
-      speculative.storyId === currentStory.id
-    ) {
+    if (!userInput && prepared?.ready) {
       if (reviewing) return;
       reviewing = true;
-      // The prose was billed when prepared. Committing makes it real, so the
-      // continuity clerk runs now; preparing the successor is also fresh spend.
-      const nextEstimate = pageEstimate();
-      const memoryEstimate = continuityEstimate();
-      const commitEstimate = nextEstimate + memoryEstimate;
-      const nextMaximum = multipliedEstimate(nextEstimate, QUALITY_ATTEMPTS_MAX) +
-        multipliedEstimate(memoryEstimate, CONTINUITY_ATTEMPTS_MAX);
-      const yes = await dialogs.confirmPaid({
-        title: 'Use this page and prepare another?',
-        review: {
-          action: `Commit prepared page ${storyPages.length + 1} of "${currentStory.title}". Its prose was already paid for; committing records its continuity.`,
-          quantity: `the prepared page ${storyPages.length + 1} (already spent)`,
-          also: `record continuity (${approxCostText(memoryEstimate)}), then prepare the next page (${approxCostText(nextEstimate)})`,
-          estimate: commitEstimate,
-          maximum: nextMaximum,
-          note: 'The prepared prose bills nothing new. The estimate covers its continuity record and the successor; the record may get one JSON correction and authoring may need up to three quality attempts.',
-        },
-        confirmLabel: `Use prepared page, remember + prepare next (${approxCostText(commitEstimate)})`,
-      });
-      reviewing = false;
-      if (!yes) return; // cancel: no commit, no follow-up, direction kept
-      setGenerating(true);
-      let committed = false;
+      let yes;
       try {
-        const res = await apiCall(`/stories/${currentStory.id}/pages/commit-preview`, 'POST', {});
-        data.storyPages.push(res.page);
-        data.currentPage = data.storyPages.length;
-        const proseCost = typeof res.page?.cost_usd === 'number' ? res.page.cost_usd : 0;
-        const memoryCost = typeof res.page?.continuity_cost_usd === 'number' ? res.page.continuity_cost_usd : 0;
-        state.addStoryCost(proseCost + memoryCost); // prose session cost was booked at preview time
-        state.addSessionCost(memoryCost); // continuity runs only when the preview commits
-        discardSpeculative();
-        document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
-        features.write.displayCurrentPage();
-        committed = true;
-      } catch {
-        // Stale or discarded (the story moved on) - fall back to a live call.
-        discardSpeculative();
+        yes = await confirmPreparedCommit(currentStory, pageCount + 1);
       } finally {
-        setGenerating(false);
+        reviewing = false;
       }
-      if (committed) {
-        maybeStartSpeculative(); // consented: the review disclosed it
+      if (!yes) return;
+      if (data.currentStory?.id !== storyId || currentSpeculative()?.token !== prepared.token) {
+        showError('The prepared page changed before it could be committed. Nothing new was generated.');
         return;
       }
-    }
 
-    // A direction was given (or the commit fell through): the live write
-    // invalidates whatever preview the server holds, so any in-flight
-    // speculative response is stale and must never turn the button green.
-    discardSpeculative();
+      const token = beginAction();
+      let committedPage = null;
+      let committedForCurrentStory = false;
+      let continuityPending = false;
+      try {
+        const body = prepared.previewKey ? { preview_key: prepared.previewKey } : {};
+        const result = await apiCall(`/stories/${storyId}/pages/commit-preview`, 'POST', body);
+        committedPage = result.page;
+        continuityPending = result.continuity_pending === true;
+        const proseCost = typeof result.page?.cost_usd === 'number' ? result.page.cost_usd : 0;
+        const memoryCost = typeof result.page?.continuity_cost_usd === 'number' ? result.page.continuity_cost_usd : 0;
+        state.addSessionCost(memoryCost);
+        if (actionIsCurrent(token, storyId)) {
+          state.addStoryCost(proseCost + memoryCost);
+          applyPage(storyId, result.page);
+          discardSpeculative();
+          document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+          features.write.displayCurrentPage();
+          committedForCurrentStory = true;
+        }
+      } catch (error) {
+        bookFailedSpend(error);
+        const commitOutcomeUnknown = !Number.isInteger(error.status);
+        let reconciliation = { changed: false, newestPage: null };
+        try {
+          reconciliation = await reconcileAfterCommit(storyId, { bookRecoveredCommit: commitOutcomeUnknown });
+        } catch {
+          // Keep the known prepared state when even the free read is offline.
+        }
+        if (actionIsCurrent(token, storyId)) {
+          if (commitOutcomeUnknown && reconciliation.changed) {
+            committedForCurrentStory = true;
+            committedPage = reconciliation.newestPage;
+            continuityPending = Boolean(committedPage?.id);
+            showSuccess('The prepared page was committed and recovered after the response was interrupted.');
+            document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+          } else {
+            showError(`${error.message} No replacement page was generated.`);
+            document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
+          }
+        }
+      } finally {
+        finishAction(token);
+      }
+      if (committedPage && continuityPending) void syncCommittedContinuity(storyId, committedPage, token);
+      if (committedForCurrentStory && data.currentStory?.id === storyId) {
+        void maybeStartSpeculative({ ignoreDirection: true });
+      }
+      return;
+    }
 
     if (reviewing) return;
     reviewing = true;
-    const yes = await reviewWrite({
-      action: userInput
-        ? `Write page ${storyPages.length + 1} of "${currentStory.title}" from your direction.`
-        : `Write page ${storyPages.length + 1} of "${currentStory.title}", continuing naturally.`,
-      object: `"${currentStory.title}", new page ${storyPages.length + 1}`,
-      quantity: `≈${settings.wordsPerPage} words of new prose`,
-      sends: 'your direction, the world, the cast, and the last few pages',
-      also: 'then prepare the next page for what may follow',
-    });
-    reviewing = false;
-    if (!yes) return; // cancel: no request, the direction stays in the field
+    let yes;
+    try {
+      yes = await reviewWrite({
+        action: userInput
+          ? `Write page ${pageCount + 1} of "${currentStory.title}" from your direction.`
+          : `Write page ${pageCount + 1} of "${currentStory.title}", continuing naturally.`,
+        object: `"${currentStory.title}", new page ${pageCount + 1}`,
+        quantity: `≈${settings.wordsPerPage} words of new prose`,
+        sends: 'your direction, the world, the cast, and the last few pages',
+        also: 'prepare the next page for what may follow',
+      });
+    } finally {
+      reviewing = false;
+    }
+    if (!yes) return;
+    if (data.currentStory?.id !== storyId || data.storyPages.length !== pageCount) return;
 
-    await generateNextPageLive(userInput);
+    // Confirmation is the invalidation boundary. Canceling a directed write
+    // leaves the already-paid prepared page available.
+    discardSpeculative();
+    await generateNextPageLive(userInput, storyId);
   }
 
-  async function generateNextPageLive(userInput) {
-    if (data.generating) return;
-    const direction =
-      userInput === undefined || userInput === null
-        ? document.getElementById('userInput').value.trim()
-        : userInput;
-
-    setGenerating(true);
+  async function generateNextPageLive(direction, storyId) {
+    if (data.generating || data.currentStory?.id !== storyId) return;
+    const submittedDirection = direction === undefined || direction === null
+      ? document.getElementById('userInput').value.trim()
+      : direction;
+    const token = beginAction();
     let written = false;
+    let failed = false;
     try {
-      const res = await apiCall(`/stories/${data.currentStory.id}/pages/generate`, 'POST', {
-        user_input: direction || null,
+      const result = await apiCall(`/stories/${storyId}/pages/generate`, 'POST', {
+        user_input: submittedDirection || null,
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
-      data.storyPages.push(res.page);
-      data.currentPage = data.storyPages.length;
-      state.addCost(storedPageCost(res.page));
-      document.getElementById('userInput').value = '';
-      document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
-      features.write.displayCurrentPage();
-      written = true;
+      const newCost = storedPageCost(result.page);
+      state.addSessionCost(newCost);
+      if (actionIsCurrent(token, storyId)) {
+        refreshAfterPreview.delete(storyId);
+        state.addStoryCost(newCost);
+        applyPage(storyId, result.page);
+        const input = document.getElementById('userInput');
+        if (input.value.trim() === submittedDirection) input.value = '';
+        document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+        features.write.displayCurrentPage();
+        written = true;
+      }
     } catch (error) {
+      failed = true;
       bookFailedSpend(error);
-      showError(error.message);
-      document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
+      if (actionIsCurrent(token, storyId)) {
+        showError(error.message);
+        document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
+      }
     } finally {
-      setGenerating(false);
+      finishAction(token);
     }
-    if (written) maybeStartSpeculative(); // only a successful write earns its disclosed successor
+    if (written && actionIsCurrent(token, storyId)) maybeStartSpeculative({ ignoreDirection: true });
+    else if (failed && data.currentStory?.id === storyId) {
+      if (previewFlights.has(storyId)) refreshAfterPreview.add(storyId);
+      else await refreshSpeculative(storyId);
+    }
   }
 
   async function retryLastPage() {
@@ -308,56 +515,66 @@ export function createGeneration({ api, state, notify, shell, features, dialogs 
       showError('Retry works on the last page only - navigate there first.');
       return;
     }
+    const storyId = currentStory.id;
+    const pageCount = storyPages.length;
     if (reviewing) return;
     reviewing = true;
-    const yes = await reviewWrite({
-      action: `Rewrite page ${storyPages.length} of "${currentStory.title}" with its original direction. Rewrites are billed in full.`,
-      object: `"${currentStory.title}", rewriting page ${storyPages.length}`,
-      quantity: `≈${settings.wordsPerPage} words rewritten from scratch`,
-      sends: 'the same direction as the original page, the world, the cast, and the last few pages',
-      also: 'then prepare the next page for what may follow',
-    });
-    reviewing = false;
-    if (!yes) return; // cancel: the existing page stands, nothing is sent
+    let yes;
+    try {
+      yes = await reviewWrite({
+        action: `Rewrite page ${pageCount} of "${currentStory.title}" with its original direction. Rewrites are billed in full.`,
+        object: `"${currentStory.title}", rewriting page ${pageCount}`,
+        quantity: `≈${settings.wordsPerPage} words rewritten from scratch`,
+        sends: 'the same direction as the original page, the world, the cast, and the last few pages',
+        also: 'prepare the next page for what may follow',
+      });
+    } finally {
+      reviewing = false;
+    }
+    if (!yes || data.currentStory?.id !== storyId || data.storyPages.length !== pageCount) return;
 
-    setGenerating(true);
+    const oldCost = storedPageCost(storyPages[pageCount - 1]);
+    const token = beginAction();
     let rewritten = false;
     try {
-      const oldCost = storedPageCost(storyPages[storyPages.length - 1]);
-      const res = await apiCall(`/stories/${currentStory.id}/pages/regenerate`, 'POST', {
+      const result = await apiCall(`/stories/${storyId}/pages/regenerate`, 'POST', {
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
-      data.storyPages[data.storyPages.length - 1] = res.page;
-      const newCost = storedPageCost(res.page);
-      state.addSessionCost(newCost); // the rewrite is a new provider spend in full
-      state.addStoryCost(newCost - oldCost); // persisted story replaces the old page
-      document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
-      discardSpeculative(); // the server dropped the old preview on regenerate
-      features.write.displayCurrentPage();
-      rewritten = true;
+      const newCost = storedPageCost(result.page);
+      state.addSessionCost(newCost);
+      if (actionIsCurrent(token, storyId)) {
+        state.addStoryCost(newCost - oldCost);
+        applyPage(storyId, result.page);
+        document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
+        discardSpeculative();
+        features.write.displayCurrentPage();
+        rewritten = true;
+      }
     } catch (error) {
       bookFailedSpend(error);
-      showError(error.message);
-      document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
+      if (actionIsCurrent(token, storyId)) {
+        showError(error.message);
+        document.getElementById('scribeStatus').textContent = SCRIBE_ERROR;
+      }
     } finally {
-      setGenerating(false);
+      finishAction(token);
     }
-    if (rewritten) maybeStartSpeculative(); // only a successful rewrite earns its disclosed successor
+    if (rewritten && actionIsCurrent(token, storyId)) maybeStartSpeculative({ ignoreDirection: true });
   }
 
   function init() {
-    const userInputEl = document.getElementById('userInput');
-    if (userInputEl) {
-      userInputEl.addEventListener('input', updateSpeculativeUi);
-    }
+    const userInput = document.getElementById('userInput');
+    if (userInput) userInput.addEventListener('input', updateSpeculativeUi);
   }
 
   return {
     updateSpeculativeUi,
     maybeStartSpeculative,
+    restoreSpeculative,
     discardSpeculative,
+    resetForStoryChange,
     setGenerating,
     generateNextPage,
     retryLastPage,
