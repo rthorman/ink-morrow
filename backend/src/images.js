@@ -48,14 +48,17 @@ function imageError(error) {
   return err;
 }
 
-async function generateImage({
+async function generateImage(input) {
+  return generateImageWithConfig(imageConfig(), input);
+}
+
+async function generateImageWithConfig(cfg, {
   prompt,
   aspectRatio = '3:4',
   resolution = '1K',
   quality = 'low',
   inputReferences = [],
 }) {
-  const cfg = imageConfig();
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key is not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -94,6 +97,22 @@ async function generateImage({
     buffer: Buffer.from(image.b64_json, 'base64'),
     mediaType: image.media_type || 'image/png',
     cost: typeof response.data?.usage?.cost === 'number' ? response.data.usage.cost : null,
+  };
+}
+
+function createImageClient({ providers }) {
+  return {
+    generateImage: async (input) => {
+      const cfg = providers.resolve('scribe', {
+        capability: 'image',
+        model: process.env.IMAGE_MODEL || 'x-ai/grok-imagine-image-2.0',
+      });
+      try { return await generateImageWithConfig(cfg, input); }
+      catch (error) {
+        error.message = providers.redact(error.message || 'Image provider request failed.');
+        throw error;
+      }
+    },
   };
 }
 
@@ -198,4 +217,4 @@ function createImageStore(rootDir) {
   };
 }
 
-module.exports = { generateImage, createImageStore, imageConfig, extFor };
+module.exports = { generateImage, createImageClient, createImageStore, imageConfig, extFor };

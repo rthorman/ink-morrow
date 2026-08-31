@@ -35,7 +35,7 @@ When enabled, an archive can contain:
 
 When disabled, the authored manuscript, complete revision ancestry, canonical/display choices, and ready continuity state remain, but direction, model, token, cost, and diagnostic provenance fields are cleared. Audiobook model and voice remain when audio is included because they describe the file; its cost trace is cleared.
 
-API keys, provider credentials, passwords, and the remembered paid-action-consent flag never enter an archive. Full backups carry only the application's explicit settings whitelist (model choices, reading appearance, word target, narrator choice, reasoning level, render quality, and cost-ticker preference).
+API keys, provider credentials, encrypted vault entries/wrapping material, passwords, and the remembered paid-action-consent flag never enter an archive. Full backups carry only the application's explicit settings whitelist (model choices, reading appearance, word target, narrator choice, reasoning level, render quality, and cost-ticker preference).
 
 ## Exposure review
 

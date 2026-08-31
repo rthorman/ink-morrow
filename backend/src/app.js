@@ -9,8 +9,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { randomUUID } = require('node:crypto');
-const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
-const { generateImage, createImageStore } = require('./images');
+const { createAiClient } = require('./ai');
+const { createImageClient, createImageStore } = require('./images');
 const { createHostGuard, securityHeaders } = require('./core/security');
 const { releaseCapabilities } = require('./release');
 
@@ -35,6 +35,8 @@ const { createTransferService } = require('./modules/transfer/service');
 const { createTransferRouter } = require('./modules/transfer/routes');
 const { createAuthService } = require('./modules/auth/service');
 const { createAuthRouter } = require('./modules/auth/routes');
+const { createProviderService } = require('./modules/providers/service');
+const { createProviderRouter } = require('./modules/providers/routes');
 
 function createApp(
   db,
@@ -45,6 +47,7 @@ function createApp(
     transferDir = null,
     authRequired = process.env.NODE_ENV !== 'test',
     authOptions = {},
+    providerOptions = {},
     allowLan = false,
     allowedHosts = [],
     trustProxy = false,
@@ -73,6 +76,18 @@ function createApp(
   // Authentication is the first API feature. Every other API is guarded
   // before a potentially large request body is read from the socket.
   const auth = createAuthService({ db, logger, enabled: authRequired, ...authOptions });
+  const providers = createProviderService({ db, auth, ...providerOptions });
+  const providerSafeLogger = {
+    log: (message) => logger.log(providers.redact(message)),
+    error: (message) => logger.error(providers.redact(message)),
+  };
+  auth.attachVaultLifecycle({
+    status: providers.vault.status,
+    unlockIfPresent: providers.vault.unlockIfPresent,
+    prepareRewrap: providers.vault.prepareRewrap,
+    applyRewrap: providers.vault.applyRewrap,
+    lockAll: providers.lockAll,
+  });
   app.use(createAuthRouter({ auth }));
   app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
 
@@ -98,29 +113,40 @@ function createApp(
     recoveryRetentionDays,
     clock,
   });
-  const ai = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost };
+  const ai = createAiClient({ providers });
+  const { generateImage } = createImageClient({ providers });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
   // provider mocks remain deterministic. Dedicated continuity tests opt in.
   const autoContinuityEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_CONTINUITY_EXTRACTION === '1';
   const continuityStore = createContinuityStore(db);
   const continuity = createContinuityService({
-    db, stories, store: continuityStore, chatCompletion, autoEnabled: autoContinuityEnabled,
+    db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
   });
-  const writing = createWritingService({ db, catalog, stories, continuity, chatCompletion });
+  const writing = createWritingService({ db, catalog, stories, continuity, chatCompletion: ai.chatCompletion });
   const imageStore = createImageStore(imageDir);
   // Auto-generation (creation + boot backfill) can be silenced in tests so it
   // never steals mocked upstream calls; explicit redo always works.
   const autoImagesEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_BACKGROUND_IMAGES === '1';
-  const imageQueue = createImageQueue({ db, continuity, generateImage, imageStore, logger, autoImagesEnabled });
-  const imagery = createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore });
-  const narration = createNarration({ createSpeech });
+  const imageQueue = createImageQueue({
+    db, continuity, generateImage, imageStore, logger: providerSafeLogger, autoImagesEnabled,
+  });
+  const imagery = createImageryService({ catalog, stories, continuity, chatCompletion: ai.chatCompletion, generateImage, imageStore });
+  const narration = createNarration({ createSpeech: ai.createSpeech });
   // Whole-story audiobooks live on disk next to the images; a pending row
   // left behind by a server restart can never finish - fail it honestly.
   fs.mkdirSync(audioDir, { recursive: true });
   db.prepare(
     "UPDATE audiobooks SET status = 'failed', error = 'Interrupted by a server restart. Start it again from the audiobook button.', updated_at = CURRENT_TIMESTAMP WHERE status = 'pending'"
   ).run();
-  const audiobooks = createAudiobookQueue({ db, audioDir, stories, narration, listSpeechModels, fetchGenerationCost, logger });
+  const audiobooks = createAudiobookQueue({
+    db,
+    audioDir,
+    stories,
+    narration,
+    listSpeechModels: ai.listSpeechModels,
+    fetchGenerationCost: ai.fetchGenerationCost,
+    logger: providerSafeLogger,
+  });
   const audio = { abandonStory: audiobooks.abandonStory };
   // Imports are staged next to the database in production. Tests receive an
   // isolated disposable root unless they explicitly provide one.
@@ -143,16 +169,18 @@ function createApp(
     transferDir: resolvedTransferDir,
   });
   app.locals.auth = auth;
+  app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
+  app.use(createProviderRouter({ providers, ai }));
   app.use(createStoriesRouter({ store: stories, imageStore, imageQueue, audio }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, continuity, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
-  app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger }));
+  app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }));
   app.use(createTransferRouter({ transfers }));
 
@@ -176,18 +204,19 @@ function createApp(
     const status = error.statusCode || 500;
     const reference = randomUUID();
     if (status >= 500) {
-      let safeLog = String(error.message || 'Unknown error')
+      let safeLog = providers.redact(String(error.message || 'Unknown error'))
         .replace(/(?:Bearer\s+)?sk-or-v1-[A-Za-z0-9_-]+/gi, '[redacted provider key]')
         .replace(/st_session=[^;\s]+/gi, 'st_session=[redacted]');
       const configuredKey = process.env.OPENROUTER_API_KEY || '';
       if (configuredKey.length >= 8) safeLog = safeLog.replaceAll(configuredKey, '[redacted provider key]');
       logger.error(`Unhandled error ${reference} on ${req.method} ${req.path}: ${safeLog}`);
     }
-    let message = error.message || 'Request failed';
+    let message = providers.redact(error.message || 'Request failed');
     if (error.type === 'entity.parse.failed') message = 'The request body is not valid JSON.';
     else if (status === 413) message = 'The request is too large.';
     else if (status === 500) message = `Internal server error. Reference: ${reference}`;
     const body = { error: message };
+    if (error.code) body.code = error.code;
     if (error.state) body.state = error.state;
     if (status === 429 && error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
     // A failed local quality check can still follow one or more billable
@@ -209,6 +238,7 @@ function createApp(
     audiobooks.dispose();
     narration.dispose();
     transfers.dispose();
+    providers.dispose();
     if (ownsTransferDir) {
       try { fs.rmSync(resolvedTransferDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
     }

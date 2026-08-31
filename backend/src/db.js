@@ -608,6 +608,95 @@ PR 03 immutable page revisions and recovery activation:
 - preserve continuity rows during display-only copyedits
 `;
 
+function activateProviderVault(db) {
+  db.exec(`
+    CREATE TABLE provider_profiles (
+      id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+      display_name TEXT NOT NULL CHECK (length(trim(display_name)) BETWEEN 1 AND 200),
+      base_url TEXT NOT NULL CHECK (length(trim(base_url)) BETWEEN 1 AND 2000),
+      capabilities_json TEXT NOT NULL CHECK (json_valid(capabilities_json)),
+      credential_source TEXT NOT NULL DEFAULT 'none'
+        CHECK (credential_source IN ('none', 'environment', 'session', 'vault')),
+      environment_key TEXT,
+      secret_ref TEXT UNIQUE,
+      timeout_ms INTEGER NOT NULL DEFAULT 120000 CHECK (timeout_ms BETWEEN 1000 AND 600000),
+      enabled INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+      builtin INTEGER NOT NULL DEFAULT 0 CHECK (builtin IN (0, 1)),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK ((credential_source = 'environment' AND environment_key IS NOT NULL AND secret_ref IS NULL)
+          OR (credential_source = 'vault' AND environment_key IS NULL AND secret_ref IS NOT NULL)
+          OR (credential_source IN ('none', 'session') AND environment_key IS NULL AND secret_ref IS NULL))
+    );
+
+    CREATE TABLE provider_role_assignments (
+      role TEXT PRIMARY KEY CHECK (role IN ('scribe', 'archivist', 'narrator')),
+      profile_id TEXT NOT NULL REFERENCES provider_profiles (id) ON DELETE RESTRICT,
+      model_id TEXT NOT NULL CHECK (length(trim(model_id)) BETWEEN 1 AND 500),
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX idx_provider_roles_profile ON provider_role_assignments (profile_id);
+
+    CREATE TABLE provider_vault (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      wrap_salt BLOB NOT NULL,
+      wrap_nonce BLOB NOT NULL,
+      wrapped_key BLOB NOT NULL,
+      wrap_tag BLOB NOT NULL,
+      scrypt_n INTEGER NOT NULL CHECK (scrypt_n > 1),
+      scrypt_r INTEGER NOT NULL CHECK (scrypt_r > 0),
+      scrypt_p INTEGER NOT NULL CHECK (scrypt_p > 0),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE provider_secrets (
+      id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+      profile_id TEXT NOT NULL UNIQUE REFERENCES provider_profiles (id) ON DELETE CASCADE,
+      nonce BLOB NOT NULL,
+      ciphertext BLOB NOT NULL,
+      auth_tag BLOB NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TRIGGER provider_profile_secret_ownership
+    BEFORE UPDATE OF credential_source, secret_ref ON provider_profiles
+    WHEN NEW.credential_source = 'vault'
+      AND NOT EXISTS (
+        SELECT 1 FROM provider_secrets secret
+         WHERE secret.id = NEW.secret_ref AND secret.profile_id = NEW.id
+      )
+    BEGIN
+      SELECT RAISE(ABORT, 'Provider secret belongs to another profile');
+    END;
+
+    CREATE TRIGGER provider_secret_owner_immutable
+    BEFORE UPDATE OF profile_id ON provider_secrets
+    BEGIN
+      SELECT RAISE(ABORT, 'Provider secret ownership is immutable');
+    END;
+
+    CREATE TRIGGER provider_secret_delete_detaches_profile
+    AFTER DELETE ON provider_secrets
+    BEGIN
+      UPDATE provider_profiles
+         SET credential_source = 'none', environment_key = NULL, secret_ref = NULL,
+             updated_at = CURRENT_TIMESTAMP
+       WHERE id = OLD.profile_id AND secret_ref = OLD.id;
+    END;
+  `);
+}
+
+const PROVIDERS_V4_CHECKSUM_SOURCE = `
+PR 04 provider profiles and encrypted secret vault activation:
+- add OpenAI-compatible provider profiles and logical AI role assignments
+- separate environment, process-session, and encrypted-vault credential sources
+- bind every encrypted secret reference to exactly one provider profile
+- keep vault wrapping material and encrypted entries outside portable aggregates
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -631,6 +720,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: REVISIONS_V3_CHECKSUM_SOURCE,
     up(db) {
       activatePageRevisions(db);
+    },
+  }),
+  Object.freeze({
+    version: 4,
+    name: 'provider profiles and encrypted secret vault',
+    checksumSource: PROVIDERS_V4_CHECKSUM_SOURCE,
+    up(db) {
+      activateProviderVault(db);
     },
   }),
 ]);

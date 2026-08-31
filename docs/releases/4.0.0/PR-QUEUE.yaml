@@ -173,7 +173,7 @@ pull_requests:
   - id: "04"
     slug: providers-vault
     title: Provider profiles, secret vault, and AI roles
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "03"

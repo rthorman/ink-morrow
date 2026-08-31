@@ -218,7 +218,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
         : messages;
       try {
         return await chatCompletion(callMessages, {
-          model: process.env.CONTINUITY_MODEL || modelOverride || undefined,
+          model: modelOverride || undefined,
           temperature: 0.1,
           maxTokens: 2200,
           maxBillableAttempts: 1,
@@ -230,7 +230,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
         // fall back to the same strict instruction without double-counting.
         if (useSchema && error.upstreamStatus === 400 && !error.billedAttempts) {
           return chatCompletion(callMessages, {
-            model: process.env.CONTINUITY_MODEL || modelOverride || undefined,
+            model: modelOverride || undefined,
             temperature: 0.1,
             maxTokens: 2200,
             maxBillableAttempts: 1,
@@ -285,13 +285,13 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
 
     store.beginPage(page);
     try {
-      const { delta, spend } = await extract(story, page, model || page.model || undefined);
+      const { delta, spend } = await extract(story, page, model || undefined);
       const row = store.finishPage(page, hash, delta, spend);
       return { memory: publicMemory(row), page: stories.getPageById(page.id), delta };
     } catch (error) {
       const raw = error.extractionSpend || spendOf(error);
       const spend = {
-        model: raw.model || model || page.model || process.env.CONTINUITY_MODEL || null,
+        model: raw.model || model || null,
         usage: raw.usage || { prompt_tokens: 0, completion_tokens: 0 },
         cost_usd: raw.cost_known === false ? null : raw.cost_usd,
         billed_attempts: raw.billed_attempts || 0,

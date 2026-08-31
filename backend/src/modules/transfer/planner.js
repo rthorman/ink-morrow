@@ -347,7 +347,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       includes_author_directions: options.includeWorkingHistory,
       includes_model_and_cost_history: options.includeWorkingHistory,
       includes_device_settings: Boolean(options.settings),
-      excluded: ['API keys', 'credentials', 'passwords', 'paid-action consent'],
+      excluded: ['API keys', 'credentials', 'secret vault material', 'passwords', 'paid-action consent'],
       external_worlds: selection.externalWorlds,
     };
 

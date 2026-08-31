@@ -85,6 +85,7 @@ function shutdown(signal) {
   console.log(`\n${signal} received - closing down...`);
   server.close(() => {
     try {
+      app.locals.dispose?.();
       db.close();
     } catch {
       // already closed

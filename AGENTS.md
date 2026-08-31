@@ -98,6 +98,31 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   remains optional working history. Recovery suffixes and undo credentials
   never enter portable archives.
 
+### 4.0 provider and vault contract (PR 04)
+
+- Schema version 4 stores OpenAI-compatible provider profiles separately from
+  the logical Scribe, Archivist, and Narrator assignments. A stored model
+  choice is never silently replaced when catalogue discovery no longer finds
+  it; the role becomes explicitly unavailable until the owner repairs it.
+- The built-in OpenRouter environment credential is read-only. UI-submitted
+  credentials are either process-session memory or AES-256-GCM vault entries;
+  plaintext keys never enter profile rows, API responses, logs, archives,
+  recovery payloads, snapshots, or browser persistence.
+- The vault uses a random data-encryption key. The owner passphrase derives a
+  separately salted and purpose-labelled wrapping key; password changes rewrap
+  the data key without re-encrypting entries. Ciphertext, nonces, and tags are
+  stored in the non-exported provider-vault tables and every secret reference
+  is profile-owned.
+- Explicit login unlocks an existing vault. A remembered browser session after
+  process restart can still use manual features but saved-provider operations
+  fail closed until passphrase re-entry. Logout, final session expiry, process
+  disposal, and terminal reset remove plaintext access; terminal reset deletes
+  saved credentials while preserving manuscripts and media.
+- Provider/cost exposure descriptions name the logical role, profile, model,
+  data categories, references, operation count, and estimate without exposing
+  credentials. Catalogue, Library, and manual-writing work performs no
+  provider call.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.
