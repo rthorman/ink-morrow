@@ -3,7 +3,7 @@
 // Stories feature store: story/page/preview SQL and the transactions that
 // keep numbering, timestamps, and speculative-preview invalidation honest.
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const { optionalText, asString, TONES } = require('../../core/validation');
 const { normalizeCast, validateCastPayload, parseCastJson } = require('./cast');
 
@@ -95,7 +95,7 @@ function createStoriesStore(db, { getWorld }) {
   }
 
   function createStory(payload) {
-    const id = uuidv4();
+    const id = randomUUID();
     db.prepare('INSERT INTO stories (id, title, world_id, characters, tone) VALUES (?, ?, ?, ?, ?)').run(
       id, payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone
     );
@@ -124,7 +124,7 @@ function createStoriesStore(db, { getWorld }) {
   }
 
   function insertGeneratedPage(storyId, { content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber }) {
-    const id = uuidv4();
+    const id = randomUUID();
     db.prepare(
       'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
@@ -134,7 +134,7 @@ function createStoriesStore(db, { getWorld }) {
   }
 
   function insertManualPage(storyId, content, userInput) {
-    const id = uuidv4();
+    const id = randomUUID();
     db.prepare('INSERT INTO story_pages (id, story_id, page_number, content, user_input) VALUES (?, ?, ?, ?, ?)').run(
       id, storyId, nextPageNumber(storyId), content, userInput
     );
@@ -211,7 +211,7 @@ function createStoriesStore(db, { getWorld }) {
   // one-by-one from the highest down so the UNIQUE(story_id, page_number)
   // constraint never sees a collision.
   function insertImagePage(storyId, after, { mediaType, imagePrompt, cost }) {
-    const id = uuidv4();
+    const id = randomUUID();
     const insert = db.prepare(
       'INSERT INTO story_pages (id, story_id, page_number, content, user_input, cost_usd, image_media_type, image_prompt) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)'
     );

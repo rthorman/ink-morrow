@@ -8,8 +8,10 @@ const express = require('express');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { randomUUID } = require('node:crypto');
 const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { generateImage, createImageStore } = require('./images');
+const { createHostGuard, securityHeaders } = require('./core/security');
 
 const { createCatalogStore } = require('./modules/catalog/store');
 const { createCatalogRouter } = require('./modules/catalog/routes');
@@ -30,6 +32,8 @@ const { createLibraryRouter } = require('./modules/library/routes');
 const { createExportPlanner } = require('./modules/transfer/planner');
 const { createTransferService } = require('./modules/transfer/service');
 const { createTransferRouter } = require('./modules/transfer/routes');
+const { createAuthService } = require('./modules/auth/service');
+const { createAuthRouter } = require('./modules/auth/routes');
 
 function createApp(
   db,
@@ -38,6 +42,11 @@ function createApp(
     imageDir = path.join(__dirname, '../../database/images'),
     audioDir = path.join(__dirname, '../../database/audio'),
     transferDir = null,
+    authRequired = process.env.NODE_ENV !== 'test',
+    authOptions = {},
+    allowLan = false,
+    allowedHosts = [],
+    trustProxy = false,
     // Logger seam: tests inject a collector so expected provider/quality
     // failures can be asserted without spilling stderr; production keeps
     // the console and unexpected errors remain visible.
@@ -45,10 +54,10 @@ function createApp(
   } = {}
 ) {
   const app = express();
+  if (trustProxy) app.set('trust proxy', 'loopback');
   app.disable('x-powered-by');
-  // Base64 scene plates bound into the story can be several MB at 2K render
-  // quality - the body limit must let a painted page through.
-  app.use(express.json({ limit: '12mb' }));
+  app.use(securityHeaders);
+  app.use(createHostGuard({ allowLan, allowedHosts }));
 
   // Simple request log (skip static + health noise + test runs)
   app.use((req, res, next) => {
@@ -56,6 +65,20 @@ function createApp(
       logger.log(`${req.method} ${req.path}`);
     }
     next();
+  });
+
+  // Authentication is the first API feature. Every other API is guarded
+  // before a potentially large request body is read from the socket.
+  const auth = createAuthService({ db, logger, enabled: authRequired, ...authOptions });
+  app.use(createAuthRouter({ auth }));
+  app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
+
+  const ordinaryJson = express.json({ limit: '256kb' });
+  const paintedPageJson = express.json({ limit: '12mb' });
+  const paintedPagePath = /^\/api\/stories\/[^/]+\/pages\/\d+\/image-page$/;
+  app.use((req, res, next) => {
+    if (!req.is('application/json')) return next();
+    return (paintedPagePath.test(req.path) ? paintedPageJson : ordinaryJson)(req, res, next);
   });
 
   // -- runtime / service set -------------------------------------------------
@@ -106,6 +129,7 @@ function createApp(
     audiobooks,
     transferDir: resolvedTransferDir,
   });
+  app.locals.auth = auth;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
@@ -136,8 +160,22 @@ function createApp(
 
   app.use((error, req, res, next) => {
     const status = error.statusCode || 500;
-    if (status >= 500) logger.error(`Unhandled error: ${error.message}`);
-    const body = { error: error.message || 'Internal server error' };
+    const reference = randomUUID();
+    if (status >= 500) {
+      let safeLog = String(error.message || 'Unknown error')
+        .replace(/(?:Bearer\s+)?sk-or-v1-[A-Za-z0-9_-]+/gi, '[redacted provider key]')
+        .replace(/st_session=[^;\s]+/gi, 'st_session=[redacted]');
+      const configuredKey = process.env.OPENROUTER_API_KEY || '';
+      if (configuredKey.length >= 8) safeLog = safeLog.replaceAll(configuredKey, '[redacted provider key]');
+      logger.error(`Unhandled error ${reference} on ${req.method} ${req.path}: ${safeLog}`);
+    }
+    let message = error.message || 'Request failed';
+    if (error.type === 'entity.parse.failed') message = 'The request body is not valid JSON.';
+    else if (status === 413) message = 'The request is too large.';
+    else if (status === 500) message = `Internal server error. Reference: ${reference}`;
+    const body = { error: message };
+    if (error.state) body.state = error.state;
+    if (status === 429 && error.retryAfter) res.setHeader('Retry-After', String(error.retryAfter));
     // A failed local quality check can still follow one or more billable
     // provider completions. Return additive spend metadata so the local
     // session ledger stays honest even though nothing was saved.

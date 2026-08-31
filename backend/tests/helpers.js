@@ -8,7 +8,7 @@ const { createApp } = require('../src/app');
  * Creates a fully isolated test app backed by its own in-memory database.
  * Tests never touch the real database file.
  */
-function createTestApp() {
+function createTestApp(options = {}) {
   const db = createDb(':memory:');
   // Collect logger output instead of spilling stderr; tests that care about
   // expected provider/quality failures assert against these entries.
@@ -17,7 +17,15 @@ function createTestApp() {
     log: (msg) => logEntries.push({ level: 'log', msg }),
     error: (msg) => logEntries.push({ level: 'error', msg }),
   };
-  const app = createApp(db, { staticDir: null, logger });
+  const authOptions = options.authRequired
+    ? {
+        setupCode: 'TEST-SETUP-CODE',
+        scryptParams: { N: 1024, r: 8, p: 1, maxmem: 8 * 1024 * 1024 },
+        delay: async () => {},
+        ...(options.authOptions || {}),
+      }
+    : options.authOptions;
+  const app = createApp(db, { staticDir: null, logger, ...options, authOptions });
   app.locals.logEntries = logEntries;
   return {
     db,
@@ -33,11 +41,25 @@ function createTestApp() {
 /** Clear all rows between tests within a file (keeps schema + open handle). */
 function resetDb(db) {
   db.exec(`
+    DELETE FROM auth_sessions;
+    DELETE FROM auth_owner;
     DELETE FROM story_pages;
     DELETE FROM stories;
     DELETE FROM characters;
     DELETE FROM worlds;
   `);
+}
+
+async function setupOwner(agent, app, password = 'A long test password phrase') {
+  const res = await agent
+    .post('/api/auth/setup')
+    .send({
+      setup_code: app.locals.auth.setupCode,
+      password,
+      remember: true,
+    });
+  if (res.status !== 201) throw new Error(`setupOwner failed: ${res.status} ${JSON.stringify(res.body)}`);
+  return res.body;
 }
 
 // Convenience creators used across test files
@@ -95,4 +117,5 @@ module.exports = {
   createCharacter,
   createStory,
   addPage,
+  setupOwner,
 };

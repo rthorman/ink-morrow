@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const { normalizeNarrationText } = require('../audio/narration');
 const {
   WORLD_FIELDS,
@@ -139,7 +139,7 @@ function createTransferService({
 
   async function createExport(input) {
     const plan = await planner.planExport(input);
-    const token = uuidv4();
+    const token = randomUUID();
     exportTokens.set(token, tokenEntry(plan));
     return { token, ...plan.publicPlan, download_url: `/api/transfers/exports/${token}` };
   }
@@ -369,7 +369,7 @@ function createTransferService({
   }
 
   async function preflight(req) {
-    const stageRoot = path.join(stagingDir, uuidv4());
+    const stageRoot = path.join(stagingDir, randomUUID());
     fs.mkdirSync(stageRoot, { recursive: true });
     let uploaded;
     try {
@@ -378,7 +378,7 @@ function createTransferService({
       try { fs.unlinkSync(uploaded.path); } catch { /* already gone */ }
       validateDependencies(imported);
       const collisions = await classifyImport(imported);
-      const token = uuidv4();
+      const token = randomUUID();
       const session = {
         stageRoot,
         imported,
@@ -455,7 +455,7 @@ function createTransferService({
         const action = actions.get(`${kind}:${entity.id}`);
         let targetId;
         if (action.action === 'keep') targetId = action.local_id;
-        else if (action.action === 'copy') targetId = uuidv4();
+        else if (action.action === 'copy') targetId = randomUUID();
         else targetId = entity.id;
         if (!validId(targetId)) throw httpError(`Could not resolve ${entity.name}`);
         maps[kind].set(entity.id, targetId);
@@ -468,7 +468,7 @@ function createTransferService({
         let id = page.id;
         const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
         if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) {
-          id = uuidv4();
+          id = randomUUID();
         }
         maps.page.set(page.id, id);
       }
@@ -523,7 +523,7 @@ function createTransferService({
         const target = targetForAsset(asset, resolved.maps);
         if (!target) throw httpError(`Could not map media dependency ${asset.archive_path}`);
         fs.mkdirSync(path.dirname(target), { recursive: true });
-        const temporary = `${target}.${uuidv4()}.import`;
+        const temporary = `${target}.${randomUUID()}.import`;
         fs.copyFileSync(asset.staged_path, temporary, fs.constants.COPYFILE_EXCL);
         operations.push({ temporary, target });
       }

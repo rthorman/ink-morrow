@@ -4,7 +4,7 @@
 // reference the live row); characters receive immutable per-story snapshots
 // when cast, with later evolution held by the continuity ledger.
 
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const { optionalText, asString } = require('../../core/validation');
 
 function createCatalogStore(db) {
@@ -22,7 +22,7 @@ function createCatalogStore(db) {
   }
 
   function createWorld({ name, description, genre, setting }) {
-    const id = uuidv4();
+    const id = randomUUID();
     db.prepare('INSERT INTO worlds (id, name, description, genre, setting) VALUES (?, ?, ?, ?, ?)').run(
       id, name, description, genre, setting
     );
@@ -48,7 +48,7 @@ function createCatalogStore(db) {
   }
 
   function createCharacter(payload) {
-    const id = uuidv4();
+    const id = randomUUID();
     db.prepare(
       'INSERT INTO characters (id, name, description, personality, appearance, background, world_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
     ).run(id, payload.name, payload.description, payload.personality, payload.appearance, payload.background, payload.world_id);

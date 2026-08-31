@@ -28,7 +28,8 @@ function imageError(error) {
   const status = error.response?.status;
   const data = error.response?.data;
   let message = null;
-  if (data !== undefined && data !== null) {
+  const providerRefusal = Number.isFinite(status) && status >= 400 && status < 500;
+  if (providerRefusal && data !== undefined && data !== null) {
     try {
       const parsed = typeof data === 'string' || Buffer.isBuffer(data) ? JSON.parse(data.toString()) : data;
       message = parsed?.error?.message || (typeof parsed?.error === 'string' ? parsed.error : null);
@@ -37,9 +38,13 @@ function imageError(error) {
     }
   }
   const err = new Error(
-    message ? `The image model refused this request: ${message}` : error.message || 'Image generation failed'
+    message
+      ? `The image model refused this request: ${message}`
+      : providerRefusal
+        ? `The image provider rejected this request (${status}).`
+        : 'The image provider failed before returning a usable result.'
   );
-  err.statusCode = Number.isFinite(status) && status >= 400 && status < 500 ? status : 502;
+  err.statusCode = providerRefusal ? status : 502;
   return err;
 }
 

@@ -140,7 +140,8 @@ async function speechErrorBody(data) {
 // when the provider bothered to explain itself, the real reason.
 async function speechError(error) {
   const status = error.response?.status;
-  const raw = await speechErrorBody(error.response?.data);
+  const providerRefusal = Number.isFinite(status) && status >= 400 && status < 500;
+  const raw = providerRefusal ? await speechErrorBody(error.response?.data) : null;
   let message = null;
   if (raw !== null && raw !== undefined && (!Buffer.isBuffer(raw) || raw.length)) {
     try {
@@ -153,9 +154,11 @@ async function speechError(error) {
   const err = new Error(
     message
       ? `The narrator refused this page: ${message}`
-      : error.message || 'Speech generation failed'
+      : providerRefusal
+        ? `The narrator provider rejected this page (${status}).`
+        : 'The narrator provider failed before returning usable audio.'
   );
-  err.statusCode = Number.isFinite(status) && status >= 400 && status < 500 ? status : 502;
+  err.statusCode = providerRefusal ? status : 502;
   return err;
 }
 
@@ -431,8 +434,8 @@ async function chatCompletion(
 
   const err = new Error(
     lastError?.response?.status
-      ? `AI API error ${lastError.response.status}: ${JSON.stringify(lastError.response.data).slice(0, 300)}`
-      : `AI API request failed: ${lastError?.message || 'unknown error'}`
+      ? `AI API error ${lastError.response.status}. The provider rejected or failed the request.`
+      : 'AI API request failed before a usable response was received.'
   );
   // Callers with a capability fallback (for example JSON Schema → strict
   // plain JSON) need the provider status without parsing our friendly text.

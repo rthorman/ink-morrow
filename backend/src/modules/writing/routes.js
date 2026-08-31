@@ -11,7 +11,7 @@ const { optionalText, modelOverrideOf, parseReasoningEffort, parseWordTarget, as
 function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
   const router = express.Router();
 
-  // Public OpenRouter catalog proxy for the settings page (no key needed).
+  // OpenRouter catalog proxy for the unlocked settings page (no key needed).
   router.get('/api/models', async (req, res, next) => {
     try {
       res.json({ models: await ai.listModels() });
