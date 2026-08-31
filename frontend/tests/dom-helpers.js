@@ -171,6 +171,12 @@ function buildDom() {
         <details class="settings-group" open><summary><h3>Costs &amp; storage</h3></summary>
           <input type="checkbox" id="costTickerToggle" checked>
         </details>
+        <details class="settings-group"><summary><h3>Data &amp; backups</h3></summary>
+          <button id="dataExportBtn" type="button">Export or back up…</button>
+          <button id="dataImportBtn" type="button">Import or restore…</button>
+          <input id="dataImportFile" type="file">
+          <p id="dataTransferStatus" role="status"></p>
+        </details>
       </section>
     </main>
     <div id="audiobookModal" class="burn-modal" hidden>
@@ -202,6 +208,7 @@ function buildDom() {
         <div id="storyAssetsBody"></div>
         <button id="storyAssetsWriteBtn" type="button">Open writing desk</button>
         <button id="storyAssetsCastBtn" type="button">Edit cast</button>
+        <button id="storyAssetsExportBtn" type="button">Export archive…</button>
         <button id="storyAssetsCloseBtn" type="button">Close</button>
       </div>
     </div>

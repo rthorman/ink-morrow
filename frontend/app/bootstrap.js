@@ -27,6 +27,7 @@ import { createNarration } from './features/write/narration.js';
 import { createImagery } from './features/write/imagery.js';
 import { createAudiobook } from './features/write/audiobook.js';
 import { createSettings } from './features/settings.js';
+import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
 import { createDisabledAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
@@ -55,6 +56,7 @@ export function initApp() {
   };
 
   features.settings = createSettings({ api, state, notify, shell, dialogs });
+  features.transfer = createTransfer({ api, state, notify, features, dialogs });
   features.worlds = createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.characters = createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.home = createHome({ state, notify, router: null, features });
@@ -166,6 +168,7 @@ export function initApp() {
   features.storyEditor.init();
   features.generation.init();
   features.settings.init(); // registers the applySettings re-render hooks...
+  features.transfer.init();
   features.home.init();
   features.library.init();
 
@@ -192,7 +195,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, aiDrafts } = features;
+  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -289,6 +292,9 @@ function buildFacade(ctx) {
     renderFontList: settings.renderFontList,
     STORY_FONTS,
     loadModels: settings.loadModels,
+    openDataExport: transfer.openExport,
+    openImportReview: transfer.openImportReview,
+    reviewImportFile: transfer.reviewFile,
     state: state.state,
     __setStoryState: write.__setStoryState,
     SCRIBE_FLAVOR,

@@ -2,6 +2,10 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
+**v3.2.0** adds versioned, dependency-aware portable archives and complete local backups. A character travels with their home world; a world export can include none, some, or all residents; a story always carries its world, complete current cast (including external home worlds), pages, frozen snapshots, and continuity; a full backup carries everything plus a strict device-settings whitelist. Paintings, audiobook audio, and working history are explicit switches, with audio always called out because it can dominate file size. Every export gets an exposure review and streams media from disk without calling an AI provider.
+
+Imports are staged and SHA-256 verified before the first write. Identical content is reused, same-name items are warned about, and same-ID differences offer keep local / import copy / replace local—stories are never silently field- or page-merged. Copying remaps the complete dependency graph and page-linked state; commit is transactional across SQLite and media files. A replace-all restore first creates a downloadable safety backup of the current installation. Passwords and archive encryption remain deliberately reserved for a later release. The format, privacy boundary, collision grammar, and recovery behavior are documented in [docs/portable-archives.md](docs/portable-archives.md).
+
 **v3.1.0** adds a page-provenanced continuity ledger for long-form stories. Every committed text page gets a separate, strictly structured memory delta: durable events, character location/condition/knowledge/possessions, goals, threads, and story facts. The author model receives a frozen casting snapshot, current folded state, bounded recent prose, and relevant older memories; character/world-sheet intentions are explicitly reference data rather than commands. Prepared pages remain completely inert until committed. Deleting a page removes its facts, regeneration excludes the old page while writing and replaces its delta only after successful prose generation, and the remaining ledger replays deterministically without another AI call.
 
 Library → Stories now exposes that ledger alongside each manuscript's assets. Existing pages are never surprise-backfilled: missing or failed memory can be built or rebuilt one page at a time with an informed cost review and recoverable progress. Authors can inspect current state and events, correct character location/condition, and override goal/thread status. The implementation stays friendly to low-powered local machines: no embeddings, vector server, local model, background polling, or whole-story AI replay—only bounded prompts, indexed SQLite/FTS (with a LIKE fallback), and small JSON folds.
@@ -69,12 +73,13 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and painted scene plates; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and plates
+- **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
 - **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
 - **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
-- **Full test suite** — 385 Jest tests (188 backend + 197 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — 396 Jest tests (194 backend + 202 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -85,7 +90,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 385 Jest tests (188 backend + 197 frontend) pass on-device under Termux
+- All 396 Jest tests (194 backend + 202 frontend) pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -177,8 +182,9 @@ scribe-tribe/
 │   │       ├── imagery/       #   scene painting, moderation flow, entity queue
 │   │       ├── audio/         #   narration cache/segments, audiobook queue
 │   │       ├── library/       #   storage aggregation + EPUB download
+│   │       ├── transfer/      #   archive plan/stream + staged import/commit
 │   │       └── auth/          #   disabled adapter seam (security deferred)
-│   └── tests/                 # Jest + supertest (188 tests)
+│   └── tests/                 # Jest + supertest (194 tests)
 ├── frontend/
 │   ├── index.html             # semantic shell, mount points, dialog templates
 │   ├── app/                   # native ES modules — no build step
@@ -193,10 +199,10 @@ scribe-tribe/
 │   │                          #   auth/ (disabled adapter + dormant gate)
 │   ├── styles/                # tokens, base, shell, components, features
 │   ├── brand/                 # production art assets (WebP + SVG only)
-│   └── tests/                 # Jest + jsdom (197 tests, native ESM)
+│   └── tests/                 # Jest + jsdom (202 tests, native ESM)
  ├── e2e/                   # Playwright browser tests (chromium + mobile)
  ├── database/              # runtime storage, gitignored: SQLite file,
- │                          #   images/ (portraits + covers + scene plates), audio/ (audiobooks)
+ │                          #   images/, audio/, transfers/ (staging + safety backups)
  ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
 ├── .github/workflows/      # CI: Jest + Playwright on every push
 ├── setup.sh
@@ -239,6 +245,11 @@ scribe-tribe/
 | POST | `/api/stories/:id/audiobook/cancel` | Stop the pending or running reading |
 | GET | `/api/stories/:id/audiobook/audio` | Download the finished audiobook (attachment) |
 | GET | `/api/storage` | Per-story excerpt, measured media bytes/count, cover, audiobook, and scene-plate metadata for Library |
+| POST | `/api/transfers/exports/plan` | Resolve an export scope/dependencies and return its exposure review plus a short-lived download token |
+| GET | `/api/transfers/exports/:token` | Stream the reviewed `.scribetribe.zip` archive |
+| POST | `/api/transfers/imports/preflight` | Stage and verify a multipart archive, then classify collisions without writing local data |
+| POST/DELETE | `/api/transfers/imports/:token/commit`, `/api/transfers/imports/:token` | Commit reviewed merge/replace choices, or cancel and remove staging |
+| GET | `/api/transfers/safety-backups/:filename` | Download the automatic pre-restore safety backup |
 | GET | `/api/models` | OpenRouter model catalog with pricing, server-default marker, and per-model reasoning capabilities |
 | POST | `/api/ai/world` | Flesh out a world from seeds (short/medium/long) |
 | POST | `/api/ai/character` | Flesh out a character from seeds (world-aware) |
@@ -252,7 +263,7 @@ All validation errors return `400` with a helpful message; unknown ids return `4
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (188) + frontend (197) Jest suites — runs on Termux too
+npm test             # lint + backend (194) + frontend (202) Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # frontend Jest runs native ESM: cd frontend && npm test (uses --experimental-vm-modules)

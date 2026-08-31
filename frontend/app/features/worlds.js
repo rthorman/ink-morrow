@@ -104,7 +104,14 @@ export function createWorlds({ api, state, notify, catalogPoll, entityCard, feat
         entityCard.entityImageBlock('world', world, `Reference scene for the world ${world.name}`),
         desc,
         meta,
-        entityCard.cardActions({ name: world.name, kind: 'world', onEdit: () => openWorldEditor(world), onRegenerate: regenerate, onDelete: remove })
+        entityCard.cardActions({
+          name: world.name,
+          kind: 'world',
+          onEdit: () => openWorldEditor(world),
+          onRegenerate: regenerate,
+          onExport: () => features.transfer.openExport({ scope: 'world', id: world.id }),
+          onDelete: remove,
+        })
       );
       card.addEventListener('click', (event) => {
         if (event.target.closest('button, details, a')) return; // actions keep their own jobs

@@ -148,6 +148,7 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
         primaryLabel: 'Assets',
         onEdit: openAssets,
         onRegenerate: () => repaintCover(story),
+        onExport: () => features.transfer.openExport({ scope: 'story', id: story.id }),
         onDelete: () => deleteStory(story),
       });
       const cast = document.createElement('button');

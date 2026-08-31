@@ -131,6 +131,14 @@ export function createSharedState() {
     applySettings();
   }
 
+  // Full backups may carry the same intentionally-small settings whitelist.
+  // The server strips credentials and consent flags; this method still feeds
+  // every value through the ordinary client validators before persisting it.
+  function restoreSettings(values) {
+    if (!values || typeof values !== 'object' || Array.isArray(values)) return;
+    for (const [key, value] of Object.entries(values)) setSetting(key, value);
+  }
+
   function addSessionCost(costUsd) {
     if (typeof costUsd !== 'number' || !Number.isFinite(costUsd)) return;
     sessionCost += costUsd;
@@ -176,6 +184,7 @@ export function createSharedState() {
     data,
     get settings() { return settings; },
     setSetting,
+    restoreSettings,
     applySettings,
     onApplySettings,
     updateCostTicker,

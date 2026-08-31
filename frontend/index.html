@@ -396,6 +396,19 @@
                     <p class="setting-hint">Costs are approximate until the provider reports the authoritative number; the ticker is a running meter, not a guarantee.</p>
                 </details>
 
+                <details class="create-form settings-group" id="dataBackupsGroup">
+                    <summary><h3>Data &amp; backups</h3><span class="settings-group__summary">Portable archives with dependency checks</span></summary>
+                    <p class="current-model">Carry one asset, a linked bundle, or the whole scriptorium to another installation.</p>
+                    <p class="setting-hint">Exports are reviewed before download. Imports are staged and collision-checked before anything local changes; no AI calls or provider charges are involved.</p>
+                    <div class="data-transfer-actions">
+                        <button id="dataExportBtn" type="button" class="btn btn-primary">Export or back up…</button>
+                        <button id="dataImportBtn" type="button" class="btn btn-secondary">Import or restore…</button>
+                        <input id="dataImportFile" class="sr-only" type="file" accept=".scribetribe.zip,.zip,application/zip">
+                    </div>
+                    <p id="dataTransferStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
+                    <p class="setting-hint">Audio is always optional. Passwords and encrypted archives are deliberately reserved for a later release.</p>
+                </details>
+
                 <details class="create-form settings-group">
                     <summary><h3>Keyboard shortcuts</h3><span class="settings-group__summary">The desk in fewer motions</span></summary>
                     <dl class="shortcut-list">
@@ -467,6 +480,7 @@
             <div class="burn-modal__actions">
                 <button id="storyAssetsWriteBtn" type="button" class="btn btn-primary">Open writing desk</button>
                 <button id="storyAssetsCastBtn" type="button" class="btn btn-secondary">Edit cast</button>
+                <button id="storyAssetsExportBtn" type="button" class="btn btn-secondary">Export archive…</button>
                 <button id="storyAssetsCloseBtn" type="button" class="btn btn-secondary">Close</button>
             </div>
         </div>

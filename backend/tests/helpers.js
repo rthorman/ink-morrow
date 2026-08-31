@@ -19,7 +19,15 @@ function createTestApp() {
   };
   const app = createApp(db, { staticDir: null, logger });
   app.locals.logEntries = logEntries;
-  return { db, app, logEntries, close: () => db.close() };
+  return {
+    db,
+    app,
+    logEntries,
+    close: () => {
+      app.locals.dispose?.();
+      db.close();
+    },
+  };
 }
 
 /** Clear all rows between tests within a file (keeps schema + open handle). */

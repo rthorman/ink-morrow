@@ -647,6 +647,11 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       closeStoryAssets();
       if (story) features.storyEditor.openStoryCastEditor(story);
     });
+    document.getElementById('storyAssetsExportBtn')?.addEventListener('click', () => {
+      const story = state.data.stories.find((entry) => entry.id === activeStoryId);
+      closeStoryAssets();
+      if (story) features.transfer.openExport({ scope: 'story', id: story.id });
+    });
   }
 
   return { loadBookshelf, openStoryAssets, closeStoryAssets, refreshActiveAssets, init };
