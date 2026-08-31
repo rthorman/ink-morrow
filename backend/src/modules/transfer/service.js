@@ -20,6 +20,8 @@ const {
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
   PREVIEW_FIELDS,
+  WRITING_OPERATION_FIELDS,
+  PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
   ARCHIVE_EXTENSION,
   semanticHash,
@@ -112,6 +114,7 @@ function createTransferService({
   imageStore,
   audioDir,
   audiobooks,
+  writingTransactions,
   transferDir,
   limits = {},
 }) {
@@ -876,6 +879,92 @@ function createTransferService({
           correction_json: JSON.stringify(mapObjectIds(parseJson(correctionSource.correction_json, {}), combinedMap)),
         };
         insertOrReplace(db, 'continuity_corrections', correction, CORRECTION_FIELDS);
+      }
+      const operationSources = entity.bundle.writing_operations || [];
+      const operationMap = new Map(operationSources.map((operation) => [operation.id, randomUUID()]));
+      const preparedSource = entity.bundle.prepared_page || null;
+      const preparedId = preparedSource ? randomUUID() : null;
+      const workingMap = new Map([
+        ...combinedMap,
+        ...operationMap,
+        ...(preparedSource ? [[preparedSource.id, preparedId]] : []),
+      ]);
+      const importedContext = preparedSource
+        ? mapObjectIds(parseJson(preparedSource.context_json, {}), workingMap)
+        : null;
+      const freshPreparedContext = importedContext && writingTransactions
+        ? writingTransactions.contextSnapshot(storyId, importedContext.generation || {})
+        : null;
+      const importedAt = new Date().toISOString();
+      const writingOperationDbFields = [...WRITING_OPERATION_FIELDS, 'writer_session_id', 'lease_token'];
+      for (const operationSource of operationSources) {
+        const interrupted = ['requested', 'running'].includes(operationSource.status);
+        const isPreparedOperation = Boolean(preparedSource && operationSource.id === preparedSource.operation_id);
+        const operation = {
+          ...operationSource,
+          id: operationMap.get(operationSource.id),
+          story_id: storyId,
+          writer_session_id: `archive-import:${randomUUID()}`,
+          lease_token: null,
+          expected_tail_page_id: operationSource.expected_tail_page_id
+            ? maps.page.get(operationSource.expected_tail_page_id)
+            : null,
+          expected_tail_revision_id: operationSource.expected_tail_revision_id
+            ? maps.revision.get(operationSource.expected_tail_revision_id)
+            : null,
+          context_fingerprint: isPreparedOperation && freshPreparedContext
+            ? freshPreparedContext.fingerprint
+            : operationSource.context_fingerprint,
+          request_json: JSON.stringify(mapObjectIds(parseJson(operationSource.request_json, {}), workingMap)),
+          provider_result_json: operationSource.provider_result_json
+            ? JSON.stringify(mapObjectIds(parseJson(operationSource.provider_result_json, {}), workingMap))
+            : null,
+          result_json: operationSource.result_json
+            ? JSON.stringify(mapObjectIds(parseJson(operationSource.result_json, {}), workingMap))
+            : null,
+          status: interrupted ? 'failed' : operationSource.status,
+          error_code: interrupted ? 'RESTART_INTERRUPTED' : operationSource.error_code,
+          error_message: interrupted
+            ? 'The archived provider operation was interrupted before import.'
+            : operationSource.error_message,
+          updated_at: interrupted ? importedAt : operationSource.updated_at,
+          finished_at: interrupted ? importedAt : operationSource.finished_at,
+        };
+        insertOrUpdate(db, 'writing_operations', operation, writingOperationDbFields);
+      }
+      if (preparedSource) {
+        const prepared = {
+          ...preparedSource,
+          story_id: storyId,
+          id: preparedId,
+          operation_id: operationMap.get(preparedSource.operation_id),
+          expected_tail_page_id: preparedSource.expected_tail_page_id
+            ? maps.page.get(preparedSource.expected_tail_page_id)
+            : null,
+          expected_tail_revision_id: preparedSource.expected_tail_revision_id
+            ? maps.revision.get(preparedSource.expected_tail_revision_id)
+            : null,
+          context_fingerprint: freshPreparedContext
+            ? freshPreparedContext.fingerprint
+            : preparedSource.context_fingerprint,
+          context_json: freshPreparedContext
+            ? freshPreparedContext.json
+            : JSON.stringify(importedContext),
+          provider_result_json: JSON.stringify(mapObjectIds(
+            parseJson(preparedSource.provider_result_json, {}), workingMap
+          )),
+        };
+        insertOrUpdate(db, 'prepared_pages', prepared, PREPARED_PAGE_FIELDS, 'story_id');
+        // The operation response carries the public opaque identity. Rebuild
+        // it after assigning the imported identity so idempotent replay agrees
+        // with GET /preview and exact promotion.
+        const publicPrepared = writingTransactions
+          ? writingTransactions.publicPrepared(prepared)
+          : { id: prepared.id, preview_id: prepared.id, preview_key: prepared.id,
+              expected_page: prepared.expected_page, operation_id: prepared.operation_id,
+              created_at: prepared.created_at };
+        db.prepare('UPDATE writing_operations SET result_json = ? WHERE id = ?')
+          .run(JSON.stringify({ preview: publicPrepared }), prepared.operation_id);
       }
       if (entity.bundle.preview) {
         insertOrUpdate(db, 'story_previews', { ...entity.bundle.preview, story_id: storyId }, PREVIEW_FIELDS, 'story_id');

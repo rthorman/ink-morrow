@@ -194,49 +194,61 @@ function createRevisionStore(db, {
     if (repeated) return repeated;
     let result;
     hierarchy.inImmediateTransaction(() => {
-      const page = getPlacement.get(storyId, pageId);
-      if (!page) return;
-      if (activeTailId(storyId) !== pageId) {
-        throw conflict('Only the active tail page can be substantively edited.', 'TAIL_ONLY');
-      }
-      if (page.image_media_type) throw conflict('A painted plate has no canonical prose to edit.', 'IMAGE_PAGE');
-      const current = page.canonical_revision_id
-        ? getRevision.get(page.canonical_revision_id)
-        : createInitialRevisionInTransaction(pageId, page);
-      const revisionId = randomUUID();
-      const timestamp = now();
-      insertRevision.run(
-        revisionId, pageId, current.id, 'canonical', content, direction,
-        source === 'ai' ? 'ai' : 'author', model, promptTokens, completionTokens,
-        Number(costUsd) || 0, timestamp
-      );
-      setPointers.run(revisionId, revisionId, timestamp, pageId);
-      db.prepare(`
-        UPDATE story_pages
-           SET content = ?, user_input = ?, model = ?, prompt_tokens = ?,
-               completion_tokens = ?, cost_usd = ?,
-               continuity_model = NULL, continuity_prompt_tokens = NULL,
-               continuity_completion_tokens = NULL, continuity_cost_usd = 0
-         WHERE id = ?
-      `).run(content, direction, model, promptTokens, completionTokens, Number(costUsd) || 0, pageId);
-      db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
-      db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
-      result = {
-        page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(pageId),
-        revision: getRevision.get(revisionId),
-        canonical_revision_id: revisionId,
-        display_revision_id: revisionId,
-        continuity_recalculated: false,
-      };
-      journalInTransaction(kind, storyId, 'page', pageId, {
-        parent_revision_id: current.id,
-      }, {
-        page_id: pageId,
-        revision_id: revisionId,
-      }, idempotencyKey);
+      result = tailEditInTransaction(storyId, pageId, {
+        content, direction, source, model, promptTokens, completionTokens, costUsd, idempotencyKey,
+      });
     });
     if (!result) return null;
     invalidatePreview(storyId);
+    return result;
+  }
+
+  function tailEditInTransaction(storyId, pageId, {
+    content, direction = null, source = 'author', model = null,
+    promptTokens = null, completionTokens = null, costUsd = 0,
+    idempotencyKey = null,
+  }) {
+    const page = getPlacement.get(storyId, pageId);
+    if (!page) return null;
+    if (activeTailId(storyId) !== pageId) {
+      throw conflict('Only the active tail page can be substantively edited.', 'TAIL_ONLY');
+    }
+    if (page.image_media_type) throw conflict('A painted plate has no canonical prose to edit.', 'IMAGE_PAGE');
+    const current = page.canonical_revision_id
+      ? getRevision.get(page.canonical_revision_id)
+      : createInitialRevisionInTransaction(pageId, page);
+    const revisionId = randomUUID();
+    const timestamp = now();
+    insertRevision.run(
+      revisionId, pageId, current.id, 'canonical', content, direction,
+      source === 'ai' ? 'ai' : 'author', model, promptTokens, completionTokens,
+      Number(costUsd) || 0, timestamp
+    );
+    setPointers.run(revisionId, revisionId, timestamp, pageId);
+    db.prepare(`
+      UPDATE story_pages
+         SET content = ?, user_input = ?, model = ?, prompt_tokens = ?,
+             completion_tokens = ?, cost_usd = ?,
+             continuity_model = NULL, continuity_prompt_tokens = NULL,
+             continuity_completion_tokens = NULL, continuity_cost_usd = 0
+       WHERE id = ?
+    `).run(content, direction, model, promptTokens, completionTokens, Number(costUsd) || 0, pageId);
+    db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
+    db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
+    db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
+    const result = {
+      page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(pageId),
+      revision: getRevision.get(revisionId),
+      canonical_revision_id: revisionId,
+      display_revision_id: revisionId,
+      continuity_recalculated: false,
+    };
+    journalInTransaction('page.tail_edit', storyId, 'page', pageId, {
+      parent_revision_id: current.id,
+    }, {
+      page_id: pageId,
+      revision_id: revisionId,
+    }, idempotencyKey);
     return result;
   }
 
@@ -268,6 +280,7 @@ function createRevisionStore(db, {
       // the established continuity row for this display-only edit.
       db.prepare('UPDATE story_pages SET content = ? WHERE id = ?').run(content, pageId);
       db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
+      db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
       db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
       result = {
         page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(pageId),
@@ -407,6 +420,7 @@ function createRevisionStore(db, {
       for (const page of doomed) deletePlacement.run(page.id);
       db.prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?').run(storyId, after);
       db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
+      db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
       payload.head_fingerprint = chainFingerprint(storyId);
       db.prepare(`
         INSERT INTO recovery_suffixes
@@ -544,6 +558,7 @@ function createRevisionStore(db, {
         UPDATE recovery_suffixes SET status = 'restored', resolved_at = ? WHERE id = ?
       `).run(timestamp, recoveryId);
       db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
+      db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
       db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
       result = {
         restored: payload.page_count,
@@ -602,6 +617,7 @@ function createRevisionStore(db, {
     revisionState,
     listPageRevisions,
     tailEdit,
+    tailEditInTransaction,
     copyedit,
     truncateAfter,
     restoreRecovery,

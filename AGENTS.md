@@ -147,6 +147,32 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   references; search, checkpoints, and issues are rebuilt rather than
   exported. Full behavior: `docs/continuity-ledger.md`.
 
+### 4.0 transactional writing contract (PR 06)
+
+- Schema version 6 activates durable `requested` / `running` / `succeeded` /
+  `committed` / `failed` / `superseded` writing operations. Story-scoped
+  idempotency keys replay one result and reject different input.
+- A short expiring writer lease covers story and canon mutations. Provider
+  replies recheck the exact lease and a context fingerprint containing the
+  manuscript destination, tail canonical/display revisions, story settings,
+  template snapshots, folded-state evidence version, and generation settings.
+- One restart-safe prepared page may exist per story. **Use prepared page**
+  promotes only its opaque identity and never falls back to live generation.
+  Confirmed directed work consumes it before making one Scribe request;
+  typing, clearing, cancelling review, or provider failure cannot commit it.
+- No partial stream is canonical. Late, reordered, cancelled, context-stale,
+  or lease-lost replies record known provider usage/spend but cannot mutate
+  pages. Restart marks abandoned work failed and preserves completed prepared
+  prose.
+- Canonical prose commits before optional Archivist completion, creates one
+  pending revision delta, and schedules exactly one server-owned successor.
+  Speculative spend, current prepared spend, and committed story totals remain
+  distinct.
+- Working-history archives carry redacted operation rows and the prepared
+  page, never writer-session or lease identities. Import remaps references and
+  rebinds the prepared page to its imported context. Full behavior:
+  `docs/writing-transactions.md`.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.

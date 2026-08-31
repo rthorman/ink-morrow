@@ -28,6 +28,7 @@ When enabled, an archive can contain:
 
 - author directions for generated pages;
 - a paid, prepared next page that has not yet been committed;
+- redacted durable writing-operation states, provider results, and spend;
 - writing and continuity model identifiers;
 - prompt/completion token counts and recorded costs;
 - image-generation prompts;
@@ -77,7 +78,8 @@ count, SHA-256 digest, and semantic digest. The checked-in
 JSON is an aggregate containing its story row, ordered volume/chapter/page
 hierarchy, immutable revision ancestry with canonical/display pointers,
 temporary ordered compatibility prose rows, story-local world/cast snapshots, continuity
-rows, optional prepared page, and optional ready-audiobook metadata.
+rows, optional redacted writing operations and prepared page, and optional
+ready-audiobook metadata. Writer-session and lease identities never travel.
 Hierarchy identities and scoped ordinals are functional manuscript data, not
 working history, so they always travel. Derived continuity search/FTS rows,
 projection checkpoints, and impact issues are not exported; they are rebuilt locally from verified revision deltas during
@@ -107,7 +109,7 @@ Each top-level entity receives one classification:
 
 “Identical” ignores timestamps, an entity's own primary ID, and story-page IDs (pages are compared in manuscript order), but retains dependency identities so differently linked graphs are not collapsed. It compares the meaningful fields, ordered manuscript, snapshots, continuity, optional working history, and every media file selected for this archive. If visuals or audio were deliberately left out, that omitted category does not create a collision.
 
-ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, and revisions; every world, cast, story-local template, correction citation, continuity character/revision reference, override key, plate, cover, and audiobook reference is remapped as one dependency graph.
+ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, and any prepared page; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, plate, cover, and audiobook reference is remapped as one dependency graph. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
 
 ## Merge and full restore
 

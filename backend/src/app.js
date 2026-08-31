@@ -23,6 +23,7 @@ const { createContinuityService } = require('./modules/continuity/service');
 const { createContinuityRouter } = require('./modules/continuity/routes');
 const { createWritingService } = require('./modules/writing/service');
 const { createWritingRouter } = require('./modules/writing/routes');
+const { createWritingTransactions } = require('./modules/writing/transactions');
 const { createImageQueue } = require('./modules/imagery/queue');
 const { createImageryService } = require('./modules/imagery/service');
 const { createImageryRouter } = require('./modules/imagery/routes');
@@ -52,6 +53,8 @@ function createApp(
     allowedHosts = [],
     trustProxy = false,
     recoveryRetentionDays = process.env.RECOVERY_RETENTION_DAYS,
+    writerLeaseMs,
+    autoSuccessorEnabled,
     clock = () => new Date(),
     // Logger seam: tests inject a collector so expected provider/quality
     // failures can be asserted without spilling stderr; production keeps
@@ -123,6 +126,17 @@ function createApp(
     db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
   });
   const writing = createWritingService({ db, catalog, stories, continuity, chatCompletion: ai.chatCompletion });
+  const writingTransactions = createWritingTransactions({
+    db,
+    stories,
+    continuityStore,
+    continuity,
+    writing,
+    clock,
+    ...(writerLeaseMs === undefined ? {} : { leaseMs: writerLeaseMs }),
+    ...(autoSuccessorEnabled === undefined ? {} : { autoSuccessorEnabled }),
+    logger: providerSafeLogger,
+  });
   const imageStore = createImageStore(imageDir);
   // Auto-generation (creation + boot backfill) can be silenced in tests so it
   // never steals mocked upstream calls; explicit redo always works.
@@ -166,19 +180,23 @@ function createApp(
     imageStore,
     audioDir,
     audiobooks,
+    writingTransactions,
     transferDir: resolvedTransferDir,
   });
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
+  app.locals.writingTransactions = writingTransactions;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
   app.use(createProviderRouter({ providers, ai }));
-  app.use(createStoriesRouter({ store: stories, imageStore, imageQueue, audio }));
+  app.use(createStoriesRouter({
+    store: stories, imageStore, imageQueue, audio, transactions: writingTransactions,
+  }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
-  app.use(createWritingRouter({ catalog, stories, writing, continuity, ai }));
+  app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }));
@@ -238,6 +256,7 @@ function createApp(
     audiobooks.dispose();
     narration.dispose();
     transfers.dispose();
+    writingTransactions.dispose();
     providers.dispose();
     if (ownsTransferDir) {
       try { fs.rmSync(resolvedTransferDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }

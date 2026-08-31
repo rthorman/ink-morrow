@@ -96,10 +96,24 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
   );
   const getPreview = db.prepare('SELECT * FROM story_previews WHERE story_id = ?');
   const deletePreview = db.prepare('DELETE FROM story_previews WHERE story_id = ?');
+  const deletePreparedPage = db.prepare('DELETE FROM prepared_pages WHERE story_id = ?');
+  const supersedePreparing = db.prepare(`
+    UPDATE writing_operations
+       SET status = 'superseded', error_code = 'CONTEXT_CHANGED',
+           error_message = 'The story context changed before this operation finished.',
+           updated_at = CURRENT_TIMESTAMP, finished_at = CURRENT_TIMESTAMP
+     WHERE story_id = ? AND kind = 'prepare' AND status IN ('requested', 'running')
+  `);
+
+  function markPreviewInvalidated(storyId) {
+    previewRevisions.set(storyId, (previewRevisions.get(storyId) || 0) + 1);
+  }
 
   function invalidatePreview(storyId) {
     deletePreview.run(storyId);
-    previewRevisions.set(storyId, (previewRevisions.get(storyId) || 0) + 1);
+    deletePreparedPage.run(storyId);
+    supersedePreparing.run(storyId);
+    markPreviewInvalidated(storyId);
   }
 
   function previewRevision(storyId) {
@@ -195,29 +209,37 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     return db.prepare('SELECT COALESCE(MAX(page_number), 0) + 1 AS n FROM story_pages WHERE story_id = ?').get(storyId).n;
   }
 
-  function insertGeneratedPage(storyId, { content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber }) {
+  function insertGeneratedPageInTransaction(storyId, {
+    content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber,
+  }) {
     const id = randomUUID();
-    hierarchy.inImmediateTransaction(() => {
-      db.prepare(
-        'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
-        model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
-      hierarchy.insertTailPageInTransaction(storyId, id);
-      const revision = revisions.createInitialRevisionInTransaction(id, {
-        content,
-        direction: userInput ?? null,
-        source: model ? 'ai' : 'author',
-        model: model ?? null,
-        promptTokens: promptTokens ?? null,
-        completionTokens: completionTokens ?? null,
-        costUsd: costUsd ?? 0,
-      });
-      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
-      revisions.journalInTransaction('page.create', storyId, 'page', id, {
-        source: model ? 'ai' : 'author',
-      }, { page_id: id, revision_id: revision.id });
+    db.prepare(
+      'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
+      model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
+    hierarchy.insertTailPageInTransaction(storyId, id);
+    const revision = revisions.createInitialRevisionInTransaction(id, {
+      content,
+      direction: userInput ?? null,
+      source: model ? 'ai' : 'author',
+      model: model ?? null,
+      promptTokens: promptTokens ?? null,
+      completionTokens: completionTokens ?? null,
+      costUsd: costUsd ?? 0,
     });
-    return getPageById(id);
+    db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
+    revisions.journalInTransaction('page.create', storyId, 'page', id, {
+      source: model ? 'ai' : 'author',
+    }, { page_id: id, revision_id: revision.id });
+    return { page: getPageById(id), revision };
+  }
+
+  function insertGeneratedPage(storyId, input) {
+    let result;
+    hierarchy.inImmediateTransaction(() => {
+      result = insertGeneratedPageInTransaction(storyId, input);
+    });
+    return result.page;
   }
 
   function insertManualPage(storyId, content, userInput) {
@@ -274,6 +296,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
       for (const row of later) bump.run(row.id);
       deletePreview.run(page.story_id);
+      deletePreparedPage.run(page.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);
       revisions.journalInTransaction('page.delete', page.story_id, 'page', page.id, {
         page_number: page.page_number,
@@ -347,6 +370,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     upsertPreview,
     getPreview,
     invalidatePreview,
+    markPreviewInvalidated,
     invalidatePreviewsForWorld,
     previewRevision,
     validateStoryPayload,
@@ -356,6 +380,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     setImageDeleted,
     nextPageNumber,
     insertGeneratedPage,
+    insertGeneratedPageInTransaction,
     insertManualPage,
     replaceGeneratedPage,
     deletePage,

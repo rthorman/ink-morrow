@@ -79,7 +79,13 @@ describe('page-provenanced continuity ledger', () => {
     });
     const generated = await generate(story.id, 'Will waits beneath the rain-dark sign.', memory);
     expect(generated.status).toBe(201);
-    expect(generated.body.page.continuity_model).toBe('z-ai/glm-5.1');
+    // Canon returns before the optional Archivist. A client sync joins the
+    // already scheduled per-revision job instead of starting another charge.
+    const synced = await request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${generated.body.page.id}/sync`)
+      .send({})
+      .expect(200);
+    expect(synced.body.page.continuity_model).toBe('z-ai/glm-5.1');
 
     const authorRequest = axios.post.mock.calls[0][1];
     expect(authorRequest.messages[1].content).toContain('Will intends to join the adventurers guild');
@@ -101,13 +107,18 @@ describe('page-provenanced continuity ledger', () => {
     await generate(story.id, 'The first page ends.', delta({ summary: 'The tale begins.' }));
 
     axios.post.mockResolvedValueOnce(reply('The prepared page waits.'));
-    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    const prepared = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
     expect(axios.post).toHaveBeenCalledTimes(3); // author + clerk + preview author; no preview clerk
     let view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
     expect(view.body.continuity.coverage).toMatchObject({ total: 1, ready: 1 });
 
     axios.post.mockResolvedValueOnce(reply(delta({ summary: 'The prepared page is now committed.' })));
-    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+    const committed = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: prepared.body.preview.preview_id }).expect(201);
+    await request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${committed.body.page.id}/sync`)
+      .send({})
+      .expect(200);
     view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
     expect(view.body.continuity.coverage).toMatchObject({ total: 2, ready: 2 });
   });

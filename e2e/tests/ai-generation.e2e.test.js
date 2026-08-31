@@ -141,7 +141,7 @@ test.describe('AI generation flows (mocked)', () => {
     expect(await page.evaluate(() => localStorage.getItem('st-paid-consent-v1'))).toBe('1');
 
     await page.fill('#userInput', 'Open the second door');
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
     await page.locator('#generateBtn').click();
     await expect(review).toBeHidden();
     await expect(page.locator('#storyContent')).toContainText('without another interruption', { timeout: 5000 });
@@ -178,7 +178,7 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('.error-message').first()).toContainText('no ink', { timeout: 5000 });
     // Buttons recover
     await expect(page.locator('#generateBtn')).toBeEnabled();
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
   });
 
   test('AI requests carry world, characters, tone and direction', async ({ page }) => {
@@ -294,6 +294,7 @@ test.describe('Reading old pages and burning the rest', () => {
     await createStoryViaUi(page, 'Burn Test');
 
     // Generate the second page, then step back to page 1
+    await page.fill('#userInput', 'Continue to the second page');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
@@ -383,15 +384,18 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
 test.describe('Speculative next-page preparation', () => {
   test('an empty-direction Generate commits the prepared page instantly', async ({ page }) => {
     let generateCalls = 0;
-    let previewCalls = 0;
+    let previewPostCalls = 0;
     let commitCalls = 0;
+    let successorPage = null;
     await page.route('**/api/stories/*/pages/generate', async (route) => {
       generateCalls += 1;
+      successorPage = 2;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
           page: { id: 'p1', page_number: 1, content: 'The opening page settled like dust.', user_input: null, cost_usd: 0.001 },
+          successor_pending: true,
         }),
       });
     });
@@ -400,18 +404,26 @@ test.describe('Speculative next-page preparation', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ preview: null }),
+          body: JSON.stringify({
+            preview: successorPage ? {
+              expected_page: successorPage,
+              preview_id: `prepared-${successorPage}`,
+              preview_key: `prepared-${successorPage}`,
+              model: 'mock',
+              cost_usd: 0.001,
+            } : null,
+          }),
         });
         return;
       }
-      previewCalls += 1;
+      previewPostCalls += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           preview: {
-            expected_page: previewCalls + 1,
-            preview_key: `prepared-${previewCalls + 1}`,
+            expected_page: 99,
+            preview_key: 'unexpected-client-preparation',
             model: 'mock',
             cost_usd: 0.001,
           },
@@ -420,11 +432,13 @@ test.describe('Speculative next-page preparation', () => {
     });
     await page.route('**/api/stories/*/pages/commit-preview', async (route) => {
       commitCalls += 1;
+      successorPage = 3;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
           page: { id: 'p2', page_number: 2, content: 'The prepared continuation, ready before you asked.', user_input: null, cost_usd: 0.001 },
+          successor_pending: true,
         }),
       });
     });
@@ -433,6 +447,7 @@ test.describe('Speculative next-page preparation', () => {
 
     // First page via the normal flow (the review also disclosed the follow-up
     // preparation, so the scribe may prepare on her own afterwards)
+    await page.fill('#userInput', 'Begin the story');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
@@ -442,7 +457,7 @@ test.describe('Speculative next-page preparation', () => {
 
     // Typing a direction turns it back into Generate
     await page.fill('#userInput', 'a sudden storm');
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
     await page.fill('#userInput', '');
 
     // Empty direction -> review the continuity/successor work, then commit instantly
@@ -453,7 +468,11 @@ test.describe('Speculative next-page preparation', () => {
     // The scribe immediately prepares exactly one next page. The green press
     // never fell through to a duplicate live generation.
     await expect(page.locator('#generateBtn')).toHaveText('Use prepared page', { timeout: 5000 });
-    expect({ generateCalls, commitCalls, previewCalls }).toEqual({ generateCalls: 1, commitCalls: 1, previewCalls: 2 });
+    expect({ generateCalls, commitCalls, previewPostCalls }).toEqual({
+      generateCalls: 1,
+      commitCalls: 1,
+      previewPostCalls: 0,
+    });
   });
 });
 
@@ -519,6 +538,7 @@ test.describe('Narration (read aloud)', () => {
 
     // Unconfigured: the control explains instead of failing silently
     await createStoryViaUi(page, 'Narration Test');
+    await page.fill('#userInput', 'Open the story');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/); // the write review precedes the paid call
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
