@@ -113,7 +113,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
     privacy.append(
       element('h3', '', 'Before the file leaves this machine'),
       element('p', '', 'Archives can expose manuscript prose, character and world notes, relationships, maturity choices, and any included media. Working history can also expose your private directions and provider usage.'),
-      element('p', '', 'Never included: API keys, credentials, passwords, or remembered paid-action consent.')
+      element('p', '', 'Never included: API keys, credentials, secret vault material, passwords, or remembered paid-action consent.')
     );
     body.appendChild(privacy);
 

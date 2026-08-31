@@ -52,6 +52,7 @@ describe('ScribeTribe 4.0 kernel', () => {
       'writing_operations', 'continuity_deltas', 'continuity_corrections',
       'continuity_issues', 'template_snapshots', 'recovery_suffixes', 'assets',
       'asset_placements', 'publication_snapshots', 'shares', 'operation_journal',
+      'provider_profiles', 'provider_role_assignments', 'provider_vault', 'provider_secrets',
     ]) {
       expect(tables.has(table)).toBe(true);
     }
@@ -194,7 +195,7 @@ describe('ScribeTribe 4.0 kernel', () => {
     expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'revisions-recovery').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('planned');
+    expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('available');
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

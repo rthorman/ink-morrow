@@ -7,8 +7,8 @@ const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const RETRY_ATTEMPTS = 3;
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-let modelsCache = { at: 0, models: null };
-let speechModelsCache = { at: 0, models: null };
+let modelsCache = new Map();
+let speechModelsCache = new Map();
 const generationCosts = new Map(); // generation id -> reconciled cost payload
 
 function aiConfig() {
@@ -31,11 +31,17 @@ function sleep(ms) {
  * USD pricing per 1M tokens). Cached for MODELS_CACHE_TTL_MS.
  */
 async function listModels() {
-  if (modelsCache.models && Date.now() - modelsCache.at < MODELS_CACHE_TTL_MS) {
-    return modelsCache.models;
-  }
-  const cfg = aiConfig();
-  const response = await axios.get(`${cfg.baseUrl}/models`, { timeout: 15000 });
+  return listModelsWithConfig(aiConfig());
+}
+
+async function listModelsWithConfig(cfg, onCatalogue = null) {
+  const cacheKey = `${cfg.profileId || 'environment'}|${cfg.baseUrl}|${cfg.model || ''}`;
+  const cached = modelsCache.get(cacheKey);
+  if (cached?.models && Date.now() - cached.at < MODELS_CACHE_TTL_MS) return cached.models;
+  const response = await axios.get(`${cfg.baseUrl}/models`, {
+    ...(cfg.apiKey ? { headers: { Authorization: `Bearer ${cfg.apiKey}` } } : {}),
+    timeout: Math.min(cfg.timeout || 15000, 30000),
+  });
   const effortVocabulary = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
   const models = (response.data?.data || [])
     .map((m) => {
@@ -69,14 +75,15 @@ async function listModels() {
       };
     })
     .filter((m) => m.id);
-  modelsCache = { at: Date.now(), models };
+  modelsCache.set(cacheKey, { at: Date.now(), models });
+  onCatalogue?.(cfg, models, 'chat');
   return models;
 }
 
 // Test hook: clear the cached catalog.
 function resetModelCache() {
-  modelsCache = { at: 0, models: null };
-  speechModelsCache = { at: 0, models: null };
+  modelsCache = new Map();
+  speechModelsCache = new Map();
 }
 
 /**
@@ -85,13 +92,17 @@ function resetModelCache() {
  * Cached for MODELS_CACHE_TTL_MS. Normalized to {id, name, voices:[{id,label}]}.
  */
 async function listSpeechModels() {
-  if (speechModelsCache.models && Date.now() - speechModelsCache.at < MODELS_CACHE_TTL_MS) {
-    return speechModelsCache.models;
-  }
-  const cfg = aiConfig();
+  return listSpeechModelsWithConfig(aiConfig());
+}
+
+async function listSpeechModelsWithConfig(cfg, onCatalogue = null) {
+  const cacheKey = `${cfg.profileId || 'environment'}|${cfg.baseUrl}`;
+  const cached = speechModelsCache.get(cacheKey);
+  if (cached?.models && Date.now() - cached.at < MODELS_CACHE_TTL_MS) return cached.models;
   const response = await axios.get(`${cfg.baseUrl}/models`, {
     params: { output_modalities: 'speech' },
-    timeout: 15000,
+    ...(cfg.apiKey ? { headers: { Authorization: `Bearer ${cfg.apiKey}` } } : {}),
+    timeout: Math.min(cfg.timeout || 15000, 30000),
   });
   const models = (response.data?.data || [])
     .filter((m) => typeof m.id === 'string' && Array.isArray(m.supported_voices) && m.supported_voices.length > 0)
@@ -112,7 +123,8 @@ async function listSpeechModels() {
         completion_per_mtok: (parseFloat(m.pricing?.completion) || 0) * 1e6,
       },
     }));
-  speechModelsCache = { at: Date.now(), models };
+  speechModelsCache.set(cacheKey, { at: Date.now(), models });
+  onCatalogue?.(cfg, models, 'speech');
   return models;
 }
 
@@ -169,8 +181,11 @@ async function speechError(error) {
  * arrive. Tries mp3 first; models that only speak pcm (Gemini TTS) are
  * detected from the provider's refusal and retried transparently.
  */
-async function createSpeech({ model, voice, input, responseFormat = 'mp3' }) {
-  const cfg = aiConfig();
+async function createSpeech(input) {
+  return createSpeechWithConfig(aiConfig(), input);
+}
+
+async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat = 'mp3' }) {
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key is not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -226,8 +241,12 @@ async function createSpeech({ model, voice, input, responseFormat = 'mp3' }) {
  * Cached per generation id so retries and replays never refetch or double count.
  */
 async function fetchGenerationCost(generationId) {
-  if (generationCosts.has(generationId)) return generationCosts.get(generationId);
-  const cfg = aiConfig();
+  return fetchGenerationCostWithConfig(aiConfig(), generationId);
+}
+
+async function fetchGenerationCostWithConfig(cfg, generationId) {
+  const cacheKey = `${cfg.profileId || 'environment'}|${generationId}`;
+  if (generationCosts.has(cacheKey)) return generationCosts.get(cacheKey);
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -246,7 +265,7 @@ async function fetchGenerationCost(generationId) {
     provider: data.provider_name || null,
     latency_ms: typeof data.latency === 'number' ? data.latency : null,
   };
-  generationCosts.set(generationId, payload);
+  generationCosts.set(cacheKey, payload);
   return payload;
 }
 
@@ -254,10 +273,10 @@ async function fetchGenerationCost(generationId) {
  * Best-effort cost for a completion. Returns null when usage or pricing
  * is unavailable (older providers, offline, unknown model).
  */
-async function computeCostUsd(model, usage) {
+async function computeCostUsd(cfg, model, usage, onCatalogue = null) {
   if (!usage) return null;
   try {
-    const models = await listModels();
+    const models = await listModelsWithConfig(cfg, onCatalogue);
     const pricing = models.find((m) => m.id === model)?.pricing;
     if (!pricing) return null;
     const cost =
@@ -284,7 +303,17 @@ async function chatCompletion(
   messages,
   { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts } = {}
 ) {
-  const cfg = aiConfig();
+  return chatCompletionWithConfig(aiConfig(), messages, {
+    temperature, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts,
+  });
+}
+
+async function chatCompletionWithConfig(
+  cfg,
+  messages,
+  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts } = {},
+  onCatalogue = null
+) {
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -363,7 +392,7 @@ async function chatCompletion(
             completion_tokens: rawUsage.completion_tokens || 0,
           }
         : null;
-      const cost_usd = await computeCostUsd(useModel, usage);
+      const cost_usd = await computeCostUsd(cfg, useModel, usage, onCatalogue);
       billedAttempts += 1;
       if (usage) {
         sawUsage = true;
@@ -444,4 +473,43 @@ async function chatCompletion(
   throw attachSpend(err);
 }
 
-module.exports = { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost, resetModelCache };
+function createAiClient({ providers }) {
+  const catalogueObserved = (cfg, models, capability) => providers.recordCatalogue(cfg.profileId, models, capability);
+  const catalogConfig = (profileId, role = 'scribe') => providers.catalogConfig(profileId, role);
+  const safe = async (operation) => {
+    try { return await operation(); }
+    catch (error) {
+      error.message = providers.redact(error.message || 'Provider request failed.');
+      throw error;
+    }
+  };
+  const completion = (role) => async (messages, options = {}) => {
+    const cfg = providers.resolve(role, { capability: 'chat', model: options.model });
+    return safe(() => chatCompletionWithConfig(cfg, messages, { ...options, model: cfg.model }, catalogueObserved));
+  };
+  return {
+    chatCompletion: completion('scribe'),
+    archivistCompletion: completion('archivist'),
+    listModels: async () => safe(() => listModelsWithConfig(catalogConfig(null, 'scribe'), catalogueObserved)),
+    listModelsForProfile: async (profileId) => safe(() => listModelsWithConfig(catalogConfig(profileId), catalogueObserved)),
+    listSpeechModels: async () => safe(() => listSpeechModelsWithConfig(catalogConfig(null, 'narrator'), catalogueObserved)),
+    createSpeech: async (input) => {
+      const cfg = providers.resolve('narrator', { capability: 'speech', model: input.model });
+      return safe(() => createSpeechWithConfig(cfg, { ...input, model: cfg.model }));
+    },
+    fetchGenerationCost: async (generationId) => {
+      const cfg = providers.resolve('narrator', { capability: 'generation-cost' });
+      return safe(() => fetchGenerationCostWithConfig(cfg, generationId));
+    },
+  };
+}
+
+module.exports = {
+  chatCompletion,
+  listModels,
+  listSpeechModels,
+  createSpeech,
+  fetchGenerationCost,
+  resetModelCache,
+  createAiClient,
+};

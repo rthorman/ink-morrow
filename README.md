@@ -10,12 +10,13 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 > continue to describe the current 3.2.2 line until implementation PRs land.
 
 The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
-manuscript hierarchy, and PR 03's immutable revisions and truncation recovery.
-Its databases identify themselves as `scribetribe-4` schema 3, use
-transactional migrations and an operation journal, create Volume I and
-Chapter I with every story, preserve separate canonical/display prose, and
-refuse 3.x files before modifying them. Later 4.0 features remain unavailable
-until their PRs land; `/api/capabilities` reports the distinction explicitly.
+manuscript hierarchy, PR 03's immutable revisions and truncation recovery, and
+PR 04's provider profiles, AI roles, and encrypted secret vault. Its databases
+identify themselves as `scribetribe-4` schema 4, use transactional migrations
+and an operation journal, create Volume I and Chapter I with every story,
+preserve separate canonical/display prose, and refuse 3.x files before
+modifying them. Later 4.0 features remain unavailable until their PRs land;
+`/api/capabilities` reports the distinction explicitly.
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 
@@ -173,7 +174,7 @@ npm start               # http://localhost:3000
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `OPENROUTER_API_KEY` | — | **Required** for AI generation. Use a **dedicated key with a hard spend limit** — the app meters costs in good faith but cannot guarantee them |
+| `OPENROUTER_API_KEY` | — | Read-only environment credential for the built-in OpenRouter profile. AI actions need this, a process-session credential, or an explicitly saved encrypted-vault credential; manual work does not |
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible endpoint |
 | `OPENROUTER_MODEL` | `z-ai/glm-5.1` | Model used for pages |
 | `PORT` | `3000` | Server port (app + API together) |
@@ -264,6 +265,13 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | POST | `/api/auth/logout` | Revoke the current session |
 | POST | `/api/auth/change-password` | Change the owner password and revoke every other session |
 | GET | `/api/capabilities` | Authenticated release train, database/archive identity, and truthful available/planned feature states |
+| GET/POST | `/api/providers` | List sanitized profiles, logical role state, and vault state / create an OpenAI-compatible profile |
+| PUT/DELETE | `/api/providers/:id` | Update or delete a provider profile; built-in OpenRouter and profiles assigned to roles fail closed |
+| PUT | `/api/providers/:id/credential` | Select none/environment/session/vault credential storage; submitted secret values are never returned |
+| POST | `/api/providers/vault/unlock`, `/api/providers/vault/lock` | Unlock saved credentials with the owner passphrase or remove the in-memory vault key |
+| PUT | `/api/providers/roles/:role` | Assign `scribe`, `archivist`, or `narrator` to one profile/model without silent fallback |
+| GET | `/api/providers/:id/models` | Explicitly query one profile's normalized model catalogue and surface stored-choice availability |
+| POST | `/api/providers/exposure` | Build a non-secret provider/model/data/cost exposure description for a later paid-action review |
 | GET/POST | `/api/worlds` | List / create worlds |
 | GET/PUT/DELETE | `/api/worlds/:id` | Fetch / update / delete (409 if in use) |
 | GET/POST | `/api/characters` | List (filter by `?world_id=`) / create |
