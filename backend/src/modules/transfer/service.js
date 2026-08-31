@@ -16,6 +16,9 @@ const {
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
+  CONTINUITY_DELTA_FIELDS,
+  TEMPLATE_SNAPSHOT_FIELDS,
+  CORRECTION_FIELDS,
   PREVIEW_FIELDS,
   AUDIOBOOK_FIELDS,
   ARCHIVE_EXTENSION,
@@ -75,6 +78,7 @@ function searchTextForMemory(row) {
     ...(delta.goal_updates || []).map((entry) => entry.text),
     ...(delta.thread_updates || []).map((entry) => entry.text),
     ...(delta.world_fact_updates || []).map((entry) => entry.text),
+    ...(delta.arc_updates || []).map((entry) => entry.text),
   ].filter((value) => typeof value === 'string' && value.trim()).join('\n');
 }
 
@@ -767,6 +771,18 @@ function createTransferService({
         };
         insertOrReplace(db, 'story_character_snapshots', snapshot, SNAPSHOT_FIELDS);
       }
+      for (const templateSource of entity.bundle.template_snapshots || []) {
+        const sourceId = templateSource.template_kind === 'world'
+          ? maps.world.get(templateSource.source_template_id)
+          : maps.character.get(templateSource.source_template_id);
+        const snapshot = {
+          ...templateSource,
+          id: randomUUID(),
+          story_id: storyId,
+          source_template_id: sourceId,
+        };
+        insertOrReplace(db, 'template_snapshots', snapshot, TEMPLATE_SNAPSHOT_FIELDS);
+      }
       for (const memorySource of entity.bundle.memory) {
         const memory = {
           ...memorySource,
@@ -787,6 +803,79 @@ function createTransferService({
               .run(memory.page_id, storyId, content);
           } catch { /* LIKE search remains correct */ }
         }
+      }
+      const importedDeltas = entity.bundle.continuity_deltas || [];
+      if (importedDeltas.length) {
+        for (const deltaSource of importedDeltas) {
+          const delta = {
+            ...deltaSource,
+            revision_id: maps.revision.get(deltaSource.revision_id),
+            story_id: storyId,
+            delta_json: deltaSource.delta_json
+              ? JSON.stringify(mapObjectIds(parseJson(deltaSource.delta_json, {}), characterMap))
+              : null,
+          };
+          insertOrUpdate(db, 'continuity_deltas', delta, CONTINUITY_DELTA_FIELDS, 'revision_id');
+          if (delta.status === 'ready') {
+            const content = searchTextForMemory(delta);
+            db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
+              .run(delta.revision_id, storyId, content);
+            try {
+              db.prepare('DELETE FROM continuity_search_fts WHERE revision_id = ?').run(delta.revision_id);
+              db.prepare('INSERT INTO continuity_search_fts (revision_id, story_id, content) VALUES (?, ?, ?)')
+                .run(delta.revision_id, storyId, content);
+            } catch { /* LIKE search remains correct */ }
+          }
+        }
+      } else {
+        // Pre-schema-5 archives carry current ready continuity by page. Bind
+        // those rows to the imported canonical revisions without inventing
+        // any additional extraction.
+        for (const memorySource of entity.bundle.memory) {
+          const pageId = maps.page.get(memorySource.page_id);
+          const revisionId = db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(pageId)?.canonical_revision_id;
+          if (!revisionId) continue;
+          const delta = {
+            revision_id: revisionId,
+            story_id: storyId,
+            status: memorySource.status,
+            schema_version: memorySource.schema_version || 1,
+            delta_json: memorySource.delta_json
+              ? JSON.stringify(mapObjectIds(parseJson(memorySource.delta_json, {}), characterMap))
+              : null,
+            provider_result_json: null,
+            spend_usd: memorySource.cost_usd || 0,
+            error_code: memorySource.status === 'failed' ? 'IMPORTED_EXTRACTION_FAILED' : null,
+            content_hash: memorySource.content_hash,
+            summary: memorySource.summary,
+            model: memorySource.model,
+            prompt_tokens: memorySource.prompt_tokens,
+            completion_tokens: memorySource.completion_tokens,
+            error: memorySource.error,
+            created_at: memorySource.created_at,
+            updated_at: memorySource.updated_at,
+          };
+          insertOrUpdate(db, 'continuity_deltas', delta, CONTINUITY_DELTA_FIELDS, 'revision_id');
+          if (delta.status === 'ready') {
+            const content = searchTextForMemory(delta);
+            db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
+              .run(revisionId, storyId, content);
+          }
+        }
+      }
+      const combinedMap = new Map([
+        ...maps.world, ...maps.character, ...maps.page, ...maps.revision,
+      ]);
+      for (const correctionSource of entity.bundle.corrections || []) {
+        const subjectId = correctionSource.subject_id ? (combinedMap.get(correctionSource.subject_id) || correctionSource.subject_id) : null;
+        const correction = {
+          ...correctionSource,
+          id: randomUUID(),
+          story_id: storyId,
+          subject_id: subjectId,
+          correction_json: JSON.stringify(mapObjectIds(parseJson(correctionSource.correction_json, {}), combinedMap)),
+        };
+        insertOrReplace(db, 'continuity_corrections', correction, CORRECTION_FIELDS);
       }
       if (entity.bundle.preview) {
         insertOrUpdate(db, 'story_previews', { ...entity.bundle.preview, story_id: storyId }, PREVIEW_FIELDS, 'story_id');

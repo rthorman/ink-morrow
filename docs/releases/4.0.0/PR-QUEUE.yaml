@@ -200,7 +200,7 @@ pull_requests:
   - id: "05"
     slug: continuity-v2
     title: Continuity ledger v2
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "04"

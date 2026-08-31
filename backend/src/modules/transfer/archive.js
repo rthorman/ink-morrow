@@ -26,6 +26,9 @@ const {
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
+  CONTINUITY_DELTA_FIELDS,
+  TEMPLATE_SNAPSHOT_FIELDS,
+  CORRECTION_FIELDS,
   PREVIEW_FIELDS,
   AUDIOBOOK_FIELDS,
   semanticHash,
@@ -267,7 +270,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     if (Object.keys(value || {}).some((key) => !allowed.includes(key))) throw httpError(`${label} contains an unknown field`);
   };
   assertKnown(bundle, meta.kind === 'story'
-    ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'memory', 'preview', 'audiobook']
+    ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
+        'memory', 'continuity_deltas', 'corrections', 'preview', 'audiobook']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -436,6 +440,54 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     if (!memory || memory.story_id !== meta.id || !pageIds.has(memory.page_id) || !['pending', 'ready', 'failed'].includes(memory.status)) {
       throw httpError('Story archive contains an invalid continuity row');
     }
+  }
+  const templateSnapshots = bundle.template_snapshots || [];
+  const deltas = bundle.continuity_deltas || [];
+  const corrections = bundle.corrections || [];
+  if (databaseSchemaVersion >= 5 &&
+      (!Array.isArray(bundle.template_snapshots) || !Array.isArray(bundle.continuity_deltas) || !Array.isArray(bundle.corrections))) {
+    throw httpError('Schema-5 story archive is missing continuity-v2 snapshots, deltas, or corrections');
+  }
+  if (!Array.isArray(templateSnapshots) || !Array.isArray(deltas) || !Array.isArray(corrections)) {
+    throw httpError('Story archive contains invalid continuity-v2 collections');
+  }
+  const revisionIds = new Set((bundle.revisions || []).map((revision) => revision.id));
+  const templateIds = new Set();
+  for (const snapshot of templateSnapshots) {
+    assertKnown(snapshot, TEMPLATE_SNAPSHOT_FIELDS, 'Template snapshot');
+    if (!snapshot || !validId(snapshot.id) || snapshot.story_id !== meta.id ||
+        !['world', 'character'].includes(snapshot.template_kind) || templateIds.has(snapshot.id) ||
+        !validId(snapshot.source_template_id)) {
+      throw httpError('Story archive contains an invalid template snapshot');
+    }
+    if (snapshot.template_kind === 'character' && !castIds.has(snapshot.source_template_id)) {
+      throw httpError('Story archive template snapshot references a character outside the cast');
+    }
+    if (snapshot.template_kind === 'world' && snapshot.source_template_id !== bundle.record.world_id) {
+      throw httpError('Story archive template snapshot references a different world');
+    }
+    const value = (() => { try { return JSON.parse(snapshot.snapshot_json); } catch { return null; } })();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw httpError('Story archive contains an invalid template snapshot payload');
+    templateIds.add(snapshot.id);
+  }
+  for (const delta of deltas) {
+    assertKnown(delta, CONTINUITY_DELTA_FIELDS, 'Revision continuity delta');
+    if (!delta || delta.story_id !== meta.id || !revisionIds.has(delta.revision_id) ||
+        !['pending', 'ready', 'failed'].includes(delta.status) || !Number.isSafeInteger(delta.schema_version)) {
+      throw httpError('Story archive contains an invalid revision continuity delta');
+    }
+  }
+  const correctionIds = new Set();
+  for (const correction of corrections) {
+    assertKnown(correction, CORRECTION_FIELDS, 'Continuity correction');
+    if (!correction || !validId(correction.id) || correction.story_id !== meta.id ||
+        !['story', 'world', 'character', 'goal', 'thread'].includes(correction.scope) ||
+        correctionIds.has(correction.id)) {
+      throw httpError('Story archive contains an invalid continuity correction');
+    }
+    const value = (() => { try { return JSON.parse(correction.correction_json); } catch { return null; } })();
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw httpError('Story archive contains an invalid correction payload');
+    correctionIds.add(correction.id);
   }
   if (bundle.preview && (bundle.preview.story_id !== meta.id || !Number.isSafeInteger(bundle.preview.expected_page))) {
     throw httpError('Story archive contains an invalid prepared page');

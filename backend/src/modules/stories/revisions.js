@@ -21,6 +21,18 @@ function parseJson(value, fallback = null) {
   try { return JSON.parse(value); } catch { return fallback; }
 }
 
+function continuitySearchText(row) {
+  const delta = parseJson(row.delta_json, {}) || {};
+  return [
+    row.summary,
+    ...(delta.events || []).map((item) => item.text),
+    ...(delta.goal_updates || []).map((item) => item.text),
+    ...(delta.thread_updates || []).map((item) => item.text),
+    ...(delta.world_fact_updates || []).map((item) => item.text),
+    ...(delta.arc_updates || []).map((item) => item.text),
+  ].filter((value) => typeof value === 'string' && value.trim()).join('\n');
+}
+
 function retentionDays(value) {
   const parsed = Number.parseInt(value, 10);
   return Number.isSafeInteger(parsed) && parsed >= 1 && parsed <= 3650
@@ -517,6 +529,16 @@ function createRevisionStore(db, {
         const fields = Object.keys(delta);
         db.prepare(`INSERT INTO continuity_deltas (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`)
           .run(...fields.map((field) => delta[field]));
+        if (delta.status === 'ready') {
+          const content = continuitySearchText(delta);
+          db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
+            .run(delta.revision_id, storyId, content);
+          try {
+            db.prepare('DELETE FROM continuity_search_fts WHERE revision_id = ?').run(delta.revision_id);
+            db.prepare('INSERT INTO continuity_search_fts (revision_id, story_id, content) VALUES (?, ?, ?)')
+              .run(delta.revision_id, storyId, content);
+          } catch { /* LIKE fallback remains correct */ }
+        }
       }
       db.prepare(`
         UPDATE recovery_suffixes SET status = 'restored', resolved_at = ? WHERE id = ?

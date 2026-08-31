@@ -24,6 +24,9 @@ const {
   revisionRecord,
   snapshotRecord,
   memoryRecord,
+  continuityDeltaRecord,
+  templateSnapshotRecord,
+  correctionRecord,
   previewRecord,
   audiobookRecord,
   semanticHash,
@@ -215,6 +218,21 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       ? db.prepare('SELECT * FROM story_memory_pages WHERE story_id = ? ORDER BY created_at, page_id').all(id)
       : db.prepare("SELECT * FROM story_memory_pages WHERE story_id = ? AND status = 'ready' ORDER BY created_at, page_id").all(id);
     const memory = memoryRows.map((memoryRow) => memoryRecord(memoryRow, options));
+    const deltaRows = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM continuity_deltas WHERE story_id = ? ORDER BY created_at, revision_id').all(id)
+      : db.prepare(`
+          SELECT delta.* FROM continuity_deltas delta
+          JOIN pages page ON page.canonical_revision_id = delta.revision_id
+          WHERE delta.story_id = ? AND delta.status = 'ready'
+          ORDER BY delta.created_at, delta.revision_id
+        `).all(id);
+    const continuityDeltas = deltaRows.map((deltaRow) => continuityDeltaRecord(deltaRow, options));
+    const templateSnapshots = db.prepare(`
+      SELECT * FROM template_snapshots WHERE story_id = ? ORDER BY created_at, rowid
+    `).all(id).map(templateSnapshotRecord);
+    const corrections = db.prepare(`
+      SELECT * FROM continuity_corrections WHERE story_id = ? ORDER BY created_at, rowid
+    `).all(id).map(correctionRecord);
     const preview = options.includeWorkingHistory
       ? (() => {
           const value = db.prepare('SELECT * FROM story_previews WHERE story_id = ?').get(id);
@@ -238,7 +256,10 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         pages,
         revisions,
         snapshots,
+        template_snapshots: templateSnapshots,
         memory,
+        continuity_deltas: continuityDeltas,
+        corrections,
         preview,
         audiobook,
       },
@@ -335,7 +356,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       .reduce((sum, entity) => sum + entity.bundle.pages.length, 0);
     const memory = entities
       .filter((entity) => entity.kind === 'story')
-      .reduce((sum, entity) => sum + entity.bundle.memory.length, 0);
+      .reduce((sum, entity) => sum + (entity.bundle.continuity_deltas?.length || entity.bundle.memory.length), 0);
     const exposure = {
       worlds: selection.worlds.size,
       characters: selection.characters.size,

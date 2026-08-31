@@ -67,7 +67,7 @@ describe('PR 04 provider profiles and role assignments', () => {
       expect(db.prepare('PRAGMA user_version').get().user_version).toBe(3);
       db.close();
       db = createDb(dbPath);
-      expect(db.prepare('PRAGMA user_version').get().user_version).toBe(4);
+      expect(db.prepare('PRAGMA user_version').get().user_version).toBe(MIGRATIONS.length);
       const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((row) => row.name));
       for (const table of ['provider_profiles', 'provider_role_assignments', 'provider_vault', 'provider_secrets']) {
         expect(tables.has(table)).toBe(true);
