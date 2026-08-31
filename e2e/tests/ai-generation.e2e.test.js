@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { apiPost, openUnlocked } from '../auth.js';
 
 async function selectByLabel(page, selector, text) {
   const option = page.locator(`${selector} option`, { hasText: text }).first();
@@ -25,18 +26,17 @@ async function confirmPaidReview(page, label) {
 async function createStoryViaUi(page, title) {
   // These tests exercise generation, not casting - build the minimal legal
   // cast (one Main Character) through the API, then select the story in the UI.
-  const worldRes = await page.request.post('/api/worlds', { data: { name: `${title} World` } });
+  await openUnlocked(page);
+  const worldRes = await apiPost(page, '/api/worlds', { name: `${title} World` });
   const world = (await worldRes.json()).world;
-  const charRes = await page.request.post('/api/characters', {
-    data: { name: `${title} Protagonist`, world_id: world.id },
-  });
+  const charRes = await apiPost(page, '/api/characters', { name: `${title} Protagonist`, world_id: world.id });
   const character = (await charRes.json()).character;
-  const storyRes = await page.request.post('/api/stories', {
-    data: { title, world_id: world.id, characters: [{ id: character.id, role: 'mc', relation: null, state: null }] },
+  const storyRes = await apiPost(page, '/api/stories', {
+    title, world_id: world.id, characters: [{ id: character.id, role: 'mc', relation: null, state: null }],
   });
   const story = (await storyRes.json()).story;
 
-  await page.goto('/');
+  await openUnlocked(page);
   await page.locator('#writeBtn').click();
   await page.selectOption('#currentStory', story.id);
   await expect(page.locator(`#currentStory option[value="${story.id}"]`)).toBeAttached({ timeout: 5000 });
@@ -194,7 +194,7 @@ test.describe('AI generation flows (mocked)', () => {
     });
 
     // Build a full setup: world, character, story
-    await page.goto('/');
+    await openUnlocked(page);
     await page.locator('#worldsBtn').click();
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Context Realm');
@@ -318,9 +318,9 @@ test.describe('Reading old pages and burning the rest', () => {
 test.describe('Single-page deletion renumbers (real backend)', () => {
   test('deleting the middle page closes the gap and the next page lands on N+1', async ({ page }) => {
     const story = await createStoryViaUi(page, 'Renumber Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page one.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page two.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page three.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page one.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page two.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page three.' });
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
 
@@ -341,7 +341,7 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
     // The next written page takes 3 — no gap reuse, no duplicate. The reload
     // proves the numbering comes from the database, not in-page state; the
     // hash still points at page 1, so the reader restores there.
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Renumber page four.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page four.' });
     await page.reload();
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 3', { timeout: 5000 });
@@ -358,8 +358,8 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
 
   test('deleting the first page renumbers the rest through the reader', async ({ page }) => {
     const story = await createStoryViaUi(page, 'Renumber First Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Firstborn page.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Secondborn page.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Firstborn page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Secondborn page.' });
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
@@ -581,8 +581,8 @@ test.describe('Scene image prompt', () => {
     });
 
     const story = await createStoryViaUi(page, 'Image Prompt Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, {
-      data: { content: 'The hall stood dark and cold.', user_input: null },
+    await apiPost(page, `/api/stories/${story.id}/pages`, {
+      content: 'The hall stood dark and cold.', user_input: null,
     });
     await page.selectOption('#currentStory', story.id); // reload with the page present
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
@@ -665,8 +665,8 @@ test.describe('Scene image prompt', () => {
     });
 
     const story = await createStoryViaUi(page, 'Image Page Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'First prose page.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Second prose page.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page.' });
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 

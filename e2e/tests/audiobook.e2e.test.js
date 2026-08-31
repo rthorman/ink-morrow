@@ -1,19 +1,19 @@
 import { test, expect } from '@playwright/test';
+import { apiPost, openUnlocked } from '../auth.js';
 
 // Shared helpers kept local (the other e2e files duplicate these too).
 async function createStoryViaUi(page, title) {
-  const worldRes = await page.request.post('/api/worlds', { data: { name: `${title} World` } });
+  await openUnlocked(page);
+  const worldRes = await apiPost(page, '/api/worlds', { name: `${title} World` });
   const world = (await worldRes.json()).world;
-  const charRes = await page.request.post('/api/characters', {
-    data: { name: `${title} Protagonist`, world_id: world.id },
-  });
+  const charRes = await apiPost(page, '/api/characters', { name: `${title} Protagonist`, world_id: world.id });
   const character = (await charRes.json()).character;
-  const storyRes = await page.request.post('/api/stories', {
-    data: { title, world_id: world.id, characters: [{ id: character.id, role: 'mc', relation: null, state: null }] },
+  const storyRes = await apiPost(page, '/api/stories', {
+    title, world_id: world.id, characters: [{ id: character.id, role: 'mc', relation: null, state: null }],
   });
   const story = (await storyRes.json()).story;
 
-  await page.goto('/');
+  await openUnlocked(page);
   await page.locator('#writeBtn').click();
   await page.selectOption('#currentStory', story.id);
   await expect(page.locator('#writeSection')).toHaveClass(/active/);
@@ -71,8 +71,8 @@ test.describe('Audiobook', () => {
     });
 
     const story = await createStoryViaUi(page, 'Audiobook Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'First prose page of the tale.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Second prose page of the tale.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page of the tale.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page of the tale.' });
     await page.selectOption('#currentStory', story.id); // reload with pages
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
@@ -117,10 +117,10 @@ test.describe('Audiobook', () => {
     page.on('dialog', (dialog) => dialog.accept());
 
     const story = await createStoryViaUi(page, 'Bookshelf Test');
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'First prose page.' } });
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'Second prose page.' } });
-    await page.request.post(`/api/stories/${story.id}/pages/1/image-page`, {
-      data: { image: PNG_1PX, media_type: 'image/png', prompt: 'A candlelit hall.' },
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages/1/image-page`, {
+      image: PNG_1PX, media_type: 'image/png', prompt: 'A candlelit hall.',
     });
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');

@@ -29,7 +29,9 @@ function installAudioStub() {
 function buildDom() {
   installAudioStub();
   installUrlStub();
+  document.body.className = '';
   document.body.innerHTML = `
+    <div id="authRoot" hidden></div>
     <nav class="main-nav">
       <button id="homeBtn" class="nav-btn active">Home</button>
       <button id="writeBtn" class="nav-btn">Write</button>
@@ -37,6 +39,7 @@ function buildDom() {
       <button id="worldsBtn" class="nav-btn">Worlds</button>
       <button id="charactersBtn" class="nav-btn">Characters</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
+      <button id="lockBtn" class="nav-btn">Lock</button>
     </nav>
     <div id="diskBanner" class="disk-banner" role="alert" hidden>
       <p id="diskBannerText"></p>
@@ -303,8 +306,29 @@ async function loadScript(opts = {}) {
   if (current !== wanted) {
     window.history.replaceState(null, '', window.location.href.split('#')[0] + wanted);
   }
+  if (window.__stTestAuthAdapter?.__autoTestAdapter) delete window.__stTestAuthAdapter;
+  if (!window.__stTestAuthAdapter && opts.realAuth !== true) {
+    const listeners = new Set();
+    let currentAuth = { state: 'unlocked', csrf_token: 'jest-csrf-token' };
+    window.__stTestAuthAdapter = {
+      __autoTestAdapter: true,
+      mode: 'test-unlocked',
+      status: () => Promise.resolve({ ...currentAuth }),
+      subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+      handleUnauthorized(status) {
+        currentAuth = { ...status };
+        for (const listener of listeners) listener({ ...currentAuth });
+      },
+      get csrfToken() { return currentAuth.csrf_token || null; },
+    };
+  }
   loadCounter += 1;
   const mod = await import(`../app/bootstrap.js?run=${loadCounter}`);
+  // Bootstrap now waits for authentication before its initial catalogue
+  // reads/router dispatch. Deterministic test adapters resolve immediately;
+  // let that protected startup boundary settle before a test mutates state.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
   return mod.fw;
 }
 
@@ -322,7 +346,13 @@ function mockFetch(handlers = [], defaultResponse = { ok: true, status: 200, jso
 }
 
 function jsonResponse(status, body) {
-  return { ok: status >= 200 && status < 300, status, json: () => Promise.resolve(body) };
+  const response = {
+    ok: status >= 200 && status < 300,
+    status,
+    json: () => Promise.resolve(body),
+    clone: () => response,
+  };
+  return response;
 }
 
 // The shared consent gate covers every paid action. Tests click through its

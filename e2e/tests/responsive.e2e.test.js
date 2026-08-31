@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { openUnlocked } from '../auth.js';
 
 // Art-directed responsive acceptance checks (ACCEPTANCE-CHECKLIST.md viewports).
 // Runs inside the managed e2e webServer (port 3100, in-memory DB) - no
@@ -36,8 +37,7 @@ for (const spec of SPECS) {
     await page.addInitScript(() => {
       localStorage.setItem('st-settings', JSON.stringify({ scriptoriumBg: true }));
     });
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
 
     // -- Home: the scriptorium guidance cards are four distinct grid cells
     //    at BASE scope (the coarse-pointer media query must not trap them).

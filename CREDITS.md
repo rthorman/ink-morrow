@@ -45,12 +45,17 @@ image-generation tools.
 Generated brand assets (OpenAI image generation, reference-led; production
 WebP in `frontend/brand/`, PNG masters in the instruction packages):
 
-- `vesper-threshold.webp` — Vesper Quill at the locked threshold (future
-  login/first-password surface, dormant until real security exists)
+- `vesper-threshold.webp` — Vesper Quill at the locked threshold
+  (first-password and unlock surface)
 - `moth-archive.webp` — Moth, Archivist of Forgotten Things (Bookshelf and
   archive empty states)
 - `cinder-cast.webp` — Cinder, the Inkbreaker (story-creation cast-shape
   introduction)
+
+Interface typography uses self-hosted Latin/Latin Extended subsets of
+Cormorant Garamond, Inter, Literata, and IBM Plex Mono from Google Fonts. Each
+family is distributed under the SIL Open Font License 1.1; the applicable
+license texts are included in `frontend/fonts/`.
 
 ## Original Code Structure
 

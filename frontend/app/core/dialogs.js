@@ -357,4 +357,14 @@ export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) 
   return api;
 }
 
+// Authentication expiry is not a user-directed modal close: every sensitive
+// surface disappears immediately and no dirty confirmation may keep it open.
+export function forceCloseAllModals() {
+  for (const modal of [...wiredModals].reverse()) {
+    modal.__stWired?.api?.close();
+  }
+  scrollLockCount = 0;
+  document.documentElement.style.overflow = '';
+}
+
 export { createDialogManager };

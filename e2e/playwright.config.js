@@ -36,7 +36,7 @@ export default defineConfig({
   webServer: {
     // Env vars are ALSO inlined in the command so isolation never depends
     // on how a given Playwright version merges the `env` object.
-    command: 'DB_PATH=":memory:" PORT="3100" NODE_ENV="e2e" OPENROUTER_API_KEY="e2e-dummy-key" node server.js',
+    command: 'DB_PATH=":memory:" PORT="3100" NODE_ENV="e2e" AUTH_SETUP_CODE="E2E-SETUP-CODE" OPENROUTER_API_KEY="e2e-dummy-key" node server.js',
     cwd: '../backend',
     port: 3100,
     // Never reuse a server on the port: the user's dev server runs on 3000
@@ -51,6 +51,7 @@ export default defineConfig({
       // Guard against a real API key being picked up during e2e runs:
       // these tests mock the AI endpoint via page.route.
       OPENROUTER_API_KEY: 'e2e-dummy-key',
+      AUTH_SETUP_CODE: 'E2E-SETUP-CODE',
     },
   },
 });

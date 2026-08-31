@@ -5,12 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Literata:ital,wght@0,400;0,500;1,400&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+    <link rel="stylesheet" href="styles/fonts.css">
     <link rel="stylesheet" href="styles/tokens.css">
     <link rel="stylesheet" href="styles/base.css">
     <link rel="stylesheet" href="styles/shell.css">
@@ -20,9 +18,13 @@
     <link rel="stylesheet" href="styles/features/library.css">
     <link rel="stylesheet" href="styles/features/write.css">
     <link rel="stylesheet" href="styles/features/settings.css">
+    <link rel="stylesheet" href="styles/features/auth.css">
 </head>
-<body>
+<body class="st-gated">
     <a class="skip-link" href="#mainContent">Skip to content</a>
+    <div id="authRoot" class="auth-root" role="region" aria-live="polite">
+        <p class="auth-loading">Checking the scriptorium seal…</p>
+    </div>
     <div class="container">
         <header class="main-header">
             <div class="cat-scribe" aria-hidden="true">
@@ -48,6 +50,7 @@
             <button id="worldsBtn" class="nav-btn" type="button">Worlds</button>
             <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
             <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button">Settings</button>
+            <button id="lockBtn" class="nav-btn nav-btn--lock" type="button">Lock</button>
         </nav>
 
         <div id="diskBanner" class="disk-banner" role="alert" hidden>
@@ -335,7 +338,7 @@
             <!-- Settings Section -->
             <section id="settingsSection" class="content-section" aria-label="Settings">
                 <h2>Settings</h2>
-                <p class="setting-hint">Every change saves on this device immediately.</p>
+                <p class="setting-hint">Preferences save on this device immediately.</p>
                 <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
 
                 <details class="create-form settings-group" open>
@@ -406,7 +409,33 @@
                         <input id="dataImportFile" class="sr-only" type="file" accept=".scribetribe.zip,.zip,application/zip">
                     </div>
                     <p id="dataTransferStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
-                    <p class="setting-hint">Audio is always optional. Passwords and encrypted archives are deliberately reserved for a later release.</p>
+                    <p class="setting-hint">Audio is always optional. Your login and browser sessions never enter an archive; portable archives are not encrypted.</p>
+                </details>
+
+                <details class="create-form settings-group" id="securityGroup">
+                    <summary><h3>Security</h3><span class="settings-group__summary">Password and local sessions</span></summary>
+                    <p class="current-model">Change the password for this installation. This immediately locks every other browser session.</p>
+                    <form id="passwordChangeForm" class="security-form">
+                        <label for="passwordCurrent">Current password</label>
+                        <div class="auth-password">
+                            <input id="passwordCurrent" type="password" autocomplete="current-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordCurrent" aria-pressed="false">Show</button>
+                        </div>
+                        <label for="passwordNew">New password or passphrase</label>
+                        <div class="auth-password">
+                            <input id="passwordNew" type="password" autocomplete="new-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordNew" aria-pressed="false">Show</button>
+                        </div>
+                        <label for="passwordConfirm">Repeat new password</label>
+                        <div class="auth-password">
+                            <input id="passwordConfirm" type="password" autocomplete="new-password" minlength="15" maxlength="128" required>
+                            <button type="button" class="auth-password__toggle" aria-controls="passwordConfirm" aria-pressed="false">Show</button>
+                        </div>
+                        <p class="setting-hint">Use at least 15 characters. Spaces and Unicode are welcome; arbitrary symbol rules and forced expiry are not.</p>
+                        <p id="passwordChangeStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
+                        <button type="submit" class="btn btn-primary">Change password</button>
+                    </form>
+                    <p class="setting-hint">Forgotten password? Stop the server and run <code>cd backend &amp;&amp; npm run auth:reset -- --yes</code>. Manuscripts and assets are preserved.</p>
                 </details>
 
                 <details class="create-form settings-group">

@@ -180,6 +180,23 @@ export function createSharedState() {
     applyHooks.push(hook);
   }
 
+  function clearPrivateData() {
+    data.worlds = [];
+    data.characters = [];
+    data.stories = [];
+    data.currentStory = null;
+    data.currentPage = 1;
+    data.storyPages = [];
+    data.generating = false;
+    modelsCache = null;
+    speechModelsCache = null;
+    sessionCost = 0;
+    storyCostBase = 0;
+    storyCostExtra = 0;
+    chargedImages.clear();
+    updateCostTicker();
+  }
+
   return {
     data,
     get settings() { return settings; },
@@ -193,6 +210,7 @@ export function createSharedState() {
     addSessionCost,
     addStoryCost,
     chargeEntityImageCosts,
+    clearPrivateData,
     get modelsCache() { return modelsCache; },
     set modelsCache(value) { modelsCache = value; },
     get speechModelsCache() { return speechModelsCache; },

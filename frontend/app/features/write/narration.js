@@ -7,7 +7,7 @@
 import { approxCostText, ROUGH_NARRATION_PAGE_ESTIMATE } from '../../core/cost.js';
 
 export function createNarration({ api, state, notify, shell, features, dialogs }) {
-  const { apiCall } = api;
+  const { apiCall, apiFetch } = api;
   const { showError, scribeErrorMessage } = notify;
   const { settings, data } = state;
 
@@ -204,7 +204,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     const audio = new Audio();
     narrationAudio = audio;
     narrationCacheHit = false;
-    fetch(`/api/stories/${currentStory.id}/pages/${currentPage}/narrate`, {
+    apiFetch(`/api/stories/${currentStory.id}/pages/${currentPage}/narrate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: settings.narrationModel, voice: settings.narrationVoice }),

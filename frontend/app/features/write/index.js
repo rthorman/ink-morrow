@@ -3,7 +3,7 @@
 // lives in generation.js; narration/imagery/audiobook own their machines.
 
 export function createWrite({ api, state, notify, shell, features, dialogs }) {
-  const { apiCall } = api;
+  const { apiCall, apiFetch } = api;
   const { showError, showSuccess, showErrorRaw } = notify;
   let router = null; // set by bootstrap
 
@@ -302,7 +302,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       return;
     }
     try {
-      const response = await fetch(`/api/stories/${currentStory.id}/export`);
+      const response = await apiFetch(`/api/stories/${currentStory.id}/export`);
       if (!response.ok) throw new Error(`Export failed (${response.status})`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);

@@ -345,18 +345,3 @@
   color: var(--st-vellum-200);
   line-height: 1.4;
 }
-
-/* ------------------------------------------------------------------ */
-/* Future auth surfaces (dormant until a real adapter exists)           */
-/* ------------------------------------------------------------------ */
-
-.auth-surface {
-  display: none; /* dormant: never mounted while the adapter is disabled */
-}
-
-.auth-surface__form {
-  background: var(--st-ink-850);
-  border: 1px solid var(--st-gold-700);
-  border-radius: 10px;
-  padding: 1.6rem;
-}
