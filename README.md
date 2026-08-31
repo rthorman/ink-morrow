@@ -2,9 +2,13 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
+**v3.2.1** seals each installation for one local owner. On first launch, the server prints a one-time setup code; the browser uses it to set a password or passphrase before any manuscript API or private screen can load. Later visits unlock with that password. **Lock** revokes the current server-side session, changing the password revokes every other session, and a terminal-only recovery command removes the password without touching stories or assets.
+
+The boundary is deliberately small and local-machine friendly: asynchronous scrypt password hashing, random opaque sessions stored only as hashes, HttpOnly/SameSite cookies, per-session CSRF tokens, same-origin and Host/DNS-rebinding checks, login throttling, bounded request bodies, private caching, sanitized provider errors, restrictive browser headers, local-only binding by default, and private database/config permissions. Fonts are bundled, so the sealed screen makes no third-party typography request. This is access control—not disk encryption: the database, media, and portable archives remain readable to anyone who can read those files. See [SECURITY.md](SECURITY.md) for the exact boundary and safe LAN/HTTPS setup.
+
 **v3.2.0** adds versioned, dependency-aware portable archives and complete local backups. A character travels with their home world; a world export can include none, some, or all residents; a story always carries its world, complete current cast (including external home worlds), pages, frozen snapshots, and continuity; a full backup carries everything plus a strict device-settings whitelist. Paintings, audiobook audio, and working history are explicit switches, with audio always called out because it can dominate file size. Every export gets an exposure review and streams media from disk without calling an AI provider.
 
-Imports are staged and SHA-256 verified before the first write. Identical content is reused, same-name items are warned about, and same-ID differences offer keep local / import copy / replace local—stories are never silently field- or page-merged. Copying remaps the complete dependency graph and page-linked state; commit is transactional across SQLite and media files. A replace-all restore first creates a downloadable safety backup of the current installation. Passwords and archive encryption remain deliberately reserved for a later release. The format, privacy boundary, collision grammar, and recovery behavior are documented in [docs/portable-archives.md](docs/portable-archives.md).
+Imports are staged and SHA-256 verified before the first write. Identical content is reused, same-name items are warned about, and same-ID differences offer keep local / import copy / replace local—stories are never silently field- or page-merged. Copying remaps the complete dependency graph and page-linked state; commit is transactional across SQLite and media files. A replace-all restore first creates a downloadable safety backup of the current installation. Login credentials never enter an archive; archive encryption remains deliberately reserved for a later release. The format, privacy boundary, collision grammar, and recovery behavior are documented in [docs/portable-archives.md](docs/portable-archives.md).
 
 **v3.1.0** adds a page-provenanced continuity ledger for long-form stories. Every committed text page gets a separate, strictly structured memory delta: durable events, character location/condition/knowledge/possessions, goals, threads, and story facts. The author model receives a frozen casting snapshot, current folded state, bounded recent prose, and relevant older memories; character/world-sheet intentions are explicitly reference data rather than commands. Prepared pages remain completely inert until committed. Deleting a page removes its facts, regeneration excludes the old page while writing and replaces its delta only after successful prose generation, and the remaining ledger replays deterministically without another AI call.
 
@@ -74,12 +78,13 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and painted scene plates; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and plates
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
+- **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
 - **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
 - **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
-- **Full test suite** — 396 Jest tests (194 backend + 202 frontend) plus Playwright e2e tests, all running against isolated in-memory databases
+- **Full test suite** — backend and frontend Jest suites plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
@@ -90,7 +95,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
 
-- All 396 Jest tests (194 backend + 202 frontend) pass on-device under Termux
+- The complete backend and frontend Jest suites pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
 - No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
@@ -108,7 +113,9 @@ $EDITOR backend/.env                   # set OPENROUTER_API_KEY
 ./start.sh
 ```
 
-Then open `http://localhost:3000` in your tablet's browser. To write from another device on the same network, use `http://<tablet-ip>:3000` (the frontend uses relative API URLs, so this works out of the box).
+Then open `http://localhost:3000` in your tablet's browser. The server prints the one-time code used to set the installation password.
+
+The safe default is local-only. For another device, prefer an HTTPS reverse proxy to the loopback server. Direct LAN HTTP requires both `HOST=0.0.0.0` and `ALLOW_INSECURE_LAN=1`; it exposes the password and manuscript traffic to that network, so use it only as a deliberate temporary exception. See [SECURITY.md](SECURITY.md#network-access).
 
 The project was built as an experiment in running AI coding tools natively on Termux — no proot, no root, just the standard on-screen keyboard.
 
@@ -123,12 +130,14 @@ bash setup.sh        # installs deps, creates backend/.env, makes start.sh execu
 $EDITOR backend/.env   # set OPENROUTER_API_KEY
 
 ./start.sh              # serves app + API on http://localhost:3000
+# Copy the one-time code printed here into the first-login screen,
+# then choose a password or passphrase of at least 15 characters.
 ```
 
 Or manually:
 
 ```bash
-cd backend && npm install
+cd backend && npm ci --omit=dev
 cp .env.example .env    # then edit
 npm start               # http://localhost:3000
 ```
@@ -141,7 +150,10 @@ npm start               # http://localhost:3000
 | `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible endpoint |
 | `OPENROUTER_MODEL` | `z-ai/glm-5.1` | Model used for pages |
 | `PORT` | `3000` | Server port (app + API together) |
-| `HOST` | `0.0.0.0` | Bind address; set `127.0.0.1` to expose localhost only |
+| `HOST` | `127.0.0.1` | Bind address. Non-loopback values are refused unless `ALLOW_INSECURE_LAN=1` |
+| `ALLOW_INSECURE_LAN` | — | Set to `1` only to acknowledge that direct LAN HTTP exposes passwords and manuscripts in transit |
+| `ALLOWED_HOSTS` | — | Comma-separated public hostnames accepted when an HTTPS reverse proxy fronts the loopback server |
+| `TRUST_PROXY` | — | Set to `1` only for an HTTPS reverse proxy running on the same machine/loopback |
 | `DB_PATH` | `../database/scribe-tribe.db` | SQLite file; `:memory:` for ephemeral runs |
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |
@@ -183,7 +195,7 @@ scribe-tribe/
 │   │       ├── audio/         #   narration cache/segments, audiobook queue
 │   │       ├── library/       #   storage aggregation + EPUB download
 │   │       ├── transfer/      #   archive plan/stream + staged import/commit
-│   │       └── auth/          #   disabled adapter seam (security deferred)
+│   │       └── auth/          #   single-owner password, session and CSRF boundary
 │   └── tests/                 # Jest + supertest (194 tests)
 ├── frontend/
 │   ├── index.html             # semantic shell, mount points, dialog templates
@@ -196,7 +208,7 @@ scribe-tribe/
 │   │   └── features/          # home, worlds, characters, settings, ai-drafts,
 │   │                          #   library/ (tabs, stories, story-editor, bookshelf),
 │   │                          #   write/ (index, generation, narration, imagery, audiobook),
-│   │                          #   auth/ (disabled adapter + dormant gate)
+│   │                          #   auth/ (first-run, unlock, lock, password change)
 │   ├── styles/                # tokens, base, shell, components, features
 │   ├── brand/                 # production art assets (WebP + SVG only)
 │   └── tests/                 # Jest + jsdom (202 tests, native ESM)
@@ -214,8 +226,15 @@ scribe-tribe/
 
 ## API
 
+Except for authentication status/setup/login, every `/api` route requires an unlocked session. Mutations additionally require the in-memory per-session CSRF token used by the bundled frontend.
+
 | Method | Route | Purpose |
 |---|---|---|
+| GET | `/api/auth/status` | Report setup/locked/unlocked state; an unlocked response includes the in-memory CSRF value |
+| POST | `/api/auth/setup` | First-run password setup using the one-time terminal code |
+| POST | `/api/auth/login` | Unlock and create a server-side session |
+| POST | `/api/auth/logout` | Revoke the current session |
+| POST | `/api/auth/change-password` | Change the owner password and revoke every other session |
 | GET/POST | `/api/worlds` | List / create worlds |
 | GET/PUT/DELETE | `/api/worlds/:id` | Fetch / update / delete (409 if in use) |
 | GET/POST | `/api/characters` | List (filter by `?world_id=`) / create |
@@ -257,13 +276,15 @@ scribe-tribe/
 | POST | `/api/stories/:id/pages/:n/narrate` | Stream the page as speech (binary pass-through, cache-aware) |
 | GET | `/api/ai/generation-cost?id=` | Authoritative cost for a narration generation |
 
-All validation errors return `400` with a helpful message; unknown ids return `404`.
+Validation errors return `400` with a helpful message; unknown ids return `404`; unexpected internal errors return a sanitized reference rather than provider or filesystem details.
 
 ## Testing
 
+Use `bash setup.sh --dev` on a development checkout; the normal setup intentionally omits test and browser tooling.
+
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)
-npm test             # lint + backend (194) + frontend (202) Jest suites — runs on Termux too
+npm test             # lint + backend/frontend Jest suites — runs on Termux too
 npm run test:coverage
 npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 # frontend Jest runs native ESM: cd frontend && npm test (uses --experimental-vm-modules)

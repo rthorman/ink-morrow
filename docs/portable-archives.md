@@ -2,7 +2,7 @@
 
 ScribeTribe 3.2.0 uses one versioned archive format for moving a single asset, a linked bundle, or the entire local installation. Archives use the `.scribetribe.zip` suffix. They contain ordinary JSON plus optional image and MP3 files; they are not raw SQLite copies.
 
-Passwords and archive encryption are intentionally not part of v3.2.0. Treat an exported file according to what its review screen says it contains.
+The v3.2.1 installation password and browser sessions never enter an archive. Archive encryption is intentionally not part of format version 1, so treat an exported file according to what its review screen says it contains.
 
 ## Export scopes and dependency rules
 
