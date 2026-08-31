@@ -14,6 +14,7 @@ const {
   MEMORY_FIELDS,
   PREVIEW_FIELDS,
   AUDIOBOOK_FIELDS,
+  ARCHIVE_EXTENSION,
   semanticHash,
   sanitizeSettings,
   validId,
@@ -692,7 +693,7 @@ function createTransferService({
     });
     if (!diskHasRoom(plan.estimatedBytes)) throw httpError('Not enough disk space to create the required safety backup', 507);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `safety-before-import-${stamp}.scribetribe.zip`;
+    const filename = `safety-before-import-${stamp}${ARCHIVE_EXTENSION}`;
     await writeArchiveFile(plan, path.join(backupsDir, filename));
     return { filename, download_url: `/api/transfers/safety-backups/${encodeURIComponent(filename)}` };
   }
@@ -759,7 +760,7 @@ function createTransferService({
   }
 
   function safetyBackupPath(filename) {
-    if (typeof filename !== 'string' || path.basename(filename) !== filename || !filename.endsWith('.scribetribe.zip')) {
+    if (typeof filename !== 'string' || path.basename(filename) !== filename || !filename.endsWith(ARCHIVE_EXTENSION)) {
       throw httpError('Safety backup not found', 404);
     }
     const target = path.join(backupsDir, filename);

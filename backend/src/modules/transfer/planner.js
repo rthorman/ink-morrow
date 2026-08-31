@@ -7,6 +7,9 @@ const { parseCastJson } = require('../stories/cast');
 const {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
   EXPORT_SCOPES,
   jsonBuffer,
   sha256,
@@ -321,6 +324,11 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
     const manifest = {
       format: ARCHIVE_FORMAT,
       version: ARCHIVE_VERSION,
+      manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
+      database_schema: {
+        family: DATABASE_FAMILY,
+        version: DATABASE_SCHEMA_VERSION,
+      },
       created_at: new Date().toISOString(),
       created_by: { application: 'ScribeTribe', version: appVersion },
       scope: options.scope,

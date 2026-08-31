@@ -7,6 +7,13 @@ const request = require('supertest');
 const yazl = require('yazl');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
+const {
+  ARCHIVE_FORMAT,
+  ARCHIVE_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
+} = require('../src/modules/transfer/format');
 const { createWorld, createCharacter, createStory, addPage } = require('./helpers');
 
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
@@ -54,7 +61,38 @@ async function downloadPlan(app, payload) {
 function preflight(app, bytes, settings = null) {
   let call = request(app).post('/api/transfers/imports/preflight');
   if (settings) call = call.field('current_settings', JSON.stringify(settings));
-  return call.attach('archive', bytes, 'portable.scribetribe.zip');
+  return call.attach('archive', bytes, 'portable.scribetribe');
+}
+
+function manifestFixture(overrides = {}) {
+  return {
+    format: ARCHIVE_FORMAT,
+    version: ARCHIVE_VERSION,
+    manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
+    database_schema: { family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION },
+    created_at: new Date().toISOString(),
+    created_by: { application: 'ScribeTribe', version: 'test' },
+    scope: 'full',
+    options: { include_visuals: false, include_audio: false, include_working_history: false },
+    settings: null,
+    entities: [],
+    assets: [],
+    exposure: {},
+    ...overrides,
+  };
+}
+
+function zipFixture(manifest, extraEntries = []) {
+  const zip = new yazl.ZipFile();
+  const chunks = [];
+  return new Promise((resolve, reject) => {
+    zip.outputStream.on('data', (chunk) => chunks.push(chunk));
+    zip.outputStream.on('error', reject);
+    zip.outputStream.on('end', () => resolve(Buffer.concat(chunks)));
+    zip.addBuffer(Buffer.from(JSON.stringify(manifest)), 'manifest.json');
+    for (const entry of extraEntries) zip.addBuffer(Buffer.from(entry.content), entry.path);
+    zip.end();
+  });
 }
 
 function storeImage(root, bucket, id, bytes = Buffer.from('image bytes')) {
@@ -272,24 +310,49 @@ describe('portable archives and backups', () => {
   });
 
   it('rejects undeclared ZIP entries without changing the database', async () => {
-    const manifest = {
-      format: 'scribetribe-portable-archive', version: 1,
-      created_at: new Date().toISOString(), scope: 'full',
-      options: { include_visuals: false, include_audio: false, include_working_history: false },
-      settings: null, entities: [], assets: [], exposure: {},
-    };
-    const zip = new yazl.ZipFile();
-    const chunks = [];
-    const bytes = await new Promise((resolve, reject) => {
-      zip.outputStream.on('data', (chunk) => chunks.push(chunk));
-      zip.outputStream.on('error', reject);
-      zip.outputStream.on('end', () => resolve(Buffer.concat(chunks)));
-      zip.addBuffer(Buffer.from(JSON.stringify(manifest)), 'manifest.json');
-      zip.addBuffer(Buffer.from('undeclared'), 'assets/undeclared.txt');
-      zip.end();
-    });
+    const bytes = await zipFixture(manifestFixture(), [
+      { path: 'assets/undeclared.txt', content: 'undeclared' },
+    ]);
     const response = await preflight(destination.app, bytes).expect(400);
     expect(response.body.error).toMatch(/undeclared file/);
+    expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(0);
+  });
+
+  it('refuses a 3.x archive during preflight without changing the database', async () => {
+    const bytes = await zipFixture({
+      format: 'scribetribe-portable-archive',
+      version: 1,
+      created_at: new Date().toISOString(),
+      scope: 'full',
+      options: { include_visuals: false, include_audio: false, include_working_history: false },
+      settings: null,
+      entities: [],
+      assets: [],
+      exposure: {},
+    });
+
+    const response = await preflight(destination.app, bytes).expect(400);
+    expect(response.body.error).toMatch(/3\.x archive.*does not import/i);
+    expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(0);
+    expect(destination.db.prepare('SELECT COUNT(*) AS c FROM stories').get().c).toBe(0);
+  });
+
+  it('fails closed on future archive and database schema versions', async () => {
+    const futureArchive = await zipFixture(manifestFixture({ version: ARCHIVE_VERSION + 1 }));
+    let response = await preflight(destination.app, futureArchive).expect(400);
+    expect(response.body.error).toMatch(/newer ScribeTribe version/i);
+
+    const futureDatabase = await zipFixture(manifestFixture({
+      database_schema: { family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION + 1 },
+    }));
+    response = await preflight(destination.app, futureDatabase).expect(400);
+    expect(response.body.error).toMatch(/newer ScribeTribe database schema/i);
+
+    const futureManifest = await zipFixture(manifestFixture({
+      manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION + 1,
+    }));
+    response = await preflight(destination.app, futureManifest).expect(400);
+    expect(response.body.error).toMatch(/newer manifest schema/i);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(0);
   });
 });

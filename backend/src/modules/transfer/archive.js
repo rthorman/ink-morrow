@@ -10,6 +10,10 @@ const yauzl = require('yauzl');
 const {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA,
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
   ENTITY_KINDS,
   EXPORT_SCOPES,
   WORLD_FIELDS,
@@ -342,17 +346,84 @@ function validateBundle(meta, bundle) {
 }
 
 function validateManifest(manifest, files) {
-  if (!manifest || manifest.format !== ARCHIVE_FORMAT || manifest.version !== ARCHIVE_VERSION) {
-    throw httpError('This is not a supported ScribeTribe archive');
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    throw httpError('Archive manifest must be an object');
+  }
+  if (manifest.format === 'scribetribe-portable-archive' && manifest.version === 1) {
+    throw httpError('This is a ScribeTribe 3.x archive. ScribeTribe 4.0 does not import 3.x archives; use 3.2.2 to open it.');
+  }
+  if (manifest.format !== ARCHIVE_FORMAT) {
+    throw httpError('This is not a supported ScribeTribe project archive');
+  }
+  if (!Number.isSafeInteger(manifest.version)) throw httpError('Archive format version is invalid');
+  if (manifest.version > ARCHIVE_VERSION) {
+    throw httpError(`This archive was made by a newer ScribeTribe version (archive v${manifest.version}); this build supports v${ARCHIVE_VERSION}.`);
+  }
+  if (manifest.version !== ARCHIVE_VERSION) {
+    throw httpError(`Archive v${manifest.version} is not supported by the 4.0 clean-break importer.`);
+  }
+  if (!Number.isSafeInteger(manifest.manifest_schema_version)) {
+    throw httpError('Archive manifest schema version is invalid');
+  }
+  if (manifest.manifest_schema_version > ARCHIVE_MANIFEST_SCHEMA_VERSION) {
+    throw httpError('This archive uses a newer manifest schema and cannot be safely read by this build.');
+  }
+  if (manifest.manifest_schema_version !== ARCHIVE_MANIFEST_SCHEMA_VERSION) {
+    throw httpError('This archive uses an unsupported manifest schema.');
+  }
+  const databaseSchema = manifest.database_schema;
+  if (!databaseSchema || typeof databaseSchema !== 'object' || Array.isArray(databaseSchema) ||
+      Object.keys(databaseSchema).some((key) => !['family', 'version'].includes(key))) {
+    throw httpError('Archive database schema identity is invalid');
+  }
+  if (databaseSchema.family !== DATABASE_FAMILY) {
+    throw httpError('This archive belongs to a different ScribeTribe database family.');
+  }
+  if (!Number.isSafeInteger(databaseSchema.version)) throw httpError('Archive database schema version is invalid');
+  if (databaseSchema.version > DATABASE_SCHEMA_VERSION) {
+    throw httpError('This archive was made from a newer ScribeTribe database schema.');
+  }
+  if (databaseSchema.version !== DATABASE_SCHEMA_VERSION) {
+    throw httpError('This archive database schema is not supported by the 4.0 clean-break importer.');
+  }
+  const allowedManifestFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties);
+  if (Object.keys(manifest).some((key) => !allowedManifestFields.includes(key)) ||
+      ARCHIVE_MANIFEST_SCHEMA.required.some((key) => !Object.prototype.hasOwnProperty.call(manifest, key))) {
+    throw httpError('Archive manifest has missing or unknown fields');
+  }
+  if (!manifest.created_by || typeof manifest.created_by !== 'object' ||
+      Object.keys(manifest.created_by).some((key) => !['application', 'version'].includes(key)) ||
+      manifest.created_by.application !== 'ScribeTribe' || typeof manifest.created_by.version !== 'string' ||
+      !manifest.created_by.version || manifest.created_by.version.length > 100) {
+    throw httpError('Archive creator identity is invalid');
+  }
+  if (typeof manifest.created_at !== 'string' || manifest.created_at.length > 50 ||
+      !Number.isFinite(Date.parse(manifest.created_at))) {
+    throw httpError('Archive creation time is invalid');
+  }
+  if ((manifest.settings !== null &&
+       (!manifest.settings || typeof manifest.settings !== 'object' || Array.isArray(manifest.settings))) ||
+      !manifest.exposure || typeof manifest.exposure !== 'object' || Array.isArray(manifest.exposure)) {
+    throw httpError('Archive settings or exposure summary is invalid');
   }
   if (!EXPORT_SCOPES.has(manifest.scope) || !manifest.options || typeof manifest.options !== 'object') {
     throw httpError('Archive manifest has an invalid scope or options block');
+  }
+  const optionKeys = ['include_visuals', 'include_audio', 'include_working_history'];
+  if (Object.keys(manifest.options).some((key) => !optionKeys.includes(key)) ||
+      optionKeys.some((key) => typeof manifest.options[key] !== 'boolean')) {
+    throw httpError('Archive manifest has invalid export options');
   }
   if (!Array.isArray(manifest.entities) || !Array.isArray(manifest.assets)) throw httpError('Archive manifest is incomplete');
   const expected = new Set(['manifest.json']);
   const entityKeys = new Set();
   for (const entity of manifest.entities) {
-    if (!entity || !ENTITY_KINDS.has(entity.kind) || !validId(entity.id)) throw httpError('Archive contains invalid entity metadata');
+    const entityFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties.entities.items.properties);
+    if (!entity || typeof entity !== 'object' || Object.keys(entity).some((key) => !entityFields.includes(key)) ||
+        !ENTITY_KINDS.has(entity.kind) || !validId(entity.id) || typeof entity.name !== 'string' ||
+        !entity.name.trim() || entity.name.length > 300 || !Number.isSafeInteger(entity.size_bytes) || entity.size_bytes < 0) {
+      throw httpError('Archive contains invalid entity metadata');
+    }
     assertArchivePath(entity.path, 'objects/');
     assertHash(entity.sha256);
     assertHash(entity.semantic_sha256);
@@ -363,13 +434,27 @@ function validateManifest(manifest, files) {
     if (!files.has(entity.path)) throw httpError(`Archive is missing ${entity.path}`);
     if (!Array.isArray(entity.dependencies)) throw httpError('Archive entity dependencies are invalid');
     for (const dependency of entity.dependencies) {
-      if (!dependency || !ENTITY_KINDS.has(dependency.kind) || !validId(dependency.id)) throw httpError('Archive dependency is invalid');
+      if (!dependency || typeof dependency !== 'object' ||
+          Object.keys(dependency).some((key) => !['kind', 'id'].includes(key)) ||
+          !ENTITY_KINDS.has(dependency.kind) || !validId(dependency.id)) {
+        throw httpError('Archive dependency is invalid');
+      }
     }
   }
   for (const asset of manifest.assets) {
-    if (!asset || !['image', 'audio'].includes(asset.kind) || !validId(asset.owner_id) ||
+    const assetFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties.assets.items.properties);
+    if (!asset || typeof asset !== 'object' || Object.keys(asset).some((key) => !assetFields.includes(key)) ||
+        !['image', 'audio'].includes(asset.kind) || !validId(asset.owner_id) ||
         !['world', 'character', 'story', 'page'].includes(asset.owner_kind)) {
       throw httpError('Archive contains invalid media metadata');
+    }
+    if ((asset.story_id !== null && !validId(asset.story_id)) ||
+        (asset.page_number !== null && (!Number.isSafeInteger(asset.page_number) || asset.page_number < 1)) ||
+        (asset.owner_kind === 'page' && (!validId(asset.story_id) || !Number.isSafeInteger(asset.page_number))) ||
+        (asset.owner_kind !== 'page' && asset.page_number !== null) ||
+        (['story', 'page'].includes(asset.owner_kind) && !validId(asset.story_id)) ||
+        (['world', 'character'].includes(asset.owner_kind) && asset.story_id !== null)) {
+      throw httpError('Archive media ownership metadata is invalid');
     }
     assertArchivePath(asset.archive_path, 'assets/');
     assertHash(asset.sha256);

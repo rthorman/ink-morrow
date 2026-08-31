@@ -5,10 +5,15 @@
 // a particular SQLite layout.
 
 const crypto = require('crypto');
-
-const ARCHIVE_FORMAT = 'scribetribe-portable-archive';
-const ARCHIVE_VERSION = 1;
-const ARCHIVE_EXTENSION = '.scribetribe.zip';
+const {
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
+  ARCHIVE_FORMAT,
+  ARCHIVE_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  ARCHIVE_EXTENSION,
+} = require('../../release');
+const ARCHIVE_MANIFEST_SCHEMA = require('./archive-manifest-v2.schema.json');
 const ENTITY_KINDS = new Set(['world', 'character', 'story']);
 const EXPORT_SCOPES = new Set(['world', 'character', 'story', 'full']);
 
@@ -253,6 +258,10 @@ module.exports = {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
   ARCHIVE_EXTENSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA,
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
   ENTITY_KINDS,
   EXPORT_SCOPES,
   WORLD_FIELDS,
