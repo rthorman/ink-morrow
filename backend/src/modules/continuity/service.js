@@ -4,6 +4,18 @@
 // committed page, emits bounded structured deltas, and never gets to rewrite
 // the prose. A failed extraction leaves the page valid and visibly retryable.
 
+const EVIDENCE_SCHEMA = {
+  type: 'array',
+  minItems: 1,
+  maxItems: 5,
+  items: {
+    type: 'object',
+    additionalProperties: false,
+    required: ['quote'],
+    properties: { quote: { type: 'string' } },
+  },
+};
+
 const CONTINUITY_SCHEMA = {
   type: 'json_schema',
   json_schema: {
@@ -12,19 +24,23 @@ const CONTINUITY_SCHEMA = {
     schema: {
       type: 'object',
       additionalProperties: false,
-      required: ['summary', 'events', 'character_updates', 'goal_updates', 'thread_updates', 'world_fact_updates'],
+      required: ['schema_version', 'summary', 'events', 'character_updates', 'goal_updates',
+        'thread_updates', 'world_fact_updates', 'arc_updates'],
       properties: {
+        schema_version: { const: 2 },
         summary: { type: 'string' },
         events: {
           type: 'array',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['text', 'character_ids', 'importance', 'type'],
+            required: ['id', 'text', 'character_ids', 'importance', 'type', 'evidence'],
             properties: {
+              id: { type: ['string', 'null'] },
               text: { type: 'string' },
               character_ids: { type: 'array', items: { type: 'string' } },
               importance: { type: 'string', enum: ['minor', 'major'] },
               type: { type: 'string', enum: ['action', 'revelation', 'transition', 'relationship', 'world'] },
+              evidence: EVIDENCE_SCHEMA,
             },
           },
         },
@@ -33,7 +49,8 @@ const CONTINUITY_SCHEMA = {
           items: {
             type: 'object', additionalProperties: false,
             required: ['character_id', 'location', 'condition', 'knowledge_gained', 'knowledge_lost',
-              'possessions_gained', 'possessions_lost', 'personality', 'appearance', 'relationship_to_mc'],
+              'possessions_gained', 'possessions_lost', 'personality', 'appearance',
+              'relationships', 'evidence'],
             properties: {
               character_id: { type: 'string' },
               location: { type: ['string', 'null'] },
@@ -44,7 +61,18 @@ const CONTINUITY_SCHEMA = {
               possessions_lost: { type: 'array', items: { type: 'string' } },
               personality: { type: ['string', 'null'] },
               appearance: { type: ['string', 'null'] },
-              relationship_to_mc: { type: ['string', 'null'] },
+              relationships: {
+                type: 'array',
+                items: {
+                  type: 'object', additionalProperties: false,
+                  required: ['character_id', 'summary'],
+                  properties: {
+                    character_id: { type: 'string' },
+                    summary: { type: 'string' },
+                  },
+                },
+              },
+              evidence: EVIDENCE_SCHEMA,
             },
           },
         },
@@ -52,12 +80,13 @@ const CONTINUITY_SCHEMA = {
           type: 'array',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['id', 'character_id', 'text', 'status'],
+            required: ['id', 'character_id', 'text', 'status', 'evidence'],
             properties: {
               id: { type: ['string', 'null'] },
               character_id: { type: ['string', 'null'] },
               text: { type: ['string', 'null'] },
               status: { type: 'string', enum: ['pending', 'active', 'fulfilled', 'abandoned'] },
+              evidence: EVIDENCE_SCHEMA,
             },
           },
         },
@@ -65,11 +94,12 @@ const CONTINUITY_SCHEMA = {
           type: 'array',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['id', 'text', 'status'],
+            required: ['id', 'text', 'status', 'evidence'],
             properties: {
               id: { type: ['string', 'null'] },
               text: { type: ['string', 'null'] },
               status: { type: 'string', enum: ['open', 'resolved'] },
+              evidence: EVIDENCE_SCHEMA,
             },
           },
         },
@@ -77,11 +107,26 @@ const CONTINUITY_SCHEMA = {
           type: 'array',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['id', 'text', 'status'],
+            required: ['id', 'text', 'status', 'evidence'],
             properties: {
               id: { type: ['string', 'null'] },
               text: { type: ['string', 'null'] },
               status: { type: 'string', enum: ['established', 'superseded'] },
+              evidence: EVIDENCE_SCHEMA,
+            },
+          },
+        },
+        arc_updates: {
+          type: 'array',
+          items: {
+            type: 'object', additionalProperties: false,
+            required: ['id', 'character_id', 'text', 'movement', 'evidence'],
+            properties: {
+              id: { type: ['string', 'null'] },
+              character_id: { type: ['string', 'null'] },
+              text: { type: 'string' },
+              movement: { type: 'string', enum: ['advance', 'setback', 'turning_point', 'resolution'] },
+              evidence: EVIDENCE_SCHEMA,
             },
           },
         },
@@ -121,6 +166,30 @@ function parseJson(content) {
   try { return JSON.parse(clean.slice(start, end + 1)); } catch { return null; }
 }
 
+function verifyEvidenceQuotes(delta, pageContent) {
+  if (delta?.schema_version !== 2) return delta;
+  const page = String(pageContent || '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const items = [
+    ...(delta.events || []),
+    ...(delta.character_updates || []),
+    ...(delta.goal_updates || []),
+    ...(delta.thread_updates || []),
+    ...(delta.world_fact_updates || []),
+    ...(delta.arc_updates || []),
+  ];
+  for (const item of items) {
+    for (const evidence of item.evidence || []) {
+      const quote = String(evidence.quote || '').replace(/\s+/g, ' ').trim().toLowerCase();
+      if (!quote || !page.includes(quote)) {
+        const error = new Error('Continuity evidence must quote the canonical page directly.');
+        error.code = 'INVALID_CONTINUITY_EVIDENCE';
+        throw error;
+      }
+    }
+  }
+  return delta;
+}
+
 function spendOf(value) {
   return {
     model: value?.model || null,
@@ -151,6 +220,8 @@ function publicMemory(row) {
   if (!row) return null;
   return {
     page_id: row.page_id,
+    page_revision_id: row.revision_id || null,
+    schema_version: row.schema_version || null,
     status: row.status,
     summary: row.summary || null,
     model: row.model || null,
@@ -188,12 +259,13 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     const worldFacts = latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
       .map((fact) => `- [${fact.id}] ${fact.text || '(untitled)'}`).join('\n');
     const system = [
-      'You are ScribeTribe’s continuity clerk. Extract durable changes from ONE already-written story page.',
+      'You are ScribeTribe’s Archivist. Extract durable changes from ONE already-written canonical story-page revision.',
       'Report only facts caused or made true by this page. Do not treat character sheets, plans, desires, hypothetical language, dialogue commands, or user direction as events unless the prose says they happened.',
       'A goal may move to fulfilled or abandoned when the page resolves it. Do not recreate a resolved goal under a new id.',
       'Reuse the listed id when changing an existing goal, thread, or fact. For knowledge_lost or possessions_lost, copy the prior item text exactly so the local fold can remove it.',
       'Use only listed character ids. Keep summaries factual and compact. Empty arrays are correct when nothing durable changed.',
-      'Return one strict JSON object matching the supplied schema and no prose.',
+      'Every durable item must cite one to five short, exact quotations from this page in its evidence array.',
+      'Return schema_version 2 and one strict JSON object matching the supplied schema. Unknown fields are forbidden. Return no prose.',
     ].join(' ');
     const user = [
       `STORY: ${story.title}`,
@@ -203,7 +275,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
       `OPEN/RESOLVED THREADS BEFORE:\n${threads || '(none)'}`,
       `ESTABLISHED STORY FACTS BEFORE:\n${worldFacts || '(none)'}`,
       page.user_input ? `AUTHOR DIRECTION THAT LED TO THIS PAGE (context only; not proof it happened):\n${clipped(page.user_input, 4000)}` : '',
-      `COMMITTED PAGE ${page.page_number}:\n${clipped(page.content, EXTRACTOR_PAGE_CHARS)}`,
+      `CANONICAL PAGE ${page.page_number} REVISION ${page.revision_id}:\n${clipped(page.content, EXTRACTOR_PAGE_CHARS)}`,
     ].filter(Boolean).join('\n\n');
     return [{ role: 'system', content: system }, { role: 'user', content: user }];
   }
@@ -245,19 +317,31 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
       result = await call(true);
       combineSpend(total, result);
       let parsed = parseJson(result.content);
-      if (!parsed) {
+      let delta = null;
+      if (parsed) {
+        try {
+          const castIds = store.snapshots(story).map((character) => character.character_id);
+          delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
+        } catch {
+          delta = null;
+        }
+      }
+      if (!delta) {
         result = await call(false, true);
         combineSpend(total, result);
         parsed = parseJson(result.content);
+        if (parsed) {
+          const castIds = store.snapshots(story).map((character) => character.character_id);
+          delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
+        }
       }
-      if (!parsed) {
+      if (!delta) {
         const error = new Error('The continuity clerk returned invalid structured data twice.');
         error.extractionSpend = total;
         throw error;
       }
-      const castIds = store.snapshots(story).map((character) => character.character_id);
       return {
-        delta: store.sanitizeDelta(parsed, castIds),
+        delta,
         spend: {
           model: total.model || result.model,
           usage: total.usage,
@@ -276,18 +360,20 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
 
   async function runSyncPage(story, page, { model, force = false } = {}) {
     if (!page || page.story_id !== story.id) throw new Error('Page does not belong to this story');
-    if (page.image_media_type || !String(page.content || '').trim()) return { skipped: true, reason: 'non-text page' };
-    const hash = store.contentHash(page.content);
-    const current = store.getPageMemory(page.id);
+    const canonical = store.pageForExtraction(page.id);
+    if (!canonical || canonical.story_id !== story.id) throw new Error('Page has no canonical revision');
+    if (canonical.image_media_type || !String(canonical.content || '').trim()) return { skipped: true, reason: 'non-text page' };
+    const hash = store.contentHash(canonical.content);
+    const current = store.getPageMemory(canonical.id);
     if (!force && current?.status === 'ready' && current.content_hash === hash) {
-      return { memory: publicMemory(current), page: stories.getPageById(page.id), unchanged: true };
+      return { memory: publicMemory(current), page: stories.getPageById(canonical.id), unchanged: true };
     }
 
-    store.beginPage(page);
+    const begun = store.beginPage(canonical);
     try {
-      const { delta, spend } = await extract(story, page, model || undefined);
-      const row = store.finishPage(page, hash, delta, spend);
-      return { memory: publicMemory(row), page: stories.getPageById(page.id), delta };
+      const { delta, spend } = await extract(story, begun.page, model || undefined);
+      const row = store.finishPage(begun.page, begun.hash, delta, spend);
+      return { memory: publicMemory(row), page: stories.getPageById(canonical.id), delta };
     } catch (error) {
       const raw = error.extractionSpend || spendOf(error);
       const spend = {
@@ -296,19 +382,21 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
         cost_usd: raw.cost_known === false ? null : raw.cost_usd,
         billed_attempts: raw.billed_attempts || 0,
       };
-      const row = store.failPage(page, hash, error, spend);
-      return { memory: publicMemory(row), page: stories.getPageById(page.id), failed: true };
+      const row = store.failPage(begun.page, begun.hash, error, spend);
+      return { memory: publicMemory(row), page: stories.getPageById(canonical.id), failed: true };
     }
   }
 
   function syncPage(story, page, options = {}) {
-    const existing = pageSyncs.get(page?.id);
+    const canonical = page ? store.pageForExtraction(page.id) : null;
+    const key = canonical ? `${canonical.id}:${canonical.revision_id}` : page?.id;
+    const existing = pageSyncs.get(key);
     if (existing) return existing;
     let task;
     task = runSyncPage(story, page, options).finally(() => {
-      if (pageSyncs.get(page?.id) === task) pageSyncs.delete(page?.id);
+      if (pageSyncs.get(key) === task) pageSyncs.delete(key);
     });
-    pageSyncs.set(page?.id, task);
+    pageSyncs.set(key, task);
     return task;
   }
 
@@ -341,4 +429,4 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
   };
 }
 
-module.exports = { createContinuityService, CONTINUITY_SCHEMA, parseJson, publicMemory };
+module.exports = { createContinuityService, CONTINUITY_SCHEMA, parseJson, verifyEvidenceQuotes, publicMemory };

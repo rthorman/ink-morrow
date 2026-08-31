@@ -3,6 +3,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { randomUUID } = require('node:crypto');
 const request = require('supertest');
 const yazl = require('yazl');
 const yauzl = require('yauzl');
@@ -180,6 +181,26 @@ describe('portable archives and backups', () => {
       summary: 'The visitor arrived.', events: [{ text: 'Arrival', character_ids: [visitor.id] }],
       character_updates: [], goal_updates: [], thread_updates: [], world_fact_updates: [],
     }));
+    const canonicalRevision = source.db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(page.id).canonical_revision_id;
+    source.db.prepare(`
+      INSERT INTO continuity_deltas
+        (revision_id, story_id, status, schema_version, delta_json, content_hash, summary)
+      VALUES (?, ?, 'ready', 1, ?, ?, ?)
+    `).run(canonicalRevision, story.id, JSON.stringify({
+      summary: 'The visitor arrived.', events: [{ text: 'Arrival', character_ids: [visitor.id] }],
+      character_updates: [], goal_updates: [], thread_updates: [], world_fact_updates: [],
+    }), 'a'.repeat(64), 'The visitor arrived.');
+    source.db.prepare(`
+      INSERT INTO continuity_corrections (id, story_id, scope, subject_id, correction_json)
+      VALUES (?, ?, 'character', ?, ?)
+    `).run(randomUUID(), story.id, visitor.id, JSON.stringify({
+      schema_version: 1,
+      field: 'condition',
+      value: 'weary',
+      reason: 'Author correction',
+      evidence: [{ page_revision_id: canonicalRevision, quote: 'crosses the threshold' }],
+      source: 'author',
+    }));
     storeImage(source.imageDir, 'worlds', storyWorld.id);
     storeImage(source.imageDir, 'characters', lead.id);
     storeImage(source.imageDir, 'covers', story.id);
@@ -219,6 +240,14 @@ describe('portable archives and backups', () => {
       .get(importedRevisionPointers.canonical_revision_id).content).toBe('The visitor crosses the threshold.');
     expect(destination.db.prepare('SELECT content FROM page_revisions WHERE id = ?')
       .get(importedRevisionPointers.display_revision_id).content).toBe('The visitor carefully crosses the threshold.');
+    expect(destination.db.prepare('SELECT status FROM continuity_deltas WHERE revision_id = ?')
+      .get(importedRevisionPointers.canonical_revision_id).status).toBe('ready');
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM template_snapshots WHERE story_id = ?')
+      .get(story.id).count).toBe(3);
+    const importedCorrection = destination.db.prepare('SELECT * FROM continuity_corrections WHERE story_id = ?').get(story.id);
+    expect(importedCorrection.subject_id).toBe(visitor.id);
+    expect(JSON.parse(importedCorrection.correction_json).evidence[0].page_revision_id)
+      .toBe(importedRevisionPointers.canonical_revision_id);
     const importedVolumes = destination.db.prepare('SELECT id, ordinal, title FROM volumes WHERE story_id = ? ORDER BY ordinal').all(story.id);
     expect(importedVolumes).toEqual([
       { id: volumeOne.id, ordinal: 1, title: 'Volume I' },

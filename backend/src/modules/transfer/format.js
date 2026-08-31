@@ -62,6 +62,18 @@ const MEMORY_FIELDS = [
   'model', 'prompt_tokens', 'completion_tokens', 'cost_usd', 'error',
   'schema_version', 'created_at', 'updated_at',
 ];
+const CONTINUITY_DELTA_FIELDS = [
+  'revision_id', 'story_id', 'status', 'schema_version', 'delta_json',
+  'provider_result_json', 'spend_usd', 'error_code', 'created_at', 'updated_at',
+  'content_hash', 'summary', 'model', 'prompt_tokens', 'completion_tokens', 'error',
+];
+const TEMPLATE_SNAPSHOT_FIELDS = [
+  'id', 'story_id', 'template_kind', 'source_template_id', 'source_revision',
+  'snapshot_json', 'created_at',
+];
+const CORRECTION_FIELDS = [
+  'id', 'story_id', 'scope', 'subject_id', 'correction_json', 'created_at', 'updated_at',
+];
 const PREVIEW_FIELDS = [
   'story_id', 'expected_page', 'raw_content', 'model', 'prompt_tokens',
   'completion_tokens', 'cost_usd', 'created_at',
@@ -203,6 +215,28 @@ function memoryRecord(row, { includeWorkingHistory }) {
   return memory;
 }
 
+function continuityDeltaRecord(row, { includeWorkingHistory }) {
+  const delta = pick(row, CONTINUITY_DELTA_FIELDS);
+  if (!includeWorkingHistory) {
+    delta.provider_result_json = null;
+    delta.spend_usd = 0;
+    delta.model = null;
+    delta.prompt_tokens = null;
+    delta.completion_tokens = null;
+    delta.error = null;
+    delta.error_code = null;
+  }
+  return delta;
+}
+
+function templateSnapshotRecord(row) {
+  return pick(row, TEMPLATE_SNAPSHOT_FIELDS);
+}
+
+function correctionRecord(row) {
+  return pick(row, CORRECTION_FIELDS);
+}
+
 function previewRecord(row) {
   return pick(row, PREVIEW_FIELDS);
 }
@@ -303,10 +337,15 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
     ...(includeHierarchy ? { hierarchy: semanticHierarchy } : {}),
     revisions: semanticRevisions,
     snapshots: (bundle.snapshots || []).map((row) => without(row, ['story_id', 'created_at'])),
+    template_snapshots: (bundle.template_snapshots || []).map((row) => without(row, ['id', 'story_id', 'created_at'])),
     memory: (bundle.memory || []).map((row) => ({
       ...without(row, ['page_id', 'story_id', 'created_at', 'updated_at']),
       page_number: pageNumberById.get(row.page_id) || null,
     })),
+    continuity_deltas: (bundle.continuity_deltas || []).map((row) =>
+      without(row, ['story_id', 'created_at', 'updated_at'])),
+    corrections: (bundle.corrections || []).map((row) =>
+      without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
     preview: bundle.preview ? without(bundle.preview, ['story_id', 'created_at']) : null,
     audiobook: bundle.audiobook ? without(bundle.audiobook, ['story_id', 'created_at', 'updated_at', 'fingerprint']) : null,
   };
@@ -372,6 +411,9 @@ module.exports = {
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
+  CONTINUITY_DELTA_FIELDS,
+  TEMPLATE_SNAPSHOT_FIELDS,
+  CORRECTION_FIELDS,
   PREVIEW_FIELDS,
   AUDIOBOOK_FIELDS,
   pick,
@@ -390,6 +432,9 @@ module.exports = {
   revisionRecord,
   snapshotRecord,
   memoryRecord,
+  continuityDeltaRecord,
+  templateSnapshotRecord,
+  correctionRecord,
   previewRecord,
   audiobookRecord,
   semanticHash,

@@ -697,6 +697,165 @@ PR 04 provider profiles and encrypted secret vault activation:
 - keep vault wrapping material and encrypted entries outside portable aggregates
 `;
 
+function activateContinuityV2(db) {
+  db.exec(`
+    ALTER TABLE continuity_deltas ADD COLUMN content_hash TEXT;
+    ALTER TABLE continuity_deltas ADD COLUMN summary TEXT;
+    ALTER TABLE continuity_deltas ADD COLUMN model TEXT;
+    ALTER TABLE continuity_deltas ADD COLUMN prompt_tokens INTEGER
+      CHECK (prompt_tokens IS NULL OR prompt_tokens >= 0);
+    ALTER TABLE continuity_deltas ADD COLUMN completion_tokens INTEGER
+      CHECK (completion_tokens IS NULL OR completion_tokens >= 0);
+    ALTER TABLE continuity_deltas ADD COLUMN error TEXT;
+
+    CREATE TABLE continuity_search (
+      revision_id TEXT PRIMARY KEY REFERENCES page_revisions (id) ON DELETE CASCADE,
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      content TEXT NOT NULL
+    );
+
+    CREATE INDEX idx_continuity_search_story
+      ON continuity_search (story_id);
+
+    CREATE TABLE continuity_projection_checkpoints (
+      revision_id TEXT PRIMARY KEY REFERENCES page_revisions (id) ON DELETE CASCADE,
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      page_id TEXT NOT NULL REFERENCES pages (id) ON DELETE CASCADE,
+      page_number INTEGER NOT NULL CHECK (page_number > 0),
+      delta_count INTEGER NOT NULL CHECK (delta_count >= 0),
+      projection_json TEXT NOT NULL CHECK (json_valid(projection_json)),
+      projection_hash TEXT NOT NULL CHECK (length(projection_hash) = 64),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX idx_continuity_checkpoints_story_page
+      ON continuity_projection_checkpoints (story_id, page_number);
+
+    CREATE TRIGGER continuity_delta_canonical_revision
+    BEFORE INSERT ON continuity_deltas
+    WHEN NOT EXISTS (
+      SELECT 1
+        FROM page_revisions revision
+        JOIN pages page ON page.id = revision.page_id
+        JOIN chapters chapter ON chapter.id = page.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+       WHERE revision.id = NEW.revision_id
+         AND revision.kind = 'canonical'
+         AND volume.story_id = NEW.story_id
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'Continuity delta provenance is not a canonical revision in this story');
+    END;
+
+    CREATE TRIGGER continuity_checkpoint_canonical_changed
+    AFTER UPDATE OF canonical_revision_id ON pages
+    WHEN OLD.canonical_revision_id IS NOT NEW.canonical_revision_id
+    BEGIN
+      DELETE FROM continuity_projection_checkpoints
+       WHERE story_id = (
+         SELECT volume.story_id
+           FROM chapters chapter
+           JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE chapter.id = NEW.chapter_id
+       )
+         AND page_number >= COALESCE(
+           (SELECT page_number FROM story_pages WHERE id = NEW.id),
+           1
+         );
+    END;
+
+    CREATE TRIGGER continuity_checkpoint_page_removed
+    BEFORE DELETE ON pages
+    BEGIN
+      DELETE FROM continuity_projection_checkpoints
+       WHERE story_id = (
+         SELECT volume.story_id
+           FROM chapters chapter
+           JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE chapter.id = OLD.chapter_id
+       )
+         AND page_number >= COALESCE(
+           (SELECT page_number FROM story_pages WHERE id = OLD.id),
+           1
+         );
+    END;
+
+    CREATE TRIGGER continuity_checkpoint_page_renumbered
+    AFTER UPDATE OF page_number ON story_pages
+    WHEN OLD.page_number IS NOT NEW.page_number
+    BEGIN
+      DELETE FROM continuity_projection_checkpoints
+       WHERE story_id = NEW.story_id
+         AND page_number >= MIN(OLD.page_number, NEW.page_number);
+    END;
+
+    INSERT OR IGNORE INTO continuity_deltas
+      (revision_id, story_id, status, schema_version, delta_json,
+       provider_result_json, spend_usd, error_code, created_at, updated_at,
+       content_hash, summary, model, prompt_tokens, completion_tokens, error)
+    SELECT p.canonical_revision_id, memory.story_id, memory.status,
+           memory.schema_version, memory.delta_json,
+           json_object('model', memory.model,
+                       'prompt_tokens', memory.prompt_tokens,
+                       'completion_tokens', memory.completion_tokens),
+           memory.cost_usd,
+           CASE WHEN memory.status = 'failed' THEN 'EXTRACTION_FAILED' ELSE NULL END,
+           memory.created_at, memory.updated_at, memory.content_hash,
+           memory.summary, memory.model, memory.prompt_tokens,
+           memory.completion_tokens, memory.error
+      FROM story_memory_pages memory
+      JOIN pages p ON p.id = memory.page_id
+     WHERE p.canonical_revision_id IS NOT NULL;
+
+    INSERT OR IGNORE INTO continuity_search (revision_id, story_id, content)
+    SELECT p.canonical_revision_id, search.story_id, search.content
+      FROM story_memory_search search
+      JOIN pages p ON p.id = search.page_id
+      JOIN continuity_deltas delta ON delta.revision_id = p.canonical_revision_id
+     WHERE delta.status = 'ready';
+
+    INSERT OR IGNORE INTO template_snapshots
+      (id, story_id, template_kind, source_template_id, source_revision,
+       snapshot_json, created_at)
+    SELECT 'world:' || story.id || ':' || world.id,
+           story.id, 'world', world.id, world.updated_at,
+           json_object(
+             'name', world.name,
+             'description', world.description,
+             'genre', world.genre,
+             'setting', world.setting,
+             'lore', world.lore
+           ),
+           COALESCE(story.created_at, CURRENT_TIMESTAMP)
+      FROM stories story
+      JOIN worlds world ON world.id = story.world_id;
+
+    INSERT OR IGNORE INTO template_snapshots
+      (id, story_id, template_kind, source_template_id, source_revision,
+       snapshot_json, created_at)
+    SELECT 'character:' || snapshot.story_id || ':' || snapshot.character_id,
+           snapshot.story_id, 'character', snapshot.character_id,
+           snapshot.source_updated_at,
+           json_object(
+             'name', snapshot.name,
+             'description', snapshot.description,
+             'personality', snapshot.personality,
+             'appearance', snapshot.appearance,
+             'background', snapshot.background
+           ),
+           snapshot.created_at
+      FROM story_character_snapshots snapshot;
+  `);
+}
+
+const CONTINUITY_V5_CHECKSUM_SOURCE = `
+PR 05 revision-provenanced continuity ledger v2 activation:
+- bind each structured delta and search row to an immutable canonical revision
+- add deterministic rebuild checkpoints that are safe to discard
+- carry legacy page memory into revision provenance without rewriting prose
+- freeze story-local world and character templates for reviewed field imports
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -728,6 +887,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: PROVIDERS_V4_CHECKSUM_SOURCE,
     up(db) {
       activateProviderVault(db);
+    },
+  }),
+  Object.freeze({
+    version: 5,
+    name: 'revision-provenanced continuity ledger v2',
+    checksumSource: CONTINUITY_V5_CHECKSUM_SOURCE,
+    up(db) {
+      activateContinuityV2(db);
     },
   }),
 ]);
@@ -928,6 +1095,20 @@ function ensureContinuitySearch(db) {
           FROM story_memory_search s
          WHERE NOT EXISTS (
            SELECT 1 FROM story_memory_fts f WHERE f.page_id = s.page_id
+         );
+      CREATE VIRTUAL TABLE IF NOT EXISTS continuity_search_fts
+        USING fts5(revision_id UNINDEXED, story_id UNINDEXED, content);
+      CREATE TRIGGER IF NOT EXISTS continuity_search_fts_delete
+      AFTER DELETE ON continuity_search BEGIN
+        DELETE FROM continuity_search_fts WHERE revision_id = OLD.revision_id;
+      END;
+      DELETE FROM continuity_search_fts
+        WHERE revision_id NOT IN (SELECT revision_id FROM continuity_search);
+      INSERT INTO continuity_search_fts (revision_id, story_id, content)
+        SELECT s.revision_id, s.story_id, s.content
+          FROM continuity_search s
+         WHERE NOT EXISTS (
+           SELECT 1 FROM continuity_search_fts f WHERE f.revision_id = s.revision_id
          );
     `);
   } catch {

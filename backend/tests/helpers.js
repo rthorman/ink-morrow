@@ -49,7 +49,10 @@ function resetDb(db) {
     DELETE FROM recovery_suffixes;
     DELETE FROM continuity_issues;
     DELETE FROM continuity_corrections;
+    DELETE FROM continuity_projection_checkpoints;
+    DELETE FROM continuity_search;
     DELETE FROM continuity_deltas;
+    DELETE FROM template_snapshots;
     DELETE FROM writing_operations;
     DELETE FROM prepared_pages;
     DELETE FROM pages;

@@ -45,11 +45,47 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     SELECT ?, id, name, description, personality, appearance, background, updated_at
       FROM characters WHERE id = ?
   `);
+  const insertCharacterTemplateSnapshot = db.prepare(`
+    INSERT INTO template_snapshots
+      (id, story_id, template_kind, source_template_id, source_revision, snapshot_json)
+    SELECT ?, ?, 'character', character.id, character.updated_at,
+           json_object('name', character.name, 'description', character.description,
+                       'personality', character.personality, 'appearance', character.appearance,
+                       'background', character.background)
+      FROM characters character
+     WHERE character.id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM template_snapshots snapshot
+          WHERE snapshot.story_id = ? AND snapshot.template_kind = 'character'
+            AND snapshot.source_template_id = character.id
+       )
+  `);
+  const insertWorldTemplateSnapshot = db.prepare(`
+    INSERT INTO template_snapshots
+      (id, story_id, template_kind, source_template_id, source_revision, snapshot_json)
+    SELECT ?, ?, 'world', world.id, world.updated_at,
+           json_object('name', world.name, 'description', world.description,
+                       'genre', world.genre, 'setting', world.setting, 'lore', world.lore)
+      FROM worlds world
+     WHERE world.id = ?
+       AND NOT EXISTS (
+         SELECT 1 FROM template_snapshots snapshot
+          WHERE snapshot.story_id = ? AND snapshot.template_kind = 'world'
+            AND snapshot.source_template_id = world.id
+       )
+  `);
 
   // A cast member is copied once. Catalogue edits can improve the reusable
   // template without silently rewriting the identity already cast in a tale.
   function ensureCastSnapshots(storyId, cast) {
-    for (const entry of cast || []) insertSnapshot.run(storyId, entry.id);
+    for (const entry of cast || []) {
+      insertSnapshot.run(storyId, entry.id);
+      insertCharacterTemplateSnapshot.run(randomUUID(), storyId, entry.id, storyId);
+    }
+  }
+
+  function ensureWorldSnapshot(storyId, worldId) {
+    if (worldId) insertWorldTemplateSnapshot.run(randomUUID(), storyId, worldId, storyId);
   }
 
   // -- speculative previews ------------------------------------------------
@@ -132,6 +168,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
         id, payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone
       );
       ensureCastSnapshots(id, payload.cast);
+      ensureWorldSnapshot(id, payload.world_id);
       hierarchy.ensureDefaultInTransaction(id);
     });
     return getStory(id);
@@ -142,6 +179,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       'UPDATE stories SET title = ?, world_id = ?, characters = ?, tone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
     ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
     ensureCastSnapshots(storyId, payload.cast);
+    ensureWorldSnapshot(storyId, payload.world_id);
     invalidatePreview(storyId);
     return getStory(storyId);
   }
