@@ -119,5 +119,10 @@ export function createRouter({ onRoute, onUnknown, isAlive }) {
     return current;
   }
 
-  return { start, navigate, replace, currentRoute, dispatch };
+  function refresh() {
+    current = null;
+    dispatch();
+  }
+
+  return { start, navigate, replace, currentRoute, dispatch, refresh };
 }

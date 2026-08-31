@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { apiPost, E2E_PASSWORD, openUnlocked } from '../auth.js';
 
 // The first paid action opens the shared review; remembered device consent
 // deliberately bypasses it for later actions.
@@ -25,8 +26,7 @@ async function selectByLabel(page, selector, text) {
 
 test.describe('ScribeTribe UI', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
   });
 
   test('has the gothic header with scribe and working navigation', async ({ page }) => {
@@ -48,6 +48,18 @@ test.describe('ScribeTribe UI', () => {
       await expect(page.locator(`#${section}`)).toHaveClass(/active/);
       await expect(page.locator(`#${btn}Btn`)).toHaveAttribute('aria-current', 'page');
     }
+  });
+
+  test('Lock revokes the session and the password unlocks it again', async ({ page }) => {
+    await page.locator('#lockBtn').click();
+    await expect(page.locator('#authLoginForm')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('.container')).toBeHidden();
+    await page.request.get('/api/worlds').then((response) => expect(response.status()).toBe(401));
+
+    await page.fill('#authPassword', E2E_PASSWORD);
+    await page.locator('#authLoginForm button[type="submit"]').click();
+    await expect(page.locator('.container')).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#homeSection')).toHaveClass(/active/);
   });
 
   test('creates a world through the form', async ({ page }) => {
@@ -206,28 +218,26 @@ test.describe('ScribeTribe UI', () => {
 
   test('the cast editor on the Stories page reshapes a running story\u2019s cast', async ({ page }) => {
     // Build a running tale with a two-member cast through the API
-    const worldRes = await page.request.post('/api/worlds', { data: { name: 'Cast Realm' } });
+    const worldRes = await apiPost(page, '/api/worlds', { name: 'Cast Realm' });
     const world = (await worldRes.json()).world;
     const mk = async (name) =>
-      (await (await page.request.post('/api/characters', { data: { name, world_id: world.id } })).json()).character;
+      (await (await apiPost(page, '/api/characters', { name, world_id: world.id })).json()).character;
     const lead = await mk('The Lead');
     const ally = await mk('The Ally');
     const supporter = await mk('The Supporter');
     const latecomer = await mk('The Latecomer');
-    const storyRes = await page.request.post('/api/stories', {
-      data: {
-        title: 'Cast Edit Test',
-        world_id: world.id,
-        characters: [
-          { id: lead.id, role: 'mc', relation: null, state: { personality: 'Colder now, hungrier' } },
-          { id: ally.id, role: 'supporting', relation: 'owes the Lead a life-debt', state: null },
-        ],
-      },
+    const storyRes = await apiPost(page, '/api/stories', {
+      title: 'Cast Edit Test',
+      world_id: world.id,
+      characters: [
+        { id: lead.id, role: 'mc', relation: null, state: { personality: 'Colder now, hungrier' } },
+        { id: ally.id, role: 'supporting', relation: 'owes the Lead a life-debt', state: null },
+      ],
     });
     const story = (await storyRes.json()).story;
-    await page.request.post(`/api/stories/${story.id}/pages`, { data: { content: 'The tale is already running.' } });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The tale is already running.' });
 
-    await page.goto('/');
+    await openUnlocked(page);
     await page.locator('#libraryBtn').click();
     const card = page.locator('#storiesList .item-card', { hasText: 'Cast Edit Test' });
     await expect(card).toBeVisible({ timeout: 5000 });
@@ -354,8 +364,7 @@ test.describe('ScribeTribe UI', () => {
   });
 
   test('AI draft: flesh out a world, edit, and save it', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
 
     await page.route('**/api/ai/world', (route) =>
       route.fulfill({
@@ -399,11 +408,10 @@ test.describe('ScribeTribe UI', () => {
   });
 
   test('edits a character through the card editor, no AI assists involved', async ({ page }) => {
-    const targetWorld = (await (await page.request.post('/api/worlds', {
-      data: { name: 'Character Edit Realm', generate_image: false },
+    const targetWorld = (await (await apiPost(page, '/api/worlds', {
+      name: 'Character Edit Realm', generate_image: false,
     })).json()).world;
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
     await page.locator('#charactersBtn').click();
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'Editable Soul');
@@ -436,8 +444,7 @@ test.describe('ScribeTribe UI', () => {
   });
 
   test('edits a world lorebook through the editor', async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
     await page.locator('#worldsBtn').click();
     if (await page.locator('#worldCreateWrap').isHidden()) await page.locator('#worldNewBtn').click();
     await page.fill('#worldName', 'Lorebook Realm');
@@ -468,8 +475,7 @@ test.describe('ScribeTribe UI', () => {
       });
     });
 
-    await page.goto('/');
-    await page.waitForSelector('.container');
+    await openUnlocked(page);
     const banner = page.locator('#diskBanner');
     await expect(banner).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#diskBannerText')).toContainText('running low');
@@ -484,9 +490,9 @@ test.describe('ScribeTribe UI', () => {
 
   test('Library manages stories while Write owns creation and maturity', async ({ page }) => {
     // A story exists: Library is the catalogue and opens its per-story assets.
-    const worldRes = await page.request.post('/api/worlds', { data: { name: 'Disclosure Realm' } });
+    const worldRes = await apiPost(page, '/api/worlds', { name: 'Disclosure Realm' });
     const world = (await worldRes.json()).world;
-    await page.request.post('/api/stories', { data: { title: 'A Tale That Exists', world_id: world.id, characters: [] } });
+    await apiPost(page, '/api/stories', { title: 'A Tale That Exists', world_id: world.id, characters: [] });
 
     await page.locator('#libraryBtn').click();
     await expect(page.locator('#librarySection')).toHaveClass(/active/);
@@ -513,7 +519,7 @@ test.describe('ScribeTribe UI', () => {
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
     const longDescription = 'A brass city under twin moons. '.repeat(60);
-    await page.request.post('/api/worlds', { data: { name: 'Longwinded Realm', description: longDescription, generate_image: false } });
+    await apiPost(page, '/api/worlds', { name: 'Longwinded Realm', description: longDescription, generate_image: false });
     await page.locator('#worldsBtn').click();
     const card = page.locator('#worldsList .item-card', { hasText: 'Longwinded Realm' });
     await expect(card).toBeVisible({ timeout: 5000 });

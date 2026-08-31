@@ -3,7 +3,7 @@
 const fs = require('fs');
 const path = require('path');
 const { pipeline } = require('stream/promises');
-const { v4: uuidv4 } = require('uuid');
+const { randomUUID } = require('node:crypto');
 const Busboy = require('busboy');
 const yazl = require('yazl');
 const yauzl = require('yauzl');
@@ -60,7 +60,7 @@ function writeArchive(plan, writable) {
 
 async function writeArchiveFile(plan, targetPath) {
   fs.mkdirSync(path.dirname(targetPath), { recursive: true });
-  const temporary = `${targetPath}.${uuidv4()}.tmp`;
+  const temporary = `${targetPath}.${randomUUID()}.tmp`;
   try {
     await writeArchive(plan, fs.createWriteStream(temporary, { flags: 'wx', mode: 0o600 }));
     fs.renameSync(temporary, targetPath);
@@ -73,7 +73,7 @@ async function writeArchiveFile(plan, targetPath) {
 
 function uploadArchive(req, uploadDir, limits = DEFAULT_LIMITS) {
   fs.mkdirSync(uploadDir, { recursive: true });
-  const uploadPath = path.join(uploadDir, `${uuidv4()}.upload`);
+  const uploadPath = path.join(uploadDir, `${randomUUID()}.upload`);
   return new Promise((resolve, reject) => {
     let bb;
     try {

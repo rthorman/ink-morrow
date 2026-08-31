@@ -25,6 +25,11 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     }, 4000);
   }
 
+  function stopCoverPoll() {
+    if (pollTimer) clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+
   async function loadStories() {
     try {
       const [data, storage] = await Promise.all([
@@ -179,5 +184,5 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     }
   }
 
-  return { loadStories, renderStories, repaintCover };
+  return { loadStories, renderStories, repaintCover, stopCoverPoll };
 }

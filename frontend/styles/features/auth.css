@@ -1,0 +1,182 @@
+/* The threshold: authentication is visibly ScribeTribe, but the form remains
+   plain, left-aligned, and quick to scan on a desktop or portrait tablet. */
+
+.auth-root {
+  width: min(1080px, calc(100% - 32px));
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: clamp(18px, 5vw, 64px) 0;
+  display: grid;
+  place-items: center;
+}
+
+.auth-root[hidden] {
+  display: none;
+}
+
+.auth-loading {
+  font-family: var(--st-font-mono);
+  color: var(--st-gold-300);
+}
+
+.auth-surface {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(280px, 0.75fr);
+  overflow: hidden;
+  background: rgb(16 10 22 / 0.96);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-hero);
+}
+
+.auth-surface__form {
+  align-self: center;
+  padding: clamp(28px, 6vw, 72px);
+  text-align: left;
+}
+
+.auth-surface__form h1 {
+  margin: 0 0 12px;
+  font-family: var(--st-font-display);
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  line-height: 1;
+  color: var(--st-gold-300);
+}
+
+.auth-surface__form > p {
+  max-width: 50ch;
+  color: var(--st-vellum-200);
+}
+
+.auth-surface__kicker {
+  margin: 0 0 10px;
+  font-family: var(--st-font-mono);
+  font-size: 0.76rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--st-rose-400) !important;
+}
+
+.auth-surface__art {
+  width: 100%;
+  height: 100%;
+  min-height: 660px;
+  object-fit: cover;
+  object-position: center 20%;
+  border-left: 1px solid var(--st-border);
+  filter: saturate(0.88) brightness(0.82);
+}
+
+.auth-form,
+.security-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 24px;
+  text-align: left;
+}
+
+.auth-field {
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+  color: var(--st-gold-300);
+}
+
+.auth-field input {
+  width: 100%;
+}
+
+.auth-password {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.auth-password input {
+  border-radius: var(--st-radius-sm) 0 0 var(--st-radius-sm);
+}
+
+.auth-password__toggle {
+  min-width: 70px;
+  padding: 0 14px;
+  border: 1px solid var(--st-border-bright);
+  border-left: 0;
+  border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
+  color: var(--st-vellum-200);
+  background: var(--st-surface-3);
+  cursor: pointer;
+}
+
+.auth-password__toggle:hover {
+  color: var(--st-vellum-50);
+  background: var(--st-ink-700);
+}
+
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--st-touch-min);
+  color: var(--st-vellum-200);
+  cursor: pointer;
+}
+
+.auth-remember input {
+  width: 1.2em;
+  height: 1.2em;
+  margin: 0;
+  accent-color: var(--st-oxblood-500);
+}
+
+.auth-hint,
+.auth-error {
+  font-size: 0.9rem;
+}
+
+.auth-hint {
+  color: var(--st-violet-300) !important;
+}
+
+.auth-error {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--st-rose-400);
+}
+
+.auth-submit {
+  justify-self: start;
+  min-width: 160px;
+}
+
+.nav-btn--lock {
+  margin-left: auto;
+  color: var(--st-violet-300);
+}
+
+body.st-gated .container,
+body.st-gated .skip-link {
+  display: none;
+}
+
+@media (max-width: 760px) {
+  .auth-surface {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-surface__art {
+    grid-row: 1;
+    min-height: 230px;
+    max-height: 34vh;
+    border-left: 0;
+    border-bottom: 1px solid var(--st-border);
+    object-position: center 18%;
+  }
+
+  .auth-surface__form {
+    padding: 26px 22px 32px;
+  }
+
+  .nav-btn--lock {
+    margin-left: 0;
+  }
+}

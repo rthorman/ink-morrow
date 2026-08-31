@@ -38,6 +38,7 @@ export function updateDiskBanner(data) {
 }
 
 export function createShell({ api, notify }) {
+  let diskTimer = null;
   function showSection(section) {
     document.querySelectorAll('.content-section').forEach((sec) => sec.classList.remove('active'));
     document.getElementById(`${section}Section`).classList.add('active');
@@ -64,9 +65,16 @@ export function createShell({ api, notify }) {
     checkDiskSpace();
     // Jest drives checks manually; only a live page keeps watching the disk.
     if (typeof process === 'undefined' || !process.env.JEST_WORKER_ID) {
-      setInterval(checkDiskSpace, 30000);
+      if (!diskTimer) diskTimer = setInterval(checkDiskSpace, 30000);
     }
   }
 
-  return { showSection, checkDiskSpace, initDiskBanner };
+  function stopDiskBanner() {
+    if (diskTimer) clearInterval(diskTimer);
+    diskTimer = null;
+    const banner = document.getElementById('diskBanner');
+    if (banner) banner.hidden = true;
+  }
+
+  return { showSection, checkDiskSpace, initDiskBanner, stopDiskBanner };
 }

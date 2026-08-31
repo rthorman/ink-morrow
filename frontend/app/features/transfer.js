@@ -2,7 +2,6 @@
 // streamed download starts; imports are staged and collision-planned before
 // the first database write.  This feature never calls an AI provider.
 
-import { API_BASE_URL } from '../core/api.js';
 import { formatMb } from '../core/dom.js';
 
 const SCOPE_LABELS = {
@@ -58,7 +57,7 @@ function exposureList(exposure) {
 }
 
 export function createTransfer({ api, state, notify, features, dialogs }) {
-  const { apiCall } = api;
+  const { apiCall, apiFetch, API_BASE_URL } = api;
   const { showError, showSuccess } = notify;
   let importing = false;
 
@@ -254,7 +253,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
     data.append('current_settings', JSON.stringify(state.settings));
     let response;
     try {
-      response = await fetch(`${API_BASE_URL}/transfers/imports/preflight`, { method: 'POST', body: data });
+      response = await apiFetch(`${API_BASE_URL}/transfers/imports/preflight`, { method: 'POST', body: data });
     } catch {
       throw new Error('Cannot reach the server - is it running?');
     }
@@ -265,7 +264,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
   }
 
   async function cancelImport(token) {
-    try { await fetch(`${API_BASE_URL}/transfers/imports/${token}`, { method: 'DELETE' }); } catch { /* token expires safely */ }
+    try { await apiFetch(`${API_BASE_URL}/transfers/imports/${token}`, { method: 'DELETE' }); } catch { /* token expires safely */ }
   }
 
   function choiceLabel(choice, collision) {

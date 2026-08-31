@@ -146,6 +146,33 @@ CREATE TABLE IF NOT EXISTS audiobooks (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+-- One local owner, deliberately without usernames or roles. Authentication
+-- state is installation-local and is never part of a portable archive.
+CREATE TABLE IF NOT EXISTS auth_owner (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  password_hash TEXT NOT NULL,
+  password_salt TEXT NOT NULL,
+  scrypt_n INTEGER NOT NULL,
+  scrypt_r INTEGER NOT NULL,
+  scrypt_p INTEGER NOT NULL,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+-- Browser sessions are opaque: only the SHA-256 digest of the cookie value is
+-- persisted. The CSRF secret is useless without that cookie and remains local.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token_hash TEXT PRIMARY KEY,
+  csrf_token TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  last_seen_at INTEGER NOT NULL,
+  absolute_expires_at INTEGER NOT NULL,
+  idle_timeout_ms INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_expiry
+  ON auth_sessions (absolute_expires_at);
 `;
 
 function ensureColumn(db, table, column, ddl) {
@@ -182,9 +209,17 @@ function ensureContinuitySearch(db) {
 function createDb(dbPath) {
   if (dbPath !== ':memory:') {
     // node:sqlite won't create missing parent dirs (fresh clones have an empty/absent database/)
-    fs.mkdirSync(path.dirname(path.resolve(dbPath)), { recursive: true });
+    const parent = path.dirname(path.resolve(dbPath));
+    const parentExisted = fs.existsSync(parent);
+    fs.mkdirSync(parent, { recursive: true, mode: 0o700 });
+    if (!parentExisted) {
+      try { fs.chmodSync(parent, 0o700); } catch { /* permissions are best-effort off POSIX */ }
+    }
   }
   const db = new DatabaseSync(dbPath);
+  if (dbPath !== ':memory:') {
+    try { fs.chmodSync(path.resolve(dbPath), 0o600); } catch { /* permissions are best-effort off POSIX */ }
+  }
   db.exec('PRAGMA foreign_keys = ON');
   try {
     db.exec('PRAGMA journal_mode = WAL');

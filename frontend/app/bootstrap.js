@@ -6,10 +6,10 @@
 // The `fw` export is the feature facade used by the Jest suite; production
 // only needs the side effect of startup.
 
-import { apiCall, API_BASE_URL } from './core/api.js';
+import { apiCall, apiFetch, configureApiSecurity, API_BASE_URL } from './core/api.js';
 import { createSharedState, STORY_FONTS } from './core/state.js';
 import { createNotifications } from './core/notifications.js';
-import { createDialogManager } from './core/dialogs.js';
+import { createDialogManager, forceCloseAllModals } from './core/dialogs.js';
 import { createRouter } from './core/router.js';
 import { createShell, SCRIBE_FLAVOR, updateDiskBanner } from './shell.js';
 import { entityImageBlock, cardActions, createCatalogPoll } from './components/entity-card.js';
@@ -29,19 +29,22 @@ import { createAudiobook } from './features/write/audiobook.js';
 import { createSettings } from './features/settings.js';
 import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
-import { createDisabledAuthAdapter } from './features/auth/adapter.js';
+import { createAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
 
 export function initApp() {
-  const api = { apiCall, API_BASE_URL };
+  const api = { apiCall, apiFetch, API_BASE_URL };
   const state = createSharedState();
   const notify = createNotifications();
   const dialogs = createDialogManager();
-  // The seam stays disabled until real security exists. The override hook is
-  // a TEST seam only (the real app never sets it): it proves a future blocked
-  // adapter can actually stop route rendering. No credential logic lives here.
-  const auth = window.__stTestAuthAdapter || createDisabledAuthAdapter();
+  // Tests may inject a deterministic state provider; production always uses
+  // the real single-owner adapter.
+  const auth = window.__stTestAuthAdapter || createAuthAdapter();
   const authGate = createAuthGate({ auth });
+  configureApiSecurity({
+    getCsrfToken: () => auth.csrfToken || null,
+    onUnauthorized: (status) => auth.handleUnauthorized?.(status),
+  });
   const shell = createShell({ api, state, notify });
 
   // Cross-feature registry: features get each other through this bag, never
@@ -129,9 +132,8 @@ export function initApp() {
       authGate.canRender().then((allowed) => {
         if (token !== routeTransitionToken) return; // superseded transition
         if (!allowed) {
-          // A future locked state: no application surface may render. The
-          // shell sleeps until the (future) unlock surface exists - this
-          // branch holds content back; it adds no credential logic.
+          // Locked/setup/error: no application surface may render. The
+          // branded gate owns the page until a live session exists.
           document.body.classList.add('st-gated');
           for (const el of document.querySelectorAll('.content-section')) el.classList.remove('active');
           return;
@@ -173,15 +175,87 @@ export function initApp() {
   features.library.init();
 
   state.applySettings(); // ...which render fonts/labels on this first apply
-  shell.initDiskBanner();
+  authGate.wireAccountControls();
 
-  features.worlds.loadWorlds();
-  features.characters.loadCharacters();
-  features.stories.loadStories();
+  let routerStarted = false;
+  let protectedActive = false;
+  let protectedStart = null;
+  let lifecycleToken = 0;
 
-  // The router decides the first surface; before it runs, nothing is active
-  // except the markup default (home).
-  router.start();
+  async function startProtectedApp() {
+    if (protectedActive || protectedStart) return protectedStart;
+    const token = ++lifecycleToken;
+    const run = (async () => {
+      shell.initDiskBanner();
+      await Promise.all([
+        features.worlds.loadWorlds(),
+        features.characters.loadCharacters(),
+        features.stories.loadStories(),
+      ]);
+      if (token !== lifecycleToken) return;
+      protectedActive = true;
+      if (!routerStarted) {
+        routerStarted = true;
+        router.start();
+      } else {
+        router.refresh();
+      }
+    })();
+    protectedStart = run;
+    try { await run; } finally { if (protectedStart === run) protectedStart = null; }
+  }
+
+  function lockProtectedApp() {
+    lifecycleToken++;
+    protectedStart = null;
+    protectedActive = false;
+    features.narration.stopNarration();
+    features.audiobook.stopAudiobookPolling();
+    features.stories.stopCoverPoll();
+    catalogPoll.stop();
+    shell.stopDiskBanner();
+    dialogs.close(true);
+    forceCloseAllModals();
+    state.clearPrivateData();
+    for (const id of [
+      'worldsList', 'charactersList', 'storiesList', 'bookshelfList',
+      'homeRecentList', 'storyContent', 'storyAssetsBody', 'storyCastList',
+      'storyCastDetail', 'storyReview', 'castList', 'modelList',
+    ]) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = '';
+    }
+    const direction = document.getElementById('userInput');
+    if (direction) direction.value = '';
+    for (const formId of [
+      'worldForm', 'characterForm', 'storyForm', 'characterEditorForm',
+      'worldEditorForm', 'passwordChangeForm',
+    ]) {
+      document.getElementById(formId)?.reset();
+    }
+    const privateSelects = {
+      currentStory: 'Select or Create a Story',
+      storyWorld: 'No world',
+      characterWorld: 'No world',
+      mcSelect: '— Choose a lead —',
+      castCharSelect: '— Choose a character —',
+      storyCastAddSelect: '— Choose a character —',
+      charEditWorld: 'No world',
+    };
+    for (const [id, label] of Object.entries(privateSelects)) {
+      const select = document.getElementById(id);
+      if (!select) continue;
+      const option = document.createElement('option');
+      option.value = '';
+      option.textContent = label;
+      select.replaceChildren(option);
+    }
+    for (const section of document.querySelectorAll('.content-section')) section.classList.remove('active');
+  }
+
+  // This is the sole startup boundary: neither catalogue reads nor router
+  // rendering begins until status says the session is unlocked.
+  authGate.init({ onUnlock: startProtectedApp, onLock: lockProtectedApp });
 
   return { api, state, notify, shell, features, dialogs, router, auth, authGate };
 }

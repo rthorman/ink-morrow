@@ -64,7 +64,7 @@ module.exports = [
   {
     // E2E: ESM + Playwright's imports. Browser globals appear inside
     // page.evaluate() callbacks, which run in the page, not in Node.
-    files: ['e2e/tests/**/*.js'],
+    files: ['e2e/tests/**/*.js', 'e2e/auth.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
