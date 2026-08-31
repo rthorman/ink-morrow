@@ -2,6 +2,12 @@
 
 ScribeTribe is a single-owner application intended to run on a local machine. Version 3.2.1 adds an access-control boundary sized for that purpose; it does not turn the project into a public multi-user service.
 
+This file documents the current 3.2.2 release boundary. The accepted target
+threat model for uploads, encrypted provider credentials, immutable sharing,
+and the 4.0.0 beta is
+[docs/releases/4.0.0/SECURITY-THREAT-MODEL.md](docs/releases/4.0.0/SECURITY-THREAT-MODEL.md).
+Those capabilities are not shipped until their implementation PRs merge.
+
 ## Supported version
 
 Security fixes are made on the current release line. Upgrade to the newest tagged release before reporting behavior that may already have been corrected.
@@ -82,3 +88,6 @@ The password work factor follows OWASP's 32 MiB scrypt profile (`N=2^15`, `r=8`,
 ## Reporting a vulnerability
 
 Please avoid posting exploitable details in a public issue. Use the repository's [private security advisory form](https://github.com/rthorman/scribe-tribe/security/advisories/new). Include the affected version, deployment shape, reproduction steps, and impact; do not include real manuscripts, passwords, session cookies, or provider keys.
+
+The operational and data boundaries are also summarized in
+[LEGAL.md](LEGAL.md) and [PRIVACY.md](PRIVACY.md).

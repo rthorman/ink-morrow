@@ -35,6 +35,15 @@ Examples of unacceptable behavior include:
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
 
+Project-context clarification: ScribeTribe is a fiction-authoring project with
+an intentionally mature gothic art direction. Lawful fictional prose, prompts,
+test fixtures, or project artwork relevant to designing, documenting, testing,
+or discussing the software are not prohibited merely because they contain
+sexual themes or imagery. The prohibition above applies to sexualized conduct
+directed at participants, unwanted sexual attention, harassment, or material
+used to target people or disrupt participation. Relevance never excuses abuse
+or the publication of another person's private information.
+
 ## Enforcement Responsibilities
 
 Community leaders are responsible for clarifying and enforcing our standards

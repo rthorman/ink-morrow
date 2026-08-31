@@ -2,6 +2,13 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
+> [!NOTE]
+> **ScribeTribe 4.0.0 beta is planned, not yet shipped.**
+> The accepted alpha-to-beta product contract, architecture, UX, security
+> model, art direction, QA gates, and ordered implementation PRs are indexed in
+> [docs/releases/4.0.0/](docs/releases/4.0.0/). The feature descriptions below
+> continue to describe the current 3.2.2 line until implementation PRs land.
+
 **v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
 
 Prepared pages now carry opaque identities, stale provider replies cannot overwrite newer previews, and a free metadata read restores the green button after refresh. While preparation is in flight the empty-direction button says so and cannot launch a competing write; canceling a directed write keeps the paid preview. Live writes and rewrites revalidate their story snapshot after the provider returns, story-load and generation tokens prevent late responses from painting the wrong manuscript, and async continuity costs stay attached to the story that started them.
@@ -317,6 +324,10 @@ Credit where due: the code was written in partnership with [OpenCode](https://op
 ## License
 
 [MIT](./LICENSE)
+
+Additional plain-language boundaries are in [LEGAL.md](./LEGAL.md), and the
+self-hosted data flow is described in [PRIVACY.md](./PRIVACY.md). These notices
+do not replace or narrow the MIT License.
 
 ## Contributing
 
