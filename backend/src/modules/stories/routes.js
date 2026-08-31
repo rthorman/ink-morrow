@@ -16,9 +16,12 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio, transaction
   }
 
   function writerSessionId(req) {
-    const value = req.get('X-ScribeTribe-Writer-Session') || req.body?.writer_session_id ||
-      req.authSession?.tokenHash || 'legacy-client';
-    return typeof value === 'string' && value.trim() ? value.trim().slice(0, 300) : 'legacy-client';
+    const explicit = req.get('X-ScribeTribe-Writer-Session') || req.body?.writer_session_id;
+    if (typeof explicit === 'string' && explicit.trim()) return explicit.trim().slice(0, 300);
+    const authenticated = req.authSession?.tokenHash;
+    return typeof authenticated === 'string' && authenticated.trim()
+      ? `compat:${authenticated.trim()}`.slice(0, 300)
+      : 'legacy-client';
   }
 
   function acquireWriter(req, storyId) {

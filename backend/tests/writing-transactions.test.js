@@ -197,6 +197,17 @@ describe('PR 06 transactional writing state machine', () => {
       .send({})
       .expect(200);
     expect(acquired.body.lease.writer_session_id).toBe(WRITER_A);
+
+    await request(fixture.app).delete(`/api/stories/${story.id}/writer-lease`)
+      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .expect(204);
+    fixture.app.locals.writingTransactions.acquireLease(story.id, 'compat:authenticated-api-client');
+    const authenticatedCompatibility = await request(fixture.app)
+      .post(`/api/stories/${story.id}/writer-lease`)
+      .set('X-ScribeTribe-Writer-Session', WRITER_B)
+      .send({})
+      .expect(200);
+    expect(authenticatedCompatibility.body.lease.writer_session_id).toBe(WRITER_B);
   });
 
   it('binds a prepared page to the active manuscript destination', async () => {

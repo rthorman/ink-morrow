@@ -227,19 +227,20 @@ function createWritingTransactions({
   function acquireLeaseInTransaction(storyId, writerSessionId) {
     const current = db.prepare('SELECT * FROM writer_leases WHERE story_id = ?').get(storyId);
     const expired = current && Date.parse(current.expires_at) <= nowDate().getTime();
-    // Pre-4.0 callers cannot present a stable tab identity and fall back to
-    // `legacy-client`. Let an identified tab replace that compatibility lease
-    // once no provider operation is using its token. A live provider call is
-    // never preempted; its late reply still depends on the exact token.
-    const legacyActive = current && current.writer_session_id === 'legacy-client' &&
+    const isCompatibilityWriter = (value) => value === 'legacy-client' || value.startsWith('compat:');
+    // Pre-4.0 and implicit authenticated callers cannot present a stable tab
+    // identity. Let an identified tab replace that compatibility lease once no
+    // provider operation is using its token. A live provider call is never
+    // preempted; its late reply still depends on the exact token.
+    const compatibilityActive = current && isCompatibilityWriter(current.writer_session_id) &&
       db.prepare(`
         SELECT 1 FROM writing_operations
          WHERE story_id = ? AND lease_token = ? AND status IN ('requested', 'running')
          LIMIT 1
       `).get(storyId, current.lease_token);
-    const replaceIdleLegacy = current && !expired && current.writer_session_id === 'legacy-client' &&
-      writerSessionId !== 'legacy-client' && !legacyActive;
-    if (current && !expired && current.writer_session_id !== writerSessionId && !replaceIdleLegacy) {
+    const replaceIdleCompatibility = current && !expired && isCompatibilityWriter(current.writer_session_id) &&
+      !isCompatibilityWriter(writerSessionId) && !compatibilityActive;
+    if (current && !expired && current.writer_session_id !== writerSessionId && !replaceIdleCompatibility) {
       throw transactionError(
         'Another writing session currently owns this story. Refresh to reconcile before writing.',
         'WRITER_LEASE_CONFLICT',
@@ -248,7 +249,7 @@ function createWritingTransactions({
       );
     }
     const timestamp = nowIso();
-    const token = current && !expired && !replaceIdleLegacy ? current.lease_token : opaqueId();
+    const token = current && !expired && !replaceIdleCompatibility ? current.lease_token : opaqueId();
     db.prepare(`
       INSERT INTO writer_leases
         (story_id, writer_session_id, lease_token, acquired_at, heartbeat_at, expires_at)
