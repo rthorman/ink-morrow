@@ -110,6 +110,14 @@ test.describe('AI generation flows (mocked)', () => {
       });
     });
     await page.route('**/api/stories/*/pages/preview', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ preview: null }),
+        });
+        return;
+      }
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -388,6 +396,14 @@ test.describe('Speculative next-page preparation', () => {
       });
     });
     await page.route('**/api/stories/*/pages/preview', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ preview: null }),
+        });
+        return;
+      }
       previewCalls += 1;
       await route.fulfill({
         status: 200,
