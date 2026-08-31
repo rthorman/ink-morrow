@@ -48,7 +48,7 @@ export function entityImageBlock(kind, row, altText) {
 // The card action row: one visible primary action plus a More menu holding
 // repaint (with its approximate cost) and delete. Native <details>
 // keeps it keyboard-operable without a custom menu system.
-export function cardActions({ name, kind, onEdit, onRegenerate, onDelete, primaryLabel = 'Edit' }) {
+export function cardActions({ name, kind, onEdit, onRegenerate, onExport = null, onDelete, primaryLabel = 'Edit' }) {
   const actions = document.createElement('div');
   actions.className = 'card-actions';
 
@@ -83,6 +83,18 @@ export function cardActions({ name, kind, onEdit, onRegenerate, onDelete, primar
     onRegenerate();
   });
   menu.appendChild(regen);
+
+  if (onExport) {
+    const exportButton = document.createElement('button');
+    exportButton.type = 'button';
+    exportButton.className = 'card-more__item';
+    exportButton.textContent = 'Export portable archive…';
+    exportButton.addEventListener('click', () => {
+      more.removeAttribute('open');
+      onExport();
+    });
+    menu.appendChild(exportButton);
+  }
 
   const del = document.createElement('button');
   del.type = 'button';

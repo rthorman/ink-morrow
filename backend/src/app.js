@@ -6,6 +6,7 @@
 
 const express = require('express');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { chatCompletion, listModels, listSpeechModels, createSpeech, fetchGenerationCost } = require('./ai');
 const { generateImage, createImageStore } = require('./images');
@@ -26,6 +27,9 @@ const { createNarration } = require('./modules/audio/narration');
 const { createAudiobookQueue } = require('./modules/audio/audiobook-queue');
 const { createAudioRouter } = require('./modules/audio/routes');
 const { createLibraryRouter } = require('./modules/library/routes');
+const { createExportPlanner } = require('./modules/transfer/planner');
+const { createTransferService } = require('./modules/transfer/service');
+const { createTransferRouter } = require('./modules/transfer/routes');
 
 function createApp(
   db,
@@ -33,6 +37,7 @@ function createApp(
     staticDir = path.join(__dirname, '../../frontend'),
     imageDir = path.join(__dirname, '../../database/images'),
     audioDir = path.join(__dirname, '../../database/audio'),
+    transferDir = null,
     // Logger seam: tests inject a collector so expected provider/quality
     // failures can be asserted without spilling stderr; production keeps
     // the console and unexpected errors remain visible.
@@ -81,6 +86,26 @@ function createApp(
   ).run();
   const audiobooks = createAudiobookQueue({ db, audioDir, stories, narration, listSpeechModels, fetchGenerationCost, logger });
   const audio = { abandonStory: audiobooks.abandonStory };
+  // Imports are staged next to the database in production. Tests receive an
+  // isolated disposable root unless they explicitly provide one.
+  const ownsTransferDir = !transferDir && process.env.NODE_ENV === 'test';
+  const resolvedTransferDir = transferDir || (ownsTransferDir
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'st-transfers-'))
+    : path.join(__dirname, '../../database/transfers'));
+  const transferPlanner = createExportPlanner({
+    db,
+    imageStore,
+    audioDir,
+    appVersion: require('../package.json').version,
+  });
+  const transfers = createTransferService({
+    db,
+    planner: transferPlanner,
+    imageStore,
+    audioDir,
+    audiobooks,
+    transferDir: resolvedTransferDir,
+  });
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
@@ -91,6 +116,7 @@ function createApp(
   app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }));
+  app.use(createTransferRouter({ transfers }));
 
   // Boot backfill of entity reference images (no-op without an API key or
   // in silenced test runs).
@@ -130,6 +156,10 @@ function createApp(
     imageQueue.dispose();
     audiobooks.dispose();
     narration.dispose();
+    transfers.dispose();
+    if (ownsTransferDir) {
+      try { fs.rmSync(resolvedTransferDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
+    }
   };
 
   return app;

@@ -120,6 +120,16 @@ function createImageStore(rootDir) {
   }
 
   function readImage(kind, id) {
+    const file = fileInfo(kind, id);
+    if (!file) return null;
+    const buffer = fs.readFileSync(file.path);
+    const mediaType = file.mediaType;
+    return { buffer, mediaType };
+  }
+
+  // Transfer/archive code needs a path and size so multi-megabyte paintings
+  // can be streamed straight from disk instead of copied onto the JS heap.
+  function fileInfo(kind, id) {
     const dir = kindDir(kind);
     let names;
     try {
@@ -129,10 +139,30 @@ function createImageStore(rootDir) {
     }
     const name = names.find((n) => n.startsWith(id + '.'));
     if (!name) return null;
-    const buffer = fs.readFileSync(path.join(dir, name));
-    const ext = path.extname(name).slice(1);
-    const mediaType = ext === 'jpg' ? 'image/jpeg' : ext === 'webp' ? 'image/webp' : 'image/png';
-    return { buffer, mediaType };
+    const filePath = path.join(dir, name);
+    let stat;
+    try { stat = fs.statSync(filePath); } catch { return null; }
+    if (!stat.isFile()) return null;
+    const ext = path.extname(name).slice(1).toLowerCase();
+    const mediaType = ext === 'jpg' || ext === 'jpeg'
+      ? 'image/jpeg'
+      : ext === 'webp' ? 'image/webp' : 'image/png';
+    return { path: filePath, name, mediaType, size: stat.size };
+  }
+
+  function pathsFor(kind, id) {
+    const dir = kindDir(kind);
+    try {
+      return fs.readdirSync(dir)
+        .filter((name) => name.startsWith(id + '.'))
+        .map((name) => path.join(dir, name));
+    } catch {
+      return [];
+    }
+  }
+
+  function targetPath(kind, id, mediaType) {
+    return path.join(kindDir(kind), `${id}.${extFor(mediaType)}`);
   }
 
   function deleteImage(kind, id) {
@@ -150,7 +180,17 @@ function createImageStore(rootDir) {
     return `data:${image.mediaType};base64,${image.buffer.toString('base64')}`;
   }
 
-  return { writeImage, readImage, deleteImage, base64Reference };
+  return {
+    rootDir,
+    directoryFor: kindDir,
+    targetPath,
+    pathsFor,
+    fileInfo,
+    writeImage,
+    readImage,
+    deleteImage,
+    base64Reference,
+  };
 }
 
-module.exports = { generateImage, createImageStore, imageConfig };
+module.exports = { generateImage, createImageStore, imageConfig, extFor };

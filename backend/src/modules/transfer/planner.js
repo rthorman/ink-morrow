@@ -1,0 +1,377 @@
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const { parseCastJson } = require('../stories/cast');
+const {
+  ARCHIVE_FORMAT,
+  ARCHIVE_VERSION,
+  EXPORT_SCOPES,
+  jsonBuffer,
+  sha256,
+  archiveFilename,
+  worldRecord,
+  characterRecord,
+  storyRecord,
+  pageRecord,
+  snapshotRecord,
+  memoryRecord,
+  previewRecord,
+  audiobookRecord,
+  semanticHash,
+  sanitizeSettings,
+  validId,
+} = require('./format');
+
+function httpError(message, statusCode = 400) {
+  const error = new Error(message);
+  error.statusCode = statusCode;
+  return error;
+}
+
+async function hashFile(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('error', reject);
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+function objectPath(kind, id) {
+  const plural = kind === 'story' ? 'stories' : `${kind}s`;
+  return `objects/${plural}/${sha256(`${kind}:${id}`).slice(0, 24)}.json`;
+}
+
+function mediaArchivePath(ownerKind, ownerId, filePath) {
+  const extension = path.extname(filePath).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.bin';
+  const bucket = ownerKind === 'story' ? 'covers' : ownerKind === 'page' ? 'pages' : `${ownerKind}s`;
+  return `assets/images/${bucket}/${sha256(`${ownerKind}:${ownerId}`).slice(0, 24)}${extension}`;
+}
+
+function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' }) {
+  const worldById = db.prepare('SELECT * FROM worlds WHERE id = ?');
+  const characterById = db.prepare('SELECT * FROM characters WHERE id = ?');
+  const storyById = db.prepare('SELECT * FROM stories WHERE id = ?');
+
+  function normalizeOptions(input) {
+    const scope = input?.scope;
+    if (!EXPORT_SCOPES.has(scope)) throw httpError('scope must be world, character, story, or full');
+    const includeVisuals = input.include_visuals !== false;
+    const includeAudio = input.include_audio === undefined ? scope === 'full' : input.include_audio === true;
+    const includeWorkingHistory = input.include_working_history === undefined
+      ? scope === 'full'
+      : input.include_working_history === true;
+    return {
+      scope,
+      id: input.id,
+      characterIds: input.character_ids,
+      includeVisuals,
+      includeAudio,
+      includeWorkingHistory,
+      settings: scope === 'full' ? sanitizeSettings(input.settings) : null,
+    };
+  }
+
+  function selectedIds(options) {
+    const worlds = new Set();
+    const characters = new Set();
+    const stories = new Set();
+    let rootName = null;
+
+    if (options.scope === 'full') {
+      for (const row of db.prepare('SELECT id FROM worlds').all()) worlds.add(row.id);
+      for (const row of db.prepare('SELECT id FROM characters').all()) characters.add(row.id);
+      for (const row of db.prepare('SELECT id FROM stories').all()) stories.add(row.id);
+      rootName = 'scribe-tribe-backup';
+      return { worlds, characters, stories, rootName, externalWorlds: [] };
+    }
+    if (!validId(options.id)) throw httpError('id is required for this export scope');
+
+    if (options.scope === 'world') {
+      const world = worldById.get(options.id);
+      if (!world) throw httpError('World not found', 404);
+      worlds.add(world.id);
+      rootName = world.name;
+      const residents = db.prepare('SELECT id FROM characters WHERE world_id = ? ORDER BY name').all(world.id);
+      const chosen = options.characterIds === undefined ? residents.map((row) => row.id) : options.characterIds;
+      if (!Array.isArray(chosen) || chosen.some((id) => !validId(id))) {
+        throw httpError('character_ids must be an array of character ids');
+      }
+      const allowed = new Set(residents.map((row) => row.id));
+      for (const id of chosen) {
+        if (!allowed.has(id)) throw httpError('A selected character does not belong to this world');
+        characters.add(id);
+      }
+      return { worlds, characters, stories, rootName, externalWorlds: [] };
+    }
+
+    if (options.scope === 'character') {
+      const character = characterById.get(options.id);
+      if (!character) throw httpError('Character not found', 404);
+      characters.add(character.id);
+      if (character.world_id) worlds.add(character.world_id);
+      rootName = character.name;
+      return { worlds, characters, stories, rootName, externalWorlds: [] };
+    }
+
+    const story = storyById.get(options.id);
+    if (!story) throw httpError('Story not found', 404);
+    stories.add(story.id);
+    rootName = story.title;
+    if (story.world_id) worlds.add(story.world_id);
+    const externalWorldIds = new Set();
+    for (const cast of parseCastJson(story.characters)) {
+      const character = characterById.get(cast.id);
+      if (!character) continue;
+      characters.add(character.id);
+      if (character.world_id) {
+        worlds.add(character.world_id);
+        if (character.world_id !== story.world_id) externalWorldIds.add(character.world_id);
+      }
+    }
+    const externalWorlds = [...externalWorldIds]
+      .map((id) => worldById.get(id))
+      .filter(Boolean)
+      .map((row) => ({ id: row.id, name: row.name }));
+    return { worlds, characters, stories, rootName, externalWorlds };
+  }
+
+  function imageFor(kind, id, enabled) {
+    return enabled ? imageStore.fileInfo(kind, id) : null;
+  }
+
+  function buildWorldBundle(id, options) {
+    const row = worldById.get(id);
+    if (!row) throw httpError('Archive dependency world is missing', 409);
+    const image = imageFor('world', id, options.includeVisuals);
+    const record = worldRecord(row, { hasVisual: Boolean(image), includeWorkingHistory: options.includeWorkingHistory });
+    if (image) record.image_media_type = image.mediaType;
+    return { bundle: { record }, image };
+  }
+
+  function buildCharacterBundle(id, options) {
+    const row = characterById.get(id);
+    if (!row) throw httpError('Archive dependency character is missing', 409);
+    const image = imageFor('character', id, options.includeVisuals);
+    const record = characterRecord(row, { hasVisual: Boolean(image), includeWorkingHistory: options.includeWorkingHistory });
+    if (image) record.image_media_type = image.mediaType;
+    return { bundle: { record }, image };
+  }
+
+  function buildStoryBundle(id, options) {
+    const row = storyById.get(id);
+    if (!row) throw httpError('Archive story is missing', 409);
+    const cover = imageFor('story', id, options.includeVisuals);
+    const record = storyRecord(row, { hasVisual: Boolean(cover), includeWorkingHistory: options.includeWorkingHistory });
+    if (cover) record.image_media_type = cover.mediaType;
+    const pageImages = new Map();
+    const pages = db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(id)
+      .map((page) => {
+        const record = pageRecord(page, options);
+        const image = page.image_media_type ? imageFor('page', page.id, options.includeVisuals) : null;
+        record.image_media_type = image?.mediaType || null;
+        if (image) pageImages.set(page.id, image);
+        return record;
+      });
+    const castIds = new Set(parseCastJson(row.characters).map((entry) => entry.id));
+    const snapshots = db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ? ORDER BY character_id').all(id)
+      .filter((snapshot) => castIds.has(snapshot.character_id))
+      .map(snapshotRecord);
+    const memoryRows = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM story_memory_pages WHERE story_id = ? ORDER BY created_at, page_id').all(id)
+      : db.prepare("SELECT * FROM story_memory_pages WHERE story_id = ? AND status = 'ready' ORDER BY created_at, page_id").all(id);
+    const memory = memoryRows.map((memoryRow) => memoryRecord(memoryRow, options));
+    const preview = options.includeWorkingHistory
+      ? (() => {
+          const value = db.prepare('SELECT * FROM story_previews WHERE story_id = ?').get(id);
+          return value ? previewRecord(value) : null;
+        })()
+      : null;
+    let audiobook = null;
+    let audioFile = null;
+    if (options.includeAudio) {
+      const rowAudio = db.prepare("SELECT * FROM audiobooks WHERE story_id = ? AND status = 'ready'").get(id);
+      const candidate = path.join(audioDir, `${id}.mp3`);
+      if (rowAudio && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+        audiobook = audiobookRecord(rowAudio, options);
+        audioFile = { path: candidate, size: fs.statSync(candidate).size, mediaType: 'audio/mpeg' };
+      }
+    }
+    return {
+      bundle: {
+        record,
+        pages,
+        snapshots,
+        memory,
+        preview,
+        audiobook,
+      },
+      cover,
+      pageImages,
+      audioFile,
+    };
+  }
+
+  async function addImageAsset(assets, { ownerKind, ownerId, storyId = null, pageNumber = null, file }) {
+    if (!file) return;
+    assets.push({
+      kind: 'image',
+      owner_kind: ownerKind,
+      owner_id: ownerId,
+      story_id: storyId,
+      page_number: pageNumber,
+      archive_path: mediaArchivePath(ownerKind, ownerId, file.path),
+      media_type: file.mediaType,
+      size_bytes: file.size,
+      sha256: await hashFile(file.path),
+      source_path: file.path,
+    });
+  }
+
+  async function createEntity(kind, id, bundle, dependencies) {
+    const buffer = jsonBuffer(bundle);
+    return {
+      kind,
+      id,
+      name: kind === 'story' ? bundle.record.title : bundle.record.name,
+      path: objectPath(kind, id),
+      sha256: sha256(buffer),
+      semantic_sha256: semanticHash(kind, bundle),
+      size_bytes: buffer.length,
+      dependencies,
+      buffer,
+      bundle,
+    };
+  }
+
+  async function planExport(rawInput) {
+    const options = normalizeOptions(rawInput || {});
+    const selection = selectedIds(options);
+    const entities = [];
+    const assets = [];
+
+    for (const id of selection.worlds) {
+      const { bundle, image } = buildWorldBundle(id, options);
+      entities.push(await createEntity('world', id, bundle, []));
+      await addImageAsset(assets, { ownerKind: 'world', ownerId: id, file: image });
+    }
+    for (const id of selection.characters) {
+      const { bundle, image } = buildCharacterBundle(id, options);
+      const dependencies = bundle.record.world_id ? [{ kind: 'world', id: bundle.record.world_id }] : [];
+      entities.push(await createEntity('character', id, bundle, dependencies));
+      await addImageAsset(assets, { ownerKind: 'character', ownerId: id, file: image });
+    }
+    for (const id of selection.stories) {
+      const { bundle, cover, pageImages, audioFile } = buildStoryBundle(id, options);
+      const dependencies = [];
+      if (bundle.record.world_id) dependencies.push({ kind: 'world', id: bundle.record.world_id });
+      for (const cast of bundle.record.characters) dependencies.push({ kind: 'character', id: cast.id });
+      entities.push(await createEntity('story', id, bundle, dependencies));
+      await addImageAsset(assets, { ownerKind: 'story', ownerId: id, storyId: id, file: cover });
+      for (const page of bundle.pages) {
+        if (!page.image_media_type || !options.includeVisuals) continue;
+        await addImageAsset(assets, {
+          ownerKind: 'page',
+          ownerId: page.id,
+          storyId: id,
+          pageNumber: page.page_number,
+          file: pageImages.get(page.id),
+        });
+      }
+      if (audioFile) {
+        assets.push({
+          kind: 'audio',
+          owner_kind: 'story',
+          owner_id: id,
+          story_id: id,
+          page_number: null,
+          archive_path: `assets/audio/${sha256(`story:${id}`).slice(0, 24)}.mp3`,
+          media_type: 'audio/mpeg',
+          size_bytes: audioFile.size,
+          sha256: await hashFile(audioFile.path),
+          source_path: audioFile.path,
+        });
+      }
+    }
+
+    const pages = entities
+      .filter((entity) => entity.kind === 'story')
+      .reduce((sum, entity) => sum + entity.bundle.pages.length, 0);
+    const memory = entities
+      .filter((entity) => entity.kind === 'story')
+      .reduce((sum, entity) => sum + entity.bundle.memory.length, 0);
+    const exposure = {
+      worlds: selection.worlds.size,
+      characters: selection.characters.size,
+      stories: selection.stories.size,
+      pages,
+      continuity_rows: memory,
+      images: assets.filter((asset) => asset.kind === 'image').length,
+      audio_files: assets.filter((asset) => asset.kind === 'audio').length,
+      includes_author_directions: options.includeWorkingHistory,
+      includes_model_and_cost_history: options.includeWorkingHistory,
+      includes_device_settings: Boolean(options.settings),
+      excluded: ['API keys', 'credentials', 'passwords', 'paid-action consent'],
+      external_worlds: selection.externalWorlds,
+    };
+
+    const manifest = {
+      format: ARCHIVE_FORMAT,
+      version: ARCHIVE_VERSION,
+      created_at: new Date().toISOString(),
+      created_by: { application: 'ScribeTribe', version: appVersion },
+      scope: options.scope,
+      options: {
+        include_visuals: options.includeVisuals,
+        include_audio: options.includeAudio,
+        include_working_history: options.includeWorkingHistory,
+      },
+      settings: options.settings,
+      entities: entities.map(({ buffer, bundle, ...entity }) => entity),
+      assets: assets.map(({ source_path, ...asset }) => asset),
+      exposure,
+    };
+    const manifestBuffer = jsonBuffer(manifest);
+    const estimatedBytes = manifestBuffer.length +
+      entities.reduce((sum, entity) => sum + entity.size_bytes, 0) +
+      assets.reduce((sum, asset) => sum + asset.size_bytes, 0);
+    const filename = archiveFilename(options.scope, selection.rootName);
+    return {
+      options,
+      filename,
+      manifest,
+      manifestBuffer,
+      entities,
+      assets,
+      estimatedBytes,
+      publicPlan: {
+        filename,
+        scope: options.scope,
+        options: manifest.options,
+        exposure,
+        estimated_bytes: estimatedBytes,
+        entity_count: entities.length,
+        asset_count: assets.length,
+      },
+    };
+  }
+
+  function localBundle(kind, id, archiveOptions = {}) {
+    const options = {
+      includeVisuals: archiveOptions.include_visuals !== false,
+      includeAudio: archiveOptions.include_audio === true,
+      includeWorkingHistory: archiveOptions.include_working_history === true,
+    };
+    if (kind === 'world') return buildWorldBundle(id, options).bundle;
+    if (kind === 'character') return buildCharacterBundle(id, options).bundle;
+    if (kind === 'story') return buildStoryBundle(id, options).bundle;
+    return null;
+  }
+
+  return { planExport, localBundle, normalizeOptions };
+}
+
+module.exports = { createExportPlanner, hashFile, httpError };

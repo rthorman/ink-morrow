@@ -102,7 +102,14 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
         entityCard.entityImageBlock('character', character, `Reference portrait of ${character.name}`),
         desc,
         meta,
-        entityCard.cardActions({ name: character.name, kind: 'character', onEdit: () => openCharacterEditor(character), onRegenerate: regenerate, onDelete: remove })
+        entityCard.cardActions({
+          name: character.name,
+          kind: 'character',
+          onEdit: () => openCharacterEditor(character),
+          onRegenerate: regenerate,
+          onExport: () => features.transfer.openExport({ scope: 'character', id: character.id }),
+          onDelete: remove,
+        })
       );
       card.addEventListener('click', (event) => {
         if (event.target.closest('button, details, a')) return; // actions keep their own jobs
