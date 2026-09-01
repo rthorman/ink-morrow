@@ -72,6 +72,15 @@ describe('Scene image prompt button', () => {
     expect(JSON.parse(call[1].body)).toEqual({});
   });
 
+  it('uses the loaded stable page when catalogue page_count is briefly stale', async () => {
+    fw.__setStoryState({ currentStory: { ...STORY_STATE.currentStory, page_count: 0 } });
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-prompt') && options.method === 'POST');
+    expect(String(call[0])).toContain('/stories/s1/pages/2/image-prompt');
+  });
+
   it('cancel closes the popup, Escape too; backdrop click as well', async () => {
     document.getElementById('imagePromptBtn').click();
     expect(await paidReview('confirm')).toBe(true);

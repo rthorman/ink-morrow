@@ -674,9 +674,15 @@ test.describe('ScribeTribe UI', () => {
     expect(providerRequests).toEqual([]);
 
     await card.locator('.gallery-placement select').first().selectOption({ label: 'After page 2' });
-    await card.locator('button', { hasText: 'Move' }).click();
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'PATCH'),
+      card.locator('button', { hasText: 'Move' }).click(),
+    ]);
     await expect(page.locator('.success-message').last()).toContainText('Narrative page order');
-    await card.locator('button', { hasText: 'Unplace' }).click();
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'DELETE'),
+      card.locator('button', { hasText: 'Unplace' }).click(),
+    ]);
     await expect(page.locator('.success-message').last()).toContainText('Gallery-only storage');
 
     const pages = (await (await page.request.get(`/api/stories/${story.id}/pages`)).json()).pages;

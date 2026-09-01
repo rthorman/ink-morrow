@@ -133,7 +133,9 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   async function bindScene({ galleryOnly = false } = {}) {
     const { currentStory } = data;
     const targetPage = imageTargetPage || data.currentPage;
-    if (!sceneViewerDataUrl || !currentStory || targetPage < 1 || targetPage > Number(currentStory.page_count || 0)) return;
+    const targetExists = data.storyPages.some((page) => page.page_number === targetPage) ||
+      (!data.storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!sceneViewerDataUrl || !currentStory || !targetExists) return;
     const btn = document.getElementById(galleryOnly ? 'sceneViewerGalleryBtn' : 'sceneViewerAddPageBtn');
     // Capture everything BEFORE closing: closeSceneViewer wipes the viewer state.
     const comma = sceneViewerDataUrl.indexOf(',');
@@ -375,7 +377,9 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   async function generateImagePrompt(pageNumber = data.currentPage) {
     const { currentStory, storyPages } = data;
     const targetPage = Number.parseInt(pageNumber, 10);
-    if (!currentStory || targetPage < 1 || targetPage > Number(currentStory.page_count || 0)) {
+    const targetExists = storyPages.some((page) => page.page_number === targetPage) ||
+      (!storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!currentStory || !targetExists) {
       showError('Select a page to illustrate first.');
       return;
     }
