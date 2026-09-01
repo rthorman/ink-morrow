@@ -132,6 +132,15 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - Archivist schema 2 rejects unknown or malformed fields locally and requires
   direct page quotations for durable events, character state, world facts,
   goals, threads, and arc movement. Schema-1 archive rows remain readable.
+- The Archivist role is server-owned: browser-local Scribe selection never
+  enters automatic extraction or Codex repair. An explicit `CONTINUITY_MODEL`
+  overrides a persisted Archivist assignment and must pass live OpenRouter
+  catalogue validation before the server listens; invalid or unverifiable
+  values fail startup.
+- Extraction uses a compact tier-ordered cast index and at most 24 detailed
+  cast states. A centered manuscript always reserves its MC as perspective
+  anchor, then includes page-named cast and fills by Supporting/Background
+  priority. Other accumulated state sections have independent size caps.
 - Current state folds only current canonical revisions in manuscript order.
   Sparse 50-page plus head checkpoints, bounded inspection history, and
   revision-keyed FTS/LIKE rows keep prompt retrieval independent of full
@@ -164,6 +173,9 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   Prepared prose has no revision and is absent. Missing/failed repair is
   sequential, paid-review gated, resumable, and joins the revision-keyed
   extraction job instead of purchasing a duplicate result.
+- Chronicle failure markers are actionable: their dialog exposes the safe
+  stored error code, reason, and actual Archivist model, confirms prose is
+  intact, and routes to Codex repair.
 - Applying a correction writes a separate authoritative row. Deterministic
   later matches remain warnings until the author acknowledges intentional
   prose, returns to the Desk page, or marks review resolved. No path rewrites

@@ -42,10 +42,19 @@ invalidates prepared prose because the next page's context has changed.
 
 Repair selects only coverage rows that are missing or failed, displays one
 explicit paid review, and processes those canonical revisions sequentially.
+It always uses the server's dedicated Archivist assignment; the Scribe model
+remembered by an individual browser never overrides repair. The review names
+the Archivist model when provider status is available.
 Every completed revision is saved immediately. The continuity service joins
 an already-running extraction for the same revision, so resuming cannot buy a
 second copy of one in-flight result. Failure leaves the page valid and
 visible for another deliberate repair.
+
+Chronicle renders failed-memory markers as buttons. Opening one shows the safe
+stored reason, error code, and actual model without exposing provider replies
+or credentials, and offers a direct route to Codex repair. Common distinctions
+include invalid JSON, schema mismatch, evidence that did not quote the page,
+and upstream request failure. The prose page remains committed in every case.
 
 ## Corrections and impact
 

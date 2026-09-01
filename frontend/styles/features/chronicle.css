@@ -177,6 +177,20 @@
   color: var(--im-danger-500);
 }
 
+.chronicle-marker--action {
+  font: inherit;
+  cursor: pointer;
+}
+
+.chronicle-marker--action:hover {
+  background: color-mix(in srgb, var(--im-danger-500) 12%, var(--im-surface-1));
+}
+
+.chronicle-marker--action:focus-visible {
+  outline: 2px solid var(--im-focus, var(--im-gold-500));
+  outline-offset: 2px;
+}
+
 .chronicle-recoveries {
   display: grid;
   gap: var(--im-space-3);

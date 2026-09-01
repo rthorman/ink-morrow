@@ -68,7 +68,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     `);
     const scribe = env.OPENROUTER_MODEL || 'z-ai/glm-5.1';
     insertRole.run('scribe', DEFAULT_PROFILE_ID, scribe);
-    insertRole.run('archivist', DEFAULT_PROFILE_ID, env.CONTINUITY_MODEL || DEFAULT_ARCHIVIST_MODEL);
+    insertRole.run('archivist', DEFAULT_PROFILE_ID, DEFAULT_ARCHIVIST_MODEL);
     insertRole.run('narrator', DEFAULT_PROFILE_ID, env.NARRATOR_MODEL || 'openai/gpt-4o-mini-tts');
   }
   ensureDefaults();
@@ -349,6 +349,46 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     observedCatalogues.get(profileId).set(capability, new Set(models.map((model) => model.id).filter(Boolean)));
   }
 
+  async function validateStartup(listModelsForProfile) {
+    if (env.CONTINUITY_MODEL === undefined) return;
+    const configured = cleanText(String(env.CONTINUITY_MODEL), 500);
+    if (!configured) {
+      throw providerError(
+        'CONTINUITY_MODEL is set but empty or invalid. Correct backend/.env; Ink Morrow refuses to start because automatic page memory would fail.',
+        'INVALID_CONTINUITY_MODEL',
+        500
+      );
+    }
+    let models;
+    try {
+      models = await listModelsForProfile(DEFAULT_PROFILE_ID);
+    } catch (cause) {
+      const error = providerError(
+        `Could not verify CONTINUITY_MODEL "${configured}" against the OpenRouter catalogue. Ink Morrow refuses to start because automatic page memory would be unreliable.`,
+        'CONTINUITY_MODEL_UNVERIFIED',
+        500
+      );
+      error.cause = cause;
+      throw error;
+    }
+    if (!models.some((model) => model.id === configured)) {
+      throw providerError(
+        `CONTINUITY_MODEL "${configured}" is not in the OpenRouter catalogue. Correct backend/.env; Ink Morrow refuses to start because automatic page memory would fail.`,
+        'INVALID_CONTINUITY_MODEL',
+        500
+      );
+    }
+    // Only a verified environment instruction becomes authoritative. A typo
+    // must not damage the last known-good assignment while startup is refused.
+    db.prepare(`
+      INSERT INTO provider_role_assignments (role, profile_id, model_id)
+      VALUES ('archivist', ?, ?)
+      ON CONFLICT(role) DO UPDATE SET
+        profile_id = excluded.profile_id, model_id = excluded.model_id,
+        updated_at = CURRENT_TIMESTAMP
+    `).run(DEFAULT_PROFILE_ID, configured);
+  }
+
   function exposure(role, { data_categories = [], references = false, operation_count = 1, estimated_cost_usd = null } = {}) {
     if (!ROLE_CAPABILITY[role]) throw providerError('Unknown AI role.', 'INVALID_PROVIDER_ROLE');
     const assignment = db.prepare('SELECT * FROM provider_role_assignments WHERE role = ?').get(role);
@@ -400,6 +440,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     resolve,
     catalogConfig,
     recordCatalogue,
+    validateStartup,
     exposure,
     redact,
     lockAll,

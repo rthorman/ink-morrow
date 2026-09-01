@@ -598,7 +598,9 @@ function createWritingTransactions({
       const currentStory = stories.getStory(storyId);
       if (!currentStory) return;
       if (continuity.isAutoEnabled()) {
-        void continuity.maybeSyncPage(currentStory, page, { model: generation.model }).catch((error) => {
+        // The writing model belongs to the Scribe role. Page memory always
+        // uses the independently configured Archivist role.
+        void continuity.maybeSyncPage(currentStory, page).catch((error) => {
           logger.error(`Continuity background work failed for page ${page.id}: ${error.message}`);
         });
       }

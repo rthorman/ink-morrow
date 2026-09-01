@@ -138,6 +138,7 @@ const CONTINUITY_SCHEMA = {
 };
 
 const EXTRACTOR_CHARACTER_LIST_LIMIT = 50;
+const EXTRACTOR_DETAILED_CHARACTER_LIMIT = 24;
 const EXTRACTOR_ACTIVE_ITEM_LIMIT = 40;
 const EXTRACTOR_CLOSED_ITEM_LIMIT = 20;
 const EXTRACTOR_FACT_LIMIT = 50;
@@ -230,8 +231,59 @@ function publicMemory(row) {
     prompt_tokens: row.prompt_tokens ?? null,
     completion_tokens: row.completion_tokens ?? null,
     cost_usd: row.cost_usd ?? 0,
+    error_code: row.error_code || null,
     error: row.error || null,
   };
+}
+
+function boundedLines(lines, maxChars) {
+  const kept = [];
+  let used = 0;
+  for (const line of lines) {
+    const value = String(line || '');
+    if (used + value.length + 1 > maxChars) break;
+    kept.push(value);
+    used += value.length + 1;
+  }
+  if (kept.length < lines.length) kept.push(`… ${lines.length - kept.length} older or less relevant entries omitted`);
+  return kept.join('\n');
+}
+
+function castRolePriority(role) {
+  if (role === 'mc') return 0;
+  if (role === 'supporting') return 1;
+  if (role === 'background') return 2;
+  return 3;
+}
+
+function relevantCharacters(characters, page) {
+  const source = `${page.content || ''}\n${page.user_input || ''}`.toLocaleLowerCase();
+  const entries = characters.map((character, index) => {
+    const name = String(character.name || '').toLocaleLowerCase();
+    const named = name.length > 1 && source.includes(name);
+    const rolePriority = castRolePriority(String(character.role || '').toLocaleLowerCase());
+    return { character, index, named, rolePriority };
+  });
+  const selected = [];
+  const add = (entry) => {
+    if (selected.length < EXTRACTOR_DETAILED_CHARACTER_LIMIT && !selected.includes(entry)) selected.push(entry);
+  };
+  // A centered manuscript's Main Character remains the perspective anchor
+  // even on a page that uses only pronouns or does not name them at all.
+  entries.filter((entry) => entry.rolePriority === 0).forEach(add);
+  entries.filter((entry) => entry.named && entry.rolePriority !== 0)
+    .sort((a, b) => a.rolePriority - b.rolePriority || a.index - b.index)
+    .forEach(add);
+  entries.filter((entry) => !entry.named && entry.rolePriority !== 0)
+    .sort((a, b) => a.rolePriority - b.rolePriority || a.index - b.index)
+    .forEach(add);
+  return selected.map((entry) => entry.character);
+}
+
+function invalidOutput(message, code = 'INVALID_CONTINUITY_OUTPUT') {
+  const error = new Error(message);
+  error.code = code;
+  return error;
 }
 
 function createContinuityService({ db, stories, store, chatCompletion, autoEnabled = true }) {
@@ -244,35 +296,44 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     // Crucially, page N is interpreted against the fold through N-1. Later
     // pages can never leak facts backward during a manual memory build.
     const before = store.project(story, { throughPageNumber: page.page_number - 1 });
-    const characterLines = before.characters.map((character) => {
+    const indexedCast = before.characters
+      .map((character, index) => ({ character, index }))
+      .sort((a, b) => castRolePriority(a.character.role) - castRolePriority(b.character.role) || a.index - b.index)
+      .map((entry) => entry.character);
+    const castIndex = boundedLines(indexedCast.map((character) =>
+      `- ${clipped(character.name, 160)} [${character.id}], ${character.role || 'cast'}`
+    ), 16000);
+    const characterLines = relevantCharacters(before.characters, page).map((character) => {
       const current = character.current;
       return `- ${character.name} [${character.id}], ${character.role}: ` +
         `location=${current.location || 'unknown'}; condition=${current.condition || 'normal'}; ` +
-        `personality=${clipped(current.personality || 'unspecified', 1200)}; ` +
-        `appearance=${clipped(current.appearance || 'unspecified', 1200)}; ` +
-        `relationship=${clipped(current.relationship_to_mc || 'unspecified', 800)}; ` +
-        `recent knowledge=${clipped(current.knowledge.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 5000)}; ` +
-        `recent possessions=${clipped(current.possessions.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 5000)}`;
+        `personality=${clipped(current.personality || 'unspecified', 500)}; ` +
+        `appearance=${clipped(current.appearance || 'unspecified', 500)}; ` +
+        `relationship=${clipped(current.relationship_to_mc || 'unspecified', 400)}; ` +
+        `recent knowledge=${clipped(current.knowledge.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 1200)}; ` +
+        `recent possessions=${clipped(current.possessions.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 1200)}`;
     });
-    const goals = boundedStatusItems(before.goals, new Set(['pending', 'active']))
-      .map((goal) => `- [${goal.id}] ${clipped(goal.text || '(untitled)', 1000)} — ${goal.status}`).join('\n');
-    const threads = boundedStatusItems(before.threads, new Set(['open']))
-      .map((thread) => `- [${thread.id}] ${clipped(thread.text || '(untitled)', 1000)} — ${thread.status}`).join('\n');
-    const worldFacts = latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
-      .map((fact) => `- [${fact.id}] ${fact.text || '(untitled)'}`).join('\n');
+    const detailedCast = boundedLines(characterLines, 32000);
+    const goals = boundedLines(boundedStatusItems(before.goals, new Set(['pending', 'active']))
+      .map((goal) => `- [${goal.id}] ${clipped(goal.text || '(untitled)', 1000)} — ${goal.status}`), 12000);
+    const threads = boundedLines(boundedStatusItems(before.threads, new Set(['open']))
+      .map((thread) => `- [${thread.id}] ${clipped(thread.text || '(untitled)', 1000)} — ${thread.status}`), 12000);
+    const worldFacts = boundedLines(latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
+      .map((fact) => `- [${fact.id}] ${clipped(fact.text || '(untitled)', 1000)}`), 12000);
     const system = [
       'You are Ink Morrow’s Archivist. Extract durable changes from ONE already-written canonical story-page revision.',
       'Report only facts caused or made true by this page. Do not treat character sheets, plans, desires, hypothetical language, dialogue commands, or user direction as events unless the prose says they happened.',
       'A goal may move to fulfilled or abandoned when the page resolves it. Do not recreate a resolved goal under a new id.',
       'Reuse the listed id when changing an existing goal, thread, or fact. For knowledge_lost or possessions_lost, copy the prior item text exactly so the local fold can remove it.',
       'Use only listed character ids. Keep summaries factual and compact. Empty arrays are correct when nothing durable changed.',
+      'When the cast has a Main Character, treat that character as the continuing perspective anchor even if this page does not repeat their name.',
       'Every durable item must cite one to five short, exact quotations from this page in its evidence array.',
       'Return schema_version 2 and one strict JSON object matching the supplied schema. Unknown fields are forbidden. Return no prose.',
     ].join(' ');
     const user = [
       `STORY: ${story.title}`,
-      `STATE BEFORE PAGE ${page.page_number}:`,
-      characterLines.join('\n') || '(no fixed cast)',
+      `CAST INDEX (identity only; use only these ids):\n${castIndex || '(no fixed cast)'}`,
+      `DETAILED STATE FOR PAGE-RELEVANT CAST BEFORE PAGE ${page.page_number}:\n${detailedCast || '(none)'}`,
       `GOALS BEFORE:\n${goals || '(none)'}`,
       `OPEN/RESOLVED THREADS BEFORE:\n${threads || '(none)'}`,
       `ESTABLISHED STORY FACTS BEFORE:\n${worldFacts || '(none)'}`,
@@ -326,25 +387,40 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
       combineSpend(total, result);
       let parsed = parseJson(result.content);
       let delta = null;
-      if (parsed) {
-        try {
+      let firstFailure = null;
+      try {
+        if (!parsed) {
+          throw invalidOutput('The Archivist did not return one valid JSON object.', 'INVALID_CONTINUITY_JSON');
+        }
+        {
           const castIds = store.snapshots(story).map((character) => character.character_id);
           delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
-        } catch {
-          delta = null;
         }
+      } catch (error) {
+        firstFailure = error;
+        delta = null;
       }
       if (!delta) {
         result = await call(false, true);
         combineSpend(total, result);
         parsed = parseJson(result.content);
-        if (parsed) {
+        try {
+          if (!parsed) {
+            throw invalidOutput('The Archivist did not return one valid JSON object.', 'INVALID_CONTINUITY_JSON');
+          }
           const castIds = store.snapshots(story).map((character) => character.character_id);
           delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
+        } catch (secondFailure) {
+          const error = invalidOutput(
+            `The Archivist returned unusable structured memory twice. First: ${firstFailure?.message || 'invalid output'} Second: ${secondFailure.message}`,
+            secondFailure.code || 'INVALID_CONTINUITY_OUTPUT'
+          );
+          error.extractionSpend = total;
+          throw error;
         }
       }
       if (!delta) {
-        const error = new Error('The continuity clerk returned invalid structured data twice.');
+        const error = invalidOutput('The Archivist returned unusable structured memory twice.');
         error.extractionSpend = total;
         throw error;
       }

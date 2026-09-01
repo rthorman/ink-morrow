@@ -13,6 +13,9 @@ function outline(pageCount = 161) {
     excerpt: index === 4 ? 'A quiet scene.\n***\nThe next movement.' : `Bounded excerpt ${index + 1}.`,
     has_scene_break: index === 4,
     continuity_status: index === 2 ? 'failed' : index < 100 ? 'ready' : 'pending',
+    continuity_error: index === 2 ? 'The Archivist did not return one valid JSON object.' : null,
+    continuity_error_code: index === 2 ? 'INVALID_CONTINUITY_JSON' : null,
+    continuity_model: index === 2 ? 'google/gemini-2.5-flash-lite' : null,
     art_count: index === 8 ? 2 : 0,
     is_copyedited: index === 10,
   }));
@@ -66,6 +69,16 @@ describe('PR12 Chronicle', () => {
     expect(document.getElementById('chronicleOutline').textContent).toContain('2 placed art');
     expect(document.getElementById('chronicleStatus').textContent).toContain('Only short excerpts are loaded');
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/stories/s1/pages')).toBe(false);
+
+    const failed = document.querySelector('.chronicle-marker--failed');
+    expect(failed.tagName).toBe('BUTTON');
+    failed.click();
+    expect(document.querySelector('.dialog-manager__title').textContent).toContain('page 3');
+    expect(document.querySelector('.dialog-manager__body').textContent).toContain('INVALID_CONTINUITY_JSON');
+    expect(document.querySelector('.dialog-manager__body').textContent).toContain('google/gemini-2.5-flash-lite');
+    expect([...document.querySelectorAll('.dialog-manager button')]
+      .some((button) => button.textContent === 'Open Codex repair')).toBe(true);
+    document.querySelector('.dialog-manager .btn-secondary').click();
 
     document.getElementById('chroniclePageJump').value = '161';
     fw.revealChroniclePage();

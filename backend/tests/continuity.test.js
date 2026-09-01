@@ -106,6 +106,39 @@ describe('page-provenanced continuity ledger', () => {
     expect(meta.body.story.characters[0].state).toBeNull(); // no destructive cast mutation
   });
 
+  it('keeps the Scribe model out of memory and bounds heavy cast detail by relevance and role', async () => {
+    const cast = [];
+    const main = await createCharacter(app, null, { name: 'Unspoken Main' });
+    const support = await createCharacter(app, null, { name: 'First Support' });
+    cast.push({ id: main.id, role: 'mc' }, { id: support.id, role: 'supporting' });
+    let namedBackground;
+    for (let index = 1; index <= 25; index += 1) {
+      const character = await createCharacter(app, null, {
+        name: `Background ${index}`,
+        personality: `Background state ${index} `.repeat(60),
+      });
+      cast.push({ id: character.id, role: 'background' });
+      if (index === 25) namedBackground = character;
+    }
+    const story = await createStory(app, null, cast);
+    axios.post.mockResolvedValueOnce(reply('Background 25 crosses the moonlit court.'))
+      .mockResolvedValueOnce(reply(delta({ summary: 'A background figure crosses the court.' })));
+    const generated = await request(app).post(`/api/stories/${story.id}/pages/generate`).send({
+      user_input: 'Continue.',
+      model: 'vendor/browser-scribe',
+    }).expect(201);
+    await request(app).post(`/api/stories/${story.id}/continuity/pages/${generated.body.page.id}/sync`).send({}).expect(200);
+
+    expect(axios.post.mock.calls[0][1].model).toBe('vendor/browser-scribe');
+    expect(axios.post.mock.calls[1][1].model).toBe('google/gemini-2.5-flash-lite');
+    const prompt = axios.post.mock.calls[1][1].messages[1].content;
+    const detail = prompt.split('DETAILED STATE FOR PAGE-RELEVANT CAST')[1].split('GOALS BEFORE')[0];
+    expect(detail).toContain('Unspoken Main');
+    expect(detail).toContain(namedBackground.name);
+    expect(detail.length).toBeLessThan(33000);
+    expect(prompt.indexOf('Unspoken Main')).toBeLessThan(prompt.indexOf('First Support'));
+  });
+
   it('keeps a prepared page inert until commit', async () => {
     const story = await createStory(app);
     await generate(story.id, 'The first page ends.', delta({ summary: 'The tale begins.' }));
@@ -203,6 +236,10 @@ describe('page-provenanced continuity ledger', () => {
       .send({})
       .expect(200);
     expect(sync.body.memory.status).toBe('failed');
+    expect(sync.body.memory).toMatchObject({
+      error_code: 'INVALID_CONTINUITY_JSON',
+      error: expect.stringContaining('did not return one valid JSON object'),
+    });
     expect(sync.body.page.content).toContain('sealed door');
     expect(axios.post).toHaveBeenCalledTimes(2);
 

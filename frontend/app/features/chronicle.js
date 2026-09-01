@@ -42,6 +42,27 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     return node('span', `chronicle-marker${modifier ? ` chronicle-marker--${modifier}` : ''}`, text);
   }
 
+  function openMemoryFailure(page) {
+    const body = node('div', 'chronicle-memory-failure');
+    body.appendChild(node('p', '', 'The manuscript page is safely committed. Only its compact remembered-canon record failed.'));
+    body.appendChild(node('p', '', page.continuity_error || 'The Archivist did not return usable structured memory.'));
+    if (page.continuity_error_code) body.appendChild(node('p', 'setting-hint', `Error code: ${page.continuity_error_code}`));
+    body.appendChild(node('p', 'setting-hint', `Model used: ${page.continuity_model || 'not recorded'}`));
+    dialogs.openDialog({
+      title: `Memory failed on page ${page.display_number}`,
+      body,
+      actions: [
+        { label: 'Close', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: 'Open Codex repair', className: 'btn-primary', onClick: (close) => {
+            close(true);
+            routeController.navigate('codex', { storyId: activeStoryId });
+          },
+        },
+      ],
+    });
+  }
+
   function setStatus(text) {
     const status = document.getElementById('chronicleStatus');
     if (status) status.textContent = text;
@@ -201,10 +222,15 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     const group = node('div', 'chronicle-page__markers');
     if (isTail) group.appendChild(marker('Active tail', 'tail'));
     const continuity = page.continuity_status || 'pending';
-    group.appendChild(marker(
-      continuity === 'ready' ? 'Memory covered' : continuity === 'failed' ? 'Memory failed' : 'Memory pending',
-      continuity,
-    ));
+    if (continuity === 'failed') {
+      const failed = node('button', 'chronicle-marker chronicle-marker--failed chronicle-marker--action', 'Memory failed');
+      failed.type = 'button';
+      failed.title = 'Show why remembered canon failed';
+      failed.addEventListener('click', () => openMemoryFailure(page));
+      group.appendChild(failed);
+    } else {
+      group.appendChild(marker(continuity === 'ready' ? 'Memory covered' : 'Memory pending', continuity));
+    }
     if (page.art_count) group.appendChild(marker(`${page.art_count} placed art`));
     if (page.is_copyedited) group.appendChild(marker('Display copyedit'));
     if (page.has_scene_break) group.appendChild(marker('Scene break in preview'));

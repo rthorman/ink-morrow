@@ -88,12 +88,31 @@ const app = createApp(db, {
   transferDir: path.join(storageRoot, 'transfers'),
 });
 
-const server = app.listen(PORT, HOST, () => {
-  console.log(`Ink Morrow (API + frontend) serving on http://${HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`);
-});
+let server = null;
+const started = (async () => {
+  try {
+    await app.locals.validateStartup?.();
+  } catch (error) {
+    console.error(error.message || 'Ink Morrow could not validate its configured AI models.');
+    try { app.locals.dispose?.(); } catch { /* already disposed */ }
+    try { db.close(); } catch { /* already closed */ }
+    process.exitCode = 1;
+    return null;
+  }
+  server = app.listen(PORT, HOST, () => {
+    console.log(`Ink Morrow (API + frontend) serving on http://${HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`);
+  });
+  return server;
+})();
 
 function shutdown(signal) {
   console.log(`\n${signal} received - closing down...`);
+  if (!server) {
+    try { app.locals.dispose?.(); } catch { /* already disposed */ }
+    try { db.close(); } catch { /* already closed */ }
+    process.exit(0);
+    return;
+  }
   server.close(() => {
     try {
       app.locals.dispose?.();
@@ -110,4 +129,4 @@ function shutdown(signal) {
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
 
-module.exports = { app, server, db };
+module.exports = { app, get server() { return server; }, db, started };

@@ -341,9 +341,10 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
   async function syncCommittedContinuity(storyId, page, originToken) {
     if (!page?.id) return;
     try {
-      const result = await apiCall(`/stories/${storyId}/continuity/pages/${page.id}/sync`, 'POST', {
-        ...(settings.model ? { model: settings.model } : {}),
-      });
+      // A browser's Scribe choice must never override the server's dedicated
+      // Archivist assignment. In particular, different devices may remember
+      // different writing models in local settings.
+      const result = await apiCall(`/stories/${storyId}/continuity/pages/${page.id}/sync`, 'POST', {});
       const cost = result.memory?.cost_usd;
       state.addSessionCost(cost);
       if (originToken === actionToken && data.currentStory?.id === storyId) state.addStoryCost(cost);
@@ -351,7 +352,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
       if (result.page) applyPage(storyId, result.page, { moveToPage: false });
       features.write.displayCurrentPage();
       if (result.failed || result.memory?.status === 'failed') {
-        showError('Page saved, but its continuity record needs attention in the Library.');
+        showError('Page saved, but its continuity record needs attention in Chronicle.');
       }
     } catch (error) {
       bookFailedSpend(error);

@@ -277,6 +277,8 @@ describe('Speculative next-page preparation', () => {
     }));
     await tick();
     await tick();
+    const continuityCall = fetchMock.mock.calls.find(([url]) => String(url).includes('/continuity/pages/p2/sync'));
+    expect(JSON.parse(continuityCall[1].body)).toEqual({});
     expect(fw.state().costs.session).toBeCloseTo(0.007, 8); // prepared + successor + continuity
     expect(fw.state().costs.story).toBeCloseTo(0.005, 8); // committed prose + continuity
   });

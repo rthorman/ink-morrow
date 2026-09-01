@@ -94,6 +94,7 @@ describe('PR13 Codex', () => {
     latest.coverage.pages = latest.coverage.pages.map((page) => ({ ...page, status: 'ready' }));
     latest.coverage.failed = [];
     const fetchMock = mockFetch([
+      { match: '/providers', response: jsonResponse(200, { roles: [{ role: 'archivist', model_id: 'google/gemini-2.5-flash-lite' }] }) },
       { match: (url, options) => url.includes('/templates/world/w1/import') && options.method === 'POST', response: jsonResponse(201, { snapshot: {}, continuity: memory() }) },
       { match: (url, options) => url.endsWith('/pages/p2/sync') && options.method === 'POST', response: jsonResponse(200, { memory: { status: 'ready', cost_usd: 0.01 } }) },
       { match: (url, options) => url.endsWith('/pages/p3/sync') && options.method === 'POST', response: jsonResponse(200, { memory: { status: 'ready', cost_usd: 0.01 } }) },
@@ -119,12 +120,19 @@ describe('PR13 Codex', () => {
 
     fw.selectCodexTab('canon');
     document.querySelector('#codexCoverage button').click();
+    for (let attempt = 0; attempt < 20 && !document.querySelector('.dialog-manager:not([hidden])'); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    expect(document.querySelector('.dialog-manager__body').textContent).toContain('google/gemini-2.5-flash-lite');
     await paidReview('confirm');
     for (let attempt = 0; attempt < 50 && !fetchMock.mock.calls.some(([url]) => url.endsWith('/pages/p3/sync')); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 2));
     }
     const repairs = fetchMock.mock.calls.filter(([url]) => /\/pages\/p[123]\/sync$/.test(url)).map(([url]) => url);
     expect(repairs).toEqual(['/api/stories/s1/continuity/pages/p2/sync', '/api/stories/s1/continuity/pages/p3/sync']);
+    for (const call of fetchMock.mock.calls.filter(([url]) => /\/pages\/p[23]\/sync$/.test(url))) {
+      expect(JSON.parse(call[1].body)).toEqual({});
+    }
   });
 
   it('edits manuscript-local foundations and creates versioned author canon', async () => {

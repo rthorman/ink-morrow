@@ -10,6 +10,7 @@ const { createApp } = require('../src/app');
 const { createDb, MIGRATIONS } = require('../src/db');
 const { resetAuthentication } = require('../src/modules/auth/service');
 const { createTestApp, setupOwner, createStory } = require('./helpers');
+const { resetModelCache } = require('../src/ai');
 
 const PASSWORD = 'A long test password phrase';
 const NEW_PASSWORD = 'A newer and longer test password phrase';
@@ -52,6 +53,8 @@ beforeEach(() => {
   axios.post.mockReset();
   axios.get.mockReset();
   delete process.env.OPENROUTER_API_KEY;
+  delete process.env.CONTINUITY_MODEL;
+  resetModelCache();
 });
 
 afterAll(() => {
@@ -108,6 +111,52 @@ describe('PR 04 provider profiles and role assignments', () => {
       expect(refused.body.code).toBe('ENVIRONMENT_CREDENTIAL_READ_ONLY');
     } finally {
       fixture.close();
+    }
+  });
+
+  it('makes an explicit continuity model authoritative and refuses an unlisted value at startup', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-continuity-model-'));
+    const dbPath = path.join(root, 'existing.db');
+    let first;
+    let second;
+    let invalid;
+    try {
+      first = providerFixture({ dbPath, providerOptions: { env: { OPENROUTER_API_KEY: CANARY } } });
+      first.db.prepare("UPDATE provider_role_assignments SET model_id = 'ui/previous-archivist' WHERE role = 'archivist'").run();
+      first.close();
+      first = null;
+
+      second = providerFixture({
+        dbPath,
+        providerOptions: { env: { OPENROUTER_API_KEY: CANARY, CONTINUITY_MODEL: 'vendor/verified-archivist' } },
+      });
+      expect(second.app.locals.providers.list().roles.find((role) => role.role === 'archivist').model_id)
+        .toBe('ui/previous-archivist');
+      axios.get.mockResolvedValueOnce({ data: { data: [{ id: 'vendor/verified-archivist', pricing: {} }] } });
+      await expect(second.app.locals.validateStartup()).resolves.toBeUndefined();
+      expect(second.app.locals.providers.list().roles.find((role) => role.role === 'archivist')).toMatchObject({
+        profile_id: 'openrouter-default',
+        model_id: 'vendor/verified-archivist',
+      });
+      second.close();
+      second = null;
+
+      resetModelCache();
+      invalid = providerFixture({
+        providerOptions: { env: { OPENROUTER_API_KEY: CANARY, CONTINUITY_MODEL: 'vendor/typo-model' } },
+      });
+      axios.get.mockResolvedValueOnce({ data: { data: [{ id: 'vendor/real-model', pricing: {} }] } });
+      await expect(invalid.app.locals.validateStartup()).rejects.toMatchObject({
+        code: 'INVALID_CONTINUITY_MODEL',
+        message: expect.stringContaining('vendor/typo-model'),
+      });
+      expect(invalid.app.locals.providers.list().roles.find((role) => role.role === 'archivist').model_id)
+        .toBe('google/gemini-2.5-flash-lite');
+    } finally {
+      first?.close();
+      second?.close();
+      invalid?.close();
+      fs.rmSync(root, { recursive: true, force: true });
     }
   });
 
