@@ -57,3 +57,17 @@ export async function apiPost(page, path, data) {
   }
   return response;
 }
+
+export async function apiPut(page, path, data) {
+  const response = await page.request.put(path, {
+    data,
+    headers: {
+      'X-ScribeTribe-CSRF': await csrfToken(page),
+      'X-ScribeTribe-Writer-Session': await writerSessionId(page),
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`PUT ${path} failed (${response.status()}): ${await response.text()}`);
+  }
+  return response;
+}

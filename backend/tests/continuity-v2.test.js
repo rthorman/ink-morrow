@@ -178,6 +178,18 @@ describe('continuity ledger v2', () => {
       .patch(`/api/stories/${story.id}/continuity/issues/${corrected.body.issues[0].id}`)
       .send({ status: 'acknowledged' }).expect(200);
     expect(issue.body.issue.status).toBe('acknowledged');
+
+    axios.post.mockResolvedValueOnce(reply('The later harbor mention may conflict with the author correction; no prose was changed.'));
+    const summary = await request(app)
+      .post(`/api/stories/${story.id}/continuity/issues/summary`)
+      .send({ issue_ids: [corrected.body.issues[0].id] })
+      .expect(200);
+    expect(summary.body.summary).toContain('no prose was changed');
+    const prompt = axios.post.mock.calls.at(-1)[1].messages;
+    expect(prompt[0].content).toContain('Do not propose or apply prose changes');
+    expect(prompt[1].content).not.toContain('At dawn, Ilex leaves');
+    await request(app).post(`/api/stories/${story.id}/continuity/issues/summary`)
+      .send({ issue_ids: ['not-this-story'] }).expect(400);
   });
 
   it('imports only explicitly reviewed Library template fields', async () => {

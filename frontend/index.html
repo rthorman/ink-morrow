@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="styles/features/library.css">
     <link rel="stylesheet" href="styles/features/write.css">
     <link rel="stylesheet" href="styles/features/chronicle.css">
+    <link rel="stylesheet" href="styles/features/codex.css">
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/auth.css">
 </head>
@@ -494,11 +495,36 @@
                 </section>
             </section>
 
-            <section id="codexSection" class="content-section workspace-empty" aria-labelledby="codexTitle">
+            <section id="codexSection" class="content-section codex" aria-labelledby="codexTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="codexTitle">Codex <span>&mdash; what the story remembers</span></h2>
-                <p>Foundations, page-provenanced canon, and author corrections will live here. No continuity data is inferred, rewritten, or hidden by this temporary shell.</p>
-                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                <p id="codexStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its foundations and remembered canon.</p>
+                <div class="codex-toolbar">
+                    <div class="codex-tabs" role="tablist" aria-label="Codex views">
+                        <button id="codexFoundationsTab" class="codex-tab" role="tab" aria-selected="true" aria-controls="codexFoundationsPanel" type="button">Foundations</button>
+                        <button id="codexCanonTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCanonPanel" type="button">Remembered canon</button>
+                        <button id="codexCorrectionsTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCorrectionsPanel" type="button">Author corrections</button>
+                    </div>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <section id="codexFoundationsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexFoundationsTab">
+                    <div id="codexFoundations"></div>
+                    <div id="codexTemplateUpdates"></div>
+                </section>
+                <section id="codexCanonPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCanonTab" hidden>
+                    <div id="codexCoverage"></div>
+                    <div class="codex-filter">
+                        <label for="codexSearch">Filter remembered canon</label>
+                        <input id="codexSearch" type="search" placeholder="Character, fact, goal, thread, arc, or event">
+                    </div>
+                    <div id="codexCanon"></div>
+                </section>
+                <section id="codexCorrectionsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCorrectionsTab" hidden>
+                    <div id="codexCorrectionActions"></div>
+                    <div id="codexCorrections"></div>
+                    <div id="codexIssues"></div>
+                    <div id="codexImpactSummary" aria-live="polite"></div>
+                </section>
             </section>
 
             <section id="gallerySection" class="content-section workspace-empty" aria-labelledby="galleryTitle">

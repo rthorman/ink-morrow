@@ -115,8 +115,12 @@ and secret-vault material remain excluded.
 | `POST` | `/api/stories/:id/continuity/templates/:kind/:sourceId/import` | Import explicitly selected template fields |
 | `POST` | `/api/stories/:id/continuity/corrections` | Add an authoritative correction and analyze impact |
 | `PATCH` | `/api/stories/:id/continuity/issues/:issueId` | Acknowledge or resolve a derived issue |
+| `POST` | `/api/stories/:id/continuity/issues/summary` | Optional paid plain-language summary of selected warnings; changes nothing |
 | `PUT` | `/api/stories/:id/continuity/overrides` | Compatibility route for the earlier compact correction form |
 
 `story_pages.continuity_*` remains the current-page cost projection for
 existing clients. Authoritative v2 spend and provenance live with the
 revision delta.
+
+The author-facing inspection and correction behavior is specified in
+`docs/codex.md`.
