@@ -1,0 +1,61 @@
+# Ink Morrow 4.0 PDF documentation library
+
+The published PDFs are committed in [`docs/pdf/`](../pdf/) so readers do not
+need a documentation toolchain. Their version-controlled sources live in
+[`sources/`](sources/). The shared renderer and theme deliberately adapt the
+User Guide's approved plum, wine, gold, vellum, gothic type, ornaments, and
+Scriptorium art for denser technical writing.
+
+| Book | Primary reader |
+|---|---|
+| Operations & Recovery Handbook | Owner-operator |
+| System Architecture & Design Rationale | Maintainer and technical reviewer |
+| State Machine & Invariant Atlas | Implementer, tester, incident investigator |
+| Security, Privacy & AI Boundary | Author, operator, security reviewer |
+| Maintainer, Testing & Release Handbook | Contributor and release owner |
+
+## Rendering
+
+Install the repository's E2E dependencies, then run from the repository root:
+
+```bash
+npm run docs:pdf
+```
+
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can select a system Chrome/Chromium. The
+renderer also recognizes the standard Chrome and Edge locations on Windows.
+It loads bundled fonts and local brand assets, rejects broken images, and emits
+tagged PDFs with document outlines.
+
+The optional repository-local QA tool requires Poppler plus the pinned Python
+packages in `requirements.txt`:
+
+```bash
+python -m pip install -r docs/pdf-library/requirements.txt
+python docs/pdf-library/qa.py --output output/pdf-qa
+```
+
+The QA tool checks text extraction, outlines, old-brand residue, and page
+counts, then rasterizes every page and builds overview contact sheets.
+
+Every complete render also rewrites `generated.json` with one combined source
+fingerprint and exact hashes for all six PDFs. CI runs `npm run check:docs`; a
+change to any book source, screenshot, brand asset, font, renderer, or theme
+fails until the PDFs and manifest are regenerated together. This is a
+freshness check, not a substitute for the visual inspection above.
+
+## Publication QA
+
+After every source or theme change:
+
+1. Render all six books from a clean checkout.
+2. Confirm every expected PDF opens and has a nonempty outline/bookmark tree.
+3. Render every PDF page to PNG.
+4. Visually inspect covers, headings, tables, code, callouts, diagrams, links,
+   page breaks, headers, footers, and final pages at readable scale.
+5. Search extracted text for missing sections, replacement characters, and old
+   product naming.
+6. Keep the PDFs and sources in the same pull request.
+
+The User Guide is maintained separately under [`docs/user-guide/`](../user-guide/)
+but uses the same publication family and is part of the six-book render set.

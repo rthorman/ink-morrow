@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "source_sha256": "162d62a735b8ced6be27db7be52545c0ff3969f062d0eba4247259969ad63fb5",
+  "source_count": 50,
+  "outputs": {
+    "docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf": {
+      "sha256": "33fc4962b9aaf269ab7c6c12757313db315cb9a0b4d92b37d1edde7d59795705",
+      "bytes": 9711067
+    },
+    "docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf": {
+      "sha256": "3f5b25ab6ccb6d24c3f435dc739289b6c0d039bddb35609dc1aff79adab4592c",
+      "bytes": 1553305
+    },
+    "docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf": {
+      "sha256": "e6a24bdce2db17b096d79cb3bbfecef31fb3158ffe4490a2bc635cd2918360b1",
+      "bytes": 1319853
+    },
+    "docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf": {
+      "sha256": "5b2752480e15834c956b955f6668bbc899e88070d5f5e5c573079df04b9b528d",
+      "bytes": 1479641
+    },
+    "docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf": {
+      "sha256": "33efa1d6cd335f6d3e857aea4bb01223da16092963bf281b9331b667d30255a4",
+      "bytes": 2417291
+    },
+    "docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf": {
+      "sha256": "89ab14db5ad444be06d6bd40e079643ea6282876056b5f566568771b5d9a713b",
+      "bytes": 2216986
+    }
+  }
+}
