@@ -865,4 +865,3 @@ test.describe('Scene image prompt', () => {
     expect(asText).toContain('Second prose page.');
   });
 });
-
