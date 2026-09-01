@@ -161,6 +161,7 @@ export function initApp() {
   features.home.router = router;
   features.library.router = router;
   features.write.router = router;
+  features.settings.open = () => router.navigate('settings');
 
   // -- shell wiring ------------------------------------------------------------
   document.getElementById('homeBtn').addEventListener('click', () => router.navigate('home'));

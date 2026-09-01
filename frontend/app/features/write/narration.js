@@ -23,6 +23,15 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     return Boolean(settings.narrationModel && settings.narrationVoice);
   }
 
+  function openNarrationSettings() {
+    // Keep the visible surface and canonical hash in lockstep. Bootstrap
+    // supplies the route-aware opener; the fallback keeps isolated feature
+    // tests and embedders functional without a router.
+    if (typeof features.settings.open === 'function') features.settings.open();
+    else shell.showSection('settings');
+    features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+  }
+
   async function speechModelEntry() {
     try {
       const models = await features.settings.loadSpeechModels();
@@ -172,8 +181,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     if (!narrationStateAllowsStart()) return;
     if (!narrationConfigured()) {
       showError('Narration is not configured — choose a speech model and voice in Settings.');
-      shell.showSection('settings');
-      features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+      openNarrationSettings();
       return;
     }
     const { currentStory, currentPage, storyPages } = data;
@@ -189,8 +197,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
     if (!narrationStateAllowsStart()) return;
     if (!narrationConfigured()) {
       showError('Narration is not configured — choose a speech model and voice in Settings.');
-      shell.showSection('settings');
-      features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+      openNarrationSettings();
       return;
     }
     const { currentStory, currentPage, storyPages } = data;
@@ -288,8 +295,7 @@ export function createNarration({ api, state, notify, shell, features, dialogs }
         if (!narrationConfigured()) {
           // Same honest dead end as Read aloud: fix it in Settings.
           showError('Narration is not configured — choose a speech model and voice in Settings.');
-          shell.showSection('settings');
-          features.settings.loadSpeechModels().then(features.settings.renderNarrationSettings);
+          openNarrationSettings();
           return;
         }
         if (!(await reviewAutoNarration())) return; // cancel keeps auto off
