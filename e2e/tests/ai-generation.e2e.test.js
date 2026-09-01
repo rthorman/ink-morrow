@@ -352,8 +352,7 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page one.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page two.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page three.' });
-    await page.selectOption('#shellManuscriptSelect', story.id);
-    await page.dispatchEvent('#shellManuscriptSelect', 'change');
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
 
     // Step to the middle page and delete it through the real endpoint.
@@ -392,8 +391,7 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
     const story = await createStoryViaUi(page, 'Renumber First Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Firstborn page.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Secondborn page.' });
-    await page.selectOption('#shellManuscriptSelect', story.id);
-    await page.dispatchEvent('#shellManuscriptSelect', 'change');
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     await page.locator('#prevPageBtn').click();
@@ -659,8 +657,7 @@ test.describe('Scene image prompt', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, {
       content: 'The hall stood dark and cold.', user_input: null,
     });
-    await page.selectOption('#shellManuscriptSelect', story.id); // reload with the page present
-    await page.dispatchEvent('#shellManuscriptSelect', 'change');
+    await page.reload(); // reload with the page present
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
 
     await openGalleryPaint(page);
@@ -767,8 +764,7 @@ test.describe('Scene image prompt', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, {
       content: 'The hall stood dark and cold.', user_input: null,
     });
-    await page.selectOption('#shellManuscriptSelect', story.id);
-    await page.dispatchEvent('#shellManuscriptSelect', 'change');
+    await page.reload();
     await openGalleryPaint(page);
     await confirmPaidReview(page, /Condense it/);
     await expect(page.locator('#imagePromptModal')).toBeVisible();
@@ -819,8 +815,7 @@ test.describe('Scene image prompt', () => {
     const story = await createStoryViaUi(page, 'Image Page Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page.' });
-    await page.selectOption('#shellManuscriptSelect', story.id);
-    await page.dispatchEvent('#shellManuscriptSelect', 'change');
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     // Illustrate the first page: the art is displayed with it, but does not
