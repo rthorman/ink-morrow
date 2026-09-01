@@ -103,7 +103,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     }
     const sequence = ++pageEditSequence;
     session.token = sequence;
-    setPageSaveState('saving', session.mode === 'tail' ? 'Saving canonical revisionâ€¦' : 'Saving display copyeditâ€¦');
+    setPageSaveState('saving', session.mode === 'tail' ? 'Saving canonical revision…' : 'Saving display copyedit…');
     byId('deskPageSaveNow').disabled = true;
     try {
       const endpoint = session.mode === 'tail'
@@ -116,7 +116,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       if (session.version !== version) {
         session.dirty = true;
         displayCurrentPage();
-        setPageSaveState('', 'Newer changes are still waiting to saveâ€¦');
+        setPageSaveState('', 'Newer changes are still waiting to save…');
         if (pageEditTimer) clearTimeout(pageEditTimer);
         pageEditTimer = setTimeout(savePageEdit, 200);
         return false;
@@ -169,21 +169,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   function updateStorySelect() {
-    const select = document.getElementById('currentStory');
-    if (!select) return;
-    const keep = select.value;
-    select.textContent = '';
-    const placeholder = document.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = 'Select a story';
-    select.appendChild(placeholder);
-    state.data.stories.forEach((story) => {
-      const option = document.createElement('option');
-      option.value = story.id;
-      option.textContent = `${story.title} (${story.page_count} page${story.page_count === 1 ? '' : 's'})`;
-      select.appendChild(option);
-    });
-    if (keep && [...select.options].some((o) => o.value === keep)) select.value = keep;
     shell.syncManuscriptShell(state.data.stories, state.data.currentStory);
   }
 
@@ -221,7 +206,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       story = state.data.stories.find((s) => s.id === params.storyId);
     }
     if (!story) {
-      showErrorRaw('That story could not be found — it may have been deleted from another window.');
+      showErrorRaw('That manuscript could not be found — it may have been deleted from another window.');
       if (router) router.navigate('library-stories');
       return;
     }
@@ -229,7 +214,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     features.imagery?.resetForContextChange(story.id);
     resetPageEditor();
     hideRecoveryUndo();
-    document.getElementById('currentStory').value = story.id;
     state.data.currentStory = story;
     await loadStoryPages();
     const pending = state.data.pendingOpeningDirection;
@@ -246,36 +230,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       state.data.currentPage = Math.max(1, Math.min(state.data.storyPages.length, params.pageNumber));
       displayCurrentPage();
     }
-  }
-
-  async function handleStorySelection(event) {
-    const storyId = event.target.value;
-    features.narration.stopNarration();
-    resetPageEditor();
-    hideRecoveryUndo();
-    if (!storyId) {
-      features.generation.resetForStoryChange();
-      state.data.currentStory = null;
-      shell.syncManuscriptShell(state.data.stories, null);
-      resetStoryReader();
-      if (router) router.replace('desk');
-      return;
-    }
-    const story = state.data.stories.find((s) => s.id === storyId) || null;
-    if (router) {
-      // Same story re-selected (the hash already points at it): the route
-      // will not re-fire, so reload its pages directly.
-      if (state.data.currentStory && state.data.currentStory.id === storyId) {
-        await loadStoryPages();
-        return;
-      }
-      router.navigate('desk', { storyId });
-      return;
-    }
-    features.generation.resetForStoryChange();
-    features.imagery?.resetForContextChange(story?.id || null);
-    state.data.currentStory = story;
-    await loadStoryPages();
   }
 
   async function loadStoryPages() {
@@ -356,13 +310,13 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const { currentStory, currentPage, storyPages, generating } = state.data;
 
     if (!currentStory) {
-      // A truthful empty desk: no fake page count, every story-dependent
+      // A truthful empty desk: no fake page count, every manuscript-dependent
       // control off (so it can never fire an invalid request), and the
       // reason spelled out in copy, not just faded grey.
       const placeholder = document.createElement('p');
       placeholder.className = 'placeholder';
       placeholder.textContent =
-        'No story selected. Choose a tale above, or bind a new one here — every writing control sleeps until then.';
+        'No manuscript selected. Choose one from the shelf, or bind a new one — every writing control sleeps until then.';
       contentDiv.appendChild(placeholder);
       prevBtn.disabled = true;
       nextBtn.disabled = true;
@@ -370,7 +324,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       deletePageBtn.disabled = true;
       document.getElementById('exportBtn').disabled = true;
       document.getElementById('audiobookBtn').disabled = true;
-      document.getElementById('pageIndicator').textContent = 'No story selected';
+      document.getElementById('pageIndicator').textContent = 'No manuscript selected';
       setPastPageBar(false, 0, 0);
       setWritingEnabled(false);
       updatePageActionButtons();
@@ -385,7 +339,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       appendPlacedArt(contentDiv, null);
       const placeholder = document.createElement('p');
       placeholder.className = 'placeholder';
-      placeholder.textContent = 'This story has no pages yet. Give the scribe a direction below…';
+      placeholder.textContent = 'This manuscript has no pages yet. Give the scribe a direction below…';
       contentDiv.appendChild(placeholder);
     } else if (page) {
       if (currentPage === 1) appendPlacedArt(contentDiv, null);
@@ -455,19 +409,17 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (generateBtn) generateBtn.disabled = state.data.generating || !enabled;
   }
 
-  // Narration and AI illustration need a real prose page. Local upload only
-  // needs a story and can place art before its first page.
+  // Narration needs a real prose page. Art creation and placement belongs to
+  // Gallery, which remains reachable for an empty manuscript.
   function updatePageActionButtons() {
     const { currentStory, storyPages, generating } = state.data;
     const usable = Boolean(currentStory) && storyPages.length > 0 && !generating;
-    for (const id of ['readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn']) {
+    for (const id of ['readAloudBtn', 'narrationAutoBtn']) {
       const btn = document.getElementById(id);
       if (btn) btn.disabled = !usable;
     }
-    const upload = document.getElementById('uploadArtBtn');
-    if (upload) upload.disabled = !currentStory || generating;
-    const input = document.getElementById('uploadArtInput');
-    if (input) input.disabled = !currentStory || generating;
+    const gallery = document.getElementById('deskGalleryBtn');
+    if (gallery) gallery.disabled = !currentStory || generating;
   }
 
   function setPastPageBar(visible, pageNumber, pagesAfter) {
@@ -523,7 +475,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   async function exportStory() {
     const { currentStory } = state.data;
     if (!currentStory) {
-      showError('Please select a story first.');
+      showError('Please choose a manuscript first.');
       return;
     }
     try {
@@ -536,7 +488,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       link.download = `${currentStory.title.replace(/[^a-z0-9]+/gi, '_').toLowerCase() || 'story'}.epub`;
       link.click();
       URL.revokeObjectURL(url);
-      showSuccess('Story exported as EPUB.');
+      showSuccess('Manuscript exported as EPUB.');
     } catch (error) {
       showError(error.message);
     }
@@ -561,9 +513,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     };
     const range = result.removed_range.first === result.removed_range.last
       ? `Page ${result.removed_range.first}`
-      : `Pages ${result.removed_range.first}â€“${result.removed_range.last}`;
+      : `Pages ${result.removed_range.first}–${result.removed_range.last}`;
     byId('deskRecoveryText').textContent =
-      `${range} left the active story after page ${anchorPage}. Undo is available briefly; the recovery copy remains available until ${new Date(result.recovery.expires_at).toLocaleString()}.`;
+      `${range} left the active manuscript after page ${anchorPage}. Undo is available briefly; the recovery copy remains available until ${new Date(result.recovery.expires_at).toLocaleString()}.`;
     byId('deskRecoveryBanner').hidden = false;
   }
 
@@ -579,7 +531,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       hideRecoveryUndo();
       await loadStoryPages();
       await features.stories.loadStories();
-      showSuccess('The returned pages are back in the active story.');
+      showSuccess('The returned pages are back in the active manuscript.');
     } catch (error) {
       showError(error.message);
       if (byId('deskRecoveryText')) {
@@ -598,8 +550,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const range = after === 1 ? `Page ${currentPage + 1}` : `Pages ${currentPage + 1}–${storyPages.length}`;
     dialogs
       .confirmDestructive({
-        title: `Return story to page ${currentPage}?`,
-        body: `${range} (${after} ${after === 1 ? 'page' : 'pages'}) of "${currentStory.title}" will leave the active story. Art anchored there remains in the Gallery but is unplaced. A recovery copy is retained, and the next screen offers a brief one-click undo.`,
+        title: `Return manuscript to page ${currentPage}?`,
+        body: `${range} (${after} ${after === 1 ? 'page' : 'pages'}) of "${currentStory.title}" will leave the active manuscript. Art anchored there remains in the Gallery but is unplaced. A recovery copy is retained, and the next screen offers a brief one-click undo.`,
         confirmLabel: `Return and remove ${after} later ${after === 1 ? 'page' : 'pages'}`,
       })
       .then((yes) => {
@@ -621,47 +573,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       features.narration.stopNarration();
       await loadStoryPages();
       showRecoveryUndo(result, currentStory, after);
-      showSuccess(result.deleted === 1 ? 'Story returned; 1 later page is recoverable.' : `Story returned; ${result.deleted} later pages are recoverable.`);
+      showSuccess(result.deleted === 1 ? 'Manuscript returned; 1 later page is recoverable.' : `Manuscript returned; ${result.deleted} later pages are recoverable.`);
     } catch (error) {
       showError(error.message);
-    }
-  }
-
-  async function uploadArt(file) {
-    const { currentStory, currentPage, storyPages, generating } = state.data;
-    if (!currentStory || !file || generating) return;
-    const page = storyPages.find((entry) => entry.page_number === currentPage) || null;
-    const form = new FormData();
-    form.append('image', file, file.name || 'upload');
-    form.append('after_page_id', page?.id || '');
-    form.append('provider_reference_allowed', 'false');
-    const button = document.getElementById('uploadArtBtn');
-    if (button) {
-      button.disabled = true;
-      button.textContent = 'Uploading…';
-    }
-    try {
-      const response = await apiFetch(`/api/stories/${currentStory.id}/assets/upload`, {
-        method: 'POST',
-        body: form,
-      });
-      let body = null;
-      try { body = await response.json(); } catch { /* error below has a safe fallback */ }
-      if (!response.ok) throw new Error(body?.error || `Upload failed (${response.status})`);
-      await refreshStoryAssets(currentStory.id);
-      showSuccess(page ? `Art placed after page ${page.page_number}.` : 'Art placed before the first page.');
-      shell.checkDiskSpace();
-      return body;
-    } catch (error) {
-      showError(error.message);
-      return null;
-    } finally {
-      if (button) {
-        button.disabled = !state.data.currentStory || state.data.generating;
-        button.textContent = 'Upload art';
-      }
-      const input = document.getElementById('uploadArtInput');
-      if (input) input.value = '';
     }
   }
 
@@ -688,7 +602,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   }
 
   function init() {
-    document.getElementById('currentStory').addEventListener('change', handleStorySelection);
     document.getElementById('generateBtn').addEventListener('click', () => features.generation.generateNextPage());
     document.getElementById('retryBtn').addEventListener('click', features.generation.retryLastPage);
     document.getElementById('exportBtn').addEventListener('click', exportStory);
@@ -708,17 +621,13 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       pageEditSession.version++;
       const text = byId('deskPageEditorText').value;
       pageEditDrafts.set(pageDraftKey(pageEditSession.storyId, pageEditSession.pageId), text);
-      setPageSaveState('', 'Unsaved changes. Autosavingâ€¦');
+      setPageSaveState('', 'Unsaved changes. Autosaving…');
       if (pageEditTimer) clearTimeout(pageEditTimer);
       pageEditTimer = setTimeout(savePageEdit, 850);
     });
     byId('deskRecoveryUndo')?.addEventListener('click', undoReturn);
-    const uploadButton = document.getElementById('uploadArtBtn');
-    const uploadInput = document.getElementById('uploadArtInput');
-    uploadButton?.addEventListener('click', () => uploadInput?.click());
-    uploadInput?.addEventListener('change', () => {
-      const file = uploadInput.files?.[0];
-      if (file) uploadArt(file);
+    byId('deskGalleryBtn')?.addEventListener('click', () => {
+      if (state.data.currentStory && router) router.navigate('gallery', { storyId: state.data.currentStory.id });
     });
 
     const deleteAfter = document.getElementById('deleteAfterBtn');
@@ -755,7 +664,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     updateStorySelect,
     openStory,
     enterFromRoute,
-    handleStorySelection,
     loadStoryPages,
     refreshStoryAssets,
     displayCurrentPage,
@@ -771,7 +679,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     savePageEdit,
     reloadLatestPage,
     undoReturn,
-    uploadArt,
     resetStoryReader,
     resetAfterStoryDeletion,
     __setStoryState(patch) {
@@ -789,3 +696,4 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     init,
   };
 }
+
