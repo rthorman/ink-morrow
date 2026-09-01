@@ -469,6 +469,14 @@
                 <option value="medium_2k">2K · medium — finest, ≈$0.08</option>
             </select>
             <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
+            <p id="imageRefusalNotice" class="image-refusal-notice" role="status" aria-live="polite" hidden></p>
+            <div id="imageReferenceDropOption" class="image-reference-drop" hidden>
+                <label for="imagePromptDropReferences">
+                    <input id="imagePromptDropReferences" type="checkbox">
+                    Retry without identity references
+                </label>
+                <p>The existing portraits and story assets stay unchanged; this only omits them from the next provider request.</p>
+            </div>
             <p id="sceneImageCost" class="scene-image-cost" hidden></p>
             <div class="burn-modal__actions">
                 <button id="imagePromptGenerateBtn" type="button" class="btn btn-primary">Generate image</button>

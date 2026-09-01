@@ -329,6 +329,8 @@ function buildFacade(ctx) {
     // Scene image prompt + zoomable viewer
     generateImagePrompt: imagery.generateImagePrompt,
     generateSceneImage: imagery.generateSceneImage,
+    resetImageSanitationForContext: imagery.resetForContextChange,
+    resetImageSanitationForReferences: imagery.resetForReferenceChange,
     __sceneModerationState: imagery.__sceneModerationState,
     openSceneViewer: imagery.openSceneViewer,
     closeSceneViewer: imagery.closeSceneViewer,

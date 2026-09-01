@@ -238,7 +238,10 @@ describe('Scene image prompt button', () => {
             refused: true,
             reason: 'nudity not allowed',
             sanitized_prompt: 'A fully clothed, safely composed take on the scene.',
+            sanitation_cost_usd: 0.002,
             rewrite_cost_usd: 0.002,
+            references_sent: 2,
+            can_drop_references: true,
           })
         );
       }
@@ -255,8 +258,10 @@ describe('Scene image prompt button', () => {
 
     // Rewritten prompt back in the box, announced loudly, viewer stays shut
     expect(document.getElementById('imagePromptText').value).toBe('A fully clothed, safely composed take on the scene.');
-    expect(document.querySelector('.success-message').textContent).toContain('rewrote it');
-    expect(document.querySelector('.success-message').textContent).toContain('Generate image again');
+    expect(document.querySelector('.success-message').textContent).toContain('no image retry occurred');
+    expect(document.getElementById('imageRefusalNotice').hidden).toBe(false);
+    expect(document.getElementById('imageRefusalNotice').textContent).toContain('sanitation call cost $0.0020');
+    expect(document.getElementById('imageRefusalNotice').textContent).toContain('Nothing was painted');
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
     // The rewrite LLM billed: session + story ticked
     expect(fw.state().costs.session).toBeCloseTo(0.002);
@@ -265,7 +270,7 @@ describe('Scene image prompt button', () => {
     expect(document.getElementById('sceneImageCost').hidden).toBe(true);
   });
 
-  it('a second refusal escalates: the next press drops the cast portraits', async () => {
+  it('a second refusal offers an explicit reference-free retry', async () => {
     let n = 0;
     fetch.mockImplementation((url, options) => {
       if (String(url).includes('/scene-image')) {
@@ -276,6 +281,9 @@ describe('Scene image prompt button', () => {
             reason: 'still not passing',
             sanitized_prompt: `Hardened attempt ${n}.`,
             rewrite_cost_usd: 0,
+            sanitation_cost_usd: 0,
+            references_sent: 2,
+            can_drop_references: true,
           }));
         }
         return Promise.resolve(jsonResponse(200, {
@@ -305,9 +313,15 @@ describe('Scene image prompt button', () => {
     document.getElementById('imagePromptGenerateBtn').click();
     expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
-    // Second refusal in a row: the portraits are suspected
+    // A second refusal while references were attached offers a truthful,
+    // explicit reference-free path; it never silently changes the next send.
+    expect(fw.__sceneModerationState().dropReferences).toBe(false);
+    expect(fw.__sceneModerationState().referenceDropOffered).toBe(true);
+    expect(document.getElementById('imageReferenceDropOption').hidden).toBe(false);
+    expect(lastNotice()).toContain('references were attached');
+
+    document.getElementById('imagePromptDropReferences').click();
     expect(fw.__sceneModerationState().dropReferences).toBe(true);
-    expect(lastNotice()).toContain('portraits');
 
     document.getElementById('imagePromptGenerateBtn').click();
     expect(await paidReview('confirm')).toBe(true);
@@ -320,7 +334,68 @@ describe('Scene image prompt button', () => {
     expect(fw.state().costs.session).toBeCloseTo(0.04);
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
     // Success clears the escalation
-    expect(fw.__sceneModerationState()).toEqual({ refusals: 0, dropReferences: false });
+    expect(fw.__sceneModerationState()).toEqual({
+      refusals: 0,
+      dropReferences: false,
+      referenceDropOffered: false,
+      storyId: 's1',
+    });
+  });
+
+  it('resets refusal state when the selected references or story changes', async () => {
+    fetch.mockImplementation((url) => {
+      if (String(url).includes('/scene-image')) {
+        return Promise.resolve(jsonResponse(200, {
+          refused: true,
+          reason: 'reference composition refused',
+          sanitized_prompt: 'A safely framed replacement prompt with recognizable silhouettes.',
+          sanitation_cost_usd: 0,
+          references_sent: 2,
+          can_drop_references: true,
+        }));
+      }
+      if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    fw.state().characters.push({
+      id: 'c1', name: 'Mara', image_status: 'ready', image_updated_at: 'portrait-v1',
+    });
+    fw.__setStoryState({
+      currentStory: {
+        ...STORY_STATE.currentStory,
+        characters: [{ id: 'c1', role: 'mc' }],
+      },
+    });
+
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fw.__sceneModerationState().refusals).toBe(1);
+
+    // A newly painted version of a selected cast reference starts a fresh
+    // refusal context automatically; this response is refusal one, not two.
+    fw.state().characters[0].image_updated_at = 'portrait-v2';
+    document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fw.__sceneModerationState().refusals).toBe(1);
+    expect(fw.__sceneModerationState().referenceDropOffered).toBe(false);
+
+    fw.__setStoryState({
+      currentStory: { id: 's2', title: 'Another tale', tone: 'romantic', page_count: 1, total_cost_usd: 0 },
+      storyPages: [{ id: 's2p1', page_number: 1, content: 'Another scene.', user_input: null, cost_usd: 0 }],
+      currentPage: 1,
+    });
+    expect(fw.__sceneModerationState()).toEqual({
+      refusals: 0,
+      dropReferences: false,
+      referenceDropOffered: false,
+      storyId: 's2',
+    });
+    expect(document.getElementById('imageRefusalNotice').hidden).toBe(true);
   });
 
   it('canceling the paint review keeps the prompt box and sends nothing', async () => {

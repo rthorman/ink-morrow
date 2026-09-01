@@ -248,7 +248,7 @@ pull_requests:
   - id: "07"
     slug: art-upload
     title: Noncanonical art store and safe upload
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "06"

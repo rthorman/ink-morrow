@@ -695,6 +695,81 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#imagePromptModal')).toBeHidden();
   });
 
+  test('Grok refusal shows sanitation and waits for an explicit reference-free retry', async ({ page }) => {
+    const requestBodies = [];
+    await page.route('**/api/stories/*/pages/*/image-prompt', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ prompt: 'An initial scene prompt with identity references.' }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/*/scene-image', async (route) => {
+      requestBodies.push(JSON.parse(route.request().postData()));
+      const attempt = requestBodies.length;
+      if (attempt <= 2) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            refused: true,
+            adapter: 'grok',
+            reason: 'reference composition refused',
+            sanitized_prompt: `Sanitized editable prompt ${attempt}.`,
+            sanitation_cost_usd: 0.0015,
+            sanitation_model: 'z-ai/glm-5.1',
+            sanitation_billed_attempts: 1,
+            references_sent: 2,
+            can_drop_references: true,
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          media_type: 'image/png',
+          cost_usd: 0.04,
+          references: [],
+          asset_references: [],
+        }),
+      });
+    });
+
+    const story = await createStoryViaUi(page, 'Grok Refusal Test');
+    await apiPost(page, `/api/stories/${story.id}/pages`, {
+      content: 'The hall stood dark and cold.', user_input: null,
+    });
+    await page.selectOption('#currentStory', story.id);
+    await page.locator('#imagePromptBtn').click();
+    await confirmPaidReview(page, /Condense it/);
+    await expect(page.locator('#imagePromptModal')).toBeVisible();
+
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#imagePromptText')).toHaveValue('Sanitized editable prompt 1.');
+    await expect(page.locator('#imageRefusalNotice')).toContainText('Nothing was painted');
+    await expect(page.locator('#imageRefusalNotice')).toContainText('$0.0015');
+    expect(requestBodies).toHaveLength(1);
+
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#imageReferenceDropOption')).toBeVisible();
+    await expect(page.locator('#imagePromptDropReferences')).not.toBeChecked();
+    expect(requestBodies).toHaveLength(2);
+    expect(requestBodies[1].drop_references).toBeUndefined();
+
+    await page.locator('#imagePromptDropReferences').check();
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
+    expect(requestBodies).toHaveLength(3);
+    expect(requestBodies[2].drop_references).toBe(true);
+    await expect(page.locator('#imageReferenceDropOption')).toBeHidden();
+  });
+
   test('Place after page keeps the painting outside prose and closes both modals', async ({ page }) => {
     // Only the paint itself is mocked; the binding POST, asset GET and the
     // export below all hit the real server against its in-memory database.

@@ -186,7 +186,7 @@ describe('Character & world reference images', () => {
     // honest entry, not a console spill.
     expect(logEntries).toHaveLength(1);
     expect(logEntries[0].level).toBe('error');
-    expect(logEntries[0].msg).toContain('failed: The image model refused this request: bad key');
+    expect(logEntries[0].msg).toContain('failed: OpenRouter rejected the image request: bad key');
 
     mockImageOk();
     await request(app).post(`/api/characters/${character.id}/image`).expect(200);
@@ -457,6 +457,13 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
 
   it('requires a prompt and validates the page', async () => {
     await request(app).post(`/api/stories/${story.id}/pages/1/scene-image`).send({}).expect(400);
+    const calls = axios.post.mock.calls.length;
+    const invalidDrop = await request(app)
+      .post(`/api/stories/${story.id}/pages/1/scene-image`)
+      .send({ prompt: 'Nothing here.', drop_references: 'true' })
+      .expect(400);
+    expect(invalidDrop.body.error).toContain('"drop_references" must be a boolean');
+    expect(axios.post.mock.calls).toHaveLength(calls);
     await request(app)
       .post(`/api/stories/${story.id}/pages/9/scene-image`)
       .send({ prompt: 'Nothing here.' })
@@ -513,17 +520,23 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     // image is painted - the user reviews and presses Generate again.
     expect(res.body).toEqual({
       refused: true,
+      adapter: 'grok',
       reason: 'the nude figures offend moderation',
       sanitized_prompt:
         'A fully clothed and draped take on the same scene: the hall keeps its place and mood, the figures keep their identity, everything composed safely for strict moderation.',
-      rewrite_cost_usd: 0,
+      sanitation_cost_usd: null,
+      sanitation_model: 'z-ai/glm-5.1',
+      sanitation_billed_attempts: 1,
+      rewrite_cost_usd: null,
+      references_sent: 2,
+      can_drop_references: true,
     });
     expect(res.body.image).toBeUndefined();
     expect(sceneImageCalls).toBe(1); // exactly one attempt, no silent retry
     const rewritePrompt = axios.post.mock.calls.find(([url]) => String(url).includes('/chat/completions'))[1]
       .messages[1].content;
     expect(rewritePrompt).toContain('the nude figures offend moderation'); // the actual reason steers the rewrite
-    expect(rewritePrompt).toContain('ZERO nudity');
+    expect(rewritePrompt).toContain('No explicit anatomy');
     expect(rewritePrompt).toContain(SCENE_PROMPT);
   });
 
