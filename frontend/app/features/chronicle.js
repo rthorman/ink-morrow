@@ -499,4 +499,3 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     setRouter(value) { routeController = value; },
   };
 }
-
