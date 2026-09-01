@@ -499,7 +499,9 @@ test.describe('ScribeTribe UI', () => {
 
     await page.locator('#libraryBtn').click();
     await expect(page.locator('#librarySection')).toHaveClass(/active/);
-    const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' });
+    // Retries share the job's in-memory server, so select the first matching
+    // fixture if an earlier attempt already created the same title.
+    const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' }).first();
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect(card).toContainText('0 KB media on disk');
     await expect(page.locator('#storyCreateWrap')).toBeHidden();
@@ -513,6 +515,8 @@ test.describe('ScribeTribe UI', () => {
 
     // The primary start flow stays in Library and the manual path makes no
     // provider or AI request before opening the editable Desk.
+    await page.locator('#homeBtn').click();
+    await expect(page.locator('#homeSection')).toHaveClass(/active/);
     const providerRequests = [];
     page.on('request', (request) => {
       if (/\/api\/(providers|ai\/)/.test(request.url())) providerRequests.push(request.url());
