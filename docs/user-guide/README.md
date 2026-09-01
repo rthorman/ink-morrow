@@ -18,5 +18,5 @@ node docs/user-guide/render.mjs
 Playwright-managed Chromium executable is not installed. The renderer also
 recognizes the standard Chrome and Edge paths on Windows.
 
-After rendering, verify the PDF is 17 A4 pages, inspect every page visually, and
+After rendering, verify the PDF is 20 A4 pages, inspect every page visually, and
 confirm all canonical-reference links use the public repository URLs.
