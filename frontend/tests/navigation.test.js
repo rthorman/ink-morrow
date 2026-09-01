@@ -262,4 +262,3 @@ describe('Top-level route scroll', () => {
     expect(scrolls).toHaveLength(0);
   });
 });
-
