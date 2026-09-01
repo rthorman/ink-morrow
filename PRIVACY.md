@@ -165,4 +165,3 @@ The notice is versioned in the repository. A release that changes telemetry,
 provider disclosure, credentials, uploads, sharing, stored categories, or
 maintainer-operated services must update it in the same pull request. Release
 notes should call out material privacy-boundary changes.
-
