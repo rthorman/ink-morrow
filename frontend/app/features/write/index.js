@@ -212,14 +212,16 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       return;
     }
     // Already open (a page turn wrote the hash): trust the reader's state.
-    if (state.data.currentStory && state.data.currentStory.id === params.storyId) {
+    if (state.data.currentStory && state.data.currentStory.id === params.storyId && state.data.storyPages.length > 0) {
       if (params.pageNumber) {
         state.data.currentPage = Math.max(1, Math.min(state.data.storyPages.length, params.pageNumber));
         displayCurrentPage();
       }
       return;
     }
-    let story = state.data.stories.find((s) => s.id === params.storyId);
+    let story = state.data.currentStory?.id === params.storyId
+      ? state.data.currentStory
+      : state.data.stories.find((s) => s.id === params.storyId);
     if (!story) {
       // Boot race: the story list may not have loaded yet.
       await features.stories.loadStories();

@@ -49,6 +49,12 @@ describe('PR12 Chronicle', () => {
     const fetchMock = mockFetch([
       { match: '/stories/s1/hierarchy', response: jsonResponse(200, { hierarchy: outline() }) },
       { match: '/stories/s1/recoveries', response: jsonResponse(200, { recoveries: [] }) },
+      {
+        match: (url, options) => url === '/api/stories/s1/pages' && options.method === 'GET',
+        response: jsonResponse(200, { pages: Array.from({ length: 161 }, (_, index) => ({
+          id: `p${index + 1}`, page_number: index + 1, content: `Full page ${index + 1}.`,
+        })) }),
+      },
     ]);
     const fw = await loadScript();
     fw.__setStoryState({ currentStory: STORY, storyPages: [] });
@@ -66,6 +72,13 @@ describe('PR12 Chronicle', () => {
     expect(document.querySelectorAll('.chronicle-page')).toHaveLength(1);
     expect(document.querySelector('.chronicle-page__open').textContent).toBe('Open page 161');
     expect(document.getElementById('chronicleOutline').textContent).toContain('Active tail');
+
+    document.querySelector('.chronicle-page__open').click();
+    for (let attempt = 0; attempt < 20 && fw.state().storyPages.length === 0; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(fw.state().currentPage).toBe(161);
+    expect(document.getElementById('pageIndicator').textContent).toBe('Page 161 of 161');
   });
 
   it('restores only server-declared safe recovery copies and always offers JSON export', async () => {
