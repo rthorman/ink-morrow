@@ -365,4 +365,3 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     setRouter(value) { routeController = value; },
   };
 }
-
