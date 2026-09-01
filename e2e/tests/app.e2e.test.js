@@ -136,9 +136,8 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'The Shadow and the Flame');
     await page.fill('#startManualOpening', 'The shadow met the flame at midnight.');
-    await page.locator('#startFoundations summary').click();
+    await page.locator('[data-start-next="2"]').click();
     await selectByLabel(page, '#startWorld', 'E2E Realm');
-    await page.selectOption('#manuscriptStartTone', 'romantic');
     await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
     await selectByLabel(page, '#castCharSelect', 'The Drifter');
@@ -168,6 +167,8 @@ test.describe('Ink Morrow UI', () => {
     await page.locator('#castAddBtn').click();
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
+    await page.locator('[data-start-next="3"]').click();
+    await page.selectOption('#manuscriptStartTone', 'romantic');
     await page.locator('#manuscriptStartSubmit').click();
 
     // Creating a story jumps to the write section with the story selected
@@ -535,6 +536,8 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'A Local Beginning');
     await page.fill('#startManualOpening', 'Rain whispered against the archive windows.');
+    await page.locator('[data-start-next="2"]').click();
+    await page.locator('[data-start-next="3"]').click();
     await page.locator('#manuscriptStartSubmit').click();
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#storyContent')).toContainText('Rain whispered against the archive windows.');
@@ -622,7 +625,7 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' })).toBeDisabled();
   });
 
-  test('Codex keeps story foundations frozen and imports only selected Library fields', async ({ page }) => {
+  test('Codex follows live world fields until the author makes a field manuscript-local', async ({ page }) => {
     const world = (await (await apiPost(page, '/api/worlds', {
       name: 'Frozen Coast', genre: 'Gothic', setting: 'Glass shore', description: 'The original coast.',
     })).json()).world;
@@ -639,16 +642,27 @@ test.describe('Ink Morrow UI', () => {
     });
     await page.goto(`/#/codex/${story.id}`);
     await expect(page.locator('#codexSection')).toHaveClass(/active/);
-    await expect(page.locator('#codexFoundations')).toContainText('Frozen Coast');
-    await expect(page.locator('#codexTemplateUpdates')).toContainText('Frozen Coast” → “Changed Coast');
-
-    const changes = page.locator('.codex-template__change');
-    await changes.filter({ hasText: 'Name:' }).locator('input').check();
-    await page.locator('.codex-template__form button', { hasText: 'Import selected fields' }).click();
-    await expect(page.locator('.success-message').last()).toContainText('1 selected foundation field');
     await expect(page.locator('#codexFoundations')).toContainText('Changed Coast');
-    await expect(page.locator('#codexFoundations')).toContainText('Glass shore');
-    await expect(page.locator('#codexFoundations')).not.toContainText('Basalt shore');
+    await expect(page.locator('#codexFoundations')).toContainText('Basalt shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Frozen Coast');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('No Library fields differ');
+
+    const settingCard = page.locator('#codexFoundations .codex-fact')
+      .filter({ has: page.locator('h4', { hasText: 'Setting' }) });
+    await settingCard.locator('.codex-fact__edit').click();
+    await page.locator('.dialog-manager textarea').fill('Moonlit glass shore');
+    await page.locator('.dialog-manager button', { hasText: 'Save foundation' }).click();
+    await expect(page.locator('.success-message').last()).toContainText('Manuscript foundation updated');
+
+    await apiPut(page, `/api/worlds/${world.id}`, {
+      name: 'Storm Coast', genre: 'Gothic', setting: 'Obsidian harbor', description: 'The storm coast.',
+    });
+    await page.reload();
+    await expect(page.locator('#codexFoundations')).toContainText('Storm Coast');
+    await expect(page.locator('#codexFoundations')).toContainText('Moonlit glass shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Obsidian harbor');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('Moonlit glass shore” → “Obsidian harbor');
+    await expect(page.locator('#codexTemplateUpdates')).not.toContainText('Changed Coast” → “Storm Coast');
   });
 
   test('Gallery uploads, moves, and unplaces local art without provider or narrative work', async ({ page }) => {

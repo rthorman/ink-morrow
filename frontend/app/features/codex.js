@@ -123,7 +123,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     input.value = value || '';
     label.appendChild(input);
     body.append(
-      el('p', 'setting-hint', 'This edits only this manuscript’s frozen Foundation. The reusable Library template stays unchanged.'),
+      el('p', 'setting-hint', 'This makes the field manuscript-local. The reusable Library template stays unchanged.'),
       label,
     );
     dialogs.openDialog({

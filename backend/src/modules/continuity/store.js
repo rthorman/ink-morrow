@@ -1220,10 +1220,12 @@ function createContinuityStore(db) {
       const local = latestTemplate(story.id, 'world', story.world_id);
       if (current && local) {
         const snapshot = parseJson(local.snapshot_json, {});
+        const authorFields = Array.isArray(snapshot.__author_fields) ? snapshot.__author_fields : [];
         review.push({
           template_kind: 'world', source_template_id: current.id, snapshot_id: local.id,
           source_revision: local.source_revision,
-          changes: TEMPLATE_FIELDS.world.filter((field) => (snapshot[field] ?? null) !== (current[field] ?? null))
+          changes: TEMPLATE_FIELDS.world.filter((field) => authorFields.includes(field)
+            && (snapshot[field] ?? null) !== (current[field] ?? null))
             .map((field) => ({ field, from: snapshot[field] ?? null, to: current[field] ?? null })),
         });
       }

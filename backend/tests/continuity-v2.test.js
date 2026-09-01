@@ -231,6 +231,17 @@ describe('continuity ledger v2', () => {
     expect((await request(app).get(`/api/worlds/${world.id}`).expect(200)).body.world.description)
       .toBe('A wind-cut coast.');
 
+    await request(app).put(`/api/worlds/${world.id}`).send({
+      name: 'Changed Ash Coast', description: 'The reusable coast changed.',
+    }).expect(200);
+    const live = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(live.body.continuity.world).toMatchObject({
+      name: 'Changed Ash Coast', description: 'A coast where bells remember storms.',
+    });
+    const templateReview = await request(app).get(`/api/stories/${story.id}/continuity/templates`).expect(200);
+    const worldReview = templateReview.body.templates.find((item) => item.template_kind === 'world');
+    expect(worldReview.changes.map((change) => change.field)).toEqual(['description']);
+
     const created = await request(app)
       .post(`/api/stories/${story.id}/continuity/author-canon`)
       .send({
