@@ -340,4 +340,3 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
     init,
   };
 }
-
