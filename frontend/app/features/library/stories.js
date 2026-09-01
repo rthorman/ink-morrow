@@ -45,7 +45,7 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
       renderStories();
       features.write.updateStorySelect();
       features.home?.renderHome();
-      if (state.data.stories.length === 0 && window.location.hash.startsWith('#/write')) {
+      if (state.data.stories.length === 0 && /^#\/(?:desk|write)(?:\/|$)/.test(window.location.hash)) {
         features.storyEditor.openCreator();
       }
       scheduleCoverPoll();
@@ -115,7 +115,7 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
       line.textContent = 'No manuscripts are bound yet. Moth has found nothing to catalogue.';
       const start = document.createElement('a');
       start.className = 'btn btn-primary';
-      start.href = '#/write';
+      start.href = '#/desk';
       start.textContent = 'Create at the writing desk';
       copy.append(line, start);
       empty.append(art, copy);

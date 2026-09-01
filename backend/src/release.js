@@ -25,7 +25,7 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'writing-transactions', status: 'available' }),
   Object.freeze({ id: 'art-upload', status: 'available' }),
   Object.freeze({ id: 'grok-sanitization', status: 'available' }),
-  Object.freeze({ id: 'adaptive-shell', status: 'planned' }),
+  Object.freeze({ id: 'adaptive-shell', status: 'available' }),
   Object.freeze({ id: 'publication', status: 'planned' }),
   Object.freeze({ id: 'snapshot-sharing', status: 'planned' }),
 ]);

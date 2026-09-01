@@ -13,8 +13,11 @@ The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
 manuscript hierarchy, PR 03's immutable revisions and truncation recovery,
 PR 04's provider profiles, AI roles, and encrypted secret vault, PR 05's
 revision-provenanced continuity ledger, PR 06's transactional writing state
-machine, PR 07's noncanonical art store and safe upload boundary, and PR 08's
-provider-isolated Grok sanitation flow. Its
+machine, PR 07's noncanonical art store and safe upload boundary, PR 08's
+provider-isolated Grok sanitation flow, and PR 09's adaptive Scriptorium shell.
+The shell adds a global Library threshold, manuscript switching, and the stable
+Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
+layouts. Its
 databases identify themselves as `scribetribe-4` schema 7, use transactional migrations
 and an operation journal, create Volume I and Chapter I with every story,
 preserve separate canonical/display prose, and refuse 3.x files before
@@ -27,6 +30,10 @@ PR 07 stores uploaded and generated story art outside the prose hierarchy,
 anchors placements to stable page IDs, and normalizes streamed uploads without
 semantic classification or provider use. Art operations never renumber prose
 or change continuity; see [docs/art-assets.md](docs/art-assets.md).
+The shell keeps manuscript prose on a quiet vellum surface, hides every private
+destination behind the existing authentication gate, and treats the old Home
+and Write hashes as aliases rather than duplicate destinations; see
+[docs/adaptive-shell.md](docs/adaptive-shell.md).
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 
@@ -73,11 +80,11 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 | Home (desktop) | Writing desk (desktop) |
 |---|---|
-| ![Home — the manuscript hall, hero art and recent manuscripts](docs/screenshots/home-desktop.png) | ![The writing desk — calm vellum, grouped controls](docs/screenshots/write-desktop.png) |
+| ![Library threshold — the manuscript hall, hero art and recent manuscripts](docs/screenshots/home-desktop.png) | ![The Desk — calm vellum, grouped controls](docs/screenshots/write-desktop.png) |
 
 | Home (tablet portrait) | Writing desk (tablet portrait) |
 |---|---|
-| ![Home on a tall tablet — portrait hero art, bounded so the first action is in reach](docs/screenshots/home-tablet-portrait.png) | ![The desk on a tall tablet — sticky composer](docs/screenshots/write-tablet-portrait.png) |
+| ![Library on a tall tablet — portrait hero art, bounded so the first action is in reach](docs/screenshots/home-tablet-portrait.png) | ![The Desk on a tall tablet — sticky composer](docs/screenshots/write-tablet-portrait.png) |
 
 | Library | Worlds |
 |---|---|
@@ -114,7 +121,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
-- **One coherent app shell** — Home (the manuscript hall: continue the latest tale, recent manuscripts, the scriptorium path), Write, Library with visible **Stories / Bookshelf** tabs, Worlds, Characters, and Settings as a labelled utility destination; hash routes (`#/write/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a story no longer exists
+- **One coherent app shell** — a global Library threshold owns the manuscript catalogue, Bookshelf, templates, and Settings; a selected manuscript keeps the same five labelled destinations at every width: **Desk, Chronicle, Codex, Gallery, Gate**. Canonical Desk routes (`#/desk/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a manuscript no longer exists
 - **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
 - **Full test suite** — backend and frontend Jest suites plus Playwright e2e tests, all running against isolated in-memory databases
 

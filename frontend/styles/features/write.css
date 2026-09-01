@@ -101,8 +101,8 @@
 }
 
 .story-content {
-  background: var(--st-ink-900);
-  border: 1px solid var(--st-border);
+  background: var(--surface-manuscript);
+  border: 1px solid rgb(90 70 53 / 0.45);
   border-radius: var(--st-radius-sm);
   padding: clamp(20px, 3vw, 34px);
   min-height: 300px;
@@ -118,7 +118,13 @@
   font-family: var(--st-prose-family, var(--st-font-reading));
   font-size: var(--st-prose-size, 1.12rem);
   line-height: 1.75;
-  color: var(--st-vellum-100);
+  color: var(--st-vellum-900);
+}
+
+.story-content .placeholder {
+  color: var(--st-vellum-700);
+  background: rgb(90 70 53 / 0.06);
+  border-color: rgb(90 70 53 / 0.35);
 }
 
 .page-direction {
@@ -127,7 +133,7 @@
   font-family: var(--st-font-mono);
   font-size: 0.8rem;
   font-style: italic;
-  color: var(--st-violet-300);
+  color: var(--st-violet-600);
 }
 
 /* Noncanonical art is displayed around its stable prose anchor. */
@@ -162,6 +168,7 @@
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-md);
   padding: clamp(14px, 2vw, 22px);
+  scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .writing-interface textarea {
@@ -290,12 +297,10 @@
   pointer-events: none;
 }
 
-/* With the scriptorium background on, the art shows through behind the prose
-   itself (not just the page edges). The ink veil stays dark enough that the
-   vellum text keeps AA contrast. */
+/* Brand art may live around the Desk, never behind running manuscript text. */
 #writeSection.scriptorium-bg .story-content {
-  background: rgb(16 10 22 / 0.6);
-  border-color: var(--st-border-bright);
+  background: var(--surface-manuscript);
+  border-color: rgb(224 197 132 / 0.62);
 }
 
 @media (min-width: 1200px) {

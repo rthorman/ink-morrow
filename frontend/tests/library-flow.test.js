@@ -50,11 +50,11 @@ describe('Library management and Write story creation', () => {
     expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
     expect(document.getElementById('storyNewBtn').getAttribute('aria-expanded')).toBe('false');
     expect(document.getElementById('storiesList').textContent).toContain('No manuscripts are bound');
-    expect(document.querySelector('#storiesList a').getAttribute('href')).toBe('#/write');
+    expect(document.querySelector('#storiesList a').getAttribute('href')).toBe('#/desk');
   });
 
   it('opens the complete form automatically at Write for a first story', async () => {
-    window.history.replaceState(null, '', window.location.href.split('#')[0] + '#/write');
+    window.history.replaceState(null, '', window.location.href.split('#')[0] + '#/desk');
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
     await fw.loadStories();
     expect(document.getElementById('storyCreateWrap').hidden).toBe(false);

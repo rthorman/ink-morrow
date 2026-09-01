@@ -425,7 +425,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
         action: `Prepare speculative page ${pageNumber} of "${story.title}".`,
         object: `"${story.title}", possible page ${pageNumber}`,
         model: settings.model || 'the scribe\u2019s default model',
-        quantity: `â‰ˆ${settings.wordsPerPage} words of noncanonical prose`,
+        quantity: `\u2248${settings.wordsPerPage} words of noncanonical prose`,
         sends: 'the world, cast, continuity state, and recent pages',
         also: null,
         estimate,

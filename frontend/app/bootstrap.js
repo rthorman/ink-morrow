@@ -81,9 +81,14 @@ export function initApp() {
   window.__stLiveBoot = bootToken;
   let lastRoute = null;
   let routeTransitionToken = 0; // stale async gate results must not render
+  const WORKSPACE_DESTINATIONS = new Set(['desk', 'chronicle', 'codex', 'gallery', 'gate']);
   const SECTION_FOR = {
     home: 'home',
-    write: 'write',
+    desk: 'write',
+    chronicle: 'chronicle',
+    codex: 'codex',
+    gallery: 'gallery',
+    gate: 'gate',
     'library-stories': 'library',
     'library-bookshelf': 'library',
     worlds: 'worlds',
@@ -91,12 +96,16 @@ export function initApp() {
     settings: 'settings',
   };
 
+  function syncManuscriptShell() {
+    shell.syncManuscriptShell(state.data.stories, state.data.currentStory);
+  }
+
   // What a permitted route actually paints. Extracted so the gate result is
   // the ONLY entry to rendering.
   function renderRoute(route, previous) {
     // Leaving the writing desk stops its media; stale streams must not
     // narrate into another room.
-    if (previous && previous.name === 'write' && route.name !== 'write') {
+    if (previous && previous.name === 'desk' && route.name !== 'desk') {
       features.narration.stopNarration();
     }
     // A true top-level surface change establishes a predictable top
@@ -105,7 +114,8 @@ export function initApp() {
     const section = SECTION_FOR[route.name] || 'home';
     const previousSection = previous ? SECTION_FOR[previous.name] || 'home' : null;
     if (previousSection !== section) window.scrollTo(0, 0);
-    shell.showSection(section);
+    shell.showSection(section, { destination: WORKSPACE_DESTINATIONS.has(route.name) ? route.name : null });
+    syncManuscriptShell();
     if (route.name === 'home') features.home.enter();
     if (route.name === 'library-stories' || route.name === 'library-bookshelf') {
       features.library.enter(route);
@@ -117,7 +127,9 @@ export function initApp() {
     }
     if (route.name === 'worlds') features.worlds.loadWorlds();
     if (route.name === 'characters') features.characters.loadCharacters();
-    if (route.name === 'write') features.write.enterFromRoute(route.params);
+    if (WORKSPACE_DESTINATIONS.has(route.name)) {
+      features.write.enterFromRoute(route.params).then(syncManuscriptShell);
+    }
   }
 
   const router = createRouter({
@@ -152,11 +164,34 @@ export function initApp() {
 
   // -- shell wiring ------------------------------------------------------------
   document.getElementById('homeBtn').addEventListener('click', () => router.navigate('home'));
-  document.getElementById('writeBtn').addEventListener('click', () => router.navigate('write'));
   document.getElementById('libraryBtn').addEventListener('click', () => router.navigate('library-stories'));
   document.getElementById('worldsBtn').addEventListener('click', () => router.navigate('worlds'));
   document.getElementById('charactersBtn').addEventListener('click', () => router.navigate('characters'));
   document.getElementById('settingsBtn').addEventListener('click', () => router.navigate('settings'));
+  function navigateWorkspace(destination) {
+    const storyId = state.data.currentStory?.id || document.getElementById('shellManuscriptSelect')?.value || null;
+    if (destination !== 'desk' && !storyId) {
+      notify.showErrorRaw('Choose a manuscript before opening that workspace. Your Library remains unchanged.');
+      document.getElementById('shellManuscriptSelect')?.focus();
+      return;
+    }
+    router.navigate(destination, storyId ? { storyId } : {});
+  }
+  for (const [id, destination] of [
+    ['writeBtn', 'desk'],
+    ['chronicleBtn', 'chronicle'],
+    ['codexBtn', 'codex'],
+    ['galleryBtn', 'gallery'],
+    ['gateBtn', 'gate'],
+  ]) {
+    document.getElementById(id)?.addEventListener('click', () => navigateWorkspace(destination));
+  }
+  document.getElementById('shellManuscriptSelect')?.addEventListener('change', (event) => {
+    if (event.target.value) features.write.openStory(event.target.value);
+  });
+  for (const button of document.querySelectorAll('.workspace-back-to-desk')) {
+    button.addEventListener('click', () => navigateWorkspace('desk'));
+  }
 
   // -- feature init (order preserves the old escape/priority stack) -------------
   features.write.init(); // burn modal + reading wiring
@@ -218,6 +253,7 @@ export function initApp() {
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
+    syncManuscriptShell();
     for (const id of [
       'worldsList', 'charactersList', 'storiesList', 'bookshelfList',
       'homeRecentList', 'storyContent', 'storyAssetsBody', 'storyCastList',
