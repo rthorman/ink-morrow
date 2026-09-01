@@ -110,4 +110,3 @@ describe('Burn everything after this page', () => {
     expect(!dialog || dialog.hidden).toBe(true); // nothing opened
   });
 });
-
