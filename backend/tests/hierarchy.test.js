@@ -78,6 +78,19 @@ describe('PR 02 manuscript hierarchy', () => {
       art_count: 0,
       is_copyedited: false,
     });
+    const firstRevision = fixture.db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(pageOne.id);
+    fixture.db.prepare(`
+      INSERT INTO continuity_deltas
+        (revision_id, story_id, status, schema_version, error_code, error, model)
+      VALUES (?, ?, 'failed', 2, 'INVALID_CONTINUITY_JSON', 'The Archivist returned invalid JSON.', 'vendor/archivist')
+    `).run(firstRevision.canonical_revision_id, story.id);
+    hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
+    expect(hierarchy.volumes[0].chapters[0].pages[0]).toMatchObject({
+      continuity_status: 'failed',
+      continuity_error_code: 'INVALID_CONTINUITY_JSON',
+      continuity_error: 'The Archivist returned invalid JSON.',
+      continuity_model: 'vendor/archivist',
+    });
     expect(hierarchy.volumes[0].chapters[1].pages.map((page) => page.id)).toEqual([pageThree.id]);
     expect(hierarchy.volumes[1].chapters[0].pages.map((page) => page.id)).toEqual([pageFour.id]);
     expect(hierarchy.volumes.flatMap((volume) => volume.chapters)

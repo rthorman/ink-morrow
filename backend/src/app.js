@@ -130,6 +130,7 @@ function createApp(
     clock,
   });
   const ai = createAiClient({ providers });
+  app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
   const { generateImage, describeImageProvider } = createImageClient({ providers });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
   // provider mocks remain deterministic. Dedicated continuity tests opt in.

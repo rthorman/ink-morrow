@@ -85,6 +85,20 @@ An explicit rebuild performs no provider call. Missing or failed revision
 deltas still require deliberate sequential repair because extraction is paid
 work.
 
+The Archivist prompt remains bounded for large manuscripts. It carries a
+compact cast identity index, then detailed state for at most 24 characters:
+the Main Character is always reserved as the perspective anchor, page-named
+cast follows, and remaining capacity respects Main, Supporting, then
+Background tiers. Goals, threads, established world facts, per-character
+history, and the canonical page are independently capped. This limits prompt
+noise without confusing the Scribe and Archivist roles.
+
+Automatic extraction and Codex repair use only the server's Archivist role.
+They never inherit a browser-local Scribe model. If `CONTINUITY_MODEL` is
+explicit in `backend/.env`, it is authoritative over the saved role and the
+server verifies the exact id against OpenRouter before listening; an invalid
+or unverifiable id fails startup with a direct operator error.
+
 ## Corrections and impact analysis
 
 A correction identifies its scope, subject, field, authoritative value,

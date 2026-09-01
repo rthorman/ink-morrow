@@ -114,6 +114,15 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     return card;
   }
 
+  async function configuredArchivistModel() {
+    try {
+      const providerState = await apiCall('/providers');
+      return providerState.roles?.find((role) => role.role === 'archivist')?.model_id || null;
+    } catch {
+      return null;
+    }
+  }
+
   function openFoundationEdit({ kind, sourceId, field, title, value }) {
     const body = el('div', 'codex-correction-form');
     const label = el('label', '', title);
@@ -332,13 +341,14 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   async function repairMemory() {
     const pages = (continuity?.coverage?.pages || []).filter((page) => page.status !== 'ready');
     if (!pages.length) return;
-    const estimate = estimateContinuityCost({ models: state.modelsCache, model: state.settings.model, pageChars: state.settings.wordsPerPage * 6 }) * pages.length;
+    const archivistModel = await configuredArchivistModel();
+    const estimate = estimateContinuityCost({ models: state.modelsCache, model: archivistModel, pageChars: state.settings.wordsPerPage * 6 }) * pages.length;
     const yes = await dialogs.confirmPaid({
       title: 'Repair remembered canon?',
       review: {
         action: `Read ${pages.length} missing or failed committed page${pages.length === 1 ? '' : 's'} in order.`,
         object: state.data.currentStory?.title || 'this manuscript',
-        model: state.settings.model || 'the Archivist default model',
+        model: archivistModel || 'the configured Archivist model',
         quantity: `${pages.length} bounded extraction${pages.length === 1 ? '' : 's'}`,
         sends: 'each affected canonical page, its direction, cast ids, and compact prior state',
         estimate,
@@ -355,9 +365,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       for (let index = 0; index < pages.length; index += 1) {
         const page = pages[index];
         setStatus(`Archivist repair: page ${page.page_number} · ${index + 1} of ${pages.length}`);
-        const result = await apiCall(`/stories/${activeStoryId}/continuity/pages/${page.page_id}/sync`, 'POST', {
-          ...(state.settings.model ? { model: state.settings.model } : {}),
-        });
+        const result = await apiCall(`/stories/${activeStoryId}/continuity/pages/${page.page_id}/sync`, 'POST', {});
         state.addCostForStory(activeStoryId, result.memory?.cost_usd);
         if (result.memory?.status !== 'ready') failed.push(page.page_number);
       }
@@ -638,12 +646,13 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   }
 
   async function summarizeIssues(issues) {
+    const archivistModel = await configuredArchivistModel();
     const yes = await dialogs.confirmPaid({
       title: 'Ask AI to summarize impact warnings?',
       review: {
         action: 'Summarize the selected deterministic warnings in plain language. No correction or prose change is applied.',
         object: state.data.currentStory?.title || 'this manuscript',
-        model: state.settings.model || 'the Archivist default model',
+        model: archivistModel || 'the configured Archivist model',
         quantity: 'one bounded summary',
         sends: 'correction fields, warning reasons, matched terms, and page numbers; no manuscript prose',
         estimate: ROUGH_TEXT_CALL_ESTIMATE,
@@ -655,7 +664,6 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     try {
       const result = await apiCall(`/stories/${activeStoryId}/continuity/issues/summary`, 'POST', {
         issue_ids: issues.map((issue) => issue.id),
-        ...(state.settings.model ? { model: state.settings.model } : {}),
       });
       state.addCostForStory(activeStoryId, result.cost_usd);
       const target = document.getElementById('codexImpactSummary');

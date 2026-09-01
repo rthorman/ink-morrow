@@ -164,6 +164,9 @@ function createHierarchyStore(db) {
              p.canonical_revision_id, p.display_revision_id, sp.image_media_type,
              SUBSTR(COALESCE(display_revision.content, sp.content, ''), 1, 240) AS excerpt,
              COALESCE(delta.status, legacy.status, 'pending') AS continuity_status,
+             COALESCE(delta.error, legacy.error) AS continuity_error,
+             delta.error_code AS continuity_error_code,
+             COALESCE(delta.model, legacy.model, sp.continuity_model) AS continuity_model,
              (SELECT COUNT(*)
                 FROM asset_placements placement
                WHERE placement.story_id = v.story_id AND placement.after_page_id = p.id) AS art_count
@@ -187,6 +190,9 @@ function createHierarchyStore(db) {
         excerpt,
         has_scene_break: /(^|\n)\s*(?:\*{3,}|-{3,}|#(?:\s+#){2,})\s*(?:\n|$)/.test(excerpt),
         continuity_status: page.continuity_status,
+        continuity_error: page.continuity_error || null,
+        continuity_error_code: page.continuity_error_code || null,
+        continuity_model: page.continuity_model || null,
         art_count: Number(page.art_count) || 0,
         is_copyedited: Boolean(page.canonical_revision_id &&
           page.display_revision_id !== page.canonical_revision_id),
