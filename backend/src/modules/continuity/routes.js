@@ -92,6 +92,18 @@ function createContinuityRouter({ stories, store, continuity }) {
     }
   });
 
+  router.post('/api/stories/:id/continuity/issues/summary', async (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const model = modelOverrideOf(req.body?.model);
+      if (req.body?.model !== undefined && !model) return badRequest(res, '"model" must be a non-empty string');
+      res.json(await continuity.summarizeImpact(story, req.body?.issue_ids, { model }));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Clears only derived records. Manuscript pages, cast snapshots, explicit
   // corrections, and the honest historical cost ledger remain untouched.
   router.delete('/api/stories/:id/continuity', (req, res) => {

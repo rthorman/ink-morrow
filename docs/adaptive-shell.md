@@ -16,9 +16,10 @@ opened through a separate, persistent five-destination workspace:
 5. **Gate** — project backup, publication formats, and reading-copy sharing.
 
 Desk is always available because it owns manuscript creation. Chronicle,
-Codex, Gallery, and Gate remain disabled until a manuscript is selected. In
-this PR they render explicit holding surfaces that say what will live there and
-return the author to Desk; they do not invent data or duplicate old screens.
+Codex, Gallery, and Gate remain disabled until a manuscript is selected.
+Codex now owns story-local foundations, provenanced memory, and corrections;
+Gallery and Gate retain explicit holding surfaces until their implementation
+PRs land. None duplicates the Desk reader.
 
 The header manuscript switcher contains only unlocked catalogue data. Choosing
 a manuscript opens it at Desk. Locking clears the selection and hides the

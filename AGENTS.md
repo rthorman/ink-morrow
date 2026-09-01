@@ -147,6 +147,25 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   references; search, checkpoints, and issues are rebuilt rather than
   exported. Full behavior: `docs/continuity-ledger.md`.
 
+### 4.0 Codex contract (PR 13)
+
+- Codex is the only author-facing home for story-local foundations,
+  page-provenanced remembered canon, and corrections. It consumes bounded
+  continuity projections and never downloads the manuscript as a second
+  reader; evidence links route to the exact Desk page.
+- Remembered facts expose their canonical revision quotation and page.
+  Prepared prose has no revision and is absent. Missing/failed repair is
+  sequential, paid-review gated, resumable, and joins the revision-keyed
+  extraction job instead of purchasing a duplicate result.
+- Applying a correction writes a separate authoritative row. Deterministic
+  later matches remain warnings until the author acknowledges intentional
+  prose, returns to the Desk page, or marks review resolved. No path rewrites
+  prose, extracted deltas, or unseen state.
+- Library template updates are field-level diffs; only checked fields enter a
+  new story-local snapshot. Optional AI impact summaries use separate paid
+  consent, receive bounded warning metadata without prose, and cannot apply
+  changes. Full behavior: `docs/codex.md`.
+
 ### 4.0 transactional writing contract (PR 06)
 
 - Schema version 6 activates durable `requested` / `running` / `succeeded` /

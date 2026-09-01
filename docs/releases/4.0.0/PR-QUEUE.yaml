@@ -390,7 +390,7 @@ pull_requests:
   - id: "13"
     slug: codex
     title: Codex
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "12"

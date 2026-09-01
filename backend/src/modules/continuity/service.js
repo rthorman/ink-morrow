@@ -419,12 +419,65 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     return store.continuityView(story);
   }
 
+  async function summarizeImpact(story, issueIds, { model } = {}) {
+    if (!Array.isArray(issueIds) || issueIds.length < 1 || issueIds.length > 50 ||
+        issueIds.some((id) => typeof id !== 'string' || !id.trim())) {
+      const error = new Error('"issue_ids" must contain between 1 and 50 issue ids');
+      error.statusCode = 400;
+      throw error;
+    }
+    const wanted = new Set(issueIds);
+    const issues = store.issueRows(story.id).filter((issue) => wanted.has(issue.id));
+    if (issues.length !== wanted.size) {
+      const error = new Error('One or more continuity issues do not belong to this story');
+      error.statusCode = 400;
+      throw error;
+    }
+    const correctionById = new Map(view(story).corrections.map((row) => [row.id, row]));
+    const payload = issues.map((issue) => ({
+      issue_id: issue.id,
+      status: issue.status,
+      page_number: issue.detail?.page_number || null,
+      reason: issue.detail?.reason || null,
+      matched_terms: (issue.detail?.matched_terms || []).slice(0, 12),
+      correction: (() => {
+        const row = correctionById.get(issue.correction_id);
+        return row ? {
+          scope: row.scope,
+          subject_id: row.subject_id,
+          field: row.field,
+          value: clipped(typeof row.value === 'string' ? row.value : JSON.stringify(row.value), 1000),
+        } : null;
+      })(),
+    }));
+    const result = await chatCompletion([
+      {
+        role: 'system',
+        content: 'Summarize deterministic continuity warnings for an author. Explain possible conflicts plainly. Do not propose or apply prose changes, decide canon, or add facts. Return concise prose only.',
+      },
+      { role: 'user', content: `STORY: ${story.title}\nWARNINGS:\n${JSON.stringify(payload)}` },
+    ], {
+      model: model || undefined,
+      temperature: 0.1,
+      maxTokens: 600,
+      maxBillableAttempts: 1,
+    });
+    return {
+      summary: String(result?.content || '').trim().slice(0, 6000),
+      model: result?.model || model || null,
+      usage: result?.usage || null,
+      cost_usd: typeof result?.cost_usd === 'number' ? result.cost_usd : null,
+      billed_attempts: Number.isInteger(result?.billed_attempts) ? result.billed_attempts : 0,
+    };
+  }
+
   return {
     extract,
     syncPage,
     maybeSyncPage,
     contextForPrompt,
     view,
+    summarizeImpact,
     isAutoEnabled: () => autoEnabled,
   };
 }

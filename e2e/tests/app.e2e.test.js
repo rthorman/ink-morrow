@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiPost, E2E_PASSWORD, openUnlocked } from '../auth.js';
+import { apiPost, apiPut, E2E_PASSWORD, openUnlocked } from '../auth.js';
 
 // The first paid action opens the shared review; remembered device consent
 // deliberately bypasses it for later actions.
@@ -610,6 +610,35 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('.dialog-manager button', { hasText: 'Restore 2 pages' }).click();
     await expect(page.locator('#chronicleStatus')).toContainText('3 narrative pages');
     await expect(page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' })).toBeDisabled();
+  });
+
+  test('Codex keeps story foundations frozen and imports only selected Library fields', async ({ page }) => {
+    const world = (await (await apiPost(page, '/api/worlds', {
+      name: 'Frozen Coast', genre: 'Gothic', setting: 'Glass shore', description: 'The original coast.',
+    })).json()).world;
+    const character = (await (await apiPost(page, '/api/characters', {
+      name: 'Mara', world_id: world.id, description: 'A patient cartographer.', personality: 'Patient',
+    })).json()).character;
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Codex Proof', world_id: world.id,
+      characters: [{ id: character.id, role: 'mc', relation: null, state: null }],
+    })).json()).story;
+
+    await apiPut(page, `/api/worlds/${world.id}`, {
+      name: 'Changed Coast', genre: 'Gothic', setting: 'Basalt shore', description: 'The changed coast.',
+    });
+    await page.goto(`/#/codex/${story.id}`);
+    await expect(page.locator('#codexSection')).toHaveClass(/active/);
+    await expect(page.locator('#codexFoundations')).toContainText('Frozen Coast');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('Frozen Coast” → “Changed Coast');
+
+    const changes = page.locator('.codex-template__change');
+    await changes.filter({ hasText: 'Name:' }).locator('input').check();
+    await page.locator('.codex-template__form button', { hasText: 'Import selected fields' }).click();
+    await expect(page.locator('.success-message').last()).toContainText('1 selected foundation field');
+    await expect(page.locator('#codexFoundations')).toContainText('Changed Coast');
+    await expect(page.locator('#codexFoundations')).toContainText('Glass shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Basalt shore');
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
