@@ -1,15 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 import { existsSync } from 'fs';
 
-// Termux: Playwright cannot download browsers on Android; use the native
-// Termux chromium package instead. Everywhere else, Playwright's own
-// browsers are used and these launchOptions are skipped.
-const termuxChromiumPath = '/data/data/com.termux/files/usr/bin/chromium-browser';
-const termuxChromium = existsSync(termuxChromiumPath)
+// Prefer an explicit/native Chromium when Playwright's managed browser is not
+// available (Termux and contributor machines using the tested system Chrome).
+const nativeChromiumPath = [
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  '/data/data/com.termux/files/usr/bin/chromium-browser',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+].find((candidate) => candidate && existsSync(candidate));
+const nativeChromium = nativeChromiumPath
   ? {
       launchOptions: {
-        executablePath: termuxChromiumPath,
-        args: ['--no-sandbox', '--disable-dev-shm-usage'],
+        executablePath: nativeChromiumPath,
+        args: nativeChromiumPath.startsWith('/data/data/com.termux/')
+          ? ['--no-sandbox', '--disable-dev-shm-usage']
+          : [],
       },
     }
   : {};
@@ -27,8 +33,8 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...termuxChromium } },
-    { name: 'Mobile Chrome', use: { ...devices['Pixel 5'], ...termuxChromium } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], ...nativeChromium } },
+    { name: 'Mobile Chrome', use: { ...devices['Pixel 5'], ...nativeChromium } },
   ],
   // The backend serves both the API and the frontend, so one server is enough.
   // Run node directly (not `npm start`): the npm wrapper shields the server
@@ -55,3 +61,4 @@ export default defineConfig({
     },
   },
 });
+
