@@ -6,6 +6,7 @@ const { createSecretVault } = require('./vault');
 const ROLE_CAPABILITY = Object.freeze({ scribe: 'chat', archivist: 'chat', narrator: 'speech' });
 const CAPABILITIES = new Set(['chat', 'catalog', 'speech', 'image', 'generation-cost']);
 const DEFAULT_PROFILE_ID = 'openrouter-default';
+const DEFAULT_ARCHIVIST_MODEL = 'google/gemini-2.5-flash-lite';
 
 function providerError(message, code, statusCode = 400) {
   const error = new Error(message);
@@ -67,7 +68,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     `);
     const scribe = env.OPENROUTER_MODEL || 'z-ai/glm-5.1';
     insertRole.run('scribe', DEFAULT_PROFILE_ID, scribe);
-    insertRole.run('archivist', DEFAULT_PROFILE_ID, env.CONTINUITY_MODEL || scribe);
+    insertRole.run('archivist', DEFAULT_PROFILE_ID, env.CONTINUITY_MODEL || DEFAULT_ARCHIVIST_MODEL);
     insertRole.run('narrator', DEFAULT_PROFILE_ID, env.NARRATOR_MODEL || 'openai/gpt-4o-mini-tts');
   }
   ensureDefaults();

@@ -85,7 +85,7 @@ describe('page-provenanced continuity ledger', () => {
       .post(`/api/stories/${story.id}/continuity/pages/${generated.body.page.id}/sync`)
       .send({})
       .expect(200);
-    expect(synced.body.page.continuity_model).toBe('z-ai/glm-5.1');
+    expect(synced.body.page.continuity_model).toBe('google/gemini-2.5-flash-lite');
 
     const authorRequest = axios.post.mock.calls[0][1];
     expect(authorRequest.messages[1].content).toContain('Will intends to join the adventurers guild');
@@ -93,6 +93,10 @@ describe('page-provenanced continuity ledger', () => {
     expect(authorRequest.messages[1].content).toContain('not orders to repeat them on each page');
     const clerkRequest = axios.post.mock.calls[1][1];
     expect(clerkRequest.response_format.type).toBe('json_schema');
+    expect(clerkRequest.response_format.json_schema.schema.properties.schema_version)
+      .toEqual({ type: 'integer', enum: [2] });
+    expect(clerkRequest.provider).toEqual({ require_parameters: true });
+    expect(clerkRequest.reasoning).toEqual({ effort: 'none' });
     expect(clerkRequest.messages[0].content).toContain('plans, desires, hypothetical language');
 
     const view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
@@ -235,7 +239,25 @@ describe('page-provenanced continuity ledger', () => {
     expect(sync.body.memory.status).toBe('ready');
     expect(axios.post).toHaveBeenCalledTimes(2);
     expect(axios.post.mock.calls[0][1].response_format).toBeDefined();
+    expect(axios.post.mock.calls[0][1].provider).toEqual({ require_parameters: true });
     expect(axios.post.mock.calls[1][1].response_format).toBeUndefined();
+    expect(axios.post.mock.calls[1][1].provider).toBeUndefined();
+    expect(axios.post.mock.calls[1][1].reasoning).toEqual({ effort: 'none' });
+  });
+
+  it.each([404, 422])('uses strict plain JSON when structured-output routing returns %i', async (status) => {
+    const story = await createStory(app);
+    const page = await addPage(app, story.id, 'A routed page becomes memory.');
+    axios.post.mockRejectedValueOnce({ response: { status, data: { error: 'structured output unavailable' } } })
+      .mockResolvedValueOnce(reply(delta({ summary: 'The routed page is remembered.' })));
+
+    const sync = await request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
+      .send({})
+      .expect(200);
+
+    expect(sync.body.memory.status).toBe('ready');
+    expect(axios.post).toHaveBeenCalledTimes(2);
   });
 
   it('rolls goal status back with the page that resolved it', async () => {
@@ -261,7 +283,7 @@ describe('page-provenanced continuity ledger', () => {
     const story = await createStory(app);
     const page = await addPage(app, story.id, 'The costed page closes.');
     axios.get.mockResolvedValue({ data: { data: [{
-      id: 'z-ai/glm-5.1', pricing: { prompt: '0.000001', completion: '0.000002' },
+      id: 'google/gemini-2.5-flash-lite', pricing: { prompt: '0.000001', completion: '0.000002' },
     }] } });
     axios.post.mockResolvedValueOnce(reply(delta(), { prompt_tokens: 1000, completion_tokens: 500 }));
     const sync = await request(app)

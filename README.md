@@ -270,7 +270,7 @@ npm start               # http://localhost:3000
 | `IMAGE_TIMEOUT_MS` | `180000` | Per-request image generation timeout
 | `CONTEXT_WINDOW` | `5` | Recent pages sent verbatim to the AI |
 | `PAGE_CONTEXT_CHARS` | `12000` | Maximum characters copied from each recent page into a prompt |
-| `CONTINUITY_MODEL` | page model | Optional model used for compact continuity extraction |
+| `CONTINUITY_MODEL` | `google/gemini-2.5-flash-lite` | Dedicated structured-output model used for compact continuity extraction |
 
 ## How It Works
 
