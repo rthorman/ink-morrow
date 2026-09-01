@@ -227,4 +227,3 @@ describe('Bookshelf page', () => {
     expect(document.getElementById('bookshelfList').textContent).toContain('The shelf collapsed');
   });
 });
-
