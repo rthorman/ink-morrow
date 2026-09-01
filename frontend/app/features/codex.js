@@ -533,4 +533,3 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
 
   return { init, enter, load, render, reset, selectTab, repairMemory, setRouter(value) { routeController = value; } };
 }
-
