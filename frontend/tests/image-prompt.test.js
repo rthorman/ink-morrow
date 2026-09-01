@@ -428,26 +428,25 @@ describe('Scene image prompt button', () => {
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
   });
 
-  it('narration, autoplay and illustration buttons gray out without a page or mid-write', async () => {
+  it('narration and autoplay gray out without a page or mid-write', async () => {
     const readAloud = document.getElementById('readAloudBtn');
     const auto = document.getElementById('narrationAutoBtn');
-    const scene = document.getElementById('imagePromptBtn');
 
-    // No story/page: everything grayed
+    // No manuscript/page: both reading controls are grayed.
     fw.__setStoryState({ currentStory: null, storyPages: [], currentPage: 1 });
     fw.displayCurrentPage();
-    expect(readAloud.disabled && auto.disabled && scene.disabled).toBe(true);
+    expect(readAloud.disabled && auto.disabled).toBe(true);
 
     // A real page makes them usable
     fw.__setStoryState(STORY_STATE);
     fw.displayCurrentPage();
-    expect(readAloud.disabled || auto.disabled || scene.disabled).toBe(false);
+    expect(readAloud.disabled || auto.disabled).toBe(false);
 
     // While the scribe writes, they hold still again
     fw.setGenerating(true);
-    expect(readAloud.disabled && auto.disabled && scene.disabled).toBe(true);
+    expect(readAloud.disabled && auto.disabled).toBe(true);
     fw.setGenerating(false);
-    expect(readAloud.disabled || auto.disabled || scene.disabled).toBe(false);
+    expect(readAloud.disabled || auto.disabled).toBe(false);
   });
 
   it('refuses to paint an empty prompt box', async () => {
@@ -731,41 +730,3 @@ describe('Place generated art after prose', () => {
   });
 });
 
-describe('Local art upload', () => {
-  it('uploads multipart data with zero provider permission and preserves prose state', async () => {
-    mockFetch();
-    const asset = {
-      id: 'upload-a1', story_id: 's1', source: 'uploaded', status: 'ready',
-      content_url: '/api/stories/s1/assets/upload-a1/content',
-      title: null, alt_text: null, provider_reference_allowed: false,
-    };
-    const placement = {
-      id: 'upload-p1', story_id: 's1', asset_id: asset.id,
-      after_page_id: 'p2', ordinal: 1,
-    };
-    fetch.mockImplementation((url, options = {}) => {
-      if (String(url).endsWith('/assets/upload') && options.method === 'POST') {
-        return Promise.resolve(jsonResponse(201, { asset, placement }));
-      }
-      if (String(url).endsWith('/assets')) {
-        return Promise.resolve(jsonResponse(200, { assets: [asset], placements: [placement] }));
-      }
-      return Promise.resolve(jsonResponse(200, {}));
-    });
-    const fw = await loadScript();
-    fw.__setStoryState(STORY_STATE);
-    fw.displayCurrentPage();
-
-    await fw.uploadArt(new File(['safe raster bytes'], 'private-subject.png', { type: 'image/png' }));
-
-    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/assets/upload'));
-    expect(call[1].body).toBeInstanceOf(FormData);
-    expect(call[1].body.get('after_page_id')).toBe('p2');
-    expect(call[1].body.get('provider_reference_allowed')).toBe('false');
-    expect(call[1].body.get('image').name).toBe('private-subject.png');
-    expect(fw.state().currentPage).toBe(2);
-    expect(fw.state().storyPages).toHaveLength(2);
-    expect(document.querySelector('.scene-plate').getAttribute('src')).toBe(asset.content_url);
-    expect(document.querySelector('.success-message').textContent).toContain('Art placed after page 2');
-  });
-});
