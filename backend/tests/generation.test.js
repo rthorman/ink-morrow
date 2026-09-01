@@ -963,4 +963,3 @@ describe('Reasoning effort', () => {
     expect(axios.post.mock.calls[0][1].reasoning).toBeUndefined();
   });
 });
-
