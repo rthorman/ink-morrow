@@ -1,22 +1,18 @@
-# ScribeTribe 4.0.0 beta planning
+# ScribeTribe 4.0.0-beta.1 release record
 
-Status: **accepted implementation contract**
+Status: **implemented release candidate; PR 19 cutover in progress**
 Decision date: **2026-08-31**
 Target: **4.0.0-beta.1**
 Integration branch: **release/4.0.0**
 
-This directory is the durable handoff from the alpha-to-beta workshop. It
-defines what ScribeTribe 4.0.0 is intended to become and the ordered pull
-requests used to build it.
+This directory began as the durable handoff from the alpha-to-beta workshop
+and now carries both the accepted contract and its release evidence. Historical
+planning documents remain phrased as requirements; current claims are in the
+root README, release notes, known issues, and evidence record.
 
-ScribeTribe 3.2.2 remains the shipped behavior until an implementation pull
-request changes it. Statements in this directory are target requirements, not
-claims about the current application.
-
-Implementation progress is recorded in [PR-QUEUE.yaml](PR-QUEUE.yaml). The
-first implementation item is the clean 4.0 kernel; later feature capability is
-reported by the authenticated runtime endpoint rather than inferred from the
-release-train name.
+The complete contracted 4.0 feature set is implemented on `release/4.0.0`.
+Actual runtime capability remains reported by the authenticated
+`/api/capabilities` endpoint rather than inferred from the release-train name.
 
 ## License and history boundary
 
@@ -69,6 +65,9 @@ When documents conflict, use this order:
 | [RELEASE-EVIDENCE.md](RELEASE-EVIDENCE.md) | Automated evidence and explicit manual release checkpoints |
 | [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Beta limits and provisional defect record |
 | [PUBLICATION-EVIDENCE.md](PUBLICATION-EVIDENCE.md) | Publication adapter and reader-validation evidence |
+| [CUTOVER.md](CUTOVER.md) | Exact-tree, two-parent unrelated-history cutover procedure |
+| [RELEASE-NOTES.md](RELEASE-NOTES.md) | Source text for the beta tag and GitHub release |
+| [../../../CHANGELOG.md](../../../CHANGELOG.md) | Current and historical release changes |
 | [../../../LICENSE-NOTICE.md](../../../LICENSE-NOTICE.md) | 4.0 license, historical boundary, and third-party treatment |
 | [../../../LEGAL.md](../../../LEGAL.md) | License-adjacent legal and liability notices |
 | [../../../PRIVACY.md](../../../PRIVACY.md) | Current self-hosted privacy disclosure |
@@ -78,7 +77,8 @@ When documents conflict, use this order:
 - PR 00 is preserved as the historical planning foundation on **main**.
 - **release/4.0.0** starts from a parentless AGPL root containing the accepted
   planning snapshot and merged PR 01 kernel.
-- PRs 02–18 branch from and target **release/4.0.0** in dependency order.
+- PRs 02–18 branch from and target **release/4.0.0** in dependency order; the
+  approved art/branding PR lands after PR 18 and before PR 19.
 - PR 19 uses a dedicated unrelated-history cutover branch based on **main**.
   Its reviewed tree must exactly equal the release tip before it merges to
   **main**; it never merges **main** into **release/4.0.0**.

@@ -4,8 +4,10 @@ Status: **accepted beta security contract**
 Baseline: **OWASP ASVS 5.0 concepts, proportionate to a single-owner
 self-hosted application**
 
-This document describes the 4.0.0 target. The shipped 3.2.2 boundary remains
-documented in [../../../SECURITY.md](../../../SECURITY.md).
+This document is the implemented 4.0.0-beta.1 security contract. The concise
+current operator boundary is documented in
+[../../../SECURITY.md](../../../SECURITY.md); the historical 3.2.2 code and
+license remain preserved in the pre-cutover first-parent history.
 
 ## Security posture
 

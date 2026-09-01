@@ -534,7 +534,7 @@ pull_requests:
   - id: "19"
     slug: beta-release
     title: Beta release cutover
-    status: planned
+    status: in_progress
     target: main
     source: release/4.0.0
     integration_method: reviewed_unrelated_history_cutover

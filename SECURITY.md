@@ -1,16 +1,18 @@
 # ScribeTribe security
 
-ScribeTribe is a single-owner application intended to run on a local machine. Version 3.2.1 adds an access-control boundary sized for that purpose; it does not turn the project into a public multi-user service.
-
-This file documents the current 3.2.2 release boundary. The accepted target
-threat model for uploads, encrypted provider credentials, immutable sharing,
-and the 4.0.0 beta is
+ScribeTribe 4.0.0-beta.1 is a single-owner application intended to run on a
+local machine. Its access-control boundary is sized for that purpose; it does
+not turn the project into a public multi-user service. The complete 4.0 threat
+model is
 [docs/releases/4.0.0/SECURITY-THREAT-MODEL.md](docs/releases/4.0.0/SECURITY-THREAT-MODEL.md).
-Those capabilities are not shipped until their implementation PRs merge.
 
 ## Supported version
 
 Security fixes are made on the current release line. Upgrade to the newest tagged release before reporting behavior that may already have been corrected.
+
+The supported beta is `4.0.0-beta.1`. Versions through 3.2.2 remain available
+in the historical first-parent line but are outside the 4.0 security-support
+boundary.
 
 ## What the seal protects
 
@@ -26,6 +28,27 @@ Security fixes are made on the current release line. Upgrade to the newest tagge
 - New local storage/config files use owner-only permissions where the operating system supports POSIX modes. Production setup installs only backend runtime dependencies.
 
 The cryptographic password work happens only at setup/login/password change, not on ordinary page turns. Session lookup is indexed, session activity writes are throttled, and no security background poll is added, preserving the low-powered-device target.
+
+## 4.0 provider, media, archive, and sharing boundaries
+
+- Provider credentials may come from the environment, process-session memory,
+  or the encrypted persistent vault. APIs never return secret material. The
+  vault must be unlocked after restart, and a password change rewraps its key;
+  terminal password recovery clears vault ciphertext that can no longer be
+  decrypted without deleting manuscripts.
+- User image uploads are streamed into private staging, checked by signature,
+  size, pixel, decode, and metadata limits, then normalized to metadata-free
+  WebP. Uploading performs no AI request and no semantic subject moderation.
+  An uploaded image crosses a provider boundary only after the owner separately
+  permits and selects it as a reference for a paid generation.
+- Portable `.scribetribe` v2 archives are validated and hashed but deliberately
+  unencrypted. They exclude owner credentials, sessions, provider secrets,
+  paid-consent state, recovery credentials, and public-share capabilities.
+- Public reading shares are immutable publication snapshots. The raw
+  high-entropy capability remains in the URL fragment and is sent in an
+  `Authorization` header; expiry and revocation fail closed. Public sharing
+  requires a correctly configured HTTPS reverse proxy that does not log that
+  header. It is not a supported direct-public-HTTP deployment.
 
 ## First login and daily use
 

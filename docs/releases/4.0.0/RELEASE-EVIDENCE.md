@@ -10,9 +10,11 @@ work. A checked box is not inferred from an implementation claim.
 - Host: Windows NT 10.0.26200.0
 - Node.js: v24.19.0 (supported contract: >=22.5.0)
 - Chrome: 152.0.7977.65
-- Source branch: `pr/18-beta-hardening`
-- Commit: the canonical PR 18 head is recorded by the GitHub pull request;
-  PR 19 records the reviewed cutover SHA and release tag
+- Source branch: `pr/19-beta-release`
+- Reviewed release base: `6861be3` (merged PR 20 art/branding layer, after PR 18)
+- Candidate identity: `4.0.0-beta.1`; the canonical cutover SHA is recorded by
+  the PR 19 merge and `v4.0.0-beta.1` tag rather than duplicated speculatively
+  in this pre-cutover tree
 
 ## Automated evidence
 
@@ -27,6 +29,20 @@ work. A checked box is not inferred from an implementation claim.
 | Archive round trip | Strict v2 schema/hash validation, portable table-group equality, media digest equality, semantic re-export equality | Pass |
 | Archive adversarial input | Traversal, duplicates, undeclared entries, compression/size limits, hash mismatch, relationship checks, future/3.x refusal, publication-snapshot tamper, excluded recovery field | Pass in focused transfer suite (13/13) |
 | Production dependency audit | npm registry advisory service over 117 locked backend production packages | Pass (no findings); CI repeats `npm audit --omit=dev --audit-level=moderate` after clean install |
+
+PR 19 local repeat on 2026-09-01 after the version, current-claim, legal,
+privacy, security, and screenshot freeze:
+
+- ESLint over backend, frontend, and e2e: pass;
+- backend Jest: 26 suites / 290 tests pass;
+- frontend Jest: 28 suites / 241 tests pass; and
+- six current README screenshots were captured from an isolated in-memory
+  server at 1440x900 and 768x1366, visually reviewed, and confirmed without
+  horizontal overflow.
+
+GitHub CI on the release-candidate PR remains the authoritative clean-checkout
+repeat for lint, Jest, production dependency audit, and both Playwright
+projects. Its URLs and final conclusions stay attached to the pull request.
 
 The deterministic release fixture contains 10 volumes, 100 chapters, 3,000
 pages, 1,200,001 words, 150 recurring characters, 10,000 continuity facts,
@@ -85,3 +101,11 @@ application/version, outcome, and artifact or observation:
 
 PR 18 can provide the implementation and repeatable evidence, but it cannot
 invent device observations or the stakeholder decision required for PR 19.
+
+## Stakeholder sequencing record
+
+On 2026-09-01 the stakeholder explicitly set the dependency order to PR 18,
+the approved asset PR, then PR 19, with the user guide after PR 19. After the
+asset PR merged green, the stakeholder instructed the implementation agent to
+resume PR 19. That authorizes release-candidate and cutover preparation; it is
+not used to fabricate any still-pending real-device or manual observation.

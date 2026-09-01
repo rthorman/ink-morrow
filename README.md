@@ -2,58 +2,28 @@
 
 An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
 
-> [!NOTE]
-> **ScribeTribe 4.0.0 beta is planned, not yet shipped.**
-> The accepted alpha-to-beta product contract, architecture, UX, security
-> model, art direction, QA gates, and ordered implementation PRs are indexed in
-> [docs/releases/4.0.0/](docs/releases/4.0.0/). The feature descriptions below
-> continue to describe the current 3.2.2 line until implementation PRs land.
+> [!IMPORTANT]
+> **ScribeTribe 4.0.0-beta.1 is a clean-break beta.** Start it with a new,
+> empty `DATA_DIR`. It deliberately refuses 3.x databases and format-v1
+> archives before writing. Keep ScribeTribe 3.2.2 and its data intact for
+> historical work; there is no in-place migration.
 
-The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
-manuscript hierarchy, PR 03's immutable revisions and truncation recovery,
-PR 04's provider profiles, AI roles, and encrypted secret vault, PR 05's
-revision-provenanced continuity ledger, PR 06's transactional writing state
-machine, PR 07's noncanonical art store and safe upload boundary, PR 08's
-provider-isolated Grok sanitation flow, and PR 09's adaptive Scriptorium shell.
-PR 10 adds the Library manuscript-start sheet: authors can write an opening,
-carry a seed to the Desk, or import existing prose into the default hierarchy
-without configuring an AI provider. Optional Foundations suggestions are
-reviewed and accepted one field at a time.
-PR 11 turns the Desk into the complete authoring surface: active-tail prose
-autosaves as immutable canonical revisions, earlier pages accept display-only
-copyedits, and returning a story to an earlier page provides a bounded undo
-plus the durable recovery suffix. Prepared and directed writing continue to
-use the PR 06 transaction state machine.
-PR 12 makes Chronicle the bounded publication outline: volume and chapter
-maintenance, short page excerpts, tail/memory/art/prepared markers, and
-server-declared safe recovery restore with JSON export when canon diverges.
-The shell adds a global Library threshold, manuscript switching, and the stable
-Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
-layouts. Its
-databases identify themselves as `scribetribe-4` schema 9, use transactional migrations
-and an operation journal, create Volume I and Chapter I with every story,
-preserve separate canonical/display prose, and refuse 3.x files before
-modifying them. Later 4.0 features remain unavailable until their PRs land;
-`/api/capabilities` reports the distinction explicitly. Continuity now binds
-strict version-2 deltas and quoted evidence to canonical revisions, keeps
-copyedits display-only, folds through sparse deterministic checkpoints, and
-supports reviewed template imports plus impact-aware author corrections.
-PR 07 stores uploaded and generated story art outside the prose hierarchy,
-anchors placements to stable page IDs, and normalizes streamed uploads without
-semantic classification or provider use. Art operations never renumber prose
-or change continuity; see [docs/art-assets.md](docs/art-assets.md).
-The shell keeps manuscript prose on a quiet vellum surface, hides every private
-destination behind the existing authentication gate, and treats the old Home
-and Write hashes as aliases rather than duplicate destinations; see
-[docs/adaptive-shell.md](docs/adaptive-shell.md).
-The start flow, draft persistence, import mapping, and provider boundary are
-specified in [docs/library-start.md](docs/library-start.md).
-The Desk's edit, generation, recovery, keyboard, and portrait behavior is
-specified in [docs/desk.md](docs/desk.md).
-Chronicle structure, paging, markers, and recovery states are specified in
-[docs/chronicle.md](docs/chronicle.md).
-The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
-historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
+The beta ships the complete 4.0 Scriptorium: Library manuscript start/import,
+the Desk, Chronicle, Codex, Gallery, Gate, immutable revisions and recovery,
+transactional prepared-page writing, page-provenanced continuity, safe image
+upload, multi-format publication, encrypted provider credentials, portable
+`.scribetribe` v2 backups, and immutable revocable reading snapshots. The
+authenticated `/api/capabilities` endpoint reports the release, database,
+archive, and feature identities used by the running server.
+
+The 4.0 release history is licensed `AGPL-3.0-only`; versions through 3.2.2
+remain MIT-licensed in the preserved historical first-parent line. The accepted
+product, architecture, security, UX, art, and QA record is indexed in
+[docs/releases/4.0.0/](docs/releases/4.0.0/). Operational setup, clean-break
+installation, backup, restore, and sharing guidance is in
+[docs/releases/4.0.0/OPERATIONS.md](docs/releases/4.0.0/OPERATIONS.md), with
+current beta limits in
+[docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
 **v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
 
@@ -130,13 +100,13 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
 - **Bounded context retrieval** — the AI gets recent pages verbatim, compact folded state, resolved/active goals and threads, and a few FTS-relevant older memories. Raw old pages are not repeatedly resent, so long stories stay within a predictable prompt budget
 - **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
-- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range, and deleting any single page renumbers the remaining prose transactionally. Art anchored to removed pages stays stored but becomes unplaced
+- **Revision-aware history and recovery** — the active tail accepts canonical edits, while an earlier page accepts a display-only copyedit that never rewrites remembered canon. Returning a manuscript to an earlier page truncates the suffix atomically, offers bounded immediate undo, and keeps an expiring recovery package; restoration refuses rather than merging across diverged canon. Art anchored to removed pages stays stored but becomes unplaced
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Gallery** — one manuscript workspace for uploaded and AI-generated art, local preview and metadata, explicit provider-reference selection, provenance, download/delete, and Gallery-only or stable before/after-page placement without changing prose or canon
 - **Publication core** — freeze reviewed display prose, hierarchy, metadata, front/back matter, scene breaks, and selected placed art into one immutable allowlisted document, then render semantically checked DOCX, ODT, RTF, EPUB 3.3, PDF, standalone HTML, Markdown, plain text, or documented JSON without exposing prompts, continuity, recovery, costs, credentials, or working history
 - **Gate publication and sharing** — keep full-fidelity `.scribetribe` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build formats or create an expiring, revocable reading-copy link to that same immutable snapshot. Raw 256-bit capabilities are returned once and stored only as hashes; the isolated public viewer cannot open private or provider APIs
-- **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and story art; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and art
+- **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and story art; each Stories card also opens a focused asset manager for that manuscript's publication formats, continuity coverage, cover, audio, and art
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
@@ -149,18 +119,24 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 ## Requirements
 
 - Node.js **>= 22.5** (uses the built-in `node:sqlite`; safe image normalization uses Sharp's platform package with an explicit WebAssembly fallback for unsupported runtimes)
-- An [OpenRouter](https://openrouter.ai) API key (or any OpenAI-compatible endpoint)
+- Optional for AI features: an [OpenRouter](https://openrouter.ai) API key or
+  another OpenAI-compatible endpoint. Manual writing, import, editing, backup,
+  and publication do not require a provider
 
 ## Tested on Android / Termux
 
-The shipped 3.2.2 line was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. Its whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment. The 4.0 line retains Termux as a supported release target and adds a WebAssembly image-decoder fallback; its on-device release evidence is recorded at the beta-hardening gate:
+The historical 3.2.2 line was **created and tested on an Android tablet running
+[Termux](https://termux.dev)** — no PC involved. The 4.0 beta retains the
+low-powered-device design, uses Node's built-in SQLite, and adds a packaged
+WebAssembly image-decoder fallback when native Sharp is unavailable. Its
+desktop and mobile-viewport automation is green, but the real-tablet 4.0 smoke
+and performance record remains a release-owner checkpoint rather than an
+inferred claim. See the beta [release evidence](docs/releases/4.0.0/RELEASE-EVIDENCE.md)
+and [known issues](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
-- The complete backend and frontend Jest suites pass on-device under Termux
-- The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
-- No SQLite native-module compilation is required; the art pipeline can use its packaged WebAssembly fallback when a native Sharp binary is unavailable
-- Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
-
-The Playwright e2e suite also runs on Termux — both projects (desktop and mobile viewports) — using the native Termux Chromium package, since Playwright's browser downloader does not support Android. `AGENTS.md` documents the one-line patch and setup; on a PC it works out of the box.
+Termux requires its native Chromium package for Playwright because Playwright's
+browser downloader does not support Android. `AGENTS.md` records the developer
+test setup; ordinary self-hosted use does not install the e2e toolchain.
 
 ### Installing on Termux
 
