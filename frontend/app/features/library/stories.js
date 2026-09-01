@@ -60,8 +60,8 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     const yes = await dialogs.confirmPaid({
       title: `Paint a new cover for "${story.title}"?`,
       review: {
-        action: 'Paint one vertical cover using the story, world, and cast reference portraits.',
-        object: `story "${story.title}"`,
+        action: 'Paint one vertical cover using the manuscript, world, and cast reference portraits.',
+        object: `manuscript "${story.title}"`,
         quantity: 'one 1K cover painting',
         sends: 'the title, maturity level, world description, and cast appearance details; up to three portraits and the world painting when available',
         estimate: COVER_ESTIMATE,
@@ -83,7 +83,7 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     const storage = storageById.get(story.id);
     const count = storage?.asset_count || 0;
     const yes = await dialogs.confirmDestructive({
-      title: `Delete story "${story.title}"?`,
+      title: `Delete manuscript "${story.title}"?`,
       body: `This removes the manuscript, all ${story.page_count} pages, and ${count} stored media ${count === 1 ? 'asset' : 'assets'} (${formatMb(storage?.disk_bytes || 0)}).`,
       confirmLabel: 'Delete story',
     });
@@ -92,7 +92,7 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
       await apiCall(`/stories/${story.id}`, 'DELETE');
       if (state.data.currentStory && state.data.currentStory.id === story.id) features.write.resetAfterStoryDeletion();
       await loadStories();
-      showSuccess('Story deleted.');
+      showSuccess('Manuscript deleted.');
     } catch (error) {
       showError(error.message);
     }
@@ -187,3 +187,4 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
 
   return { loadStories, renderStories, repaintCover, stopCoverPoll };
 }
+
