@@ -25,18 +25,18 @@ const LEGACY_TABLES = new Set([
 // The 3.2.2-shaped catalogue tables remain as a temporary runtime seam so the
 // release branch stays bootable while PRs 02–06 move behavior onto the new
 // hierarchy/revision/operation model. A database made by 3.x is still refused:
-// these tables are created only inside a database already branded scribetribe-4.
+// these tables are created only inside a database already branded ink-morrow-4.
 const SCHEMA_V1 = `
-CREATE TABLE scribe_schema (
+CREATE TABLE ink_morrow_schema (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-  family TEXT NOT NULL CHECK (family = 'scribetribe-4'),
+  family TEXT NOT NULL CHECK (family = 'ink-morrow-4'),
   version INTEGER NOT NULL CHECK (version >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT INTO scribe_schema (singleton, family, version)
-VALUES (1, 'scribetribe-4', 0);
+INSERT INTO ink_morrow_schema (singleton, family, version)
+VALUES (1, 'ink-morrow-4', 0);
 
 CREATE TABLE schema_migrations (
   version INTEGER PRIMARY KEY CHECK (version > 0),
@@ -1241,7 +1241,7 @@ function databaseMessage(dbPath, detail) {
   const displayPath = dbPath === ':memory:' ? dbPath : path.resolve(dbPath);
   return `${detail} Database: ${displayPath}. ` +
     'The database was not modified. Set DATA_DIR to a new empty directory ' +
-    '(or DB_PATH to a new file), or use ScribeTribe 3.2.2 with existing 3.x data.';
+    '(or DB_PATH to a new file), or use the historical 3.2.2 build with existing 3.x data.';
 }
 
 function verifyMigrationLedger(db, version, migrations = MIGRATIONS) {
@@ -1260,7 +1260,7 @@ function verifyMigrationLedger(db, version, migrations = MIGRATIONS) {
         row.checksum !== migrationChecksum(expected)) {
       throw new DatabaseCompatibilityError(
         'INVALID_MIGRATION_LEDGER',
-        `Migration ledger entry ${index + 1} does not match this ScribeTribe build.`
+        `Migration ledger entry ${index + 1} does not match this Ink Morrow build.`
       );
     }
   }
@@ -1273,7 +1273,7 @@ function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
   if (!stat.isFile()) {
     throw new DatabaseCompatibilityError(
       'INVALID_DATABASE',
-      databaseMessage(resolved, 'ScribeTribe needs a database file, but this path is not a regular file.')
+      databaseMessage(resolved, 'Ink Morrow needs a database file, but this path is not a regular file.')
     );
   }
   if (stat.size === 0) return { kind: 'empty', version: 0 };
@@ -1288,15 +1288,15 @@ function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
     `).all().map((row) => row.name);
     if (tables.length === 0) return { kind: 'empty', version: 0 };
 
-    if (!tables.includes('scribe_schema')) {
+    if (!tables.includes('ink_morrow_schema')) {
       const isLegacy = tables.some((name) => LEGACY_TABLES.has(name));
       throw new DatabaseCompatibilityError(
         isLegacy ? 'LEGACY_DATABASE' : 'UNRECOGNIZED_DATABASE',
         databaseMessage(
           resolved,
           isLegacy
-            ? 'ScribeTribe 4.0 found a 3.x database and will not reinterpret it.'
-            : 'ScribeTribe 4.0 could not verify this database family.'
+            ? 'Ink Morrow 4.0 found a 3.x database and will not reinterpret it.'
+            : 'Ink Morrow 4.0 could not verify this database family.'
         )
       );
     }
@@ -1304,14 +1304,14 @@ function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
     if (!tables.includes('schema_migrations')) {
       throw new DatabaseCompatibilityError(
         'INVALID_DATABASE_IDENTITY',
-        databaseMessage(resolved, 'The ScribeTribe 4.0 schema identity is incomplete.')
+        databaseMessage(resolved, 'The Ink Morrow 4.0 schema identity is incomplete.')
       );
     }
-    const identity = db.prepare('SELECT family, version FROM scribe_schema WHERE singleton = 1').get();
+    const identity = db.prepare('SELECT family, version FROM ink_morrow_schema WHERE singleton = 1').get();
     if (!identity || identity.family !== DATABASE_FAMILY || !Number.isSafeInteger(Number(identity.version))) {
       throw new DatabaseCompatibilityError(
         'UNSUPPORTED_DATABASE_FAMILY',
-        databaseMessage(resolved, 'This database does not have a supported ScribeTribe 4.0 identity.')
+        databaseMessage(resolved, 'This database does not have a supported Ink Morrow 4.0 identity.')
       );
     }
     const version = Number(identity.version);
@@ -1335,7 +1335,7 @@ function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
     if (applicationId !== SQLITE_APPLICATION_ID || userVersion !== version) {
       throw new DatabaseCompatibilityError(
         'INVALID_DATABASE_IDENTITY',
-        databaseMessage(resolved, 'The SQLite and ScribeTribe schema identities disagree.')
+        databaseMessage(resolved, 'The SQLite and Ink Morrow schema identities disagree.')
       );
     }
     verifyMigrationLedger(db, version, migrations);
@@ -1344,7 +1344,7 @@ function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
     if (error instanceof DatabaseCompatibilityError) throw error;
     throw new DatabaseCompatibilityError(
       'INVALID_DATABASE',
-      databaseMessage(resolved, `ScribeTribe 4.0 could not safely read this database (${error.message}).`)
+      databaseMessage(resolved, `Ink Morrow 4.0 could not safely read this database (${error.message}).`)
     );
   } finally {
     try { db?.close(); } catch { /* read-only inspection was already closed */ }
@@ -1369,7 +1369,7 @@ function applyMigration(db, migration) {
       VALUES (?, ?, ?)
     `).run(migration.version, migration.name, migrationChecksum(migration));
     db.prepare(`
-      UPDATE scribe_schema
+      UPDATE ink_morrow_schema
          SET version = ?, updated_at = CURRENT_TIMESTAMP
        WHERE singleton = 1
     `).run(migration.version);
@@ -1446,7 +1446,7 @@ function validateDatabaseIntegrity(db) {
 }
 
 function schemaIdentity(db) {
-  const row = db.prepare('SELECT family, version, created_at, updated_at FROM scribe_schema WHERE singleton = 1').get();
+  const row = db.prepare('SELECT family, version, created_at, updated_at FROM ink_morrow_schema WHERE singleton = 1').get();
   return row ? { ...row, version: Number(row.version) } : null;
 }
 

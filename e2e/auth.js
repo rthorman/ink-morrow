@@ -6,7 +6,7 @@ export async function openUnlocked(page, target = '/') {
   await page.waitForFunction(() =>
     document.querySelector('#authSetupForm') ||
     document.querySelector('#authLoginForm') ||
-    !document.body.classList.contains('st-gated')
+    !document.body.classList.contains('im-gated')
   );
 
   if (await page.locator('#authSetupForm').count()) {
@@ -19,7 +19,7 @@ export async function openUnlocked(page, target = '/') {
     await page.locator('#authLoginForm button[type="submit"]').click();
   }
 
-  await page.waitForFunction(() => !document.body.classList.contains('st-gated'));
+  await page.waitForFunction(() => !document.body.classList.contains('im-gated'));
   await page.waitForSelector('.container', { state: 'visible' });
 }
 
@@ -34,7 +34,7 @@ export async function csrfToken(page) {
 
 async function writerSessionId(page) {
   return page.evaluate(() => {
-    const key = 'st-writer-session-v1';
+    const key = 'im-writer-session-v1';
     let value = window.sessionStorage.getItem(key);
     if (!value) {
       value = `writer:${globalThis.crypto.randomUUID()}`;
@@ -48,8 +48,8 @@ export async function apiPost(page, path, data) {
   const response = await page.request.post(path, {
     data,
     headers: {
-      'X-ScribeTribe-CSRF': await csrfToken(page),
-      'X-ScribeTribe-Writer-Session': await writerSessionId(page),
+      'X-InkMorrow-CSRF': await csrfToken(page),
+      'X-InkMorrow-Writer-Session': await writerSessionId(page),
     },
   });
   if (!response.ok()) {
@@ -62,8 +62,8 @@ export async function apiPut(page, path, data) {
   const response = await page.request.put(path, {
     data,
     headers: {
-      'X-ScribeTribe-CSRF': await csrfToken(page),
-      'X-ScribeTribe-Writer-Session': await writerSessionId(page),
+      'X-InkMorrow-CSRF': await csrfToken(page),
+      'X-InkMorrow-Writer-Session': await writerSessionId(page),
     },
   });
   if (!response.ok()) {

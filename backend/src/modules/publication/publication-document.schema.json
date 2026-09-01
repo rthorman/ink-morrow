@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://scribetribe.local/schemas/publication-document-v1.json",
-  "title": "ScribeTribe PublicationDocument",
+  "$id": "https://ink-morrow.local/schemas/publication-document-v1.json",
+  "title": "Ink Morrow PublicationDocument",
   "type": "object",
   "additionalProperties": false,
   "required": ["format", "schema_version", "metadata", "front_matter", "volumes", "back_matter", "assets"],
   "properties": {
-    "format": { "const": "scribetribe-publication-document" },
+    "format": { "const": "ink-morrow-publication-document" },
     "schema_version": { "const": 1 },
     "metadata": {
       "type": "object",

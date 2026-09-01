@@ -29,7 +29,7 @@ let db, app, close, audioDir;
 
 beforeAll(() => {
   process.env.OPENROUTER_API_KEY = 'test-key';
-  audioDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-audiobooks-'));
+  audioDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-audiobooks-'));
 });
 
 beforeEach(async () => {
@@ -37,7 +37,7 @@ beforeEach(async () => {
   axios.post.mockReset();
   axios.get.mockReset();
   db = createDb(':memory:');
-  app = createApp(db, { staticDir: null, imageDir: fs.mkdtempSync(path.join(os.tmpdir(), 'st-ab-images-')), audioDir });
+  app = createApp(db, { staticDir: null, imageDir: fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-images-')), audioDir });
   close = () => db.close();
   for (const f of fs.existsSync(audioDir) ? fs.readdirSync(audioDir) : []) fs.unlinkSync(path.join(audioDir, f));
 
@@ -335,9 +335,9 @@ describe('Audiobook queue and cancellation', () => {
   });
 
   it('marks a pending row failed when a new server instance boots', async () => {
-    const fileDb = path.join(os.tmpdir(), `st-ab-boot-${Date.now()}.db`);
+    const fileDb = path.join(os.tmpdir(), `im-ab-boot-${Date.now()}.db`);
     const bootDb = createDb(fileDb);
-    const bootImages = fs.mkdtempSync(path.join(os.tmpdir(), 'st-ab-b-'));
+    const bootImages = fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-b-'));
     const bootApp = createApp(bootDb, { staticDir: null, imageDir: bootImages, audioDir });
     const world = await createWorld(bootApp, { name: 'Boot Realm' });
     const story = await createStory(bootApp, world.id, [], { title: 'Boot Tale' });

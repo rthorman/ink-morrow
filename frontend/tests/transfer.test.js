@@ -31,7 +31,7 @@ function catalogueFetch() {
 
 const exportPlan = {
   token: 'export-token',
-  filename: 'home-world.scribetribe',
+  filename: 'home-world.inkmorrow',
   download_url: '/api/transfers/exports/export-token',
   estimated_bytes: 4096,
   options: { include_visuals: true, include_audio: false, include_working_history: false },

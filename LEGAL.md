@@ -7,20 +7,20 @@ Last updated: **2026-09-01**
 > Laws differ by place and facts. A maintainer planning a public release should
 > have counsel review these notices for the jurisdictions that matter.
 
-## What ScribeTribe is
+## What Ink Morrow is
 
-The ScribeTribe 4.0 release line is free and open-source software distributed
+The Ink Morrow 4.0 release line is free and open-source software distributed
 under the [GNU Affero General Public License, version 3 only](LICENSE), using
 the SPDX expression `AGPL-3.0-only`. It is designed for the user to install
 and operate on their own hardware. Versions through 3.2.2 remain under the
 MIT License in preserved historical commits and tags; see
 [LICENSE-NOTICE.md](LICENSE-NOTICE.md).
 
-There is no ScribeTribe company or hosted ScribeTribe service behind this
+There is no Ink Morrow company or hosted Ink Morrow service behind this
 repository. The project maintainer does not:
 
 - sell subscriptions, credits, generations, hosting, or support;
-- collect or process payment for ScribeTribe;
+- collect or process payment for Ink Morrow;
 - hold user funds;
 - resell an AI provider's service;
 - become the user's agent, publisher, coauthor, fiduciary, or professional
@@ -35,17 +35,17 @@ or fitness guarantee unless a separate signed agreement expressly says so.
 ## Direct provider relationship and charges
 
 The user supplies and controls any AI-provider account, endpoint, credential,
-model, quota, and spending limit. Requests made through ScribeTribe are sent
+model, quota, and spending limit. Requests made through Ink Morrow are sent
 from the user's installation to the provider the user configured. OpenRouter
-is the only AI supplier tested with ScribeTribe 4.0; another nominally
-compatible endpoint may fail or lack capabilities ScribeTribe expects.
+is the only AI supplier tested with Ink Morrow 4.0; another nominally
+compatible endpoint may fail or lack capabilities Ink Morrow expects.
 
 The user's relationship is directly with that provider and is governed by the
 provider's current terms, privacy policy, content rules, availability, billing,
 and dispute process. A model or provider may refuse, filter, alter, retain,
 misprice, fail, or discontinue a request or service.
 
-ScribeTribe may show good-faith cost estimates and local usage records. They are
+Ink Morrow may show good-faith cost estimates and local usage records. They are
 not quotes, invoices, account balances, guarantees, or a substitute for the
 provider's billing records. Prices and metering can change without notice.
 Retries, partial success, speculative generation, sanitation, narration,
@@ -59,7 +59,7 @@ The maintainer cannot issue provider refunds or credits.
 ## User content and publication
 
 The user decides what to write, import, generate, upload, edit, export, and
-share. ScribeTribe does not acquire ownership of that material merely because
+share. Ink Morrow does not acquire ownership of that material merely because
 the software processes it.
 
 The user is responsible for determining whether they have the rights and lawful
@@ -158,7 +158,7 @@ WARRANTIES ARE DISCLAIMED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
 PURPOSE, TITLE, AND NON-INFRINGEMENT, TOGETHER WITH ANY WARRANTY ARISING FROM
 COURSE OF DEALING, USAGE, TRADE, DESCRIPTION, SAMPLE, OR PERFORMANCE.
 
-NO PROMISE IS MADE THAT SCRIBETRIBE OR ANY AI OUTPUT WILL BE ERROR-FREE,
+NO PROMISE IS MADE THAT INK MORROW OR ANY AI OUTPUT WILL BE ERROR-FREE,
 UNINTERRUPTED, SECURE, ACCURATE, ORIGINAL, LEGALLY PROTECTABLE, NONINFRINGING,
 FIT FOR PUBLICATION, ACCEPTED BY A PLATFORM OR PUBLISHER, OR COMPATIBLE WITH A
 PARTICULAR PROVIDER, DEVICE, FILE FORMAT, OR LAW.

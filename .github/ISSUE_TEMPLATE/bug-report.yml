@@ -1,5 +1,5 @@
 name: Bug report
-description: Report a reproducible ScribeTribe problem without exposing private material.
+description: Report a reproducible Ink Morrow problem without exposing private material.
 title: "[Bug]: "
 labels:
   - bug
@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: ScribeTribe version or commit
+      label: Ink Morrow version or commit
       description: Find this in the release tag, Git commit, or installed documentation.
       placeholder: 4.0.0-beta.1 / abc1234
     validations:

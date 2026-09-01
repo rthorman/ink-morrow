@@ -56,7 +56,7 @@ describe('PR 08 Grok sanitation adapter', () => {
         }],
       },
     });
-    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-grok-adapter-'));
+    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-grok-adapter-'));
     fixture = createTestApp({
       imageDir,
       providerOptions: { env: { OPENROUTER_API_KEY: 'grok-adapter-test-key' } },

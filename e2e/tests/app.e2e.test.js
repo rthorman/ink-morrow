@@ -5,7 +5,7 @@ import { apiPost, apiPut, E2E_PASSWORD, openUnlocked } from '../auth.js';
 // deliberately bypasses it for later actions.
 async function confirmPaidReview(page, label) {
   const dialog = page.locator('.dialog-manager');
-  const remembered = await page.evaluate(() => localStorage.getItem('st-paid-consent-v1') === '1');
+  const remembered = await page.evaluate(() => localStorage.getItem('im-paid-consent-v1') === '1');
   if (remembered) {
     await expect(dialog).toBeHidden();
     return;
@@ -24,14 +24,14 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
-test.describe('ScribeTribe UI', () => {
+test.describe('Ink Morrow UI', () => {
   test.beforeEach(async ({ page }) => {
     await openUnlocked(page);
   });
 
   test('has the gothic header with scribe and working navigation', async ({ page }) => {
-    await expect(page).toHaveTitle(/ScribeTribe/);
-    await expect(page.locator('.main-header h1')).toHaveText('ScribeTribe');
+    await expect(page).toHaveTitle(/Ink Morrow/);
+    await expect(page.locator('.main-header h1')).toHaveText('Ink Morrow');
     await expect(page.locator('.cat-scribe img')).toBeVisible();
     const scribeStatus = page.locator('#scribeStatus');
     await expect(scribeStatus).toContainText('The scribe');
@@ -351,7 +351,7 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#reasoningBlock')).toBeVisible();
     await expect(page.locator('#reasoningSelect')).toHaveValue('max');
     await page.selectOption('#reasoningSelect', 'low');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).reasoningEffort)).toBe('low');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('im-settings')).reasoningEffort)).toBe('low');
 
     // Scriptorium background toggle applies on the writing page
     await page.locator('#scriptoriumBgToggle').check();
@@ -780,7 +780,7 @@ test.describe('ScribeTribe UI', () => {
     const shareId = await page.request.get(`/api/publication-shares?story_id=${story.id}`)
       .then(async (response) => (await response.json()).shares[0].id);
     const revoked = await page.request.post(`/api/publication-shares/${shareId}/revoke`, {
-      data: {}, headers: { 'X-ScribeTribe-CSRF': csrf },
+      data: {}, headers: { 'X-InkMorrow-CSRF': csrf },
     });
     expect(revoked.status()).toBe(200);
     await page.reload();

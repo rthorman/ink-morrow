@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0-beta.1 release evidence
+# Ink Morrow 4.0.0-beta.1 release evidence
 
 Evidence date: 2026-09-01
 

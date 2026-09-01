@@ -114,7 +114,7 @@ pull_requests:
       - transfer
       - security
     deliverables:
-      - explicit scribetribe-4 schema family and migrations
+      - explicit ink-morrow-4 schema family and migrations
       - 3.x database refusal before mutation
       - archive v2 identity and manifest scaffold
       - operation journal and boot reconciliation
@@ -521,7 +521,7 @@ pull_requests:
       - performance
       - documentation
     deliverables:
-      - complete .scribetribe v2 round trip
+      - complete .inkmorrow v2 round trip
       - malicious fixture and canary passes
       - long-manuscript and responsive evidence
       - operator backup, restore, and public-share guidance

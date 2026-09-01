@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="frontend/brand/scribetribe-lockup.svg" alt="ScribeTribe - where stories grow claws" width="520">
+  <img src="frontend/brand/ink-morrow-lockup.svg" alt="Ink Morrow - where stories grow claws" width="520">
 </p>
 
-<h1 align="center">ScribeTribe</h1>
+<h1 align="center">Ink Morrow</h1>
 
 <p align="center"><strong>A self-hosted gothic writing room for long-form fiction.</strong><br>Build reusable worlds and casts, write one page at a time, keep continuity inspectable, illuminate the manuscript, and decide exactly how it leaves.</p>
 
@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
-  <a href="docs/user-guide/ScribeTribe-4.0-User-Guide.pdf">User guide</a> ·
+  <a href="docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf">User guide</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="docs/releases/4.0.0/OPERATIONS.md">Operations</a> ·
   <a href="SECURITY.md">Security</a> ·
@@ -23,28 +23,28 @@
   <a href="docs/releases/4.0.0/KNOWN-ISSUES.md">Known limits</a>
 </p>
 
-ScribeTribe is an interactive-fiction authoring tool with reusable worlds and
+Ink Morrow is an interactive-fiction authoring tool with reusable worlds and
 characters, a gothic web interface, and catgirl scribes. A manuscript advances
 **one page at a time**: you give the page a direction, the Scribe writes it,
 then waits for you.
 
 Its real advantage is the collaboration: the human author supplies intent,
 taste, constraints, revision, and the final word on canon, while AI accelerates
-drafting, continuity extraction, illustration, and narration. ScribeTribe can
+drafting, continuity extraction, illustration, and narration. Ink Morrow can
 still be used for manual writing and local project care, but that resilience is
 not the product's center—the directed human/AI loop is.
 
 > [!IMPORTANT]
-> **ScribeTribe 4.0.0-beta.1 is a clean-break beta.** Start it with a new,
+> **Ink Morrow 4.0.0-beta.1 is a clean-break beta.** Start it with a new,
 > empty `DATA_DIR`. It deliberately refuses 3.x databases and format-v1
-> archives before writing. Keep ScribeTribe 3.2.2 and its data intact for
+> archives before writing. Keep the historical 3.2.2 build and its data intact for
 > historical work; there is no in-place migration.
 
 The beta ships the complete 4.0 Scriptorium: Library manuscript start/import,
 the Desk, Chronicle, Codex, Gallery, Gate, immutable revisions and recovery,
 transactional prepared-page writing, page-provenanced continuity, safe image
 upload, multi-format publication, encrypted provider credentials, portable
-`.scribetribe` v2 backups, and immutable revocable reading snapshots. The
+`.inkmorrow` v2 backups, and immutable revocable reading snapshots. The
 authenticated `/api/capabilities` endpoint reports the release, database,
 archive, and feature identities used by the running server.
 
@@ -57,7 +57,7 @@ installation, backup, restore, and sharing guidance is in
 current beta limits in
 [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
-The task-oriented [ScribeTribe 4.0 User Guide](docs/user-guide/ScribeTribe-4.0-User-Guide.pdf)
+The task-oriented [Ink Morrow 4.0 User Guide](docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf)
 explains the main authoring flows with the approved interface and branding.
 
 > [!NOTE]
@@ -106,17 +106,17 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 </details>
 
-**ScribeTribe is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
+**Ink Morrow is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
 
 > [!WARNING]
 > **Costs real money — set a spending limit on your API key first.**
 >
-> ScribeTribe attempts to predict and meter **every** cost involved: pages, retries, narration, reference portraits, world scenes, and scene paintings all carry live estimates and per-generation accounting in the cost ticker. But it is **impossible to make guarantees** — upstream prices change without notice, providers meter their own way, retries happen, and estimates are estimates.
+> Ink Morrow attempts to predict and meter **every** cost involved: pages, retries, narration, reference portraits, world scenes, and scene paintings all carry live estimates and per-generation accounting in the cost ticker. But it is **impossible to make guarantees** — upstream prices change without notice, providers meter their own way, retries happen, and estimates are estimates.
 >
 > The only real safety is upstream of this app: **create a dedicated OpenRouter API key and set a hard spend limit on it** (OpenRouter lets you cap a key's credit) before you put it in `backend/.env`. Treat anything this app reports as a good-faith tally, not an invoice.
 
 > [!CAUTION]
-> **OpenRouter is the only AI supplier tested with ScribeTribe.** Other
+> **OpenRouter is the only AI supplier tested with Ink Morrow.** Other
 > OpenAI-compatible endpoints may lack compatible model discovery, image
 > generation, narration, reasoning controls, or may not work at all. Local
 > project operations can continue without a supplier, but the intended creative
@@ -167,7 +167,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Gallery** — one manuscript workspace for uploaded and AI-generated art, local preview and metadata, explicit provider-reference selection, provenance, download/delete, and Gallery-only or stable before/after-page placement without changing prose or canon
 - **Publication core** — freeze reviewed display prose, hierarchy, metadata, front/back matter, scene breaks, and selected placed art into one immutable allowlisted document, then render semantically checked DOCX, ODT, RTF, EPUB 3.3, PDF, standalone HTML, Markdown, plain text, or documented JSON without exposing prompts, continuity, recovery, costs, credentials, or working history
-- **Gate publication and sharing** — keep full-fidelity `.scribetribe` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build formats or create an expiring, revocable reading-copy link to that same immutable snapshot. Raw 256-bit capabilities are returned once and stored only as hashes; the isolated public viewer cannot open private or provider APIs
+- **Gate publication and sharing** — keep full-fidelity `.inkmorrow` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build formats or create an expiring, revocable reading-copy link to that same immutable snapshot. Raw 256-bit capabilities are returned once and stored only as hashes; the isolated public viewer cannot open private or provider APIs
 - **Bookshelf** — the Library's across-all-manuscripts shelf for bound audiobooks and art; each Manuscripts card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and art, with a direct route to Codex for continuity
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
@@ -207,8 +207,8 @@ test setup; ordinary self-hosted use does not install the e2e toolchain.
 
 ```bash
 pkg update && pkg install nodejs git   # Termux's node is recent; check: node --version
-git clone https://github.com/rthorman/scribe-tribe.git
-cd scribe-tribe
+git clone https://github.com/rthorman/ink-morrow.git
+cd ink-morrow
 bash setup.sh
 $EDITOR backend/.env                   # set OPENROUTER_API_KEY
 ./start.sh
@@ -223,8 +223,8 @@ The project was built as an experiment in running AI coding tools natively on Te
 ## Quick Start
 
 ```bash
-git clone https://github.com/rthorman/scribe-tribe.git
-cd scribe-tribe
+git clone https://github.com/rthorman/ink-morrow.git
+cd ink-morrow
 
 bash setup.sh        # installs deps, creates backend/.env, makes start.sh executable
 
@@ -235,8 +235,8 @@ $EDITOR backend/.env   # set OPENROUTER_API_KEY
 # then choose a password or passphrase of at least 15 characters.
 ```
 
-ScribeTribe 4.0 is a clean data-contract break. If this checkout already has a
-3.x `database/scribe-tribe.db`, set `DATA_DIR=../database-v4` in
+Ink Morrow 4.0 is a clean data-contract break. If this checkout already has a
+3.x `database/ink-morrow.db`, set `DATA_DIR=../database-v4` in
 `backend/.env` before starting 4.0. The server inspects an existing database
 read-only and refuses legacy or future schema families with recovery guidance;
 it never upgrades or reinterprets a 3.x manuscript in place.
@@ -262,7 +262,7 @@ npm start               # http://localhost:3000
 | `ALLOWED_HOSTS` | — | Comma-separated public hostnames accepted when an HTTPS reverse proxy fronts the loopback server |
 | `TRUST_PROXY` | — | Set to `1` only for an HTTPS reverse proxy running on the same machine/loopback |
 | `DATA_DIR` | `../database` | Root for the SQLite database, images, audio, and transfer staging. Use a new empty directory for the 4.0 clean break |
-| `DB_PATH` | `<DATA_DIR>/scribe-tribe.db` | Advanced SQLite-file override; `:memory:` for ephemeral runs. Without `DATA_DIR`, media follows the file's directory |
+| `DB_PATH` | `<DATA_DIR>/ink-morrow.db` | Advanced SQLite-file override; `:memory:` for ephemeral runs. Without `DATA_DIR`, media follows the file's directory |
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |
 | `AI_TIMEOUT_MS` | `120000` | Per-request AI timeout
@@ -284,7 +284,7 @@ npm start               # http://localhost:3000
 ## Project Structure
 
 ```
-scribe-tribe/
+ink-morrow/
 ├── backend/
 │   ├── server.js              # entry: config, listen, graceful shutdown
 │   ├── src/
@@ -325,7 +325,7 @@ scribe-tribe/
  ├── e2e/                   # Playwright browser tests (chromium + mobile)
  ├── database/              # runtime storage, gitignored: SQLite file,
  │                          #   images/, audio/, transfers/ (staging + safety backups)
- ├── ScribeTribe-OpenCode-Branding/  # branding package: specs + art masters
+ ├── InkMorrow-OpenCode-Branding/  # branding package: specs + art masters
 ├── .github/workflows/      # CI: Jest + Playwright on every push
 ├── setup.sh
 ├── start.sh               # convenience launcher
@@ -401,7 +401,7 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | GET | `/api/stories/:id/audiobook/audio` | Download the finished audiobook (attachment) |
 | GET | `/api/storage` | Per-story excerpt, measured media bytes/count, cover, audiobook, and story-art metadata for Library |
 | POST | `/api/transfers/exports/plan` | Resolve an export scope/dependencies and return its exposure review plus a short-lived download token |
-| GET | `/api/transfers/exports/:token` | Stream the reviewed v2 `.scribetribe` project archive |
+| GET | `/api/transfers/exports/:token` | Stream the reviewed v2 `.inkmorrow` project archive |
 | POST | `/api/transfers/imports/preflight` | Stage and verify a multipart archive, then classify collisions without writing local data |
 | POST/DELETE | `/api/transfers/imports/:token/commit`, `/api/transfers/imports/:token` | Commit reviewed merge/replace choices, or cancel and remove staging |
 | GET | `/api/transfers/safety-backups/:filename` | Download the automatic pre-restore safety backup |
@@ -436,7 +436,7 @@ npm run test:e2e     # Playwright (chromium + mobile), desktop or Termux
 
 ## Creator's Note
 
-ScribeTribe was born on a very budget Android tablet. Not a modest laptop, not a spare machine — a cheap tablet, using nothing but the standard on-screen keyboard, just to show it's doable. I installed the entire tool suite right there: Termux, Node, git. Then I built this whole project in that environment — server, database, gothic frontend, and the full test suite — all written, run, and verified on-device.
+Ink Morrow was born on a very budget Android tablet. Not a modest laptop, not a spare machine — a cheap tablet, using nothing but the standard on-screen keyboard, just to show it's doable. I installed the entire tool suite right there: Termux, Node, git. Then I built this whole project in that environment — server, database, gothic frontend, and the full test suite — all written, run, and verified on-device.
 
 The whole thing was finished in one afternoon, while my wife was out having lunch with her friends. By the time she got home, the scribes were already purring.
 
@@ -454,9 +454,9 @@ visual-asset generation, and documentation generation. See
 
 ## License
 
-The ScribeTribe 4.0 release line is licensed under the
+The Ink Morrow 4.0 release line is licensed under the
 [GNU Affero General Public License, version 3 only](./LICENSE)
-(`AGPL-3.0-only`). Operators who modify ScribeTribe and make that modified
+(`AGPL-3.0-only`). Operators who modify Ink Morrow and make that modified
 version available for remote network use must offer its users the
 Corresponding Source as required by AGPLv3 section 13.
 

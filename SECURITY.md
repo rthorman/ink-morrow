@@ -1,6 +1,6 @@
-# ScribeTribe security
+# Ink Morrow security
 
-ScribeTribe 4.0.0-beta.1 is a single-owner application intended to run on a
+Ink Morrow 4.0.0-beta.1 is a single-owner application intended to run on a
 local machine. Its access-control boundary is sized for that purpose; it does
 not turn the project into a public multi-user service. The complete 4.0 threat
 model is
@@ -18,7 +18,7 @@ boundary.
 
 - On an empty installation, the server prints a random one-time setup code. The browser must present that code before it can set the owner password.
 - The owner password must contain 15–128 Unicode characters. It is normalized, salted independently, and hashed asynchronously with scrypt; plaintext is never stored.
-- Successful setup/login creates a random opaque session token. Only its SHA-256 digest is stored in SQLite. The cookie is `HttpOnly`, `SameSite=Strict`, and becomes `Secure` when ScribeTribe is reached through HTTPS.
+- Successful setup/login creates a random opaque session token. Only its SHA-256 digest is stored in SQLite. The cookie is `HttpOnly`, `SameSite=Strict`, and becomes `Secure` when Ink Morrow is reached through HTTPS.
 - A remembered session has a 7-day idle timeout and a 30-day absolute lifetime. An unremembered browser session has an 8-hour idle timeout and a 24-hour absolute lifetime.
 - Every private API is authenticated before its body is parsed. State-changing requests also require the session's random CSRF token plus a same-origin request.
 - Unlock/setup failures receive progressive delays and a temporary 10-attempt/15-minute limit. Restarting the local process clears that in-memory attempt history; it never permanently locks the owner out.
@@ -41,7 +41,7 @@ The cryptographic password work happens only at setup/login/password change, not
   WebP. Uploading performs no AI request and no semantic subject moderation.
   An uploaded image crosses a provider boundary only after the owner separately
   permits and selects it as a reference for a paid generation.
-- Portable `.scribetribe` v2 archives are validated and hashed but deliberately
+- Portable `.inkmorrow` v2 archives are validated and hashed but deliberately
   unencrypted. They exclude owner credentials, sessions, provider secrets,
   paid-consent state, recovery credentials, and public-share capabilities.
 - Public reading shares are immutable publication snapshots. The raw
@@ -52,7 +52,7 @@ The cryptographic password work happens only at setup/login/password change, not
 
 ## First login and daily use
 
-1. Start ScribeTribe with `./start.sh`.
+1. Start Ink Morrow with `./start.sh`.
 2. Open `http://localhost:3000` on that machine.
 3. Copy the one-time setup code printed by the server into the first-login screen.
 4. Choose a distinctive password or passphrase of at least 15 characters. Spaces and Unicode are allowed.
@@ -77,9 +77,9 @@ In plain language, `localhost`/`127.0.0.1` means “this computer only.” A LAN
 the local home or office network. HTTP does not encrypt traffic in transit;
 HTTPS does, protecting passwords, cookies, prose, and media from being read by
 other equipment along the route. A reverse proxy is the front-door service
-that terminates HTTPS and forwards the request to loopback ScribeTribe.
+that terminates HTTPS and forwards the request to loopback Ink Morrow.
 
-For durable access from other devices, put an HTTPS reverse proxy on the same machine and leave ScribeTribe bound to loopback. Add the proxy's public hostname to `ALLOWED_HOSTS`, set `TRUST_PROXY=1`, and configure the proxy to preserve `Host` and send `X-Forwarded-Proto: https`. `TRUST_PROXY` trusts forwarding information only from a loopback peer.
+For durable access from other devices, put an HTTPS reverse proxy on the same machine and leave Ink Morrow bound to loopback. Add the proxy's public hostname to `ALLOWED_HOSTS`, set `TRUST_PROXY=1`, and configure the proxy to preserve `Host` and send `X-Forwarded-Proto: https`. `TRUST_PROXY` trusts forwarding information only from a loopback peer.
 
 Direct LAN HTTP is an explicit escape hatch:
 
@@ -95,7 +95,7 @@ This sends the password, session cookie, manuscripts, generated media, and API t
 The login is access control, not encryption:
 
 - The SQLite database, images, and audio are plaintext files. Anyone who can read the account's files—or an unencrypted disk after theft—can read them without the web password.
-- Portable `.scribetribe` exports are ZIP containers and are not encrypted. The exposure review shows what is included; store/share them accordingly. Login credentials, sessions, API keys, and paid-consent state are never exported.
+- Portable `.inkmorrow` exports are ZIP containers and are not encrypted. The exposure review shows what is included; store/share them accordingly. Login credentials, sessions, API keys, and paid-consent state are never exported.
 - `backend/.env` contains the provider key. Use a dedicated OpenRouter key with a hard spend limit and protect the operating-system account.
 - A malicious administrator/root user, compromised OS, browser extension, reverse proxy, or provider is outside this boundary.
 - There is one owner only: no usernames, roles, remote recovery, MFA, email, or account sharing.
@@ -103,9 +103,9 @@ The login is access control, not encryption:
 
 ## Provider and browser compatibility
 
-OpenRouter is the only AI supplier tested with ScribeTribe 4.0. A different
+OpenRouter is the only AI supplier tested with Ink Morrow 4.0. A different
 OpenAI-compatible service may not implement the catalogue, image, speech,
-reasoning, or response behavior ScribeTribe expects, and may fail partially or
+reasoning, or response behavior Ink Morrow expects, and may fail partially or
 completely. Treat an untested provider as a separate integration and threat
 boundary; review its data handling, authentication, retention, and error
 behavior before sending real material.
@@ -129,7 +129,7 @@ The password work factor follows OWASP's 32 MiB scrypt profile (`N=2^15`, `r=8`,
 
 ## Reporting a vulnerability
 
-Please avoid posting exploitable details in a public issue. Use the repository's [private security advisory form](https://github.com/rthorman/scribe-tribe/security/advisories/new). Include the affected version, deployment shape, reproduction steps, and impact; do not include real manuscripts, passwords, session cookies, or provider keys.
+Please avoid posting exploitable details in a public issue. Use the repository's [private security advisory form](https://github.com/rthorman/ink-morrow/security/advisories/new). Include the affected version, deployment shape, reproduction steps, and impact; do not include real manuscripts, passwords, session cookies, or provider keys.
 
 The operational and data boundaries are also summarized in
 [LEGAL.md](LEGAL.md) and [PRIVACY.md](PRIVACY.md).

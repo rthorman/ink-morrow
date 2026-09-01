@@ -1,7 +1,7 @@
 # Grok sanitation adapter
 
-Release 4.0 keeps image-provider interoperability separate from ScribeTribe's
-own content rules. ScribeTribe does not classify an author's prompt or uploaded
+Release 4.0 keeps image-provider interoperability separate from Ink Morrow's
+own content rules. Ink Morrow does not classify an author's prompt or uploaded
 art. The Grok adapter only handles the failure contract of Grok image models.
 
 ## Renderable prompts

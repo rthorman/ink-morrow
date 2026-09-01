@@ -9,7 +9,7 @@
 
 import { reviewBody } from './cost.js';
 
-export const PAID_CONSENT_KEY = 'st-paid-consent-v1';
+export const PAID_CONSENT_KEY = 'im-paid-consent-v1';
 
 function createDialogManager() {
   let overlay = null; // the live dialog element
@@ -72,9 +72,9 @@ function createDialogManager() {
     });
     // The shared overlay joins the ONE modal stack: Escape and Tab act on
     // the topmost dialog only, whether it is shared or a wired feature modal.
-    overlay.__stEl = overlay;
-    overlay.__stRequestClose = () => requestClose();
-    overlay.__stWired = { focusId: null };
+    overlay.__imEl = overlay;
+    overlay.__imRequestClose = () => requestClose();
+    overlay.__imWired = { focusId: null };
     return overlay;
   }
 
@@ -286,9 +286,9 @@ function installWiredListener() {
     if (!top) return;
     if (event.key === 'Escape') {
       event.stopPropagation();
-      top.__stRequestClose();
+      top.__imRequestClose();
     } else if (event.key === 'Tab') {
-      trapWithin(top.__stEl, event);
+      trapWithin(top.__imEl, event);
     }
   });
 }
@@ -300,12 +300,12 @@ function installWiredListener() {
 export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) {
   const modal = document.getElementById(modalId);
   if (!modal) return null;
-  if (modal.__stWired) return modal.__stWired;
+  if (modal.__imWired) return modal.__imWired;
 
   const ctrl = { el: modal, opener: null, beforeClose, focusId };
-  modal.__stEl = modal;
-  modal.__stWired = ctrl;
-  modal.__stRequestClose = () => {
+  modal.__imEl = modal;
+  modal.__imWired = ctrl;
+  modal.__imRequestClose = () => {
     if (modal.hidden) return;
     if (ctrl.beforeClose) {
       ctrl.beforeClose(); // the feature owns the policy (dirty guards, confirms)
@@ -343,16 +343,16 @@ export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) 
       if (opener && document.contains(opener) && !opener.closest('[hidden]')) opener.focus();
       else if (wiredModals.length > 0) {
         const under = topWiredModal();
-        const target = focusTargetOf(under, under.__stWired?.focusId);
+        const target = focusTargetOf(under, under.__imWired?.focusId);
         if (typeof target.focus === 'function') target.focus();
       }
     },
-    requestClose: modal.__stRequestClose,
+    requestClose: modal.__imRequestClose,
   };
   ctrl.api = api;
   installWiredListener();
   modal.addEventListener('click', (event) => {
-    if (event.target === modal) modal.__stRequestClose();
+    if (event.target === modal) modal.__imRequestClose();
   });
   return api;
 }
@@ -361,7 +361,7 @@ export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) 
 // surface disappears immediately and no dirty confirmation may keep it open.
 export function forceCloseAllModals() {
   for (const modal of [...wiredModals].reverse()) {
-    modal.__stWired?.api?.close();
+    modal.__imWired?.api?.close();
   }
   scrollLockCount = 0;
   document.documentElement.style.overflow = '';

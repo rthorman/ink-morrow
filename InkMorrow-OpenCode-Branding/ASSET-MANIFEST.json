@@ -1,5 +1,5 @@
 {
-  "brand": "ScribeTribe",
+  "brand": "Ink Morrow",
   "version": "4.0.0",
   "coordinateSystem": "Normalized coordinates from the top-left corner",
   "assets": [
@@ -48,13 +48,13 @@
     },
     {
       "id": "brand-mark",
-      "production": "assets/brand/scribetribe-mark.svg",
+      "production": "assets/brand/ink-morrow-mark.svg",
       "dimensions": { "width": 256, "height": 256 },
       "notes": "Quill nib, feline ears and open manuscript."
     },
     {
       "id": "brand-lockup",
-      "production": "assets/brand/scribetribe-lockup.svg",
+      "production": "assets/brand/ink-morrow-lockup.svg",
       "dimensions": { "width": 900, "height": 240 },
       "notes": "Horizontal blackletter lockup for headers and onboarding. The bundled UnifrakturCook font is open-licensed and self-hosted."
     },

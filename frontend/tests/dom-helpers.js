@@ -365,7 +365,7 @@ function buildDom() {
 }
 
 let loadCounter = 0;
-const PAID_CONSENT_KEY = 'st-paid-consent-v1';
+const PAID_CONSENT_KEY = 'im-paid-consent-v1';
 
 // opts.hash: boot the app at that hash (deep-link); default is a clean '#/library'.
 async function loadScript(opts = {}) {
@@ -379,11 +379,11 @@ async function loadScript(opts = {}) {
   if (current !== wanted) {
     window.history.replaceState(null, '', window.location.href.split('#')[0] + wanted);
   }
-  if (window.__stTestAuthAdapter?.__autoTestAdapter) delete window.__stTestAuthAdapter;
-  if (!window.__stTestAuthAdapter && opts.realAuth !== true) {
+  if (window.__imTestAuthAdapter?.__autoTestAdapter) delete window.__imTestAuthAdapter;
+  if (!window.__imTestAuthAdapter && opts.realAuth !== true) {
     const listeners = new Set();
     let currentAuth = { state: 'unlocked', csrf_token: 'jest-csrf-token' };
-    window.__stTestAuthAdapter = {
+    window.__imTestAuthAdapter = {
       __autoTestAdapter: true,
       mode: 'test-unlocked',
       status: () => Promise.resolve({ ...currentAuth }),

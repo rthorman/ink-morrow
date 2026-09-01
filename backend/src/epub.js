@@ -219,7 +219,7 @@ ${navItems.join('\n')}
     <dc:identifier id="book-id">${escapeXml(uid)}</dc:identifier>
     <dc:title>${escapeXml(title)}</dc:title>
     <dc:language>en</dc:language>
-    <dc:creator>ScribeTribe</dc:creator>
+    <dc:creator>Ink Morrow</dc:creator>
     <meta property="dcterms:modified">${modified}</meta>
   </metadata>
   <manifest>

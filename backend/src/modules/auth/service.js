@@ -9,13 +9,13 @@ const {
 const { promisify } = require('node:util');
 
 const scrypt = promisify(scryptCallback);
-const SESSION_COOKIE = 'st_session';
+const SESSION_COOKIE = 'inkmorrow_session';
 const DAY = 24 * 60 * 60 * 1000;
 const DEFAULT_SCRYPT = Object.freeze({ N: 2 ** 15, r: 8, p: 3, maxmem: 64 * 1024 * 1024 });
 const COMMON_PASSWORDS = new Set([
   'passwordpassword', 'password123456', 'password123456789', 'qwertyuiopasdfgh',
   'letmeinletmein', 'iloveyouiloveyou', 'correcthorsebatterystaple',
-  'scribetribescribetribe', 'scribetribe12345', 'thequickbrownfox',
+  'inkmorrowinkmorrow', 'inkmorrow12345', 'thequickbrownfox',
   'adminadminadmin', 'welcome123456789', 'changemechangeme',
 ]);
 
@@ -93,7 +93,7 @@ function createAuthService({
   const deleteSession = db.prepare('DELETE FROM auth_sessions WHERE token_hash = ?');
 
   if (enabled && !ownerExists()) {
-    logger.log('ScribeTribe needs its first password. Enter this one-time setup code in the browser:');
+    logger.log('Ink Morrow needs its first password. Enter this one-time setup code in the browser:');
     logger.log(firstRunCode);
   }
 
@@ -313,7 +313,7 @@ function createAuthService({
     const session = sessionFromRequest(req);
     if (!session) {
       res.setHeader('Set-Cookie', clearCookie(req.secure));
-      return res.status(401).json({ error: 'Unlock ScribeTribe to continue.', code: 'AUTH_REQUIRED', state: 'locked' });
+      return res.status(401).json({ error: 'Unlock Ink Morrow to continue.', code: 'AUTH_REQUIRED', state: 'locked' });
     }
     req.authSession = session;
     res.setHeader('Cache-Control', 'private, no-store');
@@ -339,7 +339,7 @@ function createAuthService({
 
   function requireCsrf(req, res, next) {
     if (!enabled || ['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-    const supplied = req.get('X-ScribeTribe-CSRF') || '';
+    const supplied = req.get('X-InkMorrow-CSRF') || '';
     const expected = req.authSession?.csrf_token || '';
     if (!supplied || !expected || !safeEqualText(supplied, expected)) {
       return res.status(403).json({ error: 'The request could not be verified. Refresh and try again.', code: 'CSRF_REQUIRED' });

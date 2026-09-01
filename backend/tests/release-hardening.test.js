@@ -31,7 +31,7 @@ function stableValue(value) {
 }
 
 function isolatedApp(label) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `st-release-${label}-`));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `im-release-${label}-`));
   const imageDir = path.join(root, 'images');
   const audioDir = path.join(root, 'audio');
   const transferDir = path.join(root, 'transfers');
@@ -68,7 +68,7 @@ async function downloadArchive(app, payload) {
 
 function preflight(app, bytes) {
   return request(app).post('/api/transfers/imports/preflight')
-    .attach('archive', bytes, 'release-fixture.scribetribe');
+    .attach('archive', bytes, 'release-fixture.inkmorrow');
 }
 
 function readManifest(bytes) {

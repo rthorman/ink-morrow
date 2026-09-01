@@ -93,7 +93,7 @@ describe('Narration settings', () => {
     voiceSelect.value = 'amber';
     voiceSelect.dispatchEvent(new Event('change', { bubbles: true }));
     expect(fw.state().settings.narrationVoice).toBe('amber');
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).narrationVoice).toBe('amber');
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).narrationVoice).toBe('amber');
   });
 
   it('refreshes the summary after the asynchronous catalogue resolves', async () => {

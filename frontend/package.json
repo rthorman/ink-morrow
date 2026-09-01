@@ -1,7 +1,7 @@
 {
-  "name": "scribe-tribe-frontend",
+  "name": "ink-morrow-frontend",
   "version": "4.0.0-beta.1",
-  "description": "Frontend for ScribeTribe (served by the backend)",
+  "description": "Frontend for Ink Morrow (served by the backend)",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
@@ -16,7 +16,7 @@
     "frontend",
     "gothic"
   ],
-  "author": "ScribeTribe",
+  "author": "Ink Morrow",
   "license": "AGPL-3.0-only",
   "jest": {
     "testEnvironment": "jsdom",

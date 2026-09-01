@@ -38,7 +38,7 @@ schema.
 
 ## HTTPS and reverse proxy operation
 
-Public links must be served over HTTPS. Bind ScribeTribe to loopback and place
+Public links must be served over HTTPS. Bind Ink Morrow to loopback and place
 the TLS reverse proxy on the same machine. Set `ALLOWED_HOSTS` to the exact
 public hostname and set `TRUST_PROXY=1` only for that loopback proxy. Do not set
 `ALLOW_INSECURE_LAN=1` for public sharing.

@@ -21,7 +21,7 @@ function post(app, storyId, pathName, body, { key, writer = WRITER_A } = {}) {
   return request(app)
     .post(`/api/stories/${storyId}${pathName}`)
     .set('Idempotency-Key', key || `${pathName}:${Math.random()}`)
-    .set('X-ScribeTribe-Writer-Session', writer)
+    .set('X-InkMorrow-Writer-Session', writer)
     .send(body || {});
 }
 
@@ -136,7 +136,7 @@ describe('PR 06 transactional writing state machine', () => {
 
     const cancelled = await request(fixture.app)
       .delete(`/api/stories/${story.id}/writing-operations/cancel-this-operation`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .set('X-InkMorrow-Writer-Session', WRITER_A)
       .expect(200);
     expect(cancelled.body.operation).toMatchObject({ status: 'failed', error_code: 'CANCELLED' });
 
@@ -153,16 +153,16 @@ describe('PR 06 transactional writing state machine', () => {
     try {
       const story = await createStory(timed.app);
       await request(timed.app).post(`/api/stories/${story.id}/writer-lease`)
-        .set('X-ScribeTribe-Writer-Session', WRITER_A).send({}).expect(200);
+        .set('X-InkMorrow-Writer-Session', WRITER_A).send({}).expect(200);
       const conflict = await request(timed.app).post(`/api/stories/${story.id}/writer-lease`)
-        .set('X-ScribeTribe-Writer-Session', WRITER_B).send({}).expect(409);
+        .set('X-InkMorrow-Writer-Session', WRITER_B).send({}).expect(409);
       expect(conflict.body.code).toBe('WRITER_LEASE_CONFLICT');
       expect(conflict.body.state.writer_session_id).toBe(WRITER_A);
       expect(conflict.body.state.reconcile).toContain('Refresh');
 
       now = new Date(now.getTime() + 1001);
       const acquired = await request(timed.app).post(`/api/stories/${story.id}/writer-lease`)
-        .set('X-ScribeTribe-Writer-Session', WRITER_B).send({}).expect(200);
+        .set('X-InkMorrow-Writer-Session', WRITER_B).send({}).expect(200);
       expect(acquired.body.lease.writer_session_id).toBe(WRITER_B);
     } finally {
       timed.close();
@@ -172,15 +172,15 @@ describe('PR 06 transactional writing state machine', () => {
   it('applies the same writer lease to manual canon mutations', async () => {
     const story = await createStory(fixture.app);
     await request(fixture.app).post(`/api/stories/${story.id}/writer-lease`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A).send({}).expect(200);
+      .set('X-InkMorrow-Writer-Session', WRITER_A).send({}).expect(200);
     const conflict = await request(fixture.app).post(`/api/stories/${story.id}/pages`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_B)
+      .set('X-InkMorrow-Writer-Session', WRITER_B)
       .send({ content: 'A competing manual page.' })
       .expect(409);
     expect(conflict.body.code).toBe('WRITER_LEASE_CONFLICT');
     expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
     await request(fixture.app).post(`/api/stories/${story.id}/volumes`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_B)
+      .set('X-InkMorrow-Writer-Session', WRITER_B)
       .send({ title: 'Competing structure' })
       .expect(409);
   });
@@ -193,18 +193,18 @@ describe('PR 06 transactional writing state machine', () => {
     expect(fixture.db.prepare('SELECT writer_session_id FROM writer_leases WHERE story_id = ?')
       .get(story.id).writer_session_id).toBe('legacy-client');
     const acquired = await request(fixture.app).post(`/api/stories/${story.id}/writer-lease`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .set('X-InkMorrow-Writer-Session', WRITER_A)
       .send({})
       .expect(200);
     expect(acquired.body.lease.writer_session_id).toBe(WRITER_A);
 
     await request(fixture.app).delete(`/api/stories/${story.id}/writer-lease`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .set('X-InkMorrow-Writer-Session', WRITER_A)
       .expect(204);
     fixture.app.locals.writingTransactions.acquireLease(story.id, 'compat:authenticated-api-client');
     const authenticatedCompatibility = await request(fixture.app)
       .post(`/api/stories/${story.id}/writer-lease`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_B)
+      .set('X-InkMorrow-Writer-Session', WRITER_B)
       .send({})
       .expect(200);
     expect(authenticatedCompatibility.body.lease.writer_session_id).toBe(WRITER_B);
@@ -215,10 +215,10 @@ describe('PR 06 transactional writing state machine', () => {
     axios.post.mockResolvedValueOnce(reply('Prepared for the original chapter.'));
     const prepared = await post(fixture.app, story.id, '/pages/preview', {}, { key: 'target-bound-preview' }).expect(200);
     await request(fixture.app).delete(`/api/stories/${story.id}/writer-lease`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .set('X-InkMorrow-Writer-Session', WRITER_A)
       .expect(204);
     await request(fixture.app).post(`/api/stories/${story.id}/volumes`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_B)
+      .set('X-InkMorrow-Writer-Session', WRITER_B)
       .send({ title: 'A new destination' })
       .expect(201);
     const stale = await post(fixture.app, story.id, '/pages/commit-preview', {
@@ -232,7 +232,7 @@ describe('PR 06 transactional writing state machine', () => {
   it('rewrites the tail through one durable operation and replays its result', async () => {
     const story = await createStory(fixture.app);
     await request(fixture.app).post(`/api/stories/${story.id}/pages`)
-      .set('X-ScribeTribe-Writer-Session', WRITER_A)
+      .set('X-InkMorrow-Writer-Session', WRITER_A)
       .send({ content: 'The original tail.', user_input: 'Begin.' })
       .expect(201);
     axios.post.mockResolvedValueOnce(reply('The rewritten tail.'));
@@ -261,7 +261,7 @@ describe('PR 06 transactional writing state machine', () => {
   });
 
   it('marks an abandoned running operation failed on restart but keeps a completed prepared page', async () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-writing-restart-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-writing-restart-'));
     const dbPath = path.join(root, 'story.db');
     let firstDb;
     let secondDb;
@@ -342,7 +342,7 @@ describe('PR 06 transactional writing state machine', () => {
       while (replies.length < 1) await new Promise((resolve) => setImmediate(resolve));
       now = new Date(now.getTime() + 1001);
       await request(timed.app).post(`/api/stories/${story.id}/writer-lease`)
-        .set('X-ScribeTribe-Writer-Session', WRITER_B).send({}).expect(200);
+        .set('X-InkMorrow-Writer-Session', WRITER_B).send({}).expect(200);
       replies[0](reply('This reply no longer owns the lease.'));
       const stale = await old;
       expect(stale.status).toBe(409);

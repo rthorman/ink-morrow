@@ -10,8 +10,8 @@ const {
 const { promisify } = require('node:util');
 
 const scrypt = promisify(scryptCallback);
-const WRAP_PURPOSE = Buffer.from('scribetribe/provider-vault/wrap/v1\0', 'utf8');
-const ENTRY_PURPOSE = 'scribetribe/provider-secret/v1';
+const WRAP_PURPOSE = Buffer.from('ink-morrow/provider-vault/wrap/v1\0', 'utf8');
+const ENTRY_PURPOSE = 'ink-morrow/provider-secret/v1';
 const DEFAULT_SCRYPT = Object.freeze({ N: 2 ** 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
 
 function vaultError(message, code = 'VAULT_UNAVAILABLE', statusCode = 503) {

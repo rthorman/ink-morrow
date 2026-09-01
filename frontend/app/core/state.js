@@ -3,7 +3,7 @@
 // model catalogues). Transient view state stays inside the owning feature.
 // Plain get/set + change listeners - no reducer/action framework.
 
-const SETTINGS_KEY = 'st-settings';
+const SETTINGS_KEY = 'im-settings';
 export const DEFAULT_SETTINGS = Object.freeze({
   model: null,
   scriptoriumBg: false,
@@ -98,9 +98,9 @@ export function createSharedState() {
     const tickerToggle = document.getElementById('costTickerToggle');
     if (tickerToggle) tickerToggle.checked = Boolean(settings.costTicker);
     const font = STORY_FONTS[settings.storyFont] || STORY_FONTS.literata;
-    document.documentElement.style.setProperty('--st-prose-family', font.stack);
+    document.documentElement.style.setProperty('--im-prose-family', font.stack);
     const fontSize = Math.min(Math.max(parseInt(settings.storyFontSize, 10) || 18, FONT_SIZE_MIN), FONT_SIZE_MAX);
-    document.documentElement.style.setProperty('--st-prose-size', fontSize + 'px');
+    document.documentElement.style.setProperty('--im-prose-size', fontSize + 'px');
     const fontSizeSelect = document.getElementById('fontSizeSelect');
     if (fontSizeSelect) fontSizeSelect.value = String(fontSize);
     const wordsInput = document.getElementById('wordsPerPageInput');

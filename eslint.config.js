@@ -16,7 +16,7 @@ module.exports = [
       'database/**',
       'e2e/test-results/**',
       'e2e/playwright-report/**',
-      'ScribeTribe-OpenCode-Branding/**',
+      'InkMorrow-OpenCode-Branding/**',
       'frontend/brand/**',
     ],
   },

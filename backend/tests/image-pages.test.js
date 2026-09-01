@@ -12,7 +12,7 @@ const { resetDb, createWorld, createStory, addPage } = require('./helpers');
 let app, db, imageDir;
 
 beforeAll(() => {
-  imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-art-pages-'));
+  imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-art-pages-'));
   db = createDb(':memory:');
   app = createApp(db, { staticDir: null, imageDir });
 });

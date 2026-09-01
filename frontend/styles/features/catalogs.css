@@ -8,8 +8,8 @@
   display: block;
   width: 100%;
   max-width: 260px;
-  border-radius: var(--st-radius-sm);
-  border: 1px solid var(--st-border);
+  border-radius: var(--im-radius-sm);
+  border: 1px solid var(--im-border);
 }
 
 .card-image--pending,
@@ -21,20 +21,20 @@
   align-items: center;
   justify-content: center;
   padding: 12px;
-  font-family: var(--st-font-reading);
+  font-family: var(--im-font-reading);
   font-style: italic;
   font-size: 0.92rem;
-  color: var(--st-ash-600);
-  background: var(--st-surface-2);
-  border: 1px dashed var(--st-border);
+  color: var(--im-ash-600);
+  background: var(--im-surface-2);
+  border: 1px dashed var(--im-border);
 }
 
 .card-image--failed {
-  color: var(--st-danger-500);
+  color: var(--im-danger-500);
 }
 
 .card-image--missing {
-  color: var(--st-violet-300);
+  color: var(--im-violet-300);
 }
 
 .story-card .card-image {
@@ -47,28 +47,28 @@
 .card-image-redo {
   margin-top: 8px;
   padding: 5px 12px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 0.85rem;
-  color: var(--st-vellum-300);
-  background: var(--st-surface-3);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
+  color: var(--im-vellum-300);
+  background: var(--im-surface-3);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-sm);
   cursor: pointer;
 }
 
 .card-image-redo:hover:not(:disabled) {
-  color: var(--st-vellum-100);
-  border-color: var(--st-gold-500);
+  color: var(--im-vellum-100);
+  border-color: var(--im-gold-500);
 }
 
 /* Clickable cards open the entity editor */
 .item-card {
   cursor: pointer;
-  transition: border-color var(--st-duration-fast) ease, box-shadow var(--st-duration-fast) ease;
+  transition: border-color var(--im-duration-fast) ease, box-shadow var(--im-duration-fast) ease;
 }
 
 .item-card:hover {
-  border-color: var(--st-border-bright);
+  border-color: var(--im-border-bright);
   box-shadow: 0 0 0 1px rgb(199 163 91 / 0.15);
 }
 
@@ -88,25 +88,25 @@
 .editor-form label {
   display: block;
   margin: 12px 0 4px 0;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 0.9rem;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .editor-form input[type='text'] {
   width: 100%;
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   padding: 8px 12px;
-  background: var(--st-surface-3);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-ui);
+  background: var(--im-surface-3);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-ui);
 }
 
 .editor-form input[type='text']:focus,
 .editor-form textarea:focus {
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
   outline: none;
 }
 
@@ -117,12 +117,12 @@
   width: min(680px, 100%);
   max-height: 86vh;
   overflow-y: auto;
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
   text-align: left;
 }
 
 .draft-panel h2 {
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
   text-align: center;
 }
 
@@ -135,30 +135,30 @@
 }
 
 .draft-length__label {
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.82rem;
   letter-spacing: 0.06em;
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 .seg {
   display: inline-flex;
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
   overflow: hidden;
 }
 
 .seg-btn {
   min-height: 40px;
   padding: 8px 18px;
-  background: var(--st-surface-2);
-  color: var(--st-vellum-200);
+  background: var(--im-surface-2);
+  color: var(--im-vellum-200);
   border: 0;
-  border-right: 1px solid var(--st-border);
-  font-family: var(--st-font-ui);
+  border-right: 1px solid var(--im-border);
+  font-family: var(--im-font-ui);
   font-size: 0.9rem;
   cursor: pointer;
-  transition: background-color var(--st-duration-fast) ease, color var(--st-duration-fast) ease;
+  transition: background-color var(--im-duration-fast) ease, color var(--im-duration-fast) ease;
 }
 
 .seg-btn:last-child {
@@ -166,19 +166,19 @@
 }
 
 .seg-btn:hover {
-  background: var(--st-surface-3);
+  background: var(--im-surface-3);
 }
 
 .seg-btn.active {
-  background: var(--st-oxblood-700);
-  color: var(--st-vellum-100);
+  background: var(--im-oxblood-700);
+  color: var(--im-vellum-100);
 }
 
 .draft-hint {
   margin: 0 0 18px 0;
   font-size: 0.88rem;
   font-style: italic;
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 .draft-error {
@@ -186,9 +186,9 @@
   padding: 12px 16px;
   background: rgb(214 75 88 / 0.12);
   border: 1px solid rgb(214 75 88 / 0.55);
-  border-left: 4px solid var(--st-danger-500);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-reading);
+  border-left: 4px solid var(--im-danger-500);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-reading);
   font-size: 0.95rem;
   color: #edaab1;
 }
@@ -199,20 +199,20 @@
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .draft-fields input,
 .draft-fields textarea {
   width: 100%;
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   margin-bottom: 14px;
   padding: 10px 14px;
-  background: var(--st-surface-3);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-reading);
+  background: var(--im-surface-3);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-reading);
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;
@@ -220,9 +220,9 @@
 
 .draft-fields input:focus,
 .draft-fields textarea:focus {
-  outline: 2px solid var(--st-focus);
+  outline: 2px solid var(--im-focus);
   outline-offset: 2px;
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
 }
 
 .draft-actions {
@@ -250,7 +250,7 @@
 }
 
 .item-card:focus-visible {
-  outline: 2px solid var(--st-focus);
+  outline: 2px solid var(--im-focus);
   outline-offset: 3px;
 }
 
@@ -267,8 +267,8 @@
 
 .card-more summary {
   cursor: pointer;
-  color: var(--st-vellum-200);
-  border: 1px solid var(--st-gold-700);
+  color: var(--im-vellum-200);
+  border: 1px solid var(--im-gold-700);
   border-radius: 7px;
   padding: 0.35rem 0.8rem;
   font-size: 0.9rem;
@@ -283,8 +283,8 @@
 
 .card-more summary:hover,
 .card-more[open] summary {
-  color: var(--st-vellum-50);
-  border-color: var(--st-gold-500);
+  color: var(--im-vellum-50);
+  border-color: var(--im-gold-500);
 }
 
 .card-more__menu {
@@ -293,8 +293,8 @@
   top: calc(100% + 0.3rem);
   z-index: 40;
   min-width: 210px;
-  background: var(--st-ink-850);
-  border: 1px solid var(--st-gold-700);
+  background: var(--im-ink-850);
+  border: 1px solid var(--im-gold-700);
   border-radius: 8px;
   box-shadow: 0 12px 30px rgb(0 0 0 / 0.55);
   padding: 0.3rem;
@@ -307,7 +307,7 @@
   appearance: none;
   background: transparent;
   border: none;
-  color: var(--st-vellum-100);
+  color: var(--im-vellum-100);
   text-align: left;
   padding: 0.5rem 0.7rem;
   border-radius: 6px;
@@ -321,7 +321,7 @@
 }
 
 .card-more__item--danger {
-  color: var(--st-rose-400);
+  color: var(--im-rose-400);
 }
 
 .card-more__item--danger:hover,

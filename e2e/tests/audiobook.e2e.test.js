@@ -32,7 +32,7 @@ test.describe('Audiobook', () => {
   test('the modal advertises and estimates, the reviewed start carries progress to download', async ({ page }) => {
     // The chosen narrator rides in via settings
     await page.addInitScript(() => {
-      localStorage.setItem('st-settings', JSON.stringify({ narrationModel: 'or/voice-1', narrationVoice: 'amber' }));
+      localStorage.setItem('im-settings', JSON.stringify({ narrationModel: 'or/voice-1', narrationVoice: 'amber' }));
     });
 
     await page.route('**/api/speech-models', async (route) => {

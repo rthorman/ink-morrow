@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0 art direction
+# Ink Morrow 4.0.0 art direction
 
 Status: **approved**
 Reference role: **atmosphere and visual-language anchor, not a literal screen

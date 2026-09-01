@@ -1,6 +1,6 @@
-# Contributing to ScribeTribe
+# Contributing to Ink Morrow
 
-Thank you for helping improve the Scriptorium. ScribeTribe is a self-hosted,
+Thank you for helping improve the Scriptorium. Ink Morrow is a self-hosted,
 single-owner writing tool, so a good contribution protects manuscripts,
 preserves literal consequences, and keeps the author—not the machinery—in
 control.
@@ -16,13 +16,13 @@ control.
 - Use a new, empty 4.0 `DATA_DIR`. Never test 4.0 against valuable 3.x data.
 
 For a vulnerability, use a
-[private security advisory](https://github.com/rthorman/scribe-tribe/security/advisories/new)
+[private security advisory](https://github.com/rthorman/ink-morrow/security/advisories/new)
 instead of a public issue. Never attach real manuscripts, provider keys,
 passwords, cookies, share capabilities, private prompts, or unredacted logs.
 
 ## Local development
 
-ScribeTribe requires Node.js 22.5 or newer. Install each package from its own
+Ink Morrow requires Node.js 22.5 or newer. Install each package from its own
 lockfile:
 
 ```bash

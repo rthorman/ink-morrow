@@ -1,6 +1,6 @@
 # Continuity ledger v2
 
-ScribeTribe 4.0 treats immutable canonical page revisions as the evidence
+Ink Morrow 4.0 treats immutable canonical page revisions as the evidence
 boundary for continuity. Prose remains the primary record. Deltas, search
 rows, projections, checkpoints, and issues are derived local data that can be
 rebuilt without rewriting prose or asking an AI to replay the manuscript.

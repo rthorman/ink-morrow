@@ -44,7 +44,7 @@ export function initApp() {
   const dialogs = createDialogManager();
   // Tests may inject a deterministic state provider; production always uses
   // the real single-owner adapter.
-  const auth = window.__stTestAuthAdapter || createAuthAdapter();
+  const auth = window.__imTestAuthAdapter || createAuthAdapter();
   const authGate = createAuthGate({ auth });
   configureApiSecurity({
     getCsrfToken: () => auth.csrfToken || null,
@@ -88,7 +88,7 @@ export function initApp() {
   // Each boot marks itself live; a superseded boot (a fresh loadScript in
   // tests, or a re-import) must never act on the app again.
   const bootToken = {};
-  window.__stLiveBoot = bootToken;
+  window.__imLiveBoot = bootToken;
   let lastRoute = null;
   let routeTransitionToken = 0; // stale async gate results must not render
   const WORKSPACE_DESTINATIONS = new Set(['desk', 'chronicle', 'codex', 'gallery', 'gate']);
@@ -151,7 +151,7 @@ export function initApp() {
   }
 
   const router = createRouter({
-    isAlive: () => window.__stLiveBoot === bootToken,
+    isAlive: () => window.__imLiveBoot === bootToken,
     onRoute(route) {
       const previous = lastRoute;
       lastRoute = route;
@@ -164,11 +164,11 @@ export function initApp() {
         if (!allowed) {
           // Locked/setup/error: no application surface may render. The
           // branded gate owns the page until a live session exists.
-          document.body.classList.add('st-gated');
+          document.body.classList.add('im-gated');
           for (const el of document.querySelectorAll('.content-section')) el.classList.remove('active');
           return;
         }
-        document.body.classList.remove('st-gated');
+        document.body.classList.remove('im-gated');
         renderRoute(route, previous);
       });
     },

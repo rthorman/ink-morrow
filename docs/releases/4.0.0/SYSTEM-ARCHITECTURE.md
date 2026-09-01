@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0 system architecture
+# Ink Morrow 4.0.0 system architecture
 
 Status: **accepted target architecture**
 
@@ -21,7 +21,7 @@ discard working safeguards. In particular, preserve and adapt:
 
 ## Runtime shape
 
-ScribeTribe remains one Node.js process serving one same-origin web
+Ink Morrow remains one Node.js process serving one same-origin web
 application and one SQLite database. Media and transient staging remain on the
 same self-hosted filesystem. There is no required cloud service other than the
 AI providers explicitly configured by the owner.
@@ -49,7 +49,7 @@ threshold.
 
 ## Storage identity and versioning
 
-- The 4.0 database declares schema family **scribetribe-4** and an explicit
+- The 4.0 database declares schema family **ink-morrow-4** and an explicit
   monotonic schema version.
 - Every durable domain object has an opaque stable ID independent of its
   display order.

@@ -5,14 +5,14 @@
 // migration or import; feature consumers use the same contract through the
 // authenticated /api/capabilities endpoint.
 
-const DATABASE_FAMILY = 'scribetribe-4';
+const DATABASE_FAMILY = 'ink-morrow-4';
 const DATABASE_SCHEMA_VERSION = 9;
-const SQLITE_APPLICATION_ID = 0x53543430; // ASCII "ST40"
+const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
 
-const ARCHIVE_FORMAT = 'scribetribe-project-archive';
+const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
 const ARCHIVE_VERSION = 2;
 const ARCHIVE_MANIFEST_SCHEMA_VERSION = 1;
-const ARCHIVE_EXTENSION = '.scribetribe';
+const ARCHIVE_EXTENSION = '.inkmorrow';
 
 const RELEASE_TRAIN = '4.0.0-beta.1';
 

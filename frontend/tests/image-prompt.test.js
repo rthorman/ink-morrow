@@ -218,7 +218,7 @@ describe('Scene image prompt button', () => {
     const select = document.getElementById('imageQualitySelect');
     select.value = 'medium_2k';
     select.dispatchEvent(new Event('change', { bubbles: true }));
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).sceneRenderQuality).toBe('medium_2k');
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).sceneRenderQuality).toBe('medium_2k');
 
     fetch.mockImplementation((url, options) => {
       if (String(url).includes('/scene-image')) {

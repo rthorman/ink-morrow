@@ -1,4 +1,4 @@
-/* The threshold: authentication is visibly ScribeTribe, but the form remains
+/* The threshold: authentication is visibly Ink Morrow, but the form remains
    plain, left-aligned, and quick to scan on a desktop or portrait tablet. */
 
 .auth-root {
@@ -15,8 +15,8 @@
 }
 
 .auth-loading {
-  font-family: var(--st-font-mono);
-  color: var(--st-gold-300);
+  font-family: var(--im-font-mono);
+  color: var(--im-gold-300);
 }
 
 .auth-surface {
@@ -25,9 +25,9 @@
   grid-template-columns: minmax(340px, 0.9fr) minmax(280px, 0.75fr);
   overflow: hidden;
   background: rgb(16 10 22 / 0.96);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-lg);
-  box-shadow: var(--st-shadow-hero);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-lg);
+  box-shadow: var(--im-shadow-hero);
 }
 
 .auth-surface__form {
@@ -46,24 +46,24 @@
 
 .auth-surface__form h1 {
   margin: 0 0 12px;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-size: clamp(2.2rem, 5vw, 3.6rem);
   line-height: 1;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .auth-surface__form > p {
   max-width: 50ch;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .auth-surface__kicker {
   margin: 0 0 10px;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.76rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--st-rose-400) !important;
+  color: var(--im-rose-400) !important;
 }
 
 .auth-surface__art {
@@ -72,7 +72,7 @@
   min-height: 660px;
   object-fit: cover;
   object-position: 82% center;
-  border-left: 1px solid var(--st-border);
+  border-left: 1px solid var(--im-border);
   filter: saturate(0.88) brightness(0.82);
 }
 
@@ -88,7 +88,7 @@
   display: grid;
   gap: 7px;
   font-weight: 600;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .auth-field input {
@@ -101,31 +101,31 @@
 }
 
 .auth-password input {
-  border-radius: var(--st-radius-sm) 0 0 var(--st-radius-sm);
+  border-radius: var(--im-radius-sm) 0 0 var(--im-radius-sm);
 }
 
 .auth-password__toggle {
   min-width: 70px;
   padding: 0 14px;
-  border: 1px solid var(--st-border-bright);
+  border: 1px solid var(--im-border-bright);
   border-left: 0;
-  border-radius: 0 var(--st-radius-sm) var(--st-radius-sm) 0;
-  color: var(--st-vellum-200);
-  background: var(--st-surface-3);
+  border-radius: 0 var(--im-radius-sm) var(--im-radius-sm) 0;
+  color: var(--im-vellum-200);
+  background: var(--im-surface-3);
   cursor: pointer;
 }
 
 .auth-password__toggle:hover {
-  color: var(--st-vellum-50);
-  background: var(--st-ink-700);
+  color: var(--im-vellum-50);
+  background: var(--im-ink-700);
 }
 
 .auth-remember {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: var(--st-touch-min);
-  color: var(--st-vellum-200);
+  min-height: var(--im-touch-min);
+  color: var(--im-vellum-200);
   cursor: pointer;
 }
 
@@ -133,7 +133,7 @@
   width: 1.2em;
   height: 1.2em;
   margin: 0;
-  accent-color: var(--st-oxblood-500);
+  accent-color: var(--im-oxblood-500);
 }
 
 .auth-hint,
@@ -142,13 +142,13 @@
 }
 
 .auth-hint {
-  color: var(--st-violet-300) !important;
+  color: var(--im-violet-300) !important;
 }
 
 .auth-error {
   min-height: 1.5em;
   margin: 0;
-  color: var(--st-rose-400);
+  color: var(--im-rose-400);
 }
 
 .auth-submit {
@@ -158,11 +158,11 @@
 
 .nav-btn--lock {
   margin-left: auto;
-  color: var(--st-violet-300);
+  color: var(--im-violet-300);
 }
 
-body.st-gated .container,
-body.st-gated .skip-link {
+body.im-gated .container,
+body.im-gated .skip-link {
   display: none;
 }
 
@@ -176,7 +176,7 @@ body.st-gated .skip-link {
     min-height: 230px;
     max-height: 34vh;
     border-left: 0;
-    border-bottom: 1px solid var(--st-border);
+    border-bottom: 1px solid var(--im-border);
     object-position: 78% 34%;
   }
 

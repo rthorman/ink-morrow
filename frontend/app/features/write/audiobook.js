@@ -169,7 +169,7 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
   // The ready banner appears once per completed reading (the Bookshelf owns
   // the download afterwards); the pending banner always shows while reading.
   function audiobookSeenKey(storyId, row) {
-    return `st-ab-seen:${storyId}:${row.updated_at || row.created_at || ''}`;
+    return `im-ab-seen:${storyId}:${row.updated_at || row.created_at || ''}`;
   }
 
   function audiobookWasSeen(storyId, row) {

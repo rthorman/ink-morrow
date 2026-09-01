@@ -6,7 +6,7 @@ export const API_BASE_URL = '/api';
 
 let csrfProvider = () => null;
 let unauthorizedHandler = () => {};
-const WRITER_SESSION_KEY = 'st-writer-session-v1';
+const WRITER_SESSION_KEY = 'im-writer-session-v1';
 
 export function writerSessionId() {
   try {
@@ -33,8 +33,8 @@ export async function apiFetch(url, options = {}) {
   const headers = { ...(options.headers || {}) };
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const token = csrfProvider();
-    if (token) headers['X-ScribeTribe-CSRF'] = token;
-    headers['X-ScribeTribe-Writer-Session'] ||= writerSessionId();
+    if (token) headers['X-InkMorrow-CSRF'] = token;
+    headers['X-InkMorrow-Writer-Session'] ||= writerSessionId();
   }
 
   let response;

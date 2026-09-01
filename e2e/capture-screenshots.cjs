@@ -28,7 +28,7 @@ async function apiJson(page, requestPath, method, body) {
       credentials: 'same-origin',
       headers: {
         'Content-Type': 'application/json',
-        'X-ScribeTribe-CSRF': status.csrf_token,
+        'X-InkMorrow-CSRF': status.csrf_token,
       },
       body: JSON.stringify(payload),
     });
@@ -52,7 +52,7 @@ async function apiUpload(page, requestPath, { bytes, filename, mediaType, title,
     form.append('after_page_id', anchor);
     form.append('provider_reference_allowed', 'false');
     const response = await fetch(target, {
-      method: 'POST', credentials: 'same-origin', headers: { 'X-ScribeTribe-CSRF': status.csrf_token }, body: form,
+      method: 'POST', credentials: 'same-origin', headers: { 'X-InkMorrow-CSRF': status.csrf_token }, body: form,
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || `Screenshot upload failed (${response.status})`);
@@ -99,7 +99,7 @@ async function main() {
     await setupPage.fill('#authNewPassword', PASSWORD);
     await setupPage.fill('#authConfirmPassword', PASSWORD);
     await setupPage.locator('#authSetupForm button[type="submit"]').click();
-    await setupPage.waitForFunction(() => !document.body.classList.contains('st-gated'));
+    await setupPage.waitForFunction(() => !document.body.classList.contains('im-gated'));
 
     // Seed a small tale through the authenticated API (no paid calls).
     const world = (await apiJson(setupPage, '/api/worlds', 'POST', {

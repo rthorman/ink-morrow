@@ -24,7 +24,7 @@ let app, db, close, imageDir, logEntries;
 beforeAll(() => {
   process.env.ENABLE_BACKGROUND_IMAGES = '1'; // opt into auto-enqueue in this suite
   process.env.OPENROUTER_API_KEY = 'test-key';
-  imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-images-'));
+  imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-images-'));
   db = createDb(':memory:');
   // Expected provider failures assert against the injected logger instead
   // of spilling console.error noise into an otherwise passing run.
@@ -205,7 +205,7 @@ describe('Character & world reference images', () => {
 
   it('backfills entities that predate the feature when the server boots', async () => {
     // Fresh DB with a pre-existing (image-less) world, then boot a new app
-    const bootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-images-boot-'));
+    const bootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-images-boot-'));
     const bootDb = createDb(':memory:');
     const worldId = 'legacy-world-0001';
     bootDb.prepare("INSERT INTO worlds (id, name) VALUES (?, 'Legacy')").run(worldId);

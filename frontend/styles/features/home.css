@@ -3,13 +3,13 @@
 .hero {
   position: relative;
   margin: 0 0 30px 0;
-  border-radius: var(--st-radius-lg);
+  border-radius: var(--im-radius-lg);
   overflow: hidden;
-  border: 1px solid var(--st-border);
-  box-shadow: var(--st-shadow-hero);
+  border: 1px solid var(--im-border);
+  box-shadow: var(--im-shadow-hero);
   background:
-    linear-gradient(160deg, var(--st-ink-900), var(--st-oxblood-700) 140%),
-    var(--st-ink-900);
+    linear-gradient(160deg, var(--im-ink-900), var(--im-oxblood-700) 140%),
+    var(--im-ink-900);
 }
 
 .hero__picture {
@@ -32,20 +32,20 @@
 
 .hero__kicker {
   margin: 0 0 6px 0;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.78rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--st-rose-400);
+  color: var(--im-rose-400);
 }
 
 .hero__line {
   margin: 0 0 10px 0;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-weight: 700;
   font-size: clamp(2.2rem, 6vw, 3.6rem);
   line-height: 1.08;
-  color: var(--st-vellum-50);
+  color: var(--im-vellum-50);
   text-shadow: 0 2px 24px rgb(0 0 0 / 0.65);
 }
 
@@ -53,7 +53,7 @@
   margin: 0 0 18px 0;
   max-width: 46ch;
   font-size: 1.05rem;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .hero__actions {
@@ -65,13 +65,13 @@
 /* ------------------------------------------------------------------ manuscript start */
 
 .manuscript-start {
-  margin: 0 0 var(--st-space-8);
+  margin: 0 0 var(--im-space-8);
   padding: clamp(18px, 3vw, 34px);
-  color: var(--st-ink-900);
-  background: var(--st-vellum-50);
-  border: 1px solid var(--st-gold-500);
-  border-radius: var(--st-radius-lg);
-  box-shadow: var(--st-shadow-raised);
+  color: var(--im-ink-900);
+  background: var(--im-vellum-50);
+  border: 1px solid var(--im-gold-500);
+  border-radius: var(--im-radius-lg);
+  box-shadow: var(--im-shadow-raised);
 }
 
 .manuscript-start[hidden],
@@ -85,30 +85,30 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: var(--st-space-4);
+  gap: var(--im-space-4);
 }
 
 .manuscript-start h2 {
-  margin-bottom: var(--st-space-2);
-  color: var(--st-oxblood-900);
+  margin-bottom: var(--im-space-2);
+  color: var(--im-oxblood-900);
   border-color: rgb(90 70 53 / 0.28);
 }
 
 .manuscript-start__intro {
   max-width: 72ch;
-  margin: 0 0 var(--st-space-4);
-  color: var(--st-ink-700);
+  margin: 0 0 var(--im-space-4);
+  color: var(--im-ink-700);
 }
 
 .manuscript-start form {
   display: grid;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
 }
 
 .manuscript-start input,
 .manuscript-start textarea,
 .manuscript-start select {
-  color: var(--st-ink-900);
+  color: var(--im-ink-900);
   background: rgb(255 252 244);
   border-color: rgb(90 70 53 / 0.48);
 }
@@ -116,51 +116,51 @@
 .field-optional {
   font-size: 0.82em;
   font-weight: 500;
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 .start-paths {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--st-space-2);
-  margin: var(--st-space-2) 0;
+  gap: var(--im-space-2);
+  margin: var(--im-space-2) 0;
 }
 
 .start-path {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   padding: 10px 12px;
-  color: var(--st-ink-800);
-  background: var(--st-vellum-100);
+  color: var(--im-ink-800);
+  background: var(--im-vellum-100);
   border: 1px solid rgb(90 70 53 / 0.4);
-  border-radius: var(--st-radius-sm);
+  border-radius: var(--im-radius-sm);
   font-weight: 700;
   cursor: pointer;
 }
 
 .start-path.active {
-  color: var(--st-vellum-50);
-  background: var(--st-oxblood-700);
-  border-color: var(--st-oxblood-900);
+  color: var(--im-vellum-50);
+  background: var(--im-oxblood-700);
+  border-color: var(--im-oxblood-900);
 }
 
 .start-path-panel {
   display: grid;
-  gap: var(--st-space-2);
-  padding: var(--st-space-4);
+  gap: var(--im-space-2);
+  padding: var(--im-space-4);
   background: rgb(237 226 203 / 0.55);
   border: 1px solid rgb(90 70 53 / 0.28);
-  border-radius: var(--st-radius-md);
+  border-radius: var(--im-radius-md);
 }
 
 .context-hint {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
   padding: 10px 12px;
-  color: var(--st-ink-800);
+  color: var(--im-ink-800);
   background: rgb(199 163 91 / 0.2);
-  border-left: 4px solid var(--st-gold-700);
+  border-left: 4px solid var(--im-gold-700);
 }
 
 .context-hint p {
@@ -172,49 +172,49 @@
 }
 
 .start-foundations {
-  padding: var(--st-space-3);
+  padding: var(--im-space-3);
   background: rgb(255 252 244 / 0.7);
   border: 1px solid rgb(90 70 53 / 0.32);
-  border-radius: var(--st-radius-md);
+  border-radius: var(--im-radius-md);
 }
 
 .start-foundations summary {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   display: flex;
   align-items: center;
-  gap: var(--st-space-2);
-  color: var(--st-oxblood-900);
+  gap: var(--im-space-2);
+  color: var(--im-oxblood-900);
   font-weight: 800;
   cursor: pointer;
 }
 
 .start-foundations summary span {
-  color: var(--st-ash-600);
+  color: var(--im-ash-600);
   font-size: 0.86em;
   font-weight: 500;
 }
 
 .start-foundations[open] {
   display: grid;
-  gap: var(--st-space-2);
+  gap: var(--im-space-2);
 }
 
 .foundation-draft,
 .provider-setup {
   display: grid;
-  gap: var(--st-space-2);
-  padding: var(--st-space-3);
+  gap: var(--im-space-2);
+  padding: var(--im-space-3);
   background: rgb(199 163 91 / 0.16);
-  border: 1px solid var(--st-gold-700);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-gold-700);
+  border-radius: var(--im-radius-sm);
 }
 
 .foundation-draft__row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: var(--st-space-2);
+  gap: var(--im-space-2);
   align-items: start;
-  padding-top: var(--st-space-2);
+  padding-top: var(--im-space-2);
   border-top: 1px solid rgb(90 70 53 / 0.22);
 }
 
@@ -226,7 +226,7 @@
 .manuscript-start__status {
   min-height: 1.4em;
   margin: 0;
-  color: var(--st-ink-700);
+  color: var(--im-ink-700);
 }
 
 @media (max-width: 700px) {
@@ -274,7 +274,7 @@
        figure shown as a foreground presence, upper half only. */
     background:
       linear-gradient(180deg, rgb(9 6 13 / 0.15), rgb(9 6 13 / 0.92) 92%),
-      linear-gradient(165deg, var(--st-ink-900), var(--st-oxblood-700) 160%);
+      linear-gradient(165deg, var(--im-ink-900), var(--im-oxblood-700) 160%);
   }
 
   .hero__picture img {
@@ -359,7 +359,7 @@
 
 @media (min-width: 768px) and (orientation: portrait) {
   .hero {
-    background: var(--st-ink-900);
+    background: var(--im-ink-900);
   }
 
   /* The dedicated portrait artwork stays unmistakable, but it is a
@@ -375,7 +375,7 @@
 
   /* Copy gets its own block below the art so faces stay unobstructed. */
   .hero__copy {
-    background: linear-gradient(180deg, rgb(9 6 13 / 0.55), var(--st-ink-900));
+    background: linear-gradient(180deg, rgb(9 6 13 / 0.55), var(--im-ink-900));
     padding: clamp(20px, 3vw, 36px) clamp(20px, 4vw, 44px);
   }
 
@@ -391,7 +391,7 @@
     height: clamp(560px, 72vh, 900px);
     height: clamp(560px, 72dvh, 900px);
     min-height: 560px;
-    background: var(--st-ink-900);
+    background: var(--im-ink-900);
   }
 
   .hero__picture {
@@ -405,8 +405,8 @@
     left: clamp(20px, 3vw, 48px);
     width: min(440px, 46vw);
     padding: clamp(16px, 2vw, 26px);
-    border: 1px solid var(--st-border);
-    border-radius: var(--st-radius-md);
+    border: 1px solid var(--im-border);
+    border-radius: var(--im-radius-md);
     background: rgb(9 6 13 / 0.82);
   }
 
@@ -424,7 +424,7 @@
   .hero {
     height: clamp(620px, 72vh, 900px);
     height: clamp(620px, 72dvh, 900px);
-    background: var(--st-ink-900);
+    background: var(--im-ink-900);
   }
 
   .hero__picture {
@@ -457,7 +457,7 @@
   .hero {
     height: clamp(560px, 70vh, 860px);
     height: clamp(560px, 70dvh, 860px);
-    background: var(--st-ink-900);
+    background: var(--im-ink-900);
   }
 
   .hero__picture {
@@ -471,8 +471,8 @@
     left: clamp(20px, 3vw, 48px);
     width: min(440px, 40vw);
     padding: clamp(16px, 2vw, 26px);
-    border: 1px solid var(--st-border);
-    border-radius: var(--st-radius-md);
+    border: 1px solid var(--im-border);
+    border-radius: var(--im-radius-md);
     background: rgb(9 6 13 / 0.82);
   }
 }
@@ -487,7 +487,7 @@
 
 .home-recent__card .item-meta {
   font-size: 0.85rem;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .home-path {
@@ -506,28 +506,28 @@
   flex-direction: column;
   gap: 0.25rem;
   padding: 0.9rem 1rem;
-  border: 1px solid var(--st-gold-700);
+  border: 1px solid var(--im-gold-700);
   border-radius: 8px;
-  background: var(--st-ink-850);
+  background: var(--im-ink-850);
   text-decoration: none;
-  color: var(--st-vellum-100);
+  color: var(--im-vellum-100);
   transition: border-color 160ms ease, transform 160ms ease;
 }
 
 .home-path__step:hover,
 .home-path__step:focus-visible {
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
   transform: translateY(-2px);
 }
 
 .home-path__step strong {
   font-family: "Cormorant Garamond", Georgia, serif;
   font-size: 1.05rem;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .home-path__step span {
   font-size: 0.82rem;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
   line-height: 1.4;
 }

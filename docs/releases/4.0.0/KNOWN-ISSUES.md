@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0-beta.1 known issues and limits
+# Ink Morrow 4.0.0-beta.1 known issues and limits
 
 Evidence date: 2026-09-01
 
@@ -16,10 +16,10 @@ Known limits are:
 - OpenRouter is the only AI supplier tested. A different
   OpenAI-compatible endpoint may lack compatible model discovery, image
   generation, narration, or reasoning controls, and may not work at all.
-- `.scribetribe` v2 archives are not encrypted. Store and transmit them using
+- `.inkmorrow` v2 archives are not encrypted. Store and transmit them using
   access-controlled encrypted systems.
-- ScribeTribe 4.0 does not open 3.x databases or import format-v1 archives.
-  Use ScribeTribe 3.2.2 for historical data and preserve the original copy.
+- Ink Morrow 4.0 does not open 3.x databases or import format-v1 archives.
+  Use the historical 3.2.2 build for historical data and preserve the original copy.
 - Portable archives deliberately omit local owner/sessions, provider secrets,
   paid consent, recovery suffixes/undo credentials, and share
   capabilities/records. Use a stopped, full `DATA_DIR` copy when those local

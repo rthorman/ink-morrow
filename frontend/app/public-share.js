@@ -37,7 +37,7 @@ function matter(section, className, assets) {
 function render(publication) {
   const documentValue = publication.document;
   document.documentElement.lang = documentValue.metadata.language || 'en';
-  document.title = `${documentValue.metadata.title} · ScribeTribe reading copy`;
+  document.title = `${documentValue.metadata.title} · Ink Morrow reading copy`;
   const heading = node('header', 'share-title');
   heading.appendChild(node('h1', '', documentValue.metadata.title));
   if (documentValue.metadata.subtitle) heading.appendChild(node('p', 'share-subtitle', documentValue.metadata.subtitle));

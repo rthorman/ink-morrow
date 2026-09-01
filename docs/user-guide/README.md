@@ -1,6 +1,6 @@
-# ScribeTribe 4.0 user guide
+# Ink Morrow 4.0 user guide
 
-The published guide is [ScribeTribe-4.0-User-Guide.pdf](ScribeTribe-4.0-User-Guide.pdf).
+The published guide is [Ink-Morrow-4.0-User-Guide.pdf](Ink-Morrow-4.0-User-Guide.pdf).
 Its print source is [index.html](index.html), which uses the approved production
 brand assets and checked-in interface screenshots. The PDF is intentionally
 committed so readers do not need a document toolchain.

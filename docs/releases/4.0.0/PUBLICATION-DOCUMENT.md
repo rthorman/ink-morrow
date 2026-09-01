@@ -1,7 +1,7 @@
 # PublicationDocument v1
 
 `PublicationDocument` is the immutable, format-neutral boundary between a
-private ScribeTribe project and a publication export. The published JSON
+private Ink Morrow project and a publication export. The published JSON
 Schema is
 [`backend/src/modules/publication/publication-document.schema.json`](../../../backend/src/modules/publication/publication-document.schema.json).
 

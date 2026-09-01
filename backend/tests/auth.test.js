@@ -56,7 +56,7 @@ describe('single-owner authentication', () => {
     await agent.post('/api/worlds').send({ name: 'Unverified' }).expect(403);
     await agent
       .post('/api/worlds')
-      .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      .set('X-InkMorrow-CSRF', unlocked.csrf_token)
       .send({ name: 'Verified' })
       .expect(201);
 
@@ -77,7 +77,7 @@ describe('single-owner authentication', () => {
     const unlocked = await setupOwner(agent, app);
     await agent
       .post('/api/worlds')
-      .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      .set('X-InkMorrow-CSRF', unlocked.csrf_token)
       .set('Origin', 'https://malicious.example')
       .set('Sec-Fetch-Site', 'cross-site')
       .send({ name: 'No' })
@@ -89,7 +89,7 @@ describe('single-owner authentication', () => {
     const unlocked = await setupOwner(agent, app);
     await agent
       .post('/api/auth/logout')
-      .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      .set('X-InkMorrow-CSRF', unlocked.csrf_token)
       .expect(200, { state: 'locked' });
     await agent.get('/api/worlds').expect(401);
 
@@ -115,7 +115,7 @@ describe('single-owner authentication', () => {
 
     const changed = await first
       .post('/api/auth/change-password')
-      .set('X-ScribeTribe-CSRF', firstSession.csrf_token)
+      .set('X-InkMorrow-CSRF', firstSession.csrf_token)
       .send({
         current_password: 'A long test password phrase',
         new_password: 'A newer and longer test password phrase',
@@ -135,7 +135,7 @@ describe('single-owner authentication', () => {
     const unlocked = await setupOwner(agent, app);
     await agent
       .post('/api/worlds')
-      .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      .set('X-InkMorrow-CSRF', unlocked.csrf_token)
       .send({ name: 'Kept Realm' })
       .expect(201);
 
@@ -164,7 +164,7 @@ describe('single-owner authentication', () => {
     const unlocked = await setupOwner(agent, app);
     const response = await agent
       .post('/api/worlds')
-      .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      .set('X-InkMorrow-CSRF', unlocked.csrf_token)
       .send({ name: 'x'.repeat(300 * 1024) })
       .expect(413);
     expect(response.body).toEqual({ error: 'The request is too large.' });

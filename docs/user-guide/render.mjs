@@ -14,7 +14,7 @@ try {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = path.join(here, 'index.html');
-const output = path.join(here, 'ScribeTribe-4.0-User-Guide.pdf');
+const output = path.join(here, 'Ink-Morrow-4.0-User-Guide.pdf');
 const systemChrome = [
   process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',

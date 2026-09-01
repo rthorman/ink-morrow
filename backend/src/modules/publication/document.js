@@ -3,7 +3,7 @@
 const { createHash, randomUUID } = require('node:crypto');
 const { assertTechnicalInput, MAX_IMAGE_BYTES } = require('../imagery/art-store');
 
-const PUBLICATION_FORMAT = 'scribetribe-publication-document';
+const PUBLICATION_FORMAT = 'ink-morrow-publication-document';
 const PUBLICATION_SCHEMA_VERSION = 1;
 const PUBLICATION_FORMATS = Object.freeze(['docx', 'odt', 'rtf', 'epub', 'pdf', 'html', 'md', 'txt', 'json']);
 const INPUT_FIELDS = new Set(['metadata', 'front_matter', 'back_matter', 'art', 'expected_story_updated_at']);

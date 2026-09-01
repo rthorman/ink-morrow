@@ -12,7 +12,7 @@ describe('single-owner authentication gate', () => {
     await tick();
 
     expect(fw.auth.mode).toBe('single-owner');
-    expect(document.body.classList.contains('st-gated')).toBe(true);
+    expect(document.body.classList.contains('im-gated')).toBe(true);
     expect(document.getElementById('authSetupForm')).not.toBeNull();
     expect(document.getElementById('authSetupCode').autocomplete).toBe('one-time-code');
     expect(document.getElementById('authNewPassword').autocomplete).toBe('new-password');
@@ -53,7 +53,7 @@ describe('single-owner authentication gate', () => {
       password: 'A sufficiently long phrase',
       remember: true,
     });
-    expect(document.body.classList.contains('st-gated')).toBe(false);
+    expect(document.body.classList.contains('im-gated')).toBe(false);
     expect(fw.auth.csrfToken).toBe('fresh-csrf');
     expect(global.fetch.mock.calls.some(([url]) => String(url) === '/api/worlds')).toBe(true);
   });
@@ -62,7 +62,7 @@ describe('single-owner authentication gate', () => {
     global.fetch = jest.fn(() => Promise.reject(new Error('offline')));
     await loadScript({ realAuth: true });
     await tick();
-    expect(document.body.classList.contains('st-gated')).toBe(true);
+    expect(document.body.classList.contains('im-gated')).toBe(true);
     expect(document.getElementById('authTitle').textContent).toBe('The door will not answer');
     expect(document.querySelector('.auth-submit').textContent).toBe('Try again');
     expect(document.querySelector('.content-section.active')).toBeNull();
@@ -82,7 +82,7 @@ describe('single-owner authentication gate', () => {
           status: 401,
           json: () => {
             worldPosts++;
-            return Promise.resolve({ error: 'Unlock ScribeTribe to continue.', state: 'locked', code: 'AUTH_REQUIRED' });
+            return Promise.resolve({ error: 'Unlock Ink Morrow to continue.', state: 'locked', code: 'AUTH_REQUIRED' });
           },
         },
       },
@@ -94,9 +94,9 @@ describe('single-owner authentication gate', () => {
 
     const call = global.fetch.mock.calls.find(([url, options]) =>
       String(url) === '/api/worlds' && options?.method === 'POST');
-    expect(call[1].headers['X-ScribeTribe-CSRF']).toBe('live-csrf');
+    expect(call[1].headers['X-InkMorrow-CSRF']).toBe('live-csrf');
     expect(worldPosts).toBe(1);
-    expect(document.body.classList.contains('st-gated')).toBe(true);
+    expect(document.body.classList.contains('im-gated')).toBe(true);
     expect(document.getElementById('authLoginForm')).not.toBeNull();
     expect(fw.state().worlds).toEqual([]);
   });
@@ -116,8 +116,8 @@ describe('single-owner authentication gate', () => {
     await tick();
 
     const logout = global.fetch.mock.calls.find(([url]) => String(url).includes('/auth/logout'));
-    expect(logout[1].headers['X-ScribeTribe-CSRF']).toBe('lock-csrf');
-    expect(document.body.classList.contains('st-gated')).toBe(true);
+    expect(logout[1].headers['X-InkMorrow-CSRF']).toBe('lock-csrf');
+    expect(document.body.classList.contains('im-gated')).toBe(true);
   });
 
   it('returns to first-run setup if the terminal recovery reset occurs mid-session', async () => {
@@ -139,7 +139,7 @@ describe('single-owner authentication gate', () => {
     await expect(fw.apiCall('/worlds', 'POST', { name: 'After reset' })).rejects.toThrow(/setup is required/i);
     await tick();
 
-    expect(document.body.classList.contains('st-gated')).toBe(true);
+    expect(document.body.classList.contains('im-gated')).toBe(true);
     expect(document.getElementById('authSetupForm')).not.toBeNull();
   });
 });
@@ -148,7 +148,7 @@ describe('route gating under injected adapters', () => {
   it('a slow stale result cannot paint an older route over a newer one', async () => {
     let resolveFirst;
     let calls = 0;
-    window.__stTestAuthAdapter = {
+    window.__imTestAuthAdapter = {
       mode: 'slow-test',
       status: () => {
         calls++;
@@ -167,7 +167,7 @@ describe('route gating under injected adapters', () => {
       expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
       expect(document.getElementById('homeSection').classList.contains('active')).toBe(false);
     } finally {
-      delete window.__stTestAuthAdapter;
+      delete window.__imTestAuthAdapter;
     }
   });
 });

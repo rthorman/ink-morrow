@@ -1,6 +1,3 @@
-/* Ink Morrow — living manuscript theme.
-   Tokens adapted from InkMorrow-OpenCode-Branding/ink-morrow.tokens.css */
-
 :root {
   color-scheme: dark;
 
@@ -32,10 +29,8 @@
 
   --im-ash-400: #a99fb1;
   --im-ash-600: #726879;
-  --im-danger-500: #df5865;
+  --im-danger-500: #d64b58;
   --im-success-500: #64b98a;
-  --im-success-700: #2f5c44;
-  --im-success-600: #3d7a58;
 
   --im-bg: var(--im-ink-950);
   --im-surface-1: var(--im-ink-900);
@@ -44,30 +39,21 @@
   --im-text: var(--im-vellum-100);
   --im-text-muted: var(--im-ash-400);
   --im-primary: var(--im-oxblood-500);
-  --im-accent: var(--im-violet-300);
+  --im-accent: var(--im-violet-500);
   --im-focus: var(--im-witchlight-400);
-  --im-border: rgb(199 163 91 / 0.35);
-  --im-border-bright: rgb(224 197 132 / 0.55);
+  --im-border: color-mix(in srgb, var(--im-gold-500) 35%, transparent);
 
   --im-font-display: "Cormorant Garamond", Georgia, serif;
   --im-font-reading: Literata, Charter, Georgia, serif;
   --im-font-ui: Inter, system-ui, sans-serif;
   --im-font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  --im-radius-sm: 7px;
-  --im-radius-md: 12px;
-  --im-radius-lg: 16px;
+  --im-radius-sm: 0.5rem;
+  --im-radius-md: 0.75rem;
+  --im-radius-lg: 1rem;
   --im-touch-min: 44px;
   --im-content-max: 1440px;
-  --im-prose-max: 68ch;
-
-  --im-space-1: 0.25rem;
-  --im-space-2: 0.5rem;
-  --im-space-3: 0.75rem;
-  --im-space-4: 1rem;
-  --im-space-6: 1.5rem;
-  --im-space-8: 2rem;
-  --im-space-12: 3rem;
+  --im-prose-max: 72ch;
 
   --im-shadow-raised:
     0 1px 0 rgb(255 255 255 / 0.04) inset,
@@ -82,28 +68,9 @@
   --im-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-* {
-  box-sizing: border-box;
-}
-
 ::selection {
   color: var(--im-vellum-50);
-  background: rgb(166 43 88 / 0.85);
-}
-
-/* Semantic state tokens: one alias per product state, so features never
-   repeat raw color values. Status is never color-only - text/labels carry
-   the meaning; these drive the material. */
-:root {
-  --surface-manuscript: var(--im-vellum-50); /* active prose plane */
-  --surface-archive: var(--im-ink-850); /* kept media / lore surfaces */
-  --surface-annotation: rgb(142 99 216 / 0.12); /* mutable/prepared tint */
-  --state-prepared: var(--im-violet-500); /* a page waits in the margin */
-  --state-queued: var(--im-gold-500); /* work pending in a queue */
-  --state-stale: var(--im-gold-700); /* the tale moved on */
-  --state-refused: var(--im-oxblood-400); /* provider said no */
-  --state-danger: var(--im-oxblood-500); /* destructive consequences */
-  --state-cost: var(--im-gold-300); /* money facts */
+  background: color-mix(in srgb, var(--im-oxblood-500) 78%, black);
 }
 
 :focus-visible {

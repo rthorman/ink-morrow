@@ -25,7 +25,7 @@ function providerFixture(options = {}) {
 
 async function createProfile(client, csrf, overrides = {}) {
   let call = client.post('/api/providers');
-  if (csrf) call = call.set('X-ScribeTribe-CSRF', csrf);
+  if (csrf) call = call.set('X-InkMorrow-CSRF', csrf);
   const response = await call.send({
     display_name: 'Local Compatible',
     base_url: 'https://provider.example/v1',
@@ -38,7 +38,7 @@ async function createProfile(client, csrf, overrides = {}) {
 
 async function setCredential(client, csrf, profileId, body, status = 200) {
   let call = client.put(`/api/providers/${profileId}/credential`);
-  if (csrf) call = call.set('X-ScribeTribe-CSRF', csrf);
+  if (csrf) call = call.set('X-InkMorrow-CSRF', csrf);
   return call.send(body).expect(status);
 }
 
@@ -60,7 +60,7 @@ afterAll(() => {
 
 describe('PR 04 provider profiles and role assignments', () => {
   it('upgrades schema 3 with isolated profile, role, envelope, and encrypted-entry tables', () => {
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-provider-migration-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-provider-migration-'));
     const dbPath = path.join(root, 'schema-3.db');
     try {
       let db = createDb(dbPath, { migrations: MIGRATIONS.slice(0, 3), reconcileOperations: false });
@@ -223,7 +223,7 @@ describe('encrypted persistent provider vault', () => {
 
       const planned = await agent
         .post('/api/transfers/exports/plan')
-        .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+        .set('X-InkMorrow-CSRF', unlocked.csrf_token)
         .send({ scope: 'full', include_visuals: false, include_audio: false, include_working_history: true })
         .expect(200);
       expect(planned.body.exposure.excluded).toContain('credentials');
@@ -257,7 +257,7 @@ describe('encrypted persistent provider vault', () => {
       const cookie = setup.headers['set-cookie'][0].split(';')[0];
       const csrf = setup.body.csrf_token;
       const created = await request(first).post('/api/providers')
-        .set('Cookie', cookie).set('X-ScribeTribe-CSRF', csrf)
+        .set('Cookie', cookie).set('X-InkMorrow-CSRF', csrf)
         .send({
           display_name: 'Restart Vault',
           base_url: 'https://provider.example/v1',
@@ -266,10 +266,10 @@ describe('encrypted persistent provider vault', () => {
         .expect(201);
       const profile = created.body.profile;
       await request(first).put(`/api/providers/${profile.id}/credential`)
-        .set('Cookie', cookie).set('X-ScribeTribe-CSRF', csrf)
+        .set('Cookie', cookie).set('X-InkMorrow-CSRF', csrf)
         .send({ source: 'vault', credential: CANARY, password: PASSWORD }).expect(200);
       await request(first).put('/api/providers/roles/scribe')
-        .set('Cookie', cookie).set('X-ScribeTribe-CSRF', csrf)
+        .set('Cookie', cookie).set('X-InkMorrow-CSRF', csrf)
         .send({ profile_id: profile.id, model_id: 'vendor/story-model' }).expect(200);
 
       first.locals.dispose();
@@ -302,7 +302,7 @@ describe('encrypted persistent provider vault', () => {
       const beforeSecret = fixture.db.prepare('SELECT ciphertext FROM provider_secrets WHERE profile_id = ?').get(profile.id).ciphertext;
 
       const changed = await agent.post('/api/auth/change-password')
-        .set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+        .set('X-InkMorrow-CSRF', unlocked.csrf_token)
         .send({ current_password: PASSWORD, new_password: NEW_PASSWORD })
         .expect(200);
       const afterVault = fixture.db.prepare('SELECT wrapped_key FROM provider_vault WHERE id = 1').get().wrapped_key;
@@ -310,7 +310,7 @@ describe('encrypted persistent provider vault', () => {
       expect(Buffer.from(afterVault).equals(Buffer.from(beforeVault))).toBe(false);
       expect(Buffer.from(afterSecret).equals(Buffer.from(beforeSecret))).toBe(true);
 
-      await agent.post('/api/auth/logout').set('X-ScribeTribe-CSRF', changed.body.csrf_token).expect(200);
+      await agent.post('/api/auth/logout').set('X-InkMorrow-CSRF', changed.body.csrf_token).expect(200);
       await agent.post('/api/auth/login').send({ password: PASSWORD }).expect(401);
       const login = await agent.post('/api/auth/login').send({ password: NEW_PASSWORD }).expect(200);
       expect(login.body.vault.state).toBe('unlocked');
@@ -332,15 +332,15 @@ describe('encrypted persistent provider vault', () => {
       await setCredential(agent, unlocked.csrf_token, profile.id, {
         source: 'vault', credential: CANARY, password: PASSWORD,
       });
-      await agent.post('/api/worlds').set('X-ScribeTribe-CSRF', unlocked.csrf_token)
+      await agent.post('/api/worlds').set('X-InkMorrow-CSRF', unlocked.csrf_token)
         .send({ name: 'Preserved Realm' }).expect(201);
-      await agent.post('/api/auth/logout').set('X-ScribeTribe-CSRF', unlocked.csrf_token).expect(200);
+      await agent.post('/api/auth/logout').set('X-InkMorrow-CSRF', unlocked.csrf_token).expect(200);
 
       fixture.db.prepare("UPDATE provider_vault SET wrap_tag = zeroblob(length(wrap_tag)) WHERE id = 1").run();
       const login = await agent.post('/api/auth/login').send({ password: PASSWORD }).expect(200);
       expect(login.body.vault.state).toBe('error');
       const damaged = await agent.post('/api/providers/vault/unlock')
-        .set('X-ScribeTribe-CSRF', login.body.csrf_token)
+        .set('X-InkMorrow-CSRF', login.body.csrf_token)
         .send({ password: PASSWORD }).expect(503);
       expect(damaged.body).toMatchObject({ code: 'VAULT_DAMAGED' });
       expect(JSON.stringify(damaged.body)).not.toContain(CANARY);

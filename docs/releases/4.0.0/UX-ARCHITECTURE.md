@@ -1,11 +1,11 @@
-# ScribeTribe 4.0.0 UX architecture
+# Ink Morrow 4.0.0 UX architecture
 
 Status: **accepted UX/UI contract**
 Primary design profile: **portrait Android tablet in current Chrome Stable**
 
 ## Experience principle
 
-ScribeTribe should feel like entering a living, decadent Scriptorium and then
+Ink Morrow should feel like entering a living, decadent Scriptorium and then
 sitting at an exceptionally competent contemporary writing desk.
 
 The brand earns attention at thresholds, transitions, empty states, covers,
@@ -232,7 +232,7 @@ An uploaded image is not selected as an AI reference by default.
 
 Gate divides leaving-the-app actions into:
 
-- **Back up the project** — full-fidelity .scribetribe archive;
+- **Back up the project** — full-fidelity .inkmorrow archive;
 - **Prepare for publication** — format, metadata, front/back matter, art and
   style choices; and
 - **Share a reading copy** — immutable, revocable snapshot.

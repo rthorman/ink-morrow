@@ -20,7 +20,7 @@ const configuredPath = (value) => value === ':memory:'
   : path.isAbsolute(value) ? value : path.resolve(__dirname, value);
 const dbPath = process.env.DB_PATH
   ? configuredPath(process.env.DB_PATH)
-  : path.join(process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot, 'scribe-tribe.db');
+  : path.join(process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot, 'ink-morrow.db');
 const storageRoot = process.env.DATA_DIR
   ? configuredPath(process.env.DATA_DIR)
   : process.env.DB_PATH && dbPath !== ':memory:'
@@ -34,7 +34,7 @@ try {
   // file. A 3.x installation therefore fails closed here.
   db = createDb(dbPath);
 } catch (error) {
-  console.error(error.message || 'ScribeTribe could not open its database.');
+  console.error(error.message || 'Ink Morrow could not open its database.');
   process.exit(1);
 }
 fs.mkdirSync(storageRoot, { recursive: true, mode: 0o700 });
@@ -47,12 +47,12 @@ const HOST = process.env.HOST || '127.0.0.1';
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 const allowLan = !LOOPBACK_HOSTS.has(HOST);
 if (allowLan && process.env.ALLOW_INSECURE_LAN !== '1') {
-  console.error(`Refusing to bind ScribeTribe to ${HOST} over unencrypted HTTP.`);
+  console.error(`Refusing to bind Ink Morrow to ${HOST} over unencrypted HTTP.`);
   console.error('Use a local HTTPS reverse proxy, or set ALLOW_INSECURE_LAN=1 only on a trusted network.');
   db.close();
   process.exit(1);
 }
-if (allowLan) console.warn('Warning: ScribeTribe is accepting direct, unencrypted LAN connections.');
+if (allowLan) console.warn('Warning: Ink Morrow is accepting direct, unencrypted LAN connections.');
 
 const allowedHosts = String(process.env.ALLOWED_HOSTS || '')
   .split(',')
@@ -78,7 +78,7 @@ const app = createApp(db, {
 });
 
 const server = app.listen(PORT, HOST, () => {
-  console.log(`ScribeTribe (API + frontend) serving on http://${HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`);
+  console.log(`Ink Morrow (API + frontend) serving on http://${HOST === '127.0.0.1' ? 'localhost' : HOST}:${PORT}`);
 });
 
 function shutdown(signal) {

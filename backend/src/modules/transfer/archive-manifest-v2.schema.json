@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ScribeTribe project archive manifest v2",
+  "title": "Ink Morrow project archive manifest v2",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -18,7 +18,7 @@
     "exposure"
   ],
   "properties": {
-    "format": { "const": "scribetribe-project-archive" },
+    "format": { "const": "ink-morrow-project-archive" },
     "version": { "const": 2 },
     "manifest_schema_version": { "const": 1 },
     "database_schema": {
@@ -26,7 +26,7 @@
       "additionalProperties": false,
       "required": ["family", "version"],
       "properties": {
-        "family": { "const": "scribetribe-4" },
+        "family": { "const": "ink-morrow-4" },
         "version": { "type": "integer", "minimum": 1 }
       }
     },
@@ -36,7 +36,7 @@
       "additionalProperties": false,
       "required": ["application", "version"],
       "properties": {
-        "application": { "const": "ScribeTribe" },
+        "application": { "const": "Ink Morrow" },
         "version": { "type": "string", "minLength": 1 }
       }
     },

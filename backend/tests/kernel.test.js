@@ -27,11 +27,11 @@ const { createTestApp } = require('./helpers');
 const { createImageStore } = require('../src/images');
 const { createArtStore } = require('../src/modules/imagery/art-store');
 
-describe('ScribeTribe 4.0 kernel', () => {
+describe('Ink Morrow 4.0 kernel', () => {
   let root;
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-kernel-'));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-kernel-'));
   });
 
   afterEach(() => {
@@ -39,7 +39,7 @@ describe('ScribeTribe 4.0 kernel', () => {
   });
 
   it('creates a branded, constrained schema and boots it repeatedly', () => {
-    const dbPath = path.join(root, 'nested', 'scribe-tribe.db');
+    const dbPath = path.join(root, 'nested', 'ink-morrow.db');
     let db = createDb(dbPath);
     expect(schemaIdentity(db)).toMatchObject({
       family: DATABASE_FAMILY,
@@ -92,7 +92,7 @@ describe('ScribeTribe 4.0 kernel', () => {
   it('fails closed on a future database before changing it', () => {
     const dbPath = path.join(root, 'future.db');
     const db = createDb(dbPath);
-    db.prepare('UPDATE scribe_schema SET version = ? WHERE singleton = 1').run(DATABASE_SCHEMA_VERSION + 1);
+    db.prepare('UPDATE ink_morrow_schema SET version = ? WHERE singleton = 1').run(DATABASE_SCHEMA_VERSION + 1);
     db.exec(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION + 1}`);
     db.close();
     const before = fs.readFileSync(dbPath);
