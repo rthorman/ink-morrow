@@ -326,4 +326,3 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
 
   return { loadCharacters, renderCharacters, handleCharacterSubmit, openCharacterEditor, closeCharacterEditor, saveCharacterEditor, init };
 }
-
