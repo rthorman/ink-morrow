@@ -15,6 +15,15 @@ reasoning controls.
 and persistent safety backups. `DB_PATH` is an advanced override for the SQLite
 file; when it is set without `DATA_DIR`, media follows the database directory.
 
+An earlier 4.0 beta may still carry the private database identity and default
+filename used before the Ink Morrow rebrand. If no explicit `DB_PATH` is set
+and `ink-morrow.db` does not exist, the server discovers that earlier default
+file. It adopts the database only after verifying its 4.0 identity, SQLite
+application/version markers, and every migration-ledger checksum. Before the
+identity changes, it writes a complete SQLite snapshot beside the database as
+`*.pre-ink-morrow-v4.bak`. The startup log prints the exact backup path. A
+database that fails any proof is refused without an adoption attempt.
+
 Use both of these backup forms:
 
 1. In Gate, create a **full `.inkmorrow` backup** with visuals, audio, and
