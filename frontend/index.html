@@ -387,23 +387,52 @@
                                 <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
                                 <button id="nextPageBtn" class="btn btn-secondary" type="button">Next →</button>
                             </div>
-                            <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
-                                <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
-                                <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
-                                <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
-                                <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
-                                <button id="uploadArtBtn" class="narrate-btn" type="button" title="Upload a local image and place it after the current prose page">Upload art</button>
-                                <input id="uploadArtInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
-                            </div>
+                            <details id="deskToolSheet" class="desk-tool-sheet" open>
+                                <summary>Reading &amp; media tools</summary>
+                                <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
+                                    <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
+                                    <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
+                                    <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
+                                    <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
+                                    <button id="uploadArtBtn" class="narrate-btn" type="button" title="Upload a local image and place it after the current prose page">Upload art</button>
+                                    <input id="uploadArtInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+                                </div>
+                            </details>
                         </div>
 
                         <div id="storyContent" class="story-content">
                             <p class="placeholder">Select a story to begin reading and writing…</p>
                         </div>
 
+                        <div id="deskPageState" class="desk-page-state" hidden>
+                            <button id="deskPageEditBtn" class="btn btn-secondary" type="button">Edit active page</button>
+                            <p id="deskPageSaveState" class="desk-save-state" role="status" aria-live="polite"></p>
+                        </div>
+                        <section id="deskPageEditor" class="desk-page-editor" aria-labelledby="deskPageEditorTitle" hidden>
+                            <div class="desk-page-editor__head">
+                                <div>
+                                    <p class="hero__kicker">Manuscript page</p>
+                                    <h3 id="deskPageEditorTitle">Edit active page</h3>
+                                </div>
+                                <button id="deskPageEditorClose" class="btn btn-secondary" type="button">Close editor</button>
+                            </div>
+                            <p id="deskPageEditorNotice" class="setting-hint"></p>
+                            <label for="deskPageEditorText">Page prose</label>
+                            <textarea id="deskPageEditorText" rows="16" maxlength="500000"></textarea>
+                            <div class="form-actions">
+                                <button id="deskPageSaveNow" class="btn btn-primary" type="button">Save now</button>
+                                <button id="deskPageReloadLatest" class="btn btn-secondary" type="button" hidden>Load latest page</button>
+                            </div>
+                        </section>
+
                         <div id="pastPageBar" class="past-page-bar" hidden>
                             <p>You are reading an earlier page. Old pages cannot be changed.</p>
-                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Delete everything after this page</button>
+                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Return story to this page</button>
+                        </div>
+
+                        <div id="deskRecoveryBanner" class="desk-recovery" role="status" aria-live="polite" hidden>
+                            <p id="deskRecoveryText"></p>
+                            <button id="deskRecoveryUndo" class="btn btn-secondary" type="button">Undo return</button>
                         </div>
 
                         <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>

@@ -7,6 +7,166 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   const { showError, showSuccess, showErrorRaw } = notify;
   let router = null; // set by bootstrap
   let storyLoadToken = 0;
+  let pageEditTimer = null;
+  let pageEditSession = null;
+  let pageEditSequence = 0;
+  let recoveryUndo = null;
+  const pageEditDrafts = new Map();
+
+  const byId = (id) => document.getElementById(id);
+
+  function pageDraftKey(storyId, pageId) {
+    return `${storyId}:${pageId}`;
+  }
+
+  function setPageSaveState(state, message) {
+    const status = byId('deskPageSaveState');
+    if (!status) return;
+    status.dataset.state = state || '';
+    status.textContent = message || '';
+  }
+
+  function resetPageEditor({ preserveDraft = true } = {}) {
+    if (pageEditTimer) clearTimeout(pageEditTimer);
+    pageEditTimer = null;
+    pageEditSequence++;
+    if (!preserveDraft && pageEditSession) {
+      pageEditDrafts.delete(pageDraftKey(pageEditSession.storyId, pageEditSession.pageId));
+    }
+    pageEditSession = null;
+    if (byId('deskPageEditor')) byId('deskPageEditor').hidden = true;
+    if (byId('deskPageReloadLatest')) byId('deskPageReloadLatest').hidden = true;
+    setPageSaveState('', '');
+  }
+
+  function currentPageRecord() {
+    return state.data.storyPages.find((page) => page.page_number === state.data.currentPage) || null;
+  }
+
+  function syncPageEditorControls() {
+    const wrap = byId('deskPageState');
+    const button = byId('deskPageEditBtn');
+    const page = currentPageRecord();
+    const usable = Boolean(state.data.currentStory && page?.id && !state.data.generating);
+    if (wrap) wrap.hidden = !usable;
+    if (!usable) {
+      if (pageEditSession) resetPageEditor();
+      return;
+    }
+    const historical = state.data.currentPage < state.data.storyPages.length;
+    if (button) button.textContent = historical ? 'Copyedit this page' : 'Edit active page';
+    if (pageEditSession && (
+      pageEditSession.storyId !== state.data.currentStory.id ||
+      pageEditSession.pageId !== page.id ||
+      pageEditSession.mode !== (historical ? 'copyedit' : 'tail')
+    )) resetPageEditor();
+  }
+
+  function openPageEditor() {
+    const story = state.data.currentStory;
+    const page = currentPageRecord();
+    if (!story || !page?.id || state.data.generating) return;
+    const mode = state.data.currentPage < state.data.storyPages.length ? 'copyedit' : 'tail';
+    const key = pageDraftKey(story.id, page.id);
+    pageEditSession = {
+      storyId: story.id,
+      pageId: page.id,
+      pageNumber: page.page_number,
+      mode,
+      dirty: pageEditDrafts.has(key),
+      token: ++pageEditSequence,
+      version: 0,
+    };
+    byId('deskPageEditorTitle').textContent = mode === 'tail'
+      ? `Edit active page ${page.page_number}`
+      : `Copyedit page ${page.page_number}`;
+    byId('deskPageEditorNotice').textContent = mode === 'tail'
+      ? 'Changes autosave as a new canonical revision and invalidate any prepared successor. Story facts are rebuilt from this active tail.'
+      : 'Display-only copyedit. Canonical prose and Archivist facts stay unchanged; no AI provider is called.';
+    byId('deskPageEditorText').value = pageEditDrafts.get(key) ?? page.content ?? '';
+    byId('deskPageEditor').hidden = false;
+    byId('deskPageReloadLatest').hidden = true;
+    setPageSaveState(pageEditSession.dirty ? 'error' : '', pageEditSession.dirty ? 'Unsaved draft restored.' : 'Autosave is ready.');
+    byId('deskPageEditorText').focus();
+  }
+
+  async function savePageEdit() {
+    if (pageEditTimer) clearTimeout(pageEditTimer);
+    pageEditTimer = null;
+    const session = pageEditSession;
+    if (!session || !session.dirty) return true;
+    const text = byId('deskPageEditorText').value;
+    const version = session.version;
+    if (!text.trim()) {
+      setPageSaveState('error', 'A manuscript page cannot be empty. Your draft is still here.');
+      return false;
+    }
+    const sequence = ++pageEditSequence;
+    session.token = sequence;
+    setPageSaveState('saving', session.mode === 'tail' ? 'Saving canonical revisionâ€¦' : 'Saving display copyeditâ€¦');
+    byId('deskPageSaveNow').disabled = true;
+    try {
+      const endpoint = session.mode === 'tail'
+        ? `/stories/${session.storyId}/pages/${session.pageId}/revisions`
+        : `/stories/${session.storyId}/pages/${session.pageId}/copyedits`;
+      await apiCall(endpoint, session.mode === 'tail' ? 'PUT' : 'POST', { content: text });
+      if (!pageEditSession || pageEditSession.token !== sequence) return false;
+      const page = state.data.storyPages.find((item) => item.id === session.pageId);
+      if (page) page.content = text;
+      if (session.version !== version) {
+        session.dirty = true;
+        displayCurrentPage();
+        setPageSaveState('', 'Newer changes are still waiting to saveâ€¦');
+        if (pageEditTimer) clearTimeout(pageEditTimer);
+        pageEditTimer = setTimeout(savePageEdit, 200);
+        return false;
+      }
+      session.dirty = false;
+      pageEditDrafts.delete(pageDraftKey(session.storyId, session.pageId));
+      if (session.mode === 'tail') features.generation.discardSpeculative();
+      displayCurrentPage();
+      setPageSaveState('saved', session.mode === 'tail' ? 'Canonical revision saved.' : 'Display copyedit saved; canon unchanged.');
+      byId('deskPageReloadLatest').hidden = true;
+      return true;
+    } catch (error) {
+      if (!pageEditSession || pageEditSession.token !== sequence) return false;
+      session.dirty = true;
+      pageEditDrafts.set(pageDraftKey(session.storyId, session.pageId), byId('deskPageEditorText').value);
+      const conflict = error.status === 409;
+      const offline = error.message.startsWith('Cannot reach the server');
+      setPageSaveState(
+        conflict ? 'conflict' : offline ? 'offline' : 'error',
+        conflict
+          ? 'This page changed elsewhere. Your draft is preserved; load the latest page or retry after reviewing it.'
+          : offline
+            ? 'Offline. Your draft is preserved in this Desk session; retry when the server returns.'
+            : `Save failed: ${error.message}. Your draft is preserved.`
+      );
+      byId('deskPageReloadLatest').hidden = !conflict;
+      return false;
+    } finally {
+      if (pageEditSession?.token === sequence) byId('deskPageSaveNow').disabled = false;
+    }
+  }
+
+  async function reloadLatestPage() {
+    const session = pageEditSession;
+    if (!session) return;
+    try {
+      const result = await apiCall(`/stories/${session.storyId}/pages/${session.pageId}`);
+      if (!pageEditSession || pageEditSession !== session) return;
+      const page = state.data.storyPages.find((item) => item.id === session.pageId);
+      if (page) Object.assign(page, result.page);
+      pageEditDrafts.delete(pageDraftKey(session.storyId, session.pageId));
+      session.dirty = false;
+      byId('deskPageEditorText').value = result.page.content || '';
+      byId('deskPageReloadLatest').hidden = true;
+      displayCurrentPage();
+      setPageSaveState('saved', 'Latest server revision loaded.');
+    } catch (error) {
+      setPageSaveState('error', `Could not load the latest page: ${error.message}`);
+    }
+  }
 
   function updateStorySelect() {
     const select = document.getElementById('currentStory');
@@ -72,6 +232,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     }
     features.generation.resetForStoryChange();
     features.imagery?.resetForContextChange(story.id);
+    resetPageEditor();
+    hideRecoveryUndo();
     document.getElementById('currentStory').value = story.id;
     state.data.currentStory = story;
     await loadStoryPages();
@@ -94,6 +256,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   async function handleStorySelection(event) {
     const storyId = event.target.value;
     features.narration.stopNarration();
+    resetPageEditor();
+    hideRecoveryUndo();
     if (!storyId) {
       features.generation.resetForStoryChange();
       state.data.currentStory = null;
@@ -216,6 +380,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       setWritingEnabled(false);
       updatePageActionButtons();
       features.generation?.updateSpeculativeUi();
+      syncPageEditorControls();
       return;
     }
 
@@ -259,6 +424,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     document.getElementById('pageIndicator').textContent = `Page ${currentPage} of ${Math.max(storyPages.length, 1)}`;
     updateStoryContextSummary();
     features.generation?.updateSpeculativeUi();
+    syncPageEditorControls();
   }
 
   // The context bar's plain summary: world + cast shape, at a glance.
@@ -320,14 +486,15 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (note) {
       note.textContent =
         pagesAfter === 1
-          ? `You are reading an earlier page. ${pagesAfter} page comes after this one. Old pages cannot be changed.`
-          : `You are reading an earlier page. ${pagesAfter} pages come after this one. Old pages cannot be changed.`;
+          ? `You are reading an earlier page. ${pagesAfter} page comes after it. You may copyedit display prose without changing canon.`
+          : `You are reading an earlier page. ${pagesAfter} pages come after it. You may copyedit display prose without changing canon.`;
     }
   }
 
   function navigatePage(direction) {
     const { currentStory, storyPages, generating } = state.data;
     if (!currentStory || storyPages.length === 0 || generating) return;
+    resetPageEditor();
     features.narration.stopNarration(); // obsolete stream: the reader moved on
     state.data.currentPage = Math.max(1, Math.min(storyPages.length, state.data.currentPage + direction));
     displayCurrentPage();
@@ -380,8 +547,54 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     }
   }
 
-  // -- burn (truncate) everything after the current page -----------------------
-  // The shared destructive dialog names the exact count and range.
+  // -- return story to an earlier page -----------------------------------------
+  // Truncation is destructive to the active chain, but PR 03 returns a bounded
+  // one-click undo token plus a longer-lived recovery suffix.
+
+  function hideRecoveryUndo() {
+    recoveryUndo = null;
+    const banner = byId('deskRecoveryBanner');
+    if (banner) banner.hidden = true;
+  }
+
+  function showRecoveryUndo(result, story, anchorPage) {
+    if (!result?.recovery?.id || !result?.undo?.token) return;
+    recoveryUndo = {
+      storyId: story.id,
+      recoveryId: result.recovery.id,
+      token: result.undo.token,
+    };
+    const range = result.removed_range.first === result.removed_range.last
+      ? `Page ${result.removed_range.first}`
+      : `Pages ${result.removed_range.first}â€“${result.removed_range.last}`;
+    byId('deskRecoveryText').textContent =
+      `${range} left the active story after page ${anchorPage}. Undo is available briefly; the recovery copy remains available until ${new Date(result.recovery.expires_at).toLocaleString()}.`;
+    byId('deskRecoveryBanner').hidden = false;
+  }
+
+  async function undoReturn() {
+    const undo = recoveryUndo;
+    if (!undo || state.data.generating) return;
+    byId('deskRecoveryUndo').disabled = true;
+    try {
+      await apiCall(`/stories/${undo.storyId}/recoveries/${undo.recoveryId}/undo`, 'POST', {
+        undo_token: undo.token,
+      });
+      if (state.data.currentStory?.id !== undo.storyId) return;
+      hideRecoveryUndo();
+      await loadStoryPages();
+      await features.stories.loadStories();
+      showSuccess('The returned pages are back in the active story.');
+    } catch (error) {
+      showError(error.message);
+      if (byId('deskRecoveryText')) {
+        byId('deskRecoveryText').textContent =
+          `Quick undo is unavailable: ${error.message}. The recovery copy remains in Chronicle for manual restore or export.`;
+      }
+    } finally {
+      if (byId('deskRecoveryUndo')) byId('deskRecoveryUndo').disabled = false;
+    }
+  }
 
   function openBurnModal() {
     const { currentStory, currentPage, storyPages, generating } = state.data;
@@ -390,9 +603,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const range = after === 1 ? `Page ${currentPage + 1}` : `Pages ${currentPage + 1}–${storyPages.length}`;
     dialogs
       .confirmDestructive({
-        title: `Delete ${after} later ${after === 1 ? 'page' : 'pages'}?`,
-        body: `${range} of "${currentStory.title}" will be permanently removed. Art anchored there remains in the Gallery but is unplaced, and page ${currentPage} becomes the end of the story.`,
-        confirmLabel: `Delete ${after} ${after === 1 ? 'page' : 'pages'}`,
+        title: `Return story to page ${currentPage}?`,
+        body: `${range} (${after} ${after === 1 ? 'page' : 'pages'}) of "${currentStory.title}" will leave the active story. Art anchored there remains in the Gallery but is unplaced. A recovery copy is retained, and the next screen offers a brief one-click undo.`,
+        confirmLabel: `Return story to page ${currentPage}`,
       })
       .then((yes) => {
         if (yes) burnAfterCurrentPage();
@@ -412,7 +625,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       features.generation.discardSpeculative();
       features.narration.stopNarration();
       await loadStoryPages();
-      showSuccess(result.deleted === 1 ? '1 page burned.' : `${result.deleted} pages burned.`);
+      showRecoveryUndo(result, currentStory, after);
+      showSuccess(result.deleted === 1 ? 'Story returned; 1 later page is recoverable.' : `Story returned; ${result.deleted} later pages are recoverable.`);
     } catch (error) {
       showError(error.message);
     }
@@ -458,6 +672,8 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
 
   function resetStoryReader() {
     storyLoadToken++;
+    resetPageEditor();
+    hideRecoveryUndo();
     features.generation.resetForStoryChange();
     features.imagery?.resetForContextChange(null);
     state.data.storyPages = [];
@@ -484,6 +700,24 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     document.getElementById('deletePageBtn').addEventListener('click', deleteCurrentPage);
     document.getElementById('prevPageBtn').addEventListener('click', () => navigatePage(-1));
     document.getElementById('nextPageBtn').addEventListener('click', () => navigatePage(1));
+    byId('deskPageEditBtn')?.addEventListener('click', openPageEditor);
+    byId('deskPageSaveNow')?.addEventListener('click', savePageEdit);
+    byId('deskPageReloadLatest')?.addEventListener('click', reloadLatestPage);
+    byId('deskPageEditorClose')?.addEventListener('click', async () => {
+      const saved = await savePageEdit();
+      if (saved && byId('deskPageEditor')) byId('deskPageEditor').hidden = true;
+    });
+    byId('deskPageEditorText')?.addEventListener('input', () => {
+      if (!pageEditSession) return;
+      pageEditSession.dirty = true;
+      pageEditSession.version++;
+      const text = byId('deskPageEditorText').value;
+      pageEditDrafts.set(pageDraftKey(pageEditSession.storyId, pageEditSession.pageId), text);
+      setPageSaveState('', 'Unsaved changes. Autosavingâ€¦');
+      if (pageEditTimer) clearTimeout(pageEditTimer);
+      pageEditTimer = setTimeout(savePageEdit, 850);
+    });
+    byId('deskRecoveryUndo')?.addEventListener('click', undoReturn);
     const uploadButton = document.getElementById('uploadArtBtn');
     const uploadInput = document.getElementById('uploadArtInput');
     uploadButton?.addEventListener('click', () => uploadInput?.click());
@@ -538,6 +772,10 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     openBurnModal,
     closeBurnModal,
     burnAfterCurrentPage,
+    openPageEditor,
+    savePageEdit,
+    reloadLatestPage,
+    undoReturn,
     uploadArt,
     resetStoryReader,
     resetAfterStoryDeletion,

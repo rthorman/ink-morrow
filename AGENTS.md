@@ -259,6 +259,26 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   chapter. It rejects oversized input before mutation and does not discard
   non-heading text. Full behavior: `docs/library-start.md`.
 
+### 4.0 PR 11 — Desk contract
+
+- The Desk consumes the PR 06 state machine without inventing another write
+  path. Prepared promotion uses its opaque identity; directed work invalidates
+  prepared prose only after consent; failed or stale provider replies preserve
+  the author's direction and cannot paint another manuscript.
+- The active-tail page exposes a prose editor. Debounced autosave writes a new
+  canonical revision, names saving/saved/offline/error/conflict states, and
+  invalidates the prepared successor at the same successful boundary. Failed
+  and conflicting saves retain an isolated in-session draft.
+- Earlier pages remain outside canonical editing. Their editor calls only the
+  display-copyedit endpoint, says that canon and Archivist facts are unchanged,
+  and makes no provider request.
+- **Return story to this page** names the exact removed count and range. The
+  result exposes the brief one-click undo token and the longer recovery expiry;
+  art is unplaced rather than renumbered into prose.
+- Page brackets, Ctrl/Cmd+Enter, labelled 44-pixel controls, 200 percent reflow,
+  a collapsible reading/media tool sheet, and the portrait sticky composer are
+  part of the Desk contract. Full behavior: `docs/desk.md`.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.
@@ -308,7 +328,7 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
 - NAV SHELL: Library is the global threshold with route-backed Manuscripts/Bookshelf, world templates, character templates, Settings, and Lock. The manuscript workspace is exactly Desk, Chronicle, Codex, Gallery, Gate at every width; labelled bottom navigation becomes a labelled rail at 900px landscape. `aria-current="page"` marks only the active tier. Desk owns creation and remains reachable without a manuscript; later rooms are disabled until selection and use honest holding surfaces until implemented. World/character catalogues remain collection-first. Library story-card body click opens its asset manager while explicit Cast/More controls retain their own actions.
 - AGE GATE IS GONE: replaced by a contextual explicit-maturity acknowledgement (first selection of Explicit in the story form, localStorage st-tone-explicit-ok) — no global first-visit gate.
 - AUTH SEAM: app/features/auth/{adapter,gate}.js — real single-owner adapter (`status/setup/login/logout/changePassword`, CSRF held in memory only) plus `window.__stTestAuthAdapter` injection for Jest. The gate is fail-closed: it mounts branded first-run/unlock/error surfaces and renders no private route until status is unlocked. Setup uses terminal code + confirmed new password; login supports remembered/unremembered sessions; both expose accessible show/hide controls. A 401 immediately clears private client state, stops narration/audiobook/cover/catalog/disk work, closes dialogs, and returns to unlock. Lock is a persistent nav action; Settings changes the password. `pageshow` rechecks status. Tests default to an injected unlocked adapter so unrelated suites stay focused; real-auth tests opt in.
-- WRITE DESK: controls grouped (page nav / reading-media / composer / story management); narrationAutoBtn is labelled "Auto-read" (no glyph-only buttons); prepared-page state is explicit (#preparedNote: "Next page prepared…" / "…discards it"); primary button reads "Write next page" / "Use prepared page"; Ctrl/Cmd+Enter submits the composer; [ / ] turn pages when focus is outside form controls; #storyContextMode summarizes world + cast shape.
+- WRITE DESK: controls grouped (page nav / reading-media tool sheet / composer / story management); narrationAutoBtn is labelled "Auto-read" (no glyph-only buttons); prepared-page state is explicit (#preparedNote: "Next page prepared…" / "…discards it"); primary button reads "Write next page" / "Use prepared page"; Ctrl/Cmd+Enter submits the composer; [ / ] turn pages when focus is outside form controls; #storyContextMode summarizes world + cast shape. Active-tail edits are canonical autosaves; historical copyedits are display-only. Return-to-page is recoverable and never described as permanent deletion.
 - BRAND ASSETS: frontend/brand/ holds the three art-directed hero WebPs + vesper/cinder/moth WebPs (PNG masters stay in ScribeTribe-UX-Architecture-OpenCode-2026-08-30/assets/generated/, never in production). moth-archive.webp = Bookshelf/lore empty states; cinder-cast.webp = cast-shape intro in story creation (never behind fields); vesper-threshold.webp = active first-run/unlock surface. Interface fonts are bundled under frontend/fonts/ (Latin + Latin Extended WOFF2 and OFL texts); do not restore Google Fonts network requests.
 - READ-only earlier pages; delete-later-pages and all destructive flows go through confirmDestructive with exact counts; deleteCurrentPage distinguishes plates.
 - NO-STORY DESK (v3.0.2, routed by PR 09): with no story selected the Desk says "No story selected" (never a fake "Page 1 of 1"), every story-dependent control is disabled, and activating one fires no request or toast. A cold direct canonical `#/desk` route and the compatibility `#/write` alias MUST call `displayCurrentPage()` so static markup cannot flash a false enabled state.

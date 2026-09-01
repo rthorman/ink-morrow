@@ -19,6 +19,11 @@ PR 10 adds the Library manuscript-start sheet: authors can write an opening,
 carry a seed to the Desk, or import existing prose into the default hierarchy
 without configuring an AI provider. Optional Foundations suggestions are
 reviewed and accepted one field at a time.
+PR 11 turns the Desk into the complete authoring surface: active-tail prose
+autosaves as immutable canonical revisions, earlier pages accept display-only
+copyedits, and returning a story to an earlier page provides a bounded undo
+plus the durable recovery suffix. Prepared and directed writing continue to
+use the PR 06 transaction state machine.
 The shell adds a global Library threshold, manuscript switching, and the stable
 Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
 layouts. Its
@@ -40,6 +45,8 @@ and Write hashes as aliases rather than duplicate destinations; see
 [docs/adaptive-shell.md](docs/adaptive-shell.md).
 The start flow, draft persistence, import mapping, and provider boundary are
 specified in [docs/library-start.md](docs/library-start.md).
+The Desk's edit, generation, recovery, keyboard, and portrait behavior is
+specified in [docs/desk.md](docs/desk.md).
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 
