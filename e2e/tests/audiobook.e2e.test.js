@@ -15,7 +15,7 @@ async function createStoryViaUi(page, title) {
 
   await openUnlocked(page);
   await page.locator('#writeBtn').click();
-  await page.selectOption('#currentStory', story.id);
+  await page.selectOption('#shellManuscriptSelect', story.id);
   await expect(page.locator('#writeSection')).toHaveClass(/active/);
   return story;
 }
@@ -73,7 +73,8 @@ test.describe('Audiobook', () => {
     const story = await createStoryViaUi(page, 'Audiobook Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page of the tale.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page of the tale.' });
-    await page.selectOption('#currentStory', story.id); // reload with pages
+    await page.selectOption('#shellManuscriptSelect', story.id); // reload with pages
+    await page.dispatchEvent('#shellManuscriptSelect', 'change');
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     // The modal: narrator advertised, honest estimates, plate-free page count
@@ -122,7 +123,8 @@ test.describe('Audiobook', () => {
     await apiPost(page, `/api/stories/${story.id}/pages/1/image-page`, {
       image: PNG_1PX, media_type: 'image/png', prompt: 'A candlelit hall.',
     });
-    await page.selectOption('#currentStory', story.id);
+    await page.selectOption('#shellManuscriptSelect', story.id);
+    await page.dispatchEvent('#shellManuscriptSelect', 'change');
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     await page.locator('#libraryBtn').click();
@@ -146,3 +148,4 @@ test.describe('Audiobook', () => {
     await expect(entry).toContainText('No story art kept');
   });
 });
+
