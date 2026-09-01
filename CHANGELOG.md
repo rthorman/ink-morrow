@@ -10,6 +10,10 @@ This is a clean-break beta. Use a new, empty `DATA_DIR`; ScribeTribe 4.0
 refuses 3.x databases and format-v1 archives before mutation. Keep the 3.2.2
 application and its data available for historical projects.
 
+The 4.0 beta refactor was produced exclusively through ChatGPT/Codex under
+human-led feature planning, direction, review, and acceptance, including code,
+visual assets, and documentation. See [CREDITS.md](CREDITS.md).
+
 ### Added
 
 - Volume, chapter, and stable page hierarchy with immutable revisions,
@@ -49,3 +53,4 @@ See [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 The last 3.x release repaired exact prepared-page promotion and stale-response
 handling. Its MIT-licensed history remains preserved for users who need to
 retain or read 3.x data.
+
