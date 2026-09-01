@@ -220,7 +220,16 @@ function buildDom() {
         <input id="galleryUploadInput" type="file"><button class="workspace-back-to-desk">Return to Desk</button>
         <div id="galleryReferenceSummary"></div><div id="galleryGrid"></div>
       </section>
-      <section id="gateSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="gateSection" class="content-section"><span data-workspace-story></span>
+        <button id="gateBackupBtn">Review project backup</button>
+        <form id="gatePublicationForm"><input id="gatePublicationTitle"><input id="gatePublicationAuthor"><input id="gatePublicationLanguage" value="en">
+          <textarea id="gateFrontMatter"></textarea><textarea id="gateBackMatter"></textarea>
+          <div id="gateFormatList"><input type="checkbox" name="publication-format" value="epub" checked><input type="checkbox" name="publication-format" value="pdf" checked></div>
+          <div id="gateArtList"></div><button id="gateReviewPublicationBtn" type="submit">Review publication</button>
+        </form>
+        <section id="gateJob" hidden><p id="gateJobStatus"></p><progress id="gateJobProgress"></progress><div id="gateJobDownloads"></div><button id="gateCancelJobBtn">Cancel</button><button id="gateRetryJobBtn" hidden>Retry</button></section>
+        <button class="workspace-back-to-desk">Return to Desk</button>
+      </section>
       <section id="settingsSection" class="content-section">
         <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
         <details class="settings-group" open><summary><h3>Writing AI</h3><span id="writingAiSummary" class="settings-group__summary"></span></summary>

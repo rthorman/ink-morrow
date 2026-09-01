@@ -32,7 +32,7 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'codex', status: 'available' }),
   Object.freeze({ id: 'gallery', status: 'available' }),
   Object.freeze({ id: 'publication-core', status: 'available' }),
-  Object.freeze({ id: 'publication', status: 'planned' }),
+  Object.freeze({ id: 'publication', status: 'available' }),
   Object.freeze({ id: 'snapshot-sharing', status: 'planned' }),
 ]);
 

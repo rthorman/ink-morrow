@@ -4,7 +4,7 @@ const { createHash, randomUUID } = require('node:crypto');
 
 const PUBLICATION_FORMAT = 'scribetribe-publication-document';
 const PUBLICATION_SCHEMA_VERSION = 1;
-const PUBLICATION_FORMATS = Object.freeze(['docx', 'odt', 'rtf', 'html', 'md', 'txt', 'json']);
+const PUBLICATION_FORMATS = Object.freeze(['docx', 'odt', 'rtf', 'epub', 'pdf', 'html', 'md', 'txt', 'json']);
 const INPUT_FIELDS = new Set(['metadata', 'front_matter', 'back_matter', 'art', 'expected_story_updated_at']);
 const METADATA_FIELDS = new Set(['title', 'subtitle', 'author', 'language', 'description', 'publisher', 'rights', 'date']);
 const MATTER_ROLES = new Set(['dedication', 'preface', 'acknowledgments', 'afterword', 'about-author', 'other']);

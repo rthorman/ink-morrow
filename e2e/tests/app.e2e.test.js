@@ -695,6 +695,44 @@ test.describe('ScribeTribe UI', () => {
     expect(providerRequests).toEqual([]);
   });
 
+  test('Gate separates backup and builds EPUB plus PDF from one reviewed snapshot', async ({ page }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Gate Proof', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gate page one.\n\n***\n\nGate page two.' });
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/provider|models|completion|generate|scene-image|image-prompt/.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.goto(`/#/gate/${story.id}`);
+    await expect(page.locator('#gateSection')).toHaveClass(/active/);
+    await expect(page.locator('.gate-card--backup')).toContainText('Full fidelity');
+    await expect(page.locator('.gate-card--publication')).toContainText('Reading copy');
+    await expect(page.locator('.gate-card--share button')).toBeDisabled();
+    await page.fill('#gatePublicationAuthor', 'E2E Author');
+    await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
+
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('One immutable book');
+    await expect(dialog).toContainText('Excluded: directions, continuity');
+    await dialog.locator('button', { hasText: 'Build 2 formats' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('#gateJobStatus')).toContainText('2 publication files ready', { timeout: 15000 });
+    const downloads = page.locator('#gateJobDownloads a');
+    await expect(downloads).toHaveCount(2);
+    await expect(downloads.nth(0)).toContainText('EPUB');
+    await expect(downloads.nth(1)).toContainText('PDF');
+    const epub = await page.request.get(await downloads.nth(0).getAttribute('href'));
+    const pdf = await page.request.get(await downloads.nth(1).getAttribute('href'));
+    expect(epub.status()).toBe(200);
+    expect(pdf.status()).toBe(200);
+    expect((await epub.body()).subarray(0, 2).toString()).toBe('PK');
+    expect((await pdf.body()).subarray(0, 8).toString()).toBe('%PDF-1.7');
+    expect(providerRequests).toEqual([]);
+  });
+
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
     const longDescription = 'A brass city under twin moons. '.repeat(60);
     await apiPost(page, '/api/worlds', { name: 'Longwinded Realm', description: longDescription, generate_image: false });

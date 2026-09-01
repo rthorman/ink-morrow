@@ -7,7 +7,7 @@ const request = require('supertest');
 const sharp = require('sharp');
 const { createTestApp, createStory, addPage } = require('./helpers');
 const {
-  semanticView, renderPublication, rereadPublication, publicationChunks,
+  semanticView, renderPublication, rereadPublication, publicationChunks, validateEpub, validatePdf,
 } = require('../src/modules/publication/adapters');
 const schema = require('../src/modules/publication/publication-document.schema.json');
 
@@ -77,7 +77,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
       .expect(201);
 
     const snapshot = response.body.snapshot;
-    expect(snapshot.formats).toEqual(['docx', 'odt', 'rtf', 'html', 'md', 'txt', 'json']);
+    expect(snapshot.formats).toEqual(['docx', 'odt', 'rtf', 'epub', 'pdf', 'html', 'md', 'txt', 'json']);
     expect(snapshot.document).toMatchObject({
       format: 'scribetribe-publication-document',
       schema_version: 1,
@@ -125,7 +125,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
       '[Illustration: Moonlight above a quiet tower.]', 'An Empty Chapter',
     ]));
 
-    for (const format of ['docx', 'odt', 'rtf', 'html', 'md', 'txt', 'json']) {
+    for (const format of ['docx', 'odt', 'rtf', 'epub', 'pdf', 'html', 'md', 'txt', 'json']) {
       const response = await request(fixture.app)
         .get(`/api/publications/${id}/formats/${format}`)
         .buffer()
@@ -149,6 +149,16 @@ describe('PR 15 PublicationDocument and core adapters', () => {
         expect(bytesAsText).toMatch(/^\{\\rtf1/);
         expect(bytesAsText).toContain('Illustration: Moonlight above a quiet tower.');
         expect(bytesAsText).toContain('\\pngblip');
+      } else if (format === 'epub') {
+        expect(response.body.subarray(0, 2).toString()).toBe('PK');
+        expect(bytesAsText).toContain('application/epub+zip');
+        expect(bytesAsText).toContain('EPUB/images/asset-1.webp');
+        expect(validateEpub(response.body)).toEqual({ valid: true, errors: [] });
+      } else if (format === 'pdf') {
+        expect(bytesAsText).toMatch(/^%PDF-1\.7/);
+        expect(bytesAsText).toContain('/FontFile2');
+        expect(bytesAsText).toContain('/Subtype /Image');
+        expect(validatePdf(response.body)).toEqual({ valid: true, errors: [] });
       } else if (format === 'html') {
         expect(bytesAsText).toContain('<!doctype html>');
         expect(bytesAsText).toContain('data:image/webp;base64,');
@@ -195,7 +205,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
 
     const snapshot = fixture.app.locals.publications.snapshot(story.id, {});
     const unsupported = await request(fixture.app)
-      .get(`/api/publications/${snapshot.id}/formats/pdf`)
+      .get(`/api/publications/${snapshot.id}/formats/mobi`)
       .expect(400);
     expect(unsupported.body.code).toBe('PUBLICATION_FORMAT_UNSUPPORTED');
   });
