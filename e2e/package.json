@@ -1,7 +1,7 @@
 {
-  "name": "scribe-tribe-e2e",
+  "name": "ink-morrow-e2e",
   "version": "4.0.0-beta.1",
-  "description": "End-to-end tests for ScribeTribe (Playwright)",
+  "description": "End-to-end tests for Ink Morrow (Playwright)",
   "scripts": {
     "test": "node sweep-e2e-server.cjs && playwright test --project=chromium && node sweep-e2e-server.cjs && playwright test --project=\"Mobile Chrome\"",
     "test:headed": "node sweep-e2e-server.cjs && playwright test --headed --project=chromium",

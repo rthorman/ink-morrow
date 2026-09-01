@@ -76,7 +76,7 @@ export function createShell({ api, notify }) {
       workspaceButton.classList.add('active');
       workspaceButton.setAttribute('aria-current', 'page');
     }
-    document.body.classList.toggle('st-workspace', Boolean(workspaceButton));
+    document.body.classList.toggle('im-workspace', Boolean(workspaceButton));
   }
 
   function syncManuscriptShell(stories = [], story = null) {

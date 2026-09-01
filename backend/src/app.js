@@ -194,7 +194,7 @@ function createApp(
   // isolated disposable root unless they explicitly provide one.
   const ownsTransferDir = !transferDir && process.env.NODE_ENV === 'test';
   const resolvedTransferDir = transferDir || (ownsTransferDir
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'st-transfers-'))
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'im-transfers-'))
     : path.join(__dirname, '../../database/transfers'));
   const transferPlanner = createExportPlanner({
     db,
@@ -216,7 +216,7 @@ function createApp(
   const publications = createPublicationService({ db, stories, artStore });
   const ownsPublicationDir = !publicationDir && process.env.NODE_ENV === 'test';
   const resolvedPublicationDir = publicationDir || (ownsPublicationDir
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'st-publications-'))
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'im-publications-'))
     : path.join(__dirname, '../../database/publications'));
   const publicationJobs = createPublicationJobs({ publications, rootDir: resolvedPublicationDir, clock });
   publicationShares = createPublicationShares({ db, publications, clock });
@@ -272,7 +272,7 @@ function createApp(
     if (status >= 500) {
       let safeLog = providers.redact(String(error.message || 'Unknown error'))
         .replace(/(?:Bearer\s+)?sk-or-v1-[A-Za-z0-9_-]+/gi, '[redacted provider key]')
-        .replace(/st_session=[^;\s]+/gi, 'st_session=[redacted]');
+        .replace(/inkmorrow_session=[^;\s]+/gi, 'inkmorrow_session=[redacted]');
       const configuredKey = process.env.OPENROUTER_API_KEY || '';
       if (configuredKey.length >= 8) safeLog = safeLog.replaceAll(configuredKey, '[redacted provider key]');
       logger.error(`Unhandled error ${reference} on ${req.method} ${req.path}: ${safeLog}`);

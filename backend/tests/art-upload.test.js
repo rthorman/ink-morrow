@@ -62,7 +62,7 @@ describe('PR 07 noncanonical art and safe upload', () => {
 
   beforeEach(() => {
     axios.post.mockReset();
-    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-art-upload-'));
+    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-art-upload-'));
     fixture = createTestApp({
       imageDir,
       providerOptions: { env: { OPENROUTER_API_KEY: 'art-upload-test-key' } },

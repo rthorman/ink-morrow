@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0 security threat model
+# Ink Morrow 4.0.0 security threat model
 
 Status: **accepted beta security contract**
 Baseline: **OWASP ASVS 5.0 concepts, proportionate to a single-owner
@@ -11,7 +11,7 @@ license remain preserved in the pre-cutover first-parent history.
 
 ## Security posture
 
-ScribeTribe protects one self-hosting owner from casual network access,
+Ink Morrow protects one self-hosting owner from casual network access,
 cross-site requests, common browser attacks, malformed imports and uploads,
 credential disclosure through the application, and accidental publication of
 private working data.
@@ -151,7 +151,7 @@ private local use and cannot enable public shares.
 
 ## Upload policy
 
-“Upload any image” is a content policy, not a parser bypass. ScribeTribe does
+“Upload any image” is a content policy, not a parser bypass. Ink Morrow does
 not inspect subject matter or classify an image's meaning. It does validate
 technical form to protect the owner and application.
 

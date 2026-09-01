@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0-beta.1 release record
+# Ink Morrow 4.0.0-beta.1 release record
 
 Status: **implemented release candidate; PR 19 cutover in progress**
 Decision date: **2026-08-31**
@@ -89,7 +89,7 @@ When documents conflict, use this order:
 ## Beta definition
 
 Beta means a capable computer user outside the development team can install
-ScribeTribe, begin or import a manuscript, author it without corrupting canon,
+Ink Morrow, begin or import a manuscript, author it without corrupting canon,
 recover from ordinary mistakes and interruptions, understand provider cost and
 data exposure, export publication-quality output, and deliberately share a
 read-only snapshot without maintainer assistance.

@@ -1,4 +1,4 @@
-# Privacy notice for self-hosted ScribeTribe
+# Privacy notice for self-hosted Ink Morrow
 
 Last updated: **2026-09-01**
 Current shipped behavior covered: **4.0.0-beta.1**
@@ -9,9 +9,9 @@ Current shipped behavior covered: **4.0.0-beta.1**
 
 ## The short version
 
-ScribeTribe is self-hosted software, not a service operated by the project
+Ink Morrow is self-hosted software, not a service operated by the project
 maintainer. By default, the application stores manuscripts and working data on
-the operator's machine and makes no request to a ScribeTribe-owned server.
+the operator's machine and makes no request to an Ink Morrow-owned server.
 
 The project does not provide analytics, advertising, tracking pixels, crash
 telemetry, accounts, or a maintainer cloud. The maintainer cannot see, retrieve,
@@ -77,11 +77,11 @@ operations associated with the writing flow and may send the contextual data
 needed for each. Cost review and settings should be read before enabling them.
 
 The OpenRouter quick-connect path creates one OpenAI-compatible provider
-profile. **OpenRouter is the only AI supplier tested with ScribeTribe 4.0.**
+profile. **OpenRouter is the only AI supplier tested with Ink Morrow 4.0.**
 The operator may configure another nominally compatible endpoint,
 but it may lack model discovery, image generation, narration, reasoning
 controls, or may not work at all. Consult each actual provider's privacy,
-retention, training, regional-processing, and security terms. The ScribeTribe
+retention, training, regional-processing, and security terms. The Ink Morrow
 maintainer cannot control or erase provider-held data.
 
 Merely opening the app, browsing the Library, reading pages, exporting a manuscript,

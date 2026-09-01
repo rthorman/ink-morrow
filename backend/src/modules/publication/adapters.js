@@ -400,7 +400,7 @@ function renderPdf(document) {
   }
   objects[pagesRef - 1] = `<< /Type /Pages /Count ${pageRefs.length} /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(' ')}] >>`;
   const catalogRef = add(`<< /Type /Catalog /Pages ${pagesRef} 0 R /Lang (${document.metadata.language}) >>`);
-  const infoRef = add(`<< /Title <${utf16beHex(document.metadata.title, true)}> /Author <${utf16beHex(document.metadata.author || '', true)}> /Creator (ScribeTribe) >>`);
+  const infoRef = add(`<< /Title <${utf16beHex(document.metadata.title, true)}> /Author <${utf16beHex(document.metadata.author || '', true)}> /Creator (Ink Morrow) >>`);
   return buildPdfObjects(objects, catalogRef, infoRef);
 }
 
@@ -500,7 +500,7 @@ function storedZipEntries(buffer) {
     const nameStart = offset + 30;
     const dataStart = nameStart + nameLength + extraLength;
     const name = buffer.subarray(nameStart, nameStart + nameLength).toString('utf8');
-    if (method !== 0) throw new Error('Semantic re-read supports the deterministic stored packages emitted by ScribeTribe.');
+    if (method !== 0) throw new Error('Semantic re-read supports the deterministic stored packages emitted by Ink Morrow.');
     entries.set(name, buffer.subarray(dataStart, dataStart + compressedSize));
     offset = dataStart + compressedSize;
   }

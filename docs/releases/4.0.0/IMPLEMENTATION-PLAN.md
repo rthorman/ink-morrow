@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0 implementation plan
+# Ink Morrow 4.0.0 implementation plan
 
 Status: **accepted pull-request contract**
 
@@ -388,7 +388,7 @@ changing narrative canon.
 - retain deliberate second-press generation;
 - handle reference-related repeated refusal and explicit drop-references
   option;
-- normalize provider refusal without pretending it is ScribeTribe policy;
+- normalize provider refusal without pretending it is Ink Morrow policy;
 - preserve original uploaded/generated references unchanged; and
 - isolate behavior in a provider adapter so other image providers can define
   their own refusal contract.
@@ -729,7 +729,7 @@ Disable snapshot creation and revoke records as emergency rollback.
 
 ### Includes
 
-- complete .scribetribe v2 export/import for all 4.0 entities and selected
+- complete .inkmorrow v2 export/import for all 4.0 entities and selected
   private history/media;
 - exposure review and explicit credential/auth/share-token exclusion;
 - staged validation, collision grammar, transactional import and safety backup;

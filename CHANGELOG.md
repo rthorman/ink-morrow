@@ -1,12 +1,12 @@
 # Changelog
 
-All notable release changes are recorded here. ScribeTribe uses semantic
+All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
 ## 4.0.0-beta.1 — 2026-09-01
 
-This is a clean-break beta. Use a new, empty `DATA_DIR`; ScribeTribe 4.0
+This is a clean-break beta. Use a new, empty `DATA_DIR`; Ink Morrow 4.0
 refuses 3.x databases and format-v1 archives before mutation. Keep the 3.2.2
 application and its data available for historical projects.
 
@@ -28,7 +28,7 @@ visual assets, and documentation. See [CREDITS.md](CREDITS.md).
   moderation or implicit provider request.
 - One immutable publication document rendered as DOCX, ODT, RTF, EPUB 3.3,
   PDF, HTML, Markdown, text, or JSON.
-- `.scribetribe` v2 portable backups and transactional restore with strict
+- `.inkmorrow` v2 portable backups and transactional restore with strict
   identity, hash, and collision validation.
 - Immutable, expiring, revocable public reading snapshots with isolated
   capability access.

@@ -2,7 +2,7 @@
 
 ## Mission
 
-Transform the existing web frontend into **ScribeTribe**, a picture-rich gothic interactive-fiction writing environment inhabited by adult anime catgirl scribes.
+Transform the existing web frontend into **Ink Morrow**, a picture-rich gothic interactive-fiction writing environment inhabited by adult anime catgirl scribes.
 
 The result must feel like a forbidden manuscript waking up around the writer: sumptuous, literary, mischievous and dangerous. It must remain an effective writing application rather than becoming an illustration gallery that happens to contain controls.
 
@@ -10,8 +10,8 @@ The result must feel like a forbidden manuscript waking up around the writer: su
 
 1. Preserve working application behavior, data integrity and security.
 2. Follow this implementation contract.
-3. Follow `SCRIBETRIBE-FRONTEND-BRAND.md`.
-4. Use `design-tokens.json`, `scribetribe.tokens.css` and `assets/brand/` as implementation inputs.
+3. Follow `INKMORROW-FRONTEND-BRAND.md`.
+4. Use `design-tokens.json`, `ink-morrow.tokens.css` and `assets/brand/` as implementation inputs.
 5. Use `ACCEPTANCE-CHECKLIST.md` as the definition of done.
 
 When existing code conflicts with the brand specification, adapt the presentation layer without inventing new product behavior. Ask only when code inspection cannot resolve a material ambiguity.
@@ -63,7 +63,7 @@ Return a plan before editing unless the user explicitly tells you to proceed imm
 
 ### Stage 1 — Foundations
 
-- Integrate semantic ScribeTribe tokens with the existing styling system.
+- Integrate semantic Ink Morrow tokens with the existing styling system.
 - Add fonts using the project's established loading method; self-host where the project already supports it.
 - Add the vector mark, lockup, favicon and approved production images.
 - Establish base surfaces, focus rings, selection colors, typography and reduced-motion behavior.

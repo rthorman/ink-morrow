@@ -28,7 +28,7 @@ The equivalent plumbing operation is:
 
 ```bash
 tree=$(git rev-parse "$R^{tree}")
-cutover=$(printf '%s\n' 'Cut over main to ScribeTribe 4.0.0-beta.1' |
+cutover=$(printf '%s\n' 'Cut over main to Ink Morrow 4.0.0-beta.1' |
   git commit-tree "$tree" -p "$M" -p "$R")
 git update-ref refs/heads/pr/19-main-cutover "$cutover" "$M"
 ```

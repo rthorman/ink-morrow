@@ -1,6 +1,6 @@
-# ScribeTribe 4.0.0 beta operations
+# Ink Morrow 4.0.0 beta operations
 
-This runbook covers a single-owner, self-hosted ScribeTribe 4.0.0-beta.1
+This runbook covers a single-owner, self-hosted Ink Morrow 4.0.0-beta.1
 installation. Run Node.js 22.5 or newer and keep the application bound to
 `127.0.0.1` unless a deliberate temporary LAN exception is required.
 
@@ -17,9 +17,9 @@ file; when it is set without `DATA_DIR`, media follows the database directory.
 
 Use both of these backup forms:
 
-1. In Gate, create a **full `.scribetribe` backup** with visuals, audio, and
+1. In Gate, create a **full `.inkmorrow` backup** with visuals, audio, and
    working history selected. Download it and keep it on encrypted storage.
-2. During a maintenance window with ScribeTribe stopped, make a cold filesystem
+2. During a maintenance window with Ink Morrow stopped, make a cold filesystem
    copy of the entire `DATA_DIR`. This is the disaster-recovery image that also
    preserves local-only owner, session, recovery, and share state.
 
@@ -36,7 +36,7 @@ Before an upgrade:
 1. Record the installed commit, Node version, and current `DATA_DIR`/`DB_PATH`.
 2. Lock out new work, wait for active publication or provider jobs to settle,
    and create/download the full Gate backup.
-3. Stop ScribeTribe cleanly and copy the complete data directory to a dated,
+3. Stop Ink Morrow cleanly and copy the complete data directory to a dated,
    access-controlled location.
 4. Install the reviewed release with `npm ci` at the repository root and in
    `backend`, `frontend`, and `e2e` as needed. Production-only installs may use
@@ -45,7 +45,7 @@ Before an upgrade:
    database: 4.0 refuses the old family before schema writes.
 6. Sign in, open Gate, preflight the backup, review its exposure/collisions,
    and choose **Replace everything** only for an intentional full restore.
-   ScribeTribe first writes another safety archive under
+   Ink Morrow first writes another safety archive under
    `database/transfers/backups/`.
 7. Verify manuscript hierarchy, page/revision order, continuity, selected
    media, prepared work, publication snapshots, and sanitized settings. Export
@@ -57,19 +57,19 @@ data-directory copy as one unit. Never mix a database from one backup with
 media or transfer directories from another. Start the previous reviewed build,
 then validate the catalogue before resuming authoring.
 
-ScribeTribe 4.0 does not import 3.x format-v1 archives. Open those archives in
-ScribeTribe 3.2.2, then move authored content through an explicitly supported
+Ink Morrow 4.0 does not import 3.x format-v1 archives. Open those archives in
+the historical 3.2.2 build, then move authored content through an explicitly supported
 path. Future archive/database versions and unknown families are also refused
 before catalogue writes.
 
 ## HTTPS reverse proxy and public sharing
 
-Public snapshot sharing requires HTTPS. Keep ScribeTribe on loopback and set:
+Public snapshot sharing requires HTTPS. Keep Ink Morrow on loopback and set:
 
 For operators new to these terms: loopback means the application accepts only
 connections originating on the same computer. HTTPS encrypts traffic between
 the reader's browser and the front-door proxy. The proxy then passes that
-request locally to ScribeTribe. Plain HTTP on a LAN does not provide that
+request locally to Ink Morrow. Plain HTTP on a LAN does not provide that
 transport protection.
 
 ```text
@@ -125,7 +125,7 @@ changes rather than attempting to mutate an existing publication.
 ## Credentials, incidents, and logs
 
 - Rotate provider credentials at the provider first, then replace the saved
-  secret in ScribeTribe. A password change revokes other owner sessions.
+  secret in Ink Morrow. A password change revokes other owner sessions.
 - If owner access is lost, stop the server and run
   `npm run auth:reset -- --yes` from `backend`; this removes only the local
   owner and sessions. It does not decrypt or export a forgotten provider key.

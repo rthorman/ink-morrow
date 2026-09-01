@@ -1,8 +1,8 @@
 blank_issues_enabled: true
 contact_links:
   - name: Private security advisory
-    url: https://github.com/rthorman/scribe-tribe/security/advisories/new
+    url: https://github.com/rthorman/ink-morrow/security/advisories/new
     about: Report vulnerabilities privately; do not publish exploitable details or secrets.
-  - name: ScribeTribe 4.0 user guide
-    url: https://github.com/rthorman/scribe-tribe/blob/main/docs/user-guide/ScribeTribe-4.0-User-Guide.pdf
+  - name: Ink Morrow 4.0 user guide
+    url: https://github.com/rthorman/ink-morrow/blob/main/docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf
     about: Read the illustrated author and operator guide before filing a usage question.

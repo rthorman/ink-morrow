@@ -714,7 +714,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         if (toneSelect.value !== 'explicit') return;
         let acked = false;
         try {
-          acked = localStorage.getItem('st-tone-explicit-ok') === '1';
+          acked = localStorage.getItem('im-tone-explicit-ok') === '1';
         } catch {
           acked = false;
         }
@@ -738,7 +738,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
                 className: 'btn-primary',
                 onClick: (close) => {
                   try {
-                    localStorage.setItem('st-tone-explicit-ok', '1');
+                    localStorage.setItem('im-tone-explicit-ok', '1');
                   } catch {
                     /* private mode: this session only */
                   }

@@ -1,8 +1,8 @@
 # Credits and Contributors
 
-## ScribeTribe 4.0.0-beta provenance
+## Ink Morrow 4.0.0-beta provenance
 
-ScribeTribe 4.0.0-beta is a clean-break refactor of the earlier application.
+Ink Morrow 4.0.0-beta is a clean-break refactor of the earlier application.
 The refactor was produced exclusively through **ChatGPT/Codex**, under
 human-led feature planning, direction, review, and acceptance. This includes:
 
@@ -19,13 +19,13 @@ retroactively to the preserved historical line.
 
 ## Historical creator's note (through 3.2.2)
 
-ScribeTribe was built start-to-finish on a very budget Android tablet running
+Ink Morrow was built start-to-finish on a very budget Android tablet running
 Termux — no keyboard, no accessories, just the standard on-screen one, to show
 it's doable. Tool suites were installed on-device; code was written there and
 tests were run there. It was finished in a single afternoon while my wife was
 out having lunch with her friends.
 
-ScribeTribe is not an erotic-writing tool — it's a story engine biased toward
+Ink Morrow is not an erotic-writing tool — it's a story engine biased toward
 fantasy. Mature content is an opt-in tone per story, not the tool's purpose.
 
 ## Historical development environment
@@ -37,7 +37,7 @@ project: running AI coding CLIs natively on Termux (no proot, no root).
 
 ## Historical development credits
 
-ScribeTribe was written in partnership with **[OpenCode](https://opencode.ai)** —
+Ink Morrow was written in partnership with **[OpenCode](https://opencode.ai)** —
 an open-source AI coding agent — running **natively on Termux** (via the
 [opencode-termux-native](https://github.com/Thr45hx/opencode-termux-native)
 launcher — no proot, no root), powered by **GLM-5.3** by **Z.ai**, served
@@ -54,7 +54,7 @@ The human's contributions: the vision, the direction, the taste — and lunch.
 
 ## 4.0 branding and documentation credits
 
-ScribeTribe 4.0's branding concept, art direction, design system,
+Ink Morrow 4.0's branding concept, art direction, design system,
 implementation brief, production integration, and user-facing documentation
 were developed through **[OpenAI ChatGPT/Codex](https://openai.com/codex/)**
 under the project author's direction, August-September 2026. Visual assets
@@ -104,7 +104,7 @@ are included in `frontend/fonts/`.
 
 ## License
 
-The ScribeTribe 4.0 release line is open-source software under
+The Ink Morrow 4.0 release line is open-source software under
 `AGPL-3.0-only`; see [LICENSE](LICENSE) and
 [LICENSE-NOTICE.md](LICENSE-NOTICE.md). The historical `main` line through
 version 3.2.2 remains under the MIT License. Bundled fonts and other

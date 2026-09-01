@@ -26,7 +26,7 @@ const { hashDocument } = require('../src/modules/publication/document');
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 
 function isolatedApp(label) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), `st-transfer-${label}-`));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), `im-transfer-${label}-`));
   const imageDir = path.join(root, 'images');
   const audioDir = path.join(root, 'audio');
   const transferDir = path.join(root, 'transfers');
@@ -86,7 +86,7 @@ async function rewriteStoryBundle(bytes, mutate) {
 function preflight(app, bytes, settings = null) {
   let call = request(app).post('/api/transfers/imports/preflight');
   if (settings) call = call.field('current_settings', JSON.stringify(settings));
-  return call.attach('archive', bytes, 'portable.scribetribe');
+  return call.attach('archive', bytes, 'portable.inkmorrow');
 }
 
 function manifestFixture(overrides = {}) {
@@ -96,7 +96,7 @@ function manifestFixture(overrides = {}) {
     manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
     database_schema: { family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION },
     created_at: new Date().toISOString(),
-    created_by: { application: 'ScribeTribe', version: 'test' },
+    created_by: { application: 'Ink Morrow', version: 'test' },
     scope: 'full',
     options: { include_visuals: false, include_audio: false, include_working_history: false },
     settings: null,
@@ -557,7 +557,7 @@ describe('portable archives and backups', () => {
     const promoted = await request(destination.app)
       .post(`/api/stories/${story.id}/pages/commit-preview`)
       .set('Idempotency-Key', 'promote-imported-preview')
-      .set('X-ScribeTribe-Writer-Session', 'destination-tab')
+      .set('X-InkMorrow-Writer-Session', 'destination-tab')
       .send({ preview_id: imported.id })
       .expect(201);
     expect(promoted.body.page.content).toBe('Prepared prose survives the archive.');
@@ -767,9 +767,9 @@ describe('portable archives and backups', () => {
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(0);
   });
 
-  it('refuses a 3.x archive during preflight without changing the database', async () => {
+  it('refuses an unrelated archive during preflight without changing the database', async () => {
     const bytes = await zipFixture({
-      format: 'scribetribe-portable-archive',
+      format: 'unrelated-project-archive',
       version: 1,
       created_at: new Date().toISOString(),
       scope: 'full',
@@ -781,7 +781,7 @@ describe('portable archives and backups', () => {
     });
 
     const response = await preflight(destination.app, bytes).expect(400);
-    expect(response.body.error).toMatch(/3\.x archive.*does not import/i);
+    expect(response.body.error).toMatch(/not a supported Ink Morrow project archive/i);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(0);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM stories').get().c).toBe(0);
   });
@@ -789,13 +789,13 @@ describe('portable archives and backups', () => {
   it('fails closed on future archive and database schema versions', async () => {
     const futureArchive = await zipFixture(manifestFixture({ version: ARCHIVE_VERSION + 1 }));
     let response = await preflight(destination.app, futureArchive).expect(400);
-    expect(response.body.error).toMatch(/newer ScribeTribe version/i);
+    expect(response.body.error).toMatch(/newer Ink Morrow version/i);
 
     const futureDatabase = await zipFixture(manifestFixture({
       database_schema: { family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION + 1 },
     }));
     response = await preflight(destination.app, futureDatabase).expect(400);
-    expect(response.body.error).toMatch(/newer ScribeTribe database schema/i);
+    expect(response.body.error).toMatch(/newer Ink Morrow database schema/i);
 
     const futureManifest = await zipFixture(manifestFixture({
       manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION + 1,

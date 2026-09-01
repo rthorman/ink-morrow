@@ -192,7 +192,7 @@ describe('Paid review (structured grammar)', () => {
     expect(confirm).toBeTruthy();
     confirm.click();
     expect(await pending).toBe(true);
-    expect(window.localStorage.getItem('st-paid-consent-v1')).toBe('1');
+    expect(window.localStorage.getItem('im-paid-consent-v1')).toBe('1');
   });
 
   it('uses a rough ballpark when catalogue pricing is missing', async () => {
@@ -210,7 +210,7 @@ describe('Paid review (structured grammar)', () => {
     expect(body).not.toMatch(/unknown|unavailable/i);
     document.querySelector('.dialog-manager .btn-secondary').click();
     expect(await pending).toBe(false);
-    expect(window.localStorage.getItem('st-paid-consent-v1')).toBeNull();
+    expect(window.localStorage.getItem('im-paid-consent-v1')).toBeNull();
   });
 
   it('bypasses every later review, including after a fresh app boot', async () => {

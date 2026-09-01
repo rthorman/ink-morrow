@@ -1,6 +1,6 @@
 # Transactional writing
 
-ScribeTribe 4.0 treats every paid prose action as a durable operation around
+Ink Morrow 4.0 treats every paid prose action as a durable operation around
 the provider call. A provider reply is never canon by itself. It crosses the
 canonical boundary only after its idempotency identity, story context, writer
 lease, and complete result have all been checked again.

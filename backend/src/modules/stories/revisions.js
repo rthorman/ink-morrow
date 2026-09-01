@@ -616,7 +616,7 @@ function createRevisionStore(db, {
     delete payload.undo_sha256;
     delete payload.undo_expires_at;
     return {
-      format: 'scribetribe-recovery-suffix',
+      format: 'ink-morrow-recovery-suffix',
       version: 1,
       recovery: recoveryMetadata(row, chainFingerprint(storyId)),
       payload,

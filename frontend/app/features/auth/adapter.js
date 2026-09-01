@@ -24,7 +24,7 @@ export function createAuthAdapter() {
       try {
         response = await fetch('/api/auth/status', { credentials: 'same-origin', cache: 'no-store' });
       } catch {
-        throw new Error('Cannot reach the ScribeTribe server.');
+        throw new Error('Cannot reach the Ink Morrow server.');
       }
       const body = await readJson(response);
       if (!response.ok) throw new Error(body.error || 'Could not check the scriptorium lock.');
@@ -35,7 +35,7 @@ export function createAuthAdapter() {
 
   async function post(path, data, { csrf = false } = {}) {
     const headers = { 'Content-Type': 'application/json' };
-    if (csrf && current?.csrf_token) headers['X-ScribeTribe-CSRF'] = current.csrf_token;
+    if (csrf && current?.csrf_token) headers['X-InkMorrow-CSRF'] = current.csrf_token;
     let response;
     try {
       response = await fetch(path, {
@@ -46,7 +46,7 @@ export function createAuthAdapter() {
         body: JSON.stringify(data || {}),
       });
     } catch {
-      throw new Error('Cannot reach the ScribeTribe server.');
+      throw new Error('Cannot reach the Ink Morrow server.');
     }
     const body = await readJson(response);
     if (!response.ok) {

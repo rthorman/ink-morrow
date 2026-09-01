@@ -4,8 +4,8 @@
 import { approxCostText } from '../core/cost.js';
 import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
 
-const START_DRAFT_KEY = 'st-manuscript-start-draft-v1';
-const DISMISSED_HINTS_KEY = 'st-manuscript-start-hints-v1';
+const START_DRAFT_KEY = 'im-manuscript-start-draft-v1';
+const DISMISSED_HINTS_KEY = 'im-manuscript-start-hints-v1';
 const FOUNDATION_ESTIMATE = 0.02;
 const COVER_ESTIMATE = IMAGE_COST_ESTIMATE.story;
 const PATH_HINT = {

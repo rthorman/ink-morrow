@@ -249,7 +249,7 @@ describe('Characters and casting', () => {
   });
 
   it('creates from Write with the chosen maturity and an optional paid cover', async () => {
-    window.localStorage.removeItem('st-paid-consent-v1');
+    window.localStorage.removeItem('im-paid-consent-v1');
     const fetchMock = global.fetch;
     fetchMock.mockClear();
     fetchMock.mockImplementation((url, options) => {

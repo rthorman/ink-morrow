@@ -1,4 +1,4 @@
-# ScribeTribe image-continuation briefs
+# Ink Morrow image-continuation briefs
 
 These briefs extend the approved art system. They are not instructions to regenerate assets that already exist.
 
@@ -25,9 +25,9 @@ When an image tool accepts references, use:
 
 ```text
 Use case: illustration-story
-Asset type: ScribeTribe story/project cover, 4:3
-Input images: approved ScribeTribe hero as world/style reference
-Primary request: illustrate the supplied story premise as a forbidden manuscript coming alive inside the ScribeTribe universe
+Asset type: Ink Morrow story/project cover, 4:3
+Input images: approved Ink Morrow hero as world/style reference
+Primary request: illustrate the supplied story premise as a forbidden manuscript coming alive inside the Ink Morrow universe
 Subject: story-specific focal image; a scribe may appear only when relevant
 Style/medium: mature painterly anime-gothic editorial fantasy matching the reference
 Composition/framing: 4:3 cover; strong central silhouette; keep the upper and lower 12% free of critical detail for responsive card overlays
@@ -40,7 +40,7 @@ Avoid: pornographic framing, chibi, maid/school costumes, generic cyberpunk, exc
 
 ```text
 Use case: illustration-story
-Asset type: transparent ScribeTribe empty-state character vignette
+Asset type: transparent Ink Morrow empty-state character vignette
 Input images: `vesper-quill.png` as the exact identity reference
 Primary request: show the same Vesper Quill examining one comically blank sheet of vellum with an incisive, unimpressed expression
 Subject: preserve her adult identity, face, wine-red hair, natural black ears and tail, high-collared black/oxblood academic tailoring and gold embroidery
@@ -53,8 +53,8 @@ Avoid: redesign, pin-up pose, exposed cleavage, maid/school styling, chibi, whit
 
 ```text
 Use case: illustration-story
-Asset type: ScribeTribe lore-panel illustration, 3:2
-Input images: approved ScribeTribe hero as character/world/style reference
+Asset type: Ink Morrow lore-panel illustration, 3:2
+Input images: approved Ink Morrow hero as character/world/style reference
 Primary request: feature Moth, the clearly adult silver-haired feline Archivist of Forgotten Things, opening a chained archive drawer as pale violet memory fragments escape
 Scene/backdrop: moonlit archive alcove with vellum labels, dark wood and restrained candlelight
 Style/medium: mature painterly anime-gothic editorial fantasy matching the reference
@@ -67,8 +67,8 @@ Avoid: sexualized framing, maid/school uniform, chibi, excessive skulls, cyberpu
 
 ```text
 Use case: illustration-story
-Asset type: ScribeTribe branching-story illustration, 3:2
-Input images: approved ScribeTribe hero as character/world/style reference
+Asset type: Ink Morrow branching-story illustration, 3:2
+Input images: approved Ink Morrow hero as character/world/style reference
 Primary request: feature Cinder, the clearly adult copper-haired feline Inkbreaker, splitting one written line into several luminous manuscript paths with a reckless grin and an ink-stained quill
 Scene/backdrop: active writing desk with torn drafts, candles and spectral violet/oxblood branch lines
 Style/medium: mature painterly anime-gothic editorial fantasy matching the reference

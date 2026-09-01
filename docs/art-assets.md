@@ -1,6 +1,6 @@
 # Art assets and safe upload
 
-ScribeTribe 4.0 stores illustrations separately from manuscript pages. An
+Ink Morrow 4.0 stores illustrations separately from manuscript pages. An
 `asset` owns one normalized image and an `asset_placement` positions it before
 the first prose page or after a stable page ID. Moving, unplacing, or deleting
 art never renumbers prose, changes page revisions, invalidates a prepared next
@@ -58,7 +58,7 @@ and resolved reference IDs as provenance. It never creates an image page.
 
 ## Archive and publication behavior
 
-Same-version `.scribetribe` archives include ready art metadata, placement
+Same-version `.inkmorrow` archives include ready art metadata, placement
 anchors, and normalized files when visuals are selected. Storage keys and
 provider-reference consent never travel. Copy import remaps story, page,
 asset, and placement IDs; media receives a fresh random storage key.

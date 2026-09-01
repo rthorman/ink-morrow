@@ -142,7 +142,7 @@ function jsonBuffer(value) {
   return Buffer.from(canonicalJson(value) + '\n', 'utf8');
 }
 
-function safeSlug(value, fallback = 'scribe-tribe') {
+function safeSlug(value, fallback = 'ink-morrow') {
   const slug = String(value || '')
     .normalize('NFKD')
     .replace(/[^a-zA-Z0-9]+/g, '-')
@@ -154,7 +154,7 @@ function safeSlug(value, fallback = 'scribe-tribe') {
 
 function archiveFilename(scope, name) {
   const stamp = new Date().toISOString().slice(0, 10);
-  return `${safeSlug(name || (scope === 'full' ? 'scribe-tribe-backup' : scope))}-${stamp}${ARCHIVE_EXTENSION}`;
+  return `${safeSlug(name || (scope === 'full' ? 'ink-morrow-backup' : scope))}-${stamp}${ARCHIVE_EXTENSION}`;
 }
 
 function cleanImageFields(record, { hasVisual, includeWorkingHistory }) {

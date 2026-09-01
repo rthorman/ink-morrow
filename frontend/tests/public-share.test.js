@@ -7,7 +7,7 @@ const TOKEN = 'c'.repeat(43);
 
 function documentFixture() {
   return {
-    format: 'scribetribe-publication-document', schema_version: 1,
+    format: 'ink-morrow-publication-document', schema_version: 1,
     metadata: { title: '<Frozen Tale>', subtitle: null, author: 'Ada', language: 'en', description: null, publisher: null, rights: null, date: null },
     front_matter: [],
     volumes: [{ ordinal: 1, title: '', chapters: [{ ordinal: 1, title: 'Opening', pages: [{ ordinal: 1, blocks: [{ type: 'paragraph', text: '<script>not markup</script>' }] }] }] }],

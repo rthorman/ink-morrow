@@ -19,7 +19,7 @@ const EVIDENCE_SCHEMA = {
 const CONTINUITY_SCHEMA = {
   type: 'json_schema',
   json_schema: {
-    name: 'scribe_tribe_continuity_delta',
+    name: 'ink_morrow_continuity_delta',
     strict: true,
     schema: {
       type: 'object',
@@ -259,7 +259,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
     const worldFacts = latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
       .map((fact) => `- [${fact.id}] ${fact.text || '(untitled)'}`).join('\n');
     const system = [
-      'You are ScribeTribe’s Archivist. Extract durable changes from ONE already-written canonical story-page revision.',
+      'You are Ink Morrow’s Archivist. Extract durable changes from ONE already-written canonical story-page revision.',
       'Report only facts caused or made true by this page. Do not treat character sheets, plans, desires, hypothetical language, dialogue commands, or user direction as events unless the prose says they happened.',
       'A goal may move to fulfilled or abandoned when the page resolves it. Do not recreate a resolved goal under a new id.',
       'Reuse the listed id when changing an existing goal, thread, or fact. For knowledge_lost or possessions_lost, copy the prior item text exactly so the local fold can remove it.',

@@ -1,12 +1,12 @@
 # Project archives and full backups (4.0 format v2)
 
-The ScribeTribe 4.0 release line uses one versioned project-archive format for moving a single asset, a linked bundle, or the entire local installation. Archives use the `.scribetribe` suffix. They remain ZIP containers holding ordinary JSON plus optional image and MP3 files; they are not raw SQLite copies.
+The Ink Morrow 4.0 release line uses one versioned project-archive format for moving a single asset, a linked bundle, or the entire local installation. Archives use the `.inkmorrow` suffix. They remain ZIP containers holding ordinary JSON plus optional image and MP3 files; they are not raw SQLite copies.
 
 The installation password and browser sessions never enter an archive. Archive encryption is not part of format version 2, so treat an exported file according to what its review screen says it contains.
 
-Format v2 is a clean break: ScribeTribe 4.0 does not import the 3.x
-`scribetribe-portable-archive` v1 format. Use ScribeTribe 3.2.2 to read a v1
-archive. The beta v2 implementation validates strict manifests and complete
+Format v2 is a clean break: Ink Morrow 4.0 does not import format-v1 archives
+from the historical line. Use the historical 3.2.2 build to read one. The
+beta v2 implementation validates strict manifests and complete
 4.0 domain aggregates before any catalogue write.
 
 ## Export scopes and dependency rules
@@ -54,7 +54,7 @@ The reviewed download is streamed. Image and MP3 files are read directly from di
 
 ## Archive layout
 
-Format identifier: `scribetribe-project-archive`
+Format identifier: `ink-morrow-project-archive`
 
 Current format version: `2`
 
@@ -94,7 +94,7 @@ projection checkpoints, and impact issues are not exported; they are rebuilt loc
 import.
 
 3.x, unknown-family, and future format/manifest/database versions are rejected
-rather than guessed at. A schema-1 `scribetribe-4` kernel archive is the one
+rather than guessed at. A schema-1 `ink-morrow-4` kernel archive is the one
 supported older case: it predates hierarchy and revision behavior, so import
 gives each story the accepted Volume I / Chapter I default and synthesizes one
 canonical/display revision per page while preserving page order. Schema-2
@@ -117,13 +117,13 @@ Each top-level entity receives one classification:
 
 “Identical” ignores timestamps, an entity's own primary ID, and story-page IDs (pages are compared in manuscript order), but retains dependency identities so differently linked graphs are not collapsed. It compares the meaningful fields, ordered manuscript, snapshots, continuity, optional working history, and every media file selected for this archive. If visuals or audio were deliberately left out, that omitted category does not create a collision.
 
-ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, any prepared page, art assets, and art placements; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, cover, art anchor, and audiobook reference is remapped as one dependency graph. Imported art receives fresh random local storage names and provider-reference consent resets to false. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
+Ink Morrow does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, any prepared page, art assets, and art placements; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, cover, art anchor, and audiobook reference is remapped as one dependency graph. Imported art receives fresh random local storage names and provider-reference consent resets to false. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
 
 ## Merge and full restore
 
 Merge applies the reviewed per-entity choices. Database changes occur in one SQLite transaction. Incoming media is copied to temporary sibling files first; replaced files move to a rollback area; only then are files installed and rows committed. A failure rolls the database back and restores the moved files.
 
-A full-backup import additionally offers **Replace everything**. Before changing local data, ScribeTribe automatically writes a complete safety archive of the current installation, including current ready media and working history. The completion dialog provides its download link. Safety archives remain under `database/transfers/backups/` until the owner removes them.
+A full-backup import additionally offers **Replace everything**. Before changing local data, Ink Morrow automatically writes a complete safety archive of the current installation, including current ready media and working history. The completion dialog provides its download link. Safety archives remain under `database/transfers/backups/` until the owner removes them.
 
 Import and export never call an AI model and never incur provider charges.
 
@@ -138,7 +138,7 @@ The importer rejects absolute paths, `..` traversal, backslash paths, duplicate 
 | Method | Route | Purpose |
 |---|---|---|
 | POST | `/api/transfers/exports/plan` | Validate scope/options, resolve dependencies, and return exposure plus a short-lived download token |
-| GET | `/api/transfers/exports/:token` | Stream the reviewed `.scribetribe` once |
+| GET | `/api/transfers/exports/:token` | Stream the reviewed `.inkmorrow` once |
 | POST | `/api/transfers/imports/preflight` | Multipart upload (`archive` file; optional `current_settings` JSON), verify/stage, and return collisions |
 | POST | `/api/transfers/imports/:token/commit` | Apply merge/replace-all and collision resolutions |
 | DELETE | `/api/transfers/imports/:token` | Cancel and remove staged content |

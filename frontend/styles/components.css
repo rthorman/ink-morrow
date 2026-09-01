@@ -1,25 +1,25 @@
 /* ------------------------------------------------------------------ buttons */
 
 .btn {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   padding: 10px 24px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.02em;
-  border-radius: var(--st-radius-md);
+  border-radius: var(--im-radius-md);
   cursor: pointer;
   /* Base fallback: a bare .btn must never fall back to the browser's native
      grey control. Variants (primary/secondary/danger) override these. */
-  background: var(--st-surface-3);
-  color: var(--st-vellum-200);
-  border: 1px solid var(--st-border-bright);
+  background: var(--im-surface-3);
+  color: var(--im-vellum-200);
+  border: 1px solid var(--im-border-bright);
   transition:
-    background-color var(--st-duration-fast) ease,
-    border-color var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease,
-    transform var(--st-duration-fast) var(--st-ease-out),
-    box-shadow var(--st-duration-fast) ease;
+    background-color var(--im-duration-fast) ease,
+    border-color var(--im-duration-fast) ease,
+    color var(--im-duration-fast) ease,
+    transform var(--im-duration-fast) var(--im-ease-out),
+    box-shadow var(--im-duration-fast) ease;
 }
 
 .btn:active {
@@ -27,31 +27,31 @@
 }
 
 .btn-primary {
-  background: var(--st-oxblood-700);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-gold-700);
+  background: var(--im-oxblood-700);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-gold-700);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--st-oxblood-500);
-  border-color: var(--st-gold-500);
+  background: var(--im-oxblood-500);
+  border-color: var(--im-gold-500);
   box-shadow: 0 0 0 1px rgb(199 163 91 / 0.4), 0 10px 26px rgb(0 0 0 / 0.35);
 }
 
 .btn-secondary {
-  background: var(--st-surface-3);
-  color: var(--st-vellum-200);
-  border: 1px solid var(--st-gold-500);
+  background: var(--im-surface-3);
+  color: var(--im-vellum-200);
+  border: 1px solid var(--im-gold-500);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  color: var(--st-vellum-50);
-  border-color: var(--st-gold-300);
+  color: var(--im-vellum-50);
+  border-color: var(--im-gold-300);
 }
 
 .btn-danger {
-  background: var(--st-surface-3);
-  color: var(--st-danger-500);
+  background: var(--im-surface-3);
+  color: var(--im-danger-500);
   border: 1px solid rgb(214 75 88 / 0.55);
 }
 
@@ -69,18 +69,18 @@ button:disabled {
 
 .create-form {
   background: rgb(23 16 31 / 0.72);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
   padding: clamp(16px, 2.5vw, 26px);
   margin-bottom: 30px;
 }
 
 .create-form h3 {
   margin: 0 0 16px 0;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-weight: 600;
   font-size: 1.5rem;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .create-form label,
@@ -91,7 +91,7 @@ button:disabled {
   font-size: 0.85rem;
   font-weight: 500;
   letter-spacing: 0.04em;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .create-form input,
@@ -100,20 +100,20 @@ button:disabled {
 .story-selector select,
 .writing-interface textarea {
   width: 100%;
-  min-height: var(--st-touch-min);
-  background-color: var(--st-surface-3);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
+  min-height: var(--im-touch-min);
+  background-color: var(--im-surface-3);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
   padding: 10px 14px;
   margin-bottom: 16px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 1rem;
 }
 
 .create-form textarea,
 .writing-interface textarea {
-  font-family: var(--st-font-reading);
+  font-family: var(--im-font-reading);
   line-height: 1.6;
   resize: vertical;
 }
@@ -121,7 +121,7 @@ button:disabled {
 .create-form input::placeholder,
 .create-form textarea::placeholder,
 .writing-interface textarea::placeholder {
-  color: var(--st-ash-600);
+  color: var(--im-ash-600);
 }
 
 .create-form input:focus,
@@ -129,9 +129,9 @@ button:disabled {
 .create-form select:focus,
 .story-selector select:focus,
 .writing-interface textarea:focus {
-  outline: 2px solid var(--st-focus);
+  outline: 2px solid var(--im-focus);
   outline-offset: 2px;
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
 }
 
 /* ------------------------------------------------------------------ selects (brand identity) */
@@ -140,31 +140,31 @@ button:disabled {
    OS boxes anywhere. A bare-element rule fills every gap the section rules
    miss (e.g. the render-quality picker in the scene-image modal). */
 select:not([multiple]) {
-  min-height: var(--st-touch-min);
-  background-color: var(--st-surface-3);
+  min-height: var(--im-touch-min);
+  background-color: var(--im-surface-3);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23c7a35b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
   padding: 10px 36px 10px 14px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 1rem;
   appearance: none;
   -webkit-appearance: none;
   cursor: pointer;
-  transition: border-color var(--st-duration-fast) ease;
+  transition: border-color var(--im-duration-fast) ease;
 }
 
 select:not([multiple]):hover:not(:disabled) {
-  border-color: var(--st-border-bright);
+  border-color: var(--im-border-bright);
 }
 
 select:focus {
-  outline: 2px solid var(--st-focus);
+  outline: 2px solid var(--im-focus);
   outline-offset: 2px;
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
 }
 
 select:disabled {
@@ -185,18 +185,18 @@ select:disabled {
    the color-scheme meta keeps native lists (Android) dark regardless. */
 select option,
 select optgroup {
-  background-color: var(--st-ink-900);
-  color: var(--st-vellum-100);
+  background-color: var(--im-ink-900);
+  color: var(--im-vellum-100);
 }
 
 /* ------------------------------------------------------------------ lists / cards */
 
 .list-container h3 {
   margin: 0 0 16px 0;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-weight: 600;
   font-size: 1.5rem;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .items-grid {
@@ -206,16 +206,16 @@ select optgroup {
 }
 
 .item-card {
-  background: linear-gradient(165deg, var(--st-surface-3), var(--st-surface-2));
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
+  background: linear-gradient(165deg, var(--im-surface-3), var(--im-surface-2));
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
   padding: 20px;
   position: relative;
   overflow: hidden;
   transition:
-    border-color var(--st-duration-normal) ease,
-    box-shadow var(--st-duration-normal) ease,
-    transform var(--st-duration-normal) var(--st-ease-out);
+    border-color var(--im-duration-normal) ease,
+    box-shadow var(--im-duration-normal) ease,
+    transform var(--im-duration-normal) var(--im-ease-out);
 }
 
 .item-card::before {
@@ -223,14 +223,14 @@ select optgroup {
   position: absolute;
   inset: 0 auto 0 0;
   width: 3px;
-  background: linear-gradient(180deg, var(--st-oxblood-500), var(--st-violet-600));
+  background: linear-gradient(180deg, var(--im-oxblood-500), var(--im-violet-600));
   opacity: 0;
-  transition: opacity var(--st-duration-normal) ease;
+  transition: opacity var(--im-duration-normal) ease;
 }
 
 .item-card:hover,
 .item-card:focus-within {
-  border-color: var(--st-border-bright);
+  border-color: var(--im-border-bright);
   transform: translateY(-2px);
   box-shadow: 0 14px 30px rgb(0 0 0 / 0.45);
 }
@@ -259,62 +259,62 @@ select optgroup {
 
 .item-card h4 {
   margin: 0 0 10px 0;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-weight: 700;
   font-size: 1.35rem;
   line-height: 1.2;
-  color: var(--st-vellum-100);
+  color: var(--im-vellum-100);
 }
 
 .item-card p {
   margin: 0 0 8px 0;
-  font-family: var(--st-font-reading);
+  font-family: var(--im-font-reading);
   font-size: 0.98rem;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .item-meta {
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.8rem;
   font-style: normal;
   letter-spacing: 0.02em;
-  color: var(--st-violet-300);
+  color: var(--im-violet-300);
 }
 
 .item-card .card-delete,
 .item-card .card-open {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   margin-top: 14px;
   margin-right: 8px;
   padding: 8px 16px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 0.9rem;
-  border-radius: var(--st-radius-sm);
+  border-radius: var(--im-radius-sm);
   cursor: pointer;
   background: transparent;
-  border: 1px solid var(--st-border);
-  color: var(--st-vellum-200);
+  border: 1px solid var(--im-border);
+  color: var(--im-vellum-200);
   transition:
-    background-color var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease,
-    border-color var(--st-duration-fast) ease;
+    background-color var(--im-duration-fast) ease,
+    color var(--im-duration-fast) ease,
+    border-color var(--im-duration-fast) ease;
 }
 
 .item-card .card-delete {
   border-color: rgb(214 75 88 / 0.45);
-  color: var(--st-danger-500);
+  color: var(--im-danger-500);
 }
 
 .item-card .card-delete:hover {
   background: rgb(214 75 88 / 0.16);
-  border-color: var(--st-danger-500);
+  border-color: var(--im-danger-500);
   color: #edaab1;
 }
 
 .item-card .card-open:hover {
-  background: var(--st-oxblood-700);
-  border-color: var(--st-gold-500);
-  color: var(--st-vellum-100);
+  background: var(--im-oxblood-700);
+  border-color: var(--im-gold-500);
+  color: var(--im-vellum-100);
 }
 
 /* ------------------------------------------------------------------ messages */
@@ -323,22 +323,22 @@ select optgroup {
 .success-message {
   padding: 12px 16px;
   margin-bottom: 18px;
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-ui);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-ui);
   font-size: 0.95rem;
 }
 
 .error-message {
   background: rgb(214 75 88 / 0.14);
   border: 1px solid rgb(214 75 88 / 0.55);
-  border-left: 4px solid var(--st-danger-500);
+  border-left: 4px solid var(--im-danger-500);
   color: #edaab1;
 }
 
 .success-message {
   background: rgb(100 185 138 / 0.12);
   border: 1px solid rgb(100 185 138 / 0.5);
-  border-left: 4px solid var(--st-success-500);
+  border-left: 4px solid var(--im-success-500);
   color: #a9dfc2;
 }
 
@@ -361,12 +361,12 @@ select optgroup {
   margin: 0;
   padding: 26px 12px;
   text-align: center;
-  font-family: var(--st-font-reading);
+  font-family: var(--im-font-reading);
   font-style: italic;
   font-size: 1.05rem;
-  color: var(--st-text-muted);
-  border: 1px dashed var(--st-border);
-  border-radius: var(--st-radius-md);
+  color: var(--im-text-muted);
+  border: 1px dashed var(--im-border);
+  border-radius: var(--im-radius-md);
   background: rgb(23 16 31 / 0.45);
 }
 
@@ -394,16 +394,16 @@ select optgroup {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: clamp(22px, 4vw, 34px);
-  background: linear-gradient(170deg, var(--st-ink-850), var(--st-ink-900));
-  border: 1px solid var(--st-danger-500);
-  border-radius: var(--st-radius-lg);
+  background: linear-gradient(170deg, var(--im-ink-850), var(--im-ink-900));
+  border: 1px solid var(--im-danger-500);
+  border-radius: var(--im-radius-lg);
   box-shadow: 0 30px 90px rgb(0 0 0 / 0.7);
   text-align: left;
 }
 
 .burn-modal__panel h2 {
   margin: 0 0 14px 0;
-  font-family: var(--st-font-display);
+  font-family: var(--im-font-display);
   font-weight: 700;
   font-size: clamp(1.7rem, 4vw, 2.2rem);
   color: #edaab1;
@@ -412,10 +412,10 @@ select optgroup {
 
 .burn-modal__body {
   margin: 0 0 24px 0;
-  font-family: var(--st-font-reading);
+  font-family: var(--im-font-reading);
   font-size: 1rem;
   line-height: 1.6;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
   text-align: left;
 }
 
@@ -431,47 +431,47 @@ select optgroup {
   padding: 10px 30px;
   background: transparent;
   border: 1px solid rgb(230 221 202 / 0.3);
-  border-radius: var(--st-radius-sm);
-  color: var(--st-vellum-200);
-  font-family: var(--st-font-ui);
+  border-radius: var(--im-radius-sm);
+  color: var(--im-vellum-200);
+  font-family: var(--im-font-ui);
   font-size: 1rem;
   letter-spacing: 0.04em;
   opacity: 0.55;
   cursor: pointer;
   transition:
-    opacity var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease,
-    border-color var(--st-duration-fast) ease;
+    opacity var(--im-duration-fast) ease,
+    color var(--im-duration-fast) ease,
+    border-color var(--im-duration-fast) ease;
 }
 
 .ghost-btn:hover {
   opacity: 1;
-  color: var(--st-vellum-50);
-  border-color: var(--st-gold-500);
+  color: var(--im-vellum-50);
+  border-color: var(--im-gold-500);
 }
 
 #sceneImageCost {
   margin: 0 0 18px 0;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.85rem;
   letter-spacing: 0.04em;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .image-refusal-notice {
   margin: 0 0 12px;
   padding: 12px 14px;
-  border: 1px solid color-mix(in srgb, var(--st-gold-500) 58%, transparent);
+  border: 1px solid color-mix(in srgb, var(--im-gold-500) 58%, transparent);
   border-radius: 8px;
-  background: color-mix(in srgb, var(--st-gold-500) 9%, transparent);
-  color: var(--st-vellum-50);
+  background: color-mix(in srgb, var(--im-gold-500) 9%, transparent);
+  color: var(--im-vellum-50);
   line-height: 1.5;
 }
 
 .image-reference-drop {
   margin: 0 0 14px;
   padding: 10px 12px;
-  border-left: 3px solid var(--st-gold-500);
+  border-left: 3px solid var(--im-gold-500);
 }
 
 .image-reference-drop label {
@@ -483,7 +483,7 @@ select optgroup {
 
 .image-reference-drop p {
   margin: 6px 0 0 24px;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
   font-size: 0.86rem;
 }
 
@@ -498,14 +498,14 @@ select optgroup {
 }
 
 .dialog-manager__title {
-  font-family: var(--st-display, "Cormorant Garamond", Georgia, serif);
+  font-family: var(--im-display, "Cormorant Garamond", Georgia, serif);
   font-size: 1.4rem;
   margin: 0 0 0.6rem;
-  color: var(--st-vellum-50);
+  color: var(--im-vellum-50);
 }
 
 .dialog-manager__body {
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
   line-height: 1.55;
   margin-bottom: 1.1rem;
   text-align: left;
@@ -535,25 +535,25 @@ select optgroup {
 
 .review-list dt {
   padding-right: 0.9rem;
-  color: var(--st-gold-300);
-  font-family: var(--st-font-ui);
+  color: var(--im-gold-300);
+  font-family: var(--im-font-ui);
   font-weight: 650;
 }
 
 .review-list dd {
-  color: var(--st-vellum-100);
+  color: var(--im-vellum-100);
 }
 
 .review-note {
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 .review-consent {
   padding: 0.65rem 0.75rem;
-  border-left: 3px solid var(--st-gold-500);
+  border-left: 3px solid var(--im-gold-500);
   background: rgb(199 163 91 / 0.08);
-  color: var(--st-vellum-200);
-  font-family: var(--st-font-ui);
+  color: var(--im-vellum-200);
+  font-family: var(--im-font-ui);
   font-size: 0.88rem;
 }
 
@@ -566,7 +566,7 @@ select optgroup {
 
 /* Danger variant: ash and oxblood facts, no character illustration. */
 .dialog-manager__panel--danger .dialog-manager__title {
-  color: var(--st-rose-400);
+  color: var(--im-rose-400);
 }
 .dialog-manager__panel--danger .dialog-manager__panel,
 .dialog-manager__panel--danger {

@@ -57,7 +57,7 @@ function createWritingRouter({ catalog, stories, writing, transactions, ai }) {
   }
 
   function writerSessionId(req) {
-    const explicit = req.get('X-ScribeTribe-Writer-Session') || req.body?.writer_session_id;
+    const explicit = req.get('X-InkMorrow-Writer-Session') || req.body?.writer_session_id;
     if (typeof explicit === 'string' && explicit.trim()) return explicit.trim().slice(0, 300);
     const authenticated = req.authSession?.tokenHash;
     return typeof authenticated === 'string' && authenticated.trim()

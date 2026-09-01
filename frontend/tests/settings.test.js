@@ -24,7 +24,7 @@ describe('Settings defaults and persistence', () => {
     expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null, reasoningEffort: null, storyFontSize: 18, sceneRenderQuality: 'low_1k' });
     expect(document.getElementById('costTicker').hidden).toBe(false);
     expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
-    expect(document.documentElement.style.getPropertyValue('--st-prose-family')).toContain('Literata');
+    expect(document.documentElement.style.getPropertyValue('--im-prose-family')).toContain('Literata');
   });
 
   it('toggles persist to localStorage and apply immediately', async () => {
@@ -34,7 +34,7 @@ describe('Settings defaults and persistence', () => {
     document.getElementById('costTickerToggle').dispatchEvent(new Event('change'));
     expect(fw.state().settings.costTicker).toBe(false);
     expect(document.getElementById('costTicker').hidden).toBe(true);
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).costTicker).toBe(false);
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).costTicker).toBe(false);
 
     document.getElementById('scriptoriumBgToggle').checked = true;
     document.getElementById('scriptoriumBgToggle').dispatchEvent(new Event('change'));
@@ -142,8 +142,8 @@ describe('Story font selector', () => {
     mono.click();
 
     expect(fw.state().settings.storyFont).toBe('mono');
-    expect(document.documentElement.style.getPropertyValue('--st-prose-family')).toContain('IBM Plex Mono');
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).storyFont).toBe('mono');
+    expect(document.documentElement.style.getPropertyValue('--im-prose-family')).toContain('IBM Plex Mono');
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).storyFont).toBe('mono');
     const selectedNow = document.querySelector('#fontList .font-item.selected');
     expect(selectedNow.textContent).toContain('IBM Plex Mono');
   });
@@ -253,7 +253,7 @@ describe('Words per page setting', () => {
     input.dispatchEvent(new Event('change'));
     expect(fw.state().settings.wordsPerPage).toBe(2000);
     expect(input.value).toBe('2000');
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).wordsPerPage).toBe(2000);
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).wordsPerPage).toBe(2000);
 
     input.value = '120';
     input.dispatchEvent(new Event('change'));
@@ -419,7 +419,7 @@ describe('Story font size picker', () => {
 
   it('defaults to 18px and sets the prose size variable', async () => {
     expect(fw.state().settings.storyFontSize).toBe(18);
-    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('18px');
+    expect(document.documentElement.style.getPropertyValue('--im-prose-size')).toBe('18px');
     expect(document.getElementById('fontSizeSelect').value).toBe('18');
   });
 
@@ -428,12 +428,12 @@ describe('Story font size picker', () => {
     select.value = '22';
     select.dispatchEvent(new Event('change', { bubbles: true }));
     expect(fw.state().settings.storyFontSize).toBe(22);
-    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('22px');
-    expect(JSON.parse(window.localStorage.getItem('st-settings')).storyFontSize).toBe(22);
+    expect(document.documentElement.style.getPropertyValue('--im-prose-size')).toBe('22px');
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).storyFontSize).toBe(22);
 
     // Out-of-range values clamp instead of breaking the reading pane
     fw.setSetting('storyFontSize', 99);
     expect(fw.state().settings.storyFontSize).toBe(24);
-    expect(document.documentElement.style.getPropertyValue('--st-prose-size')).toBe('24px');
+    expect(document.documentElement.style.getPropertyValue('--im-prose-size')).toBe('24px');
   });
 });

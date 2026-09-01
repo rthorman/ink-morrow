@@ -7,7 +7,7 @@ import { approxCostText, estimatePageCost, estimateContinuityCost } from '../../
 
 const QUALITY_ATTEMPTS_MAX = 3; // must match backend/src/ai.js
 const CONTINUITY_ATTEMPTS_MAX = 2; // initial structured reply + one correction
-const WRITER_SESSION_KEY = 'st-writer-session-v1';
+const WRITER_SESSION_KEY = 'im-writer-session-v1';
 
 function opaqueClientId(prefix) {
   const id = globalThis.crypto?.randomUUID?.() ||

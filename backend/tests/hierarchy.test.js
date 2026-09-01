@@ -14,7 +14,7 @@ describe('PR 02 manuscript hierarchy', () => {
   let root;
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-hierarchy-'));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-hierarchy-'));
     fixture = createTestApp({
       imageDir: path.join(root, 'images'),
       audioDir: path.join(root, 'audio'),

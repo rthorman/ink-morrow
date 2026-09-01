@@ -4,7 +4,7 @@
 }
 
 .chronicle > h2 span {
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
   font-size: 0.72em;
   font-weight: 500;
 }
@@ -12,8 +12,8 @@
 .chronicle-summary {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
-  gap: var(--st-space-3);
-  margin-block: var(--st-space-4);
+  gap: var(--im-space-3);
+  margin-block: var(--im-space-4);
 }
 
 .chronicle-summary__item,
@@ -21,13 +21,13 @@
 .chronicle-volume,
 .chronicle-chapter,
 .chronicle-recovery {
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
-  background: var(--st-surface-2);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
+  background: var(--im-surface-2);
 }
 
 .chronicle-summary__item {
-  padding: var(--st-space-3);
+  padding: var(--im-space-3);
 }
 
 .chronicle-summary__item strong,
@@ -36,7 +36,7 @@
 }
 
 .chronicle-summary__item span {
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
   margin-top: 0.2rem;
 }
 
@@ -44,8 +44,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: end;
-  gap: var(--st-space-2);
-  margin-block: var(--st-space-4);
+  gap: var(--im-space-2);
+  margin-block: var(--im-space-4);
 }
 
 .chronicle-toolbar label {
@@ -60,11 +60,11 @@
 
 .chronicle-panel {
   padding: clamp(0.9rem, 2vw, 1.4rem);
-  margin-block: var(--st-space-4);
+  margin-block: var(--im-space-4);
 }
 
 .chronicle-panel__head {
-  margin-bottom: var(--st-space-3);
+  margin-bottom: var(--im-space-3);
 }
 
 .chronicle-panel__head h3,
@@ -76,12 +76,12 @@
 .chronicle-excerpt,
 .chronicle-window-status,
 .chronicle-recovery__meta {
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 .chronicle-outline {
   display: grid;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
 }
 
 .chronicle-volume,
@@ -100,8 +100,8 @@
 .chronicle-volume__body,
 .chronicle-chapter__body {
   display: grid;
-  gap: var(--st-space-2);
-  padding: 0 var(--st-space-3) var(--st-space-3);
+  gap: var(--im-space-2);
+  padding: 0 var(--im-space-3) var(--im-space-3);
 }
 
 .chronicle-node-actions,
@@ -110,7 +110,7 @@
 .chronicle-window-controls {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--st-space-2);
+  gap: var(--im-space-2);
   align-items: center;
 }
 
@@ -131,9 +131,9 @@
 .chronicle-page {
   display: grid;
   grid-template-columns: minmax(6rem, 9rem) 1fr;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
   align-items: start;
-  border-top: 1px solid var(--st-border-subtle, var(--st-border));
+  border-top: 1px solid var(--im-border-subtle, var(--im-border));
   padding-block: 0.65rem;
 }
 
@@ -151,39 +151,39 @@
   align-items: center;
   min-block-size: 1.65rem;
   padding-inline: 0.55rem;
-  border: 1px solid var(--st-border);
+  border: 1px solid var(--im-border);
   border-radius: 999px;
-  background: var(--st-surface-1);
-  color: var(--st-text-muted);
+  background: var(--im-surface-1);
+  color: var(--im-text-muted);
   font-size: 0.82rem;
 }
 
 .chronicle-marker--tail,
 .chronicle-marker--ready,
 .chronicle-marker--safe {
-  border-color: var(--st-success-500);
-  color: var(--st-success-500);
+  border-color: var(--im-success-500);
+  color: var(--im-success-500);
 }
 
 .chronicle-marker--pending,
 .chronicle-marker--unsafe {
-  border-color: var(--st-gold-500);
-  color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
+  color: var(--im-gold-500);
 }
 
 .chronicle-marker--failed,
 .chronicle-marker--expired {
-  border-color: var(--st-danger-500);
-  color: var(--st-danger-500);
+  border-color: var(--im-danger-500);
+  color: var(--im-danger-500);
 }
 
 .chronicle-recoveries {
   display: grid;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
 }
 
 .chronicle-recovery {
-  padding: var(--st-space-3);
+  padding: var(--im-space-3);
 }
 
 .chronicle-recovery h4,

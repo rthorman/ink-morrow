@@ -4,9 +4,9 @@
   margin: 0 0 18px 0;
   padding: 14px 18px;
   background: rgb(28 20 40 / 0.6);
-  border: 1px solid var(--st-border);
-  border-left: 4px solid var(--st-gold-500);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-border);
+  border-left: 4px solid var(--im-gold-500);
+  border-radius: var(--im-radius-sm);
 }
 
 .audiobook-banner[hidden] {
@@ -15,16 +15,16 @@
 
 .audiobook-banner__text {
   margin: 0 0 10px 0;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 0.95rem;
   letter-spacing: 0.02em;
-  color: var(--st-vellum-100);
+  color: var(--im-vellum-100);
 }
 
 .progress-track {
   height: 8px;
-  background: var(--st-ink-900);
-  border: 1px solid var(--st-border);
+  background: var(--im-ink-900);
+  border: 1px solid var(--im-border);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -36,7 +36,7 @@
 .progress-fill {
   height: 100%;
   width: 0%;
-  background: linear-gradient(90deg, var(--st-gold-700), var(--st-gold-300));
+  background: linear-gradient(90deg, var(--im-gold-700), var(--im-gold-300));
   transition: width 0.6s ease;
 }
 
@@ -53,10 +53,10 @@
 
 .audiobook-existing {
   margin: 0 0 14px 0;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.85rem;
   font-style: italic;
-  color: var(--st-violet-300);
+  color: var(--im-violet-300);
 }
 
 .audiobook-existing[hidden] {
@@ -67,8 +67,8 @@
 
 .story-reader {
   background: rgb(23 16 31 / 0.72);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
   padding: clamp(16px, 2.5vw, 26px);
 }
 
@@ -78,14 +78,14 @@
 
 .story-selector select {
   width: 100%;
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   margin-bottom: 0;
-  background-color: var(--st-surface-3);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-sm);
+  background-color: var(--im-surface-3);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
   padding: 10px 14px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 1.05rem;
 }
 
@@ -94,16 +94,16 @@
    with the other desk groups below. */
 
 .page-indicator {
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.85rem;
   letter-spacing: 0.06em;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .story-content {
   background: var(--surface-manuscript);
   border: 1px solid rgb(90 70 53 / 0.45);
-  border-radius: var(--st-radius-sm);
+  border-radius: var(--im-radius-sm);
   padding: clamp(20px, 3vw, 34px);
   min-height: 300px;
   margin-bottom: 20px;
@@ -113,16 +113,16 @@
 }
 
 .story-content p {
-  max-width: var(--st-prose-max);
+  max-width: var(--im-prose-max);
   margin: 0 auto 16px auto;
-  font-family: var(--st-prose-family, var(--st-font-reading));
-  font-size: var(--st-prose-size, 1.12rem);
+  font-family: var(--im-prose-family, var(--im-font-reading));
+  font-size: var(--im-prose-size, 1.12rem);
   line-height: 1.75;
-  color: var(--st-vellum-900);
+  color: var(--im-vellum-900);
 }
 
 .story-content .placeholder {
-  color: var(--st-vellum-700);
+  color: var(--im-vellum-700);
   background: rgb(90 70 53 / 0.06);
   border-color: rgb(90 70 53 / 0.35);
 }
@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
   margin: -8px 0 20px;
 }
 
@@ -143,63 +143,63 @@
 
 .desk-save-state {
   margin: 0;
-  color: var(--st-text-muted);
-  font-family: var(--st-font-mono);
+  color: var(--im-text-muted);
+  font-family: var(--im-font-mono);
   font-size: 0.82rem;
 }
 
 .desk-save-state[data-state='saving'] { color: var(--state-queued); }
-.desk-save-state[data-state='saved'] { color: var(--st-success-600); }
+.desk-save-state[data-state='saved'] { color: var(--im-success-600); }
 .desk-save-state[data-state='offline'],
-.desk-save-state[data-state='error'] { color: var(--st-danger-500); }
+.desk-save-state[data-state='error'] { color: var(--im-danger-500); }
 .desk-save-state[data-state='conflict'] { color: var(--state-prepared); }
 
 .desk-page-editor {
   margin: -8px 0 20px;
   padding: clamp(16px, 2.5vw, 24px);
-  background: var(--st-surface-2);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-md);
+  background: var(--im-surface-2);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-md);
 }
 
 .desk-page-editor__head {
   display: flex;
   align-items: start;
   justify-content: space-between;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
 }
 
 .desk-page-editor__head h3 { margin-top: 0; }
 
 #deskPageEditorText {
   min-height: min(48vh, 520px);
-  font-family: var(--st-prose-family, var(--st-font-reading));
+  font-family: var(--im-prose-family, var(--im-font-reading));
   line-height: 1.7;
   background: var(--surface-manuscript);
-  color: var(--st-vellum-900);
+  color: var(--im-vellum-900);
 }
 
 .desk-recovery {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: var(--st-space-3);
+  gap: var(--im-space-3);
   margin: -6px 0 20px;
   padding: 12px 16px;
   background: rgb(45 100 74 / 0.18);
-  border: 1px solid var(--st-success-600);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-success-600);
+  border-radius: var(--im-radius-sm);
 }
 
 .desk-recovery p { margin: 0; }
 
 .page-direction {
-  max-width: var(--st-prose-max);
+  max-width: var(--im-prose-max);
   margin: -6px auto 16px auto;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.8rem;
   font-style: italic;
-  color: var(--st-violet-600);
+  color: var(--im-violet-600);
 }
 
 /* Noncanonical art is displayed around its stable prose anchor. */
@@ -211,9 +211,9 @@
 
 .placed-art figcaption {
   margin-top: -8px;
-  font-family: var(--st-font-ui);
+  font-family: var(--im-font-ui);
   font-size: 0.82rem;
-  color: var(--st-violet-300);
+  color: var(--im-violet-300);
 }
 
 .scene-plate {
@@ -222,8 +222,8 @@
   max-width: 100%;
   max-height: 72vh;
   margin: 0 auto 18px auto;
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-sm);
   box-shadow: 0 10px 32px rgb(0 0 0 / 0.45);
 }
 
@@ -231,8 +231,8 @@
 
 .writing-interface {
   background: rgb(23 16 31 / 0.55);
-  border: 1px solid var(--st-border);
-  border-radius: var(--st-radius-md);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
   padding: clamp(14px, 2vw, 22px);
   scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom));
 }
@@ -254,17 +254,17 @@
 /* Prepared next page: the same button, same dimensions - a gothic deep
    forest green with tarnished-gold edging and vellum lettering. */
 .action-buttons button.next-page {
-  background: linear-gradient(170deg, var(--st-success-700), var(--st-ink-900) 140%);
-  border-color: var(--st-success-600);
-  color: var(--st-vellum-100);
+  background: linear-gradient(170deg, var(--im-success-700), var(--im-ink-900) 140%);
+  border-color: var(--im-success-600);
+  color: var(--im-vellum-100);
   font-weight: 600;
   box-shadow: 0 0 0 1px rgb(199 163 91 / 0.18) inset;
 }
 
 .action-buttons button.next-page:hover:not(:disabled) {
-  background: linear-gradient(170deg, var(--st-success-600), var(--st-success-700) 130%);
-  border-color: var(--st-gold-500);
-  color: var(--st-vellum-50);
+  background: linear-gradient(170deg, var(--im-success-600), var(--im-success-700) 130%);
+  border-color: var(--im-gold-500);
+  color: var(--im-vellum-50);
 }
 
 #generateBtn.busy {
@@ -281,24 +281,24 @@
 /* ------------------------------------------------------------------ narration */
 
 .narrate-btn {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   padding: 8px 16px;
-  background: var(--st-surface-3);
-  color: var(--st-witchlight-400);
+  background: var(--im-surface-3);
+  color: var(--im-witchlight-400);
   border: 1px solid rgb(105 217 203 / 0.45);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-ui);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-ui);
   font-size: 0.9rem;
   cursor: pointer;
   transition:
-    background-color var(--st-duration-fast) ease,
-    color var(--st-duration-fast) ease;
+    background-color var(--im-duration-fast) ease,
+    color var(--im-duration-fast) ease;
 }
 
 .narrate-btn:hover {
-  background: var(--st-ink-700);
-  color: var(--st-witchlight-400);
-  border-color: var(--st-witchlight-400);
+  background: var(--im-ink-700);
+  color: var(--im-witchlight-400);
+  border-color: var(--im-witchlight-400);
 }
 
 #readAloudBtn[aria-label*='playing'] {
@@ -307,19 +307,19 @@
 
 #narrationAutoBtn.active {
   background: rgb(105 217 203 / 0.18);
-  border-color: var(--st-witchlight-400);
-  color: var(--st-vellum-100);
+  border-color: var(--im-witchlight-400);
+  color: var(--im-vellum-100);
 }
 
 #narrationStopBtn {
-  color: var(--st-danger-500);
+  color: var(--im-danger-500);
   border-color: rgb(214 75 88 / 0.45);
 }
 
 #narrationStopBtn:hover {
   background: rgb(214 75 88 / 0.16);
   color: #edaab1;
-  border-color: var(--st-danger-500);
+  border-color: var(--im-danger-500);
 }
 
 /* ------------------------------------------------------------------ cost ticker */
@@ -327,10 +327,10 @@
 .cost-ticker {
   margin-top: 10px;
   text-align: right;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 .cost-ticker[hidden] {
@@ -345,7 +345,7 @@
 #writeSection.scriptorium-bg {
   position: relative;
   isolation: isolate;
-  border-radius: var(--st-radius-md);
+  border-radius: var(--im-radius-md);
   padding: clamp(10px, 1.5vw, 18px);
   margin: calc(clamp(10px, 1.5vw, 18px) * -1);
 }
@@ -407,15 +407,15 @@
   padding: 12px 16px;
   background: rgb(110 24 52 / 0.16);
   border: 1px solid rgb(199 163 91 / 0.35);
-  border-left: 3px solid var(--st-gold-500);
-  border-radius: var(--st-radius-sm);
+  border-left: 3px solid var(--im-gold-500);
+  border-radius: var(--im-radius-sm);
 }
 
 .past-page-bar p {
   margin: 0;
-  font-family: var(--st-font-mono);
+  font-family: var(--im-font-mono);
   font-size: 0.82rem;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .past-page-bar[hidden] {
@@ -427,7 +427,7 @@
 }
 
 .writing-interface.read-only label {
-  color: var(--st-text-muted);
+  color: var(--im-text-muted);
 }
 
 
@@ -435,7 +435,7 @@
 
 #imagePromptModal .burn-modal__panel {
   width: min(720px, 100%);
-  border-color: var(--st-border-bright);
+  border-color: var(--im-border-bright);
 }
 
 /* The render-quality picker sits in the modal flow like the prompt box */
@@ -446,7 +446,7 @@
 }
 
 #imagePromptModal .burn-modal__panel h2 {
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
 }
 
 #imagePromptText {
@@ -455,18 +455,18 @@
   min-height: 150px;
   margin: 0 0 20px 0;
   padding: 10px 12px;
-  background: var(--st-surface-3);
-  color: var(--st-vellum-100);
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
-  font-family: var(--st-font-reading);
+  background: var(--im-surface-3);
+  color: var(--im-vellum-100);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-sm);
+  font-family: var(--im-font-reading);
   font-size: 1rem;
   line-height: 1.6;
   resize: vertical;
 }
 
 #imagePromptText:focus {
-  border-color: var(--st-gold-500);
+  border-color: var(--im-gold-500);
   outline: none;
 }
 
@@ -489,8 +489,8 @@
 .scene-viewer img {
   max-width: 92vw;
   max-height: 82vh;
-  border: 1px solid var(--st-border-bright);
-  border-radius: var(--st-radius-sm);
+  border: 1px solid var(--im-border-bright);
+  border-radius: var(--im-radius-sm);
   user-select: none;
   -webkit-user-drag: none;
   touch-action: none; /* the viewer owns every gesture */
@@ -531,7 +531,7 @@
 
 .desk-group--pages {
   background: rgb(9 6 13 / 0.5);
-  border: 1px solid var(--st-gold-700);
+  border: 1px solid var(--im-gold-700);
   border-radius: 9px;
   padding: 0.35rem 0.6rem;
 }
@@ -542,14 +542,14 @@
 
 .desk-tool-sheet {
   flex: 0 1 auto;
-  color: var(--st-vellum-200);
+  color: var(--im-vellum-200);
 }
 
 .desk-tool-sheet > summary {
-  min-height: var(--st-touch-min);
+  min-height: var(--im-touch-min);
   padding: 0.55rem 0.75rem;
-  font-family: var(--st-font-ui);
-  color: var(--st-gold-300);
+  font-family: var(--im-font-ui);
+  color: var(--im-gold-300);
   cursor: pointer;
 }
 
@@ -560,7 +560,7 @@
 .desk-group--management {
   margin-top: 0.8rem;
   padding-top: 0.7rem;
-  border-top: 1px dashed var(--st-gold-700);
+  border-top: 1px dashed var(--im-gold-700);
   gap: 0.7rem;
 }
 
@@ -573,7 +573,7 @@
 }
 
 .story-context__mode {
-  color: var(--st-gold-300);
+  color: var(--im-gold-300);
   font-size: 0.88rem;
 }
 
@@ -606,7 +606,7 @@
     position: static;
     max-height: none;
     overflow: visible;
-    background: var(--st-surface-1);
+    background: var(--im-surface-1);
     box-shadow: none;
   }
 

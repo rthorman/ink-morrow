@@ -3,7 +3,7 @@
 ## Our Pledge
 
 We as members, contributors, and leaders pledge to make participation in the
-ScribeTribe community a harassment-free experience for everyone, regardless of
+Ink Morrow community a harassment-free experience for everyone, regardless of
 age, body size, visible or invisible disability, ethnicity, sex
 characteristics, gender identity and expression, level of experience,
 education, socio-economic status, nationality, personal appearance, race,
@@ -35,7 +35,7 @@ Examples of unacceptable behavior include:
 * Other conduct which could reasonably be considered inappropriate in a
   professional setting
 
-Project-context clarification: ScribeTribe is a fiction-authoring project with
+Project-context clarification: Ink Morrow is a fiction-authoring project with
 an intentionally mature gothic art direction. Lawful fictional prose, prompts,
 test fixtures, or project artwork relevant to designing, documenting, testing,
 or discussing the software are not prohibited merely because they contain

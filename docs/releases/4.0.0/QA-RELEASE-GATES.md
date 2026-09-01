@@ -1,4 +1,4 @@
-# ScribeTribe 4.0.0 QA and release gates
+# Ink Morrow 4.0.0 QA and release gates
 
 Status: **accepted beta quality contract**
 
@@ -191,7 +191,7 @@ stakeholder acceptance; correctness gates never yield to a speed target.
 
 | Format | Automated validation |
 |---|---|
-| .scribetribe | Manifest/schema/hash validation plus lossless round-trip |
+| .inkmorrow | Manifest/schema/hash validation plus lossless round-trip |
 | DOCX | OPC/ZIP structure, XML schema-level checks, semantic re-read |
 | ODT | Package/mimetype/manifest checks, semantic re-read |
 | RTF | Parser round-trip and control-word escaping fixtures |
@@ -223,7 +223,7 @@ Beta is blocked by any reproducible defect that can cause:
 - a malformed upload/archive escaping storage or executing active content;
 - public snapshot mutation, indexing by default, or private API access;
 - failure to restore a project archive made by the same beta version;
-- invalid DOCX, ODT, EPUB, PDF, or .scribetribe output on the release fixture;
+- invalid DOCX, ODT, EPUB, PDF, or .inkmorrow output on the release fixture;
 - inability to complete the primary authoring loop on desktop or portrait
   tablet Chrome;
 - an authentication bypass or known critical/high supported-path

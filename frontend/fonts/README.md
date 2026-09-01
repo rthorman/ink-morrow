@@ -1,6 +1,6 @@
 # Bundled fonts
 
-ScribeTribe serves its interface fonts locally so opening a private local manuscript does not make a font request to a third party.
+Ink Morrow serves its interface fonts locally so opening a private local manuscript does not make a font request to a third party.
 
 The WOFF2 files are Latin and Latin Extended subsets distributed by the Google Fonts project:
 

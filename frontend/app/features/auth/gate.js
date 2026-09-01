@@ -62,7 +62,7 @@ export function createAuthGate({ auth }) {
   let busy = false;
 
   function setGated(gated) {
-    document.body.classList.toggle('st-gated', gated);
+    document.body.classList.toggle('im-gated', gated);
     root.hidden = !gated;
     if (gated) {
       for (const section of document.querySelectorAll('.content-section')) section.classList.remove('active');
@@ -77,8 +77,8 @@ export function createAuthGate({ auth }) {
     formSide.className = 'auth-surface__form';
     const lockup = document.createElement('img');
     lockup.className = 'auth-surface__lockup';
-    lockup.src = 'brand/scribetribe-lockup.svg';
-    lockup.alt = 'ScribeTribe — Where stories grow claws';
+    lockup.src = 'brand/ink-morrow-lockup.svg';
+    lockup.alt = 'Ink Morrow — Where stories grow claws';
     lockup.width = 900;
     lockup.height = 240;
     const kicker = document.createElement('p');
@@ -137,7 +137,7 @@ export function createAuthGate({ auth }) {
     );
     const hint = document.createElement('p');
     hint.className = 'auth-hint';
-    hint.textContent = 'The one-time setup code is printed in the terminal where ScribeTribe started.';
+    hint.textContent = 'The one-time setup code is printed in the terminal where Ink Morrow started.';
     const form = document.createElement('form');
     form.className = 'auth-form';
     form.id = 'authSetupForm';
@@ -196,7 +196,7 @@ export function createAuthGate({ auth }) {
 
   function renderLocked() {
     const { surface, formSide } = panelBase(
-      'Unlock ScribeTribe',
+      'Unlock Ink Morrow',
       'The manuscript remembers you. Speak the phrase that opens the desk.'
     );
     const form = document.createElement('form');
@@ -234,7 +234,7 @@ export function createAuthGate({ auth }) {
   function renderUnavailable(message) {
     const { surface, formSide } = panelBase(
       'The door will not answer',
-      message || 'ScribeTribe could not confirm whether the desk is locked.'
+      message || 'Ink Morrow could not confirm whether the desk is locked.'
     );
     const retry = submitButton('Try again');
     retry.type = 'button';
@@ -264,7 +264,7 @@ export function createAuthGate({ auth }) {
   }
 
   async function refresh() {
-    document.body.classList.add('st-auth-checking');
+    document.body.classList.add('im-auth-checking');
     try {
       const current = await auth.status({ refresh: true });
       render(current);
@@ -273,7 +273,7 @@ export function createAuthGate({ auth }) {
       render({ state: 'error', message: error.message });
       return { state: 'error' };
     } finally {
-      document.body.classList.remove('st-auth-checking');
+      document.body.classList.remove('im-auth-checking');
     }
   }
 

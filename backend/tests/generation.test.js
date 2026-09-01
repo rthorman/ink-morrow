@@ -797,7 +797,7 @@ describe('Speculative next-page preview', () => {
     const path = require('path');
     const { createDb } = require('../src/db');
     const { createApp } = require('../src/app');
-    const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'st-preview-')), 'preview.db');
+    const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'im-preview-')), 'preview.db');
     try {
       const db1 = createDb(dbFile);
       const app1 = createApp(db1, { staticDir: null });

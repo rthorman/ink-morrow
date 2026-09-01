@@ -1,11 +1,11 @@
 # Accepted product decisions
 
 Status: **accepted**
-Applies to: **ScribeTribe 4.0.0**
+Applies to: **Ink Morrow 4.0.0**
 
 ## Product constitution
 
-ScribeTribe is a tool for co-authoring long-form narrative fiction with AI,
+Ink Morrow is a tool for co-authoring long-form narrative fiction with AI,
 from short books through long novels and larger works. Story quality is the
 first measure of success. The application must preserve meaningful events,
 character and world consequences, believable development, and coherent
@@ -18,7 +18,7 @@ story. Every AI feature must have a clear, story-serving purpose.
 The 4.0 release line is free and open-source software under
 `AGPL-3.0-only`. It begins at an independent Git-history root so no earlier
 MIT-licensed project commit is an ancestor. The historical `main` line through
-3.2.2 remains MIT-licensed and unchanged. ScribeTribe is self-hosted, has no
+3.2.2 remains MIT-licensed and unchanged. Ink Morrow is self-hosted, has no
 organizational backing, does not sell a service, does not process payments,
 and does not become a party to the user's relationship with an AI provider.
 
@@ -31,7 +31,7 @@ arbitrary friction, unclear state, data loss, or an interface that wastes
 their attention.
 
 The project serves all genders equally and adopts no ideological or moral
-litmus test for stories. ScribeTribe itself does not classify or suppress
+litmus test for stories. Ink Morrow itself does not classify or suppress
 lawful narrative content on moral grounds. Provider policies and applicable
 law remain external constraints, and the interface must represent provider
 refusals honestly.
@@ -138,7 +138,7 @@ never triggers AI.
 Public discovery, social feeds, comments, co-editing, and live collaborative
 canon are outside 4.0.0.
 
-The complete project export is a versioned **.scribetribe** archive. Publication
+The complete project export is a versioned **.inkmorrow** archive. Publication
 exports are DOCX, ODT, RTF, EPUB 3.3, PDF, HTML, Markdown, plain text, and a
 documented JSON representation. Publication exports omit private working
 state. Export adapters share one normalized publication model so formats do

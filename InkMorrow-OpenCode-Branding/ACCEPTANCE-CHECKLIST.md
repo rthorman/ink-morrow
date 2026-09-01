@@ -1,4 +1,4 @@
-# ScribeTribe acceptance checklist
+# Ink Morrow acceptance checklist
 
 OpenCode must use this list before reporting completion.
 
@@ -12,7 +12,7 @@ OpenCode must use this list before reporting completion.
 
 ## Brand identity
 
-- [ ] The product name is consistently written `ScribeTribe`.
+- [ ] The product name is consistently written `Ink Morrow`.
 - [ ] The supplied mark or lockup appears crisply in the appropriate shell location.
 - [ ] The primary palette uses ink, oxblood, violet, vellum and tarnished gold as specified.
 - [ ] The result reads as a living gothic manuscript, not a generic dark SaaS theme.

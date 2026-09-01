@@ -1,6 +1,6 @@
-# ScribeTribe 4.0.0-beta.1
+# Ink Morrow 4.0.0-beta.1
 
-ScribeTribe 4.0 is a clean-break beta for self-hosted, single-owner long-form
+Ink Morrow 4.0 is a clean-break beta for self-hosted, single-owner long-form
 fiction writing. It replaces the 3.x application tree with the reviewed 4.0
 release tree while preserving the historical 3.x line as the first parent of
 the cutover commit.
@@ -23,7 +23,7 @@ the cutover commit.
 - Reusable world/character templates that become story-local snapshots.
 - Local image upload, AI painting, noncanonical placement, provenance, and
   explicit provider-reference permission.
-- Multi-format publication, full `.scribetribe` v2 backup/restore, and
+- Multi-format publication, full `.inkmorrow` v2 backup/restore, and
   immutable expiring public reading snapshots.
 - Approved responsive gothic art, blackletter identity, and runic navigation.
 
@@ -38,7 +38,7 @@ the preserved through-3.2.2 line retains its separately documented credits in
 
 ## Operational boundary
 
-ScribeTribe is not a hosted service and does not operate a maintainer cloud.
+Ink Morrow is not a hosted service and does not operate a maintainer cloud.
 Provider actions use credentials and endpoints configured by the owner and may
 cost money. Uploaded images are technically validated without semantic subject
 moderation. Archives and publication files are local and unencrypted. Public

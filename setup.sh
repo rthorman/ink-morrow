@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# ScribeTribe - Setup Script
+# Ink Morrow - Setup Script
 # Installs dependencies, creates config, and prints launch instructions.
 # The backend serves both the API and the frontend, so there is only one server.
 
@@ -15,11 +15,11 @@ elif [ -n "${1:-}" ]; then
     exit 2
 fi
 
-echo "🐱📜 ScribeTribe Setup 🐱📜"
+echo "🐱📜 Ink Morrow Setup 🐱📜"
 echo "================================"
 
 if [ ! -f "backend/package.json" ]; then
-    echo "❌ Run this script from the scribe-tribe root directory"
+    echo "❌ Run this script from the ink-morrow root directory"
     exit 1
 fi
 
@@ -70,10 +70,10 @@ chmod +x start.sh
 echo ""
 echo "🎉 Setup complete!"
 echo ""
-if [ -f "database/scribe-tribe.db" ]; then
-    echo "⚠️  ScribeTribe 4.0 will not reinterpret an existing 3.x database."
+if [ -f "database/ink-morrow.db" ]; then
+    echo "⚠️  Ink Morrow 4.0 will not reinterpret an existing 3.x database."
     echo "   Set DATA_DIR=../database-v4 in backend/.env for a clean 4.0 store,"
-    echo "   or keep this directory on ScribeTribe 3.2.2. The old file is not changed."
+    echo "   or keep this directory on the historical 3.2.2 build. The old file is not changed."
     echo ""
 fi
 echo "Next steps:"

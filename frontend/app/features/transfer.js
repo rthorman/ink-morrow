@@ -75,7 +75,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
   function openExport(preset = {}) {
     const body = element('div', 'transfer-dialog');
     const intro = element('p', 'transfer-intro',
-      'Build a portable ScribeTribe archive. Nothing is sent to an AI provider; the file is assembled locally and downloaded by your browser.');
+      'Build a portable Ink Morrow archive. Nothing is sent to an AI provider; the file is assembled locally and downloaded by your browser.');
     body.appendChild(intro);
 
     const scope = document.createElement('select');
@@ -289,7 +289,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
     row.dataset.collisionKey = collision.key;
     row.appendChild(element('h3', '', `${collision.name} · ${collision.kind}`));
     const statusCopy = collision.status === 'conflict'
-      ? 'Same identity, different contents. ScribeTribe will not guess at a field or page merge.'
+      ? 'Same identity, different contents. Ink Morrow will not guess at a field or page merge.'
       : collision.status === 'identical'
         ? `Identical contents already exist as “${collision.local_name}”.`
         : collision.status === 'same-name'
@@ -329,7 +329,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
     }
     const body = element('div', 'transfer-dialog');
     body.append(
-      element('p', '', 'The full restore is complete. Before replacing anything, ScribeTribe saved the previous local data as a portable safety backup.'),
+      element('p', '', 'The full restore is complete. Before replacing anything, Ink Morrow saved the previous local data as a portable safety backup.'),
       element('p', 'setting-hint', 'The backup remains on this machine; download a copy now if you want it elsewhere.')
     );
     const link = element('a', 'btn btn-secondary', 'Download pre-restore safety backup');

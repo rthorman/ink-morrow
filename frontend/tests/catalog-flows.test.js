@@ -75,7 +75,7 @@ describe('Explicit-tone acknowledgement (contextual, not a global gate)', () => 
     [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Choose a different tone').click();
     await flush(0);
     expect(tone.value).toBe('fade-to-black');
-    expect(window.localStorage.getItem('st-tone-explicit-ok')).toBeNull();
+    expect(window.localStorage.getItem('im-tone-explicit-ok')).toBeNull();
 
     // Acknowledging stores the choice
     tone.value = 'explicit';
@@ -83,7 +83,7 @@ describe('Explicit-tone acknowledgement (contextual, not a global gate)', () => 
     await flush(0);
     [...dialog.querySelectorAll('button')].find((b) => b.textContent.includes('I am 18 or older')).click();
     await flush(0);
-    expect(window.localStorage.getItem('st-tone-explicit-ok')).toBe('1');
+    expect(window.localStorage.getItem('im-tone-explicit-ok')).toBe('1');
 
     // Subsequent selections never ask
     tone.value = 'romantic';

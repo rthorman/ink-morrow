@@ -17,7 +17,7 @@ const ASSET = {
 };
 
 const DOCUMENT = {
-  format: 'scribetribe-publication-document', schema_version: 1,
+  format: 'ink-morrow-publication-document', schema_version: 1,
   metadata: { title: 'Gate Tale', subtitle: null, author: 'Ada', language: 'en', description: null, publisher: null, rights: null, date: null },
   front_matter: [],
   volumes: [{ ordinal: 1, title: 'Volume I', chapters: [{ ordinal: 1, title: 'Chapter I', pages: [{ ordinal: 1, blocks: [{ type: 'paragraph', text: 'First display page.' }] }, { ordinal: 2, blocks: [{ type: 'paragraph', text: 'Second display page.' }, { type: 'art', asset_key: 'asset-1', alt_text: ASSET.alt_text, position: 'after' }] }] }] }],

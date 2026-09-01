@@ -28,7 +28,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
   let imageDir;
 
   beforeEach(() => {
-    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'st-publication-'));
+    imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-publication-'));
     fixture = createTestApp({ imageDir });
   });
 
@@ -79,7 +79,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
     const snapshot = response.body.snapshot;
     expect(snapshot.formats).toEqual(['docx', 'odt', 'rtf', 'epub', 'pdf', 'html', 'md', 'txt', 'json']);
     expect(snapshot.document).toMatchObject({
-      format: 'scribetribe-publication-document',
+      format: 'ink-morrow-publication-document',
       schema_version: 1,
       metadata: { title: 'A Tale: Unicode', author: 'Ada Author', language: 'en-GB' },
     });
@@ -229,7 +229,7 @@ describe('PR 15 PublicationDocument and core adapters', () => {
 
   it('streams a long plain-text manuscript in bounded semantic chunks', async () => {
     const document = {
-      format: 'scribetribe-publication-document',
+      format: 'ink-morrow-publication-document',
       schema_version: 1,
       metadata: { title: 'Long Work', subtitle: null, author: '', language: 'en', description: null, publisher: null, rights: null, date: null },
       front_matter: [],

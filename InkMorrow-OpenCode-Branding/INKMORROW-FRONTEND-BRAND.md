@@ -1,4 +1,4 @@
-# ScribeTribe frontend brand system
+# Ink Morrow frontend brand system
 
 Status: **normative**  
 Primary targets: **desktop and portrait-first tablet**  
@@ -7,7 +7,7 @@ Product category: **interactive-fiction writing web application**
 
 ## 1. Brand thesis
 
-ScribeTribe is not “a dark writing app.” It is a living forbidden manuscript tended by a quarrelsome order of adult feline scribes.
+Ink Morrow is not “a dark writing app.” It is a living forbidden manuscript tended by a quarrelsome order of adult feline scribes.
 
 The interface should make writing feel consequential: ink remembers, choices leave scars and unfinished stories grow restless. The experience can be lush, theatrical and playful because this is a personal fiction project—not a corporate tool pretending to be neutral.
 
@@ -55,7 +55,7 @@ Use one memorable line per state. Do not make every tooltip perform a character 
 
 Black-on-black is not sophistication. Establish visible surface hierarchy, generous type contrast and unmistakable interaction states.
 
-## 4. The ScribeTribe cast
+## 4. The Ink Morrow cast
 
 The three approved hero characters form a flexible ensemble. Do not force them into product functions that do not exist.
 
@@ -86,7 +86,7 @@ These names are brand personas, not mandatory navigation labels.
 
 ### Name treatment
 
-Always write the product name as **ScribeTribe**, with both internal capitals. Never use `SCRIBETRIBE` in ordinary running copy.
+Always write the product name as **Ink Morrow**, with both words capitalized and separated by one space. Use **InkMorrow** only where spaces are technically invalid.
 
 ### Mark
 
@@ -231,7 +231,7 @@ Desktop and tablet are not the same layout at different widths. Portrait is the 
 Adapt paths and component syntax to the current stack:
 
 ```html
-<picture class="st-hero__picture" aria-hidden="true">
+<picture class="im-hero__picture" aria-hidden="true">
   <source
     media="(min-width: 1200px) and (pointer: fine)"
     srcset="/brand/hero-scriptorium-desktop.webp"

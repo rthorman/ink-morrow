@@ -101,7 +101,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       for (const row of db.prepare('SELECT id FROM worlds').all()) worlds.add(row.id);
       for (const row of db.prepare('SELECT id FROM characters').all()) characters.add(row.id);
       for (const row of db.prepare('SELECT id FROM stories').all()) stories.add(row.id);
-      rootName = 'scribe-tribe-backup';
+      rootName = 'ink-morrow-backup';
       return { worlds, characters, stories, rootName, externalWorlds: [] };
     }
     if (!validId(options.id)) throw httpError('id is required for this export scope');
@@ -452,7 +452,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         version: DATABASE_SCHEMA_VERSION,
       },
       created_at: new Date().toISOString(),
-      created_by: { application: 'ScribeTribe', version: appVersion },
+      created_by: { application: 'Ink Morrow', version: appVersion },
       scope: options.scope,
       options: {
         include_visuals: options.includeVisuals,

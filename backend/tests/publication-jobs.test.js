@@ -69,7 +69,7 @@ describe('PR 16 multi-format publication jobs', () => {
 
   it('cancels without a partial download or staging leak', async () => {
     const source = await snapshot();
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-publication-cancel-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-publication-cancel-'));
     let release;
     let started;
     const didStart = new Promise((resolve) => { started = resolve; });
@@ -97,7 +97,7 @@ describe('PR 16 multi-format publication jobs', () => {
 
   it('retries a failed job as a new clean lifecycle', async () => {
     const source = await snapshot();
-    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-publication-retry-'));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-publication-retry-'));
     let fail = true;
     const jobs = createPublicationJobs({
       publications: fixture.app.locals.publications,

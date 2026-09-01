@@ -13,7 +13,7 @@ async function selectByLabel(page, selector, text) {
 // consent on this device, so later calls deliberately have no dialog.
 async function confirmPaidReview(page, label) {
   const dialog = page.locator('.dialog-manager');
-  const remembered = await page.evaluate(() => localStorage.getItem('st-paid-consent-v1') === '1');
+  const remembered = await page.evaluate(() => localStorage.getItem('im-paid-consent-v1') === '1');
   if (remembered) {
     await expect(dialog).toBeHidden();
     return;
@@ -148,7 +148,7 @@ test.describe('AI generation flows (mocked)', () => {
     expect(await review.locator('.review-list dd').first().evaluate((el) => getComputedStyle(el).textAlign)).toBe('left');
     await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#storyContent')).toContainText('The first paid page.', { timeout: 5000 });
-    expect(await page.evaluate(() => localStorage.getItem('st-paid-consent-v1'))).toBe('1');
+    expect(await page.evaluate(() => localStorage.getItem('im-paid-consent-v1'))).toBe('1');
 
     await page.fill('#userInput', 'Open the second door');
     await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
@@ -575,7 +575,7 @@ test.describe('Narration (read aloud)', () => {
     await page.selectOption('#narrationModelSelect', 'or/voice-1');
     await expect(page.locator('#narrationVoiceSelect')).toBeEnabled();
     await page.selectOption('#narrationVoiceSelect', 'amber');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).narrationVoice)).toBe('amber');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('im-settings')).narrationVoice)).toBe('amber');
 
     // Read aloud: streams, plays, completes, and bills exactly once
     await page.locator('#writeBtn').click();
@@ -674,7 +674,7 @@ test.describe('Scene image prompt', () => {
     // Render quality is selectable and persists in settings
     await expect(page.locator('#imageQualitySelect')).toBeVisible();
     await page.selectOption('#imageQualitySelect', 'medium_2k');
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('st-settings')).sceneRenderQuality)).toBe('medium_2k');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('im-settings')).sceneRenderQuality)).toBe('medium_2k');
 
     // Paint it: the edited prompt is sent, the image opens in the zoomable popup
     const sentBody = page.waitForRequest((request) => {

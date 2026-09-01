@@ -14,7 +14,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
   let root;
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'st-revisions-'));
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-revisions-'));
     fixture = createTestApp({
       imageDir: path.join(root, 'images'),
       audioDir: path.join(root, 'audio'),
@@ -191,7 +191,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     const exported = await request(fixture.app)
       .get(`/api/stories/${story.id}/recoveries/${truncated.body.recovery.id}/export`)
       .expect(200);
-    expect(exported.body).toMatchObject({ format: 'scribetribe-recovery-suffix', version: 1 });
+    expect(exported.body).toMatchObject({ format: 'ink-morrow-recovery-suffix', version: 1 });
     expect(exported.body.payload.pages[0].content).toBe('Recoverable suffix.');
     expect(exported.body.payload.undo_sha256).toBeUndefined();
 

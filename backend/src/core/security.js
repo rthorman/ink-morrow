@@ -44,7 +44,7 @@ function createHostGuard({ allowLan = false, allowedHosts = [] } = {}) {
     const host = normalizeHost(req.headers.host || '');
     const literalLan = allowLan && net.isIP(host) !== 0;
     if (!host || (!local.has(host) && !configured.has(host) && !literalLan)) {
-      return res.status(421).json({ error: 'This host is not allowed by the ScribeTribe server configuration.' });
+      return res.status(421).json({ error: 'This host is not allowed by the Ink Morrow server configuration.' });
     }
     next();
   };

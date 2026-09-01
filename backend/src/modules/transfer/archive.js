@@ -141,7 +141,7 @@ function uploadArchive(req, uploadDir, limits = DEFAULT_LIMITS) {
     bb.on('close', async () => {
       try {
         await fileDone;
-        if (!sawFile) throw httpError('Choose a ScribeTribe archive to import');
+        if (!sawFile) throw httpError('Choose an Ink Morrow archive to import');
         if (tooLarge) throw httpError('Archive is larger than the configured import limit', 413);
         const stat = fs.statSync(uploadPath);
         if (!stat.isFile() || stat.size === 0) throw httpError('The uploaded archive is empty');
@@ -634,15 +634,12 @@ function validateManifest(manifest, files) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
     throw httpError('Archive manifest must be an object');
   }
-  if (manifest.format === 'scribetribe-portable-archive' && manifest.version === 1) {
-    throw httpError('This is a ScribeTribe 3.x archive. ScribeTribe 4.0 does not import 3.x archives; use 3.2.2 to open it.');
-  }
   if (manifest.format !== ARCHIVE_FORMAT) {
-    throw httpError('This is not a supported ScribeTribe project archive');
+    throw httpError('This is not a supported Ink Morrow project archive');
   }
   if (!Number.isSafeInteger(manifest.version)) throw httpError('Archive format version is invalid');
   if (manifest.version > ARCHIVE_VERSION) {
-    throw httpError(`This archive was made by a newer ScribeTribe version (archive v${manifest.version}); this build supports v${ARCHIVE_VERSION}.`);
+    throw httpError(`This archive was made by a newer Ink Morrow version (archive v${manifest.version}); this build supports v${ARCHIVE_VERSION}.`);
   }
   if (manifest.version !== ARCHIVE_VERSION) {
     throw httpError(`Archive v${manifest.version} is not supported by the 4.0 clean-break importer.`);
@@ -662,11 +659,11 @@ function validateManifest(manifest, files) {
     throw httpError('Archive database schema identity is invalid');
   }
   if (databaseSchema.family !== DATABASE_FAMILY) {
-    throw httpError('This archive belongs to a different ScribeTribe database family.');
+    throw httpError('This archive belongs to a different Ink Morrow database family.');
   }
   if (!Number.isSafeInteger(databaseSchema.version) || databaseSchema.version < 1) throw httpError('Archive database schema version is invalid');
   if (databaseSchema.version > DATABASE_SCHEMA_VERSION) {
-    throw httpError('This archive was made from a newer ScribeTribe database schema.');
+    throw httpError('This archive was made from a newer Ink Morrow database schema.');
   }
   const allowedManifestFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties);
   if (Object.keys(manifest).some((key) => !allowedManifestFields.includes(key)) ||
@@ -675,7 +672,7 @@ function validateManifest(manifest, files) {
   }
   if (!manifest.created_by || typeof manifest.created_by !== 'object' ||
       Object.keys(manifest.created_by).some((key) => !['application', 'version'].includes(key)) ||
-      manifest.created_by.application !== 'ScribeTribe' || typeof manifest.created_by.version !== 'string' ||
+      manifest.created_by.application !== 'Ink Morrow' || typeof manifest.created_by.version !== 'string' ||
       !manifest.created_by.version || manifest.created_by.version.length > 100) {
     throw httpError('Archive creator identity is invalid');
   }

@@ -35,7 +35,7 @@ for (const spec of SPECS) {
     // The optional scriptorium writing background must resolve to real,
     // decodable assets - not just toggle a class.
     await page.addInitScript(() => {
-      localStorage.setItem('st-settings', JSON.stringify({ scriptoriumBg: true }));
+      localStorage.setItem('im-settings', JSON.stringify({ scriptoriumBg: true }));
     });
     await openUnlocked(page);
 

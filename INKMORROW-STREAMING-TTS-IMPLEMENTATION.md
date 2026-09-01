@@ -1,6 +1,6 @@
-# ScribeTribe streaming page narration — OpenCode implementation contract
+# Ink Morrow streaming page narration — OpenCode implementation contract
 
-Use this file as a normative implementation instruction for **OpenCode running GLM-5.3** inside the existing ScribeTribe repository.
+Use this file as a normative implementation instruction for **OpenCode running GLM-5.3** inside the existing Ink Morrow repository.
 
 The objective is to add a **Read aloud** control to the reading surface. It must begin playing the current rendered page while speech is still being generated, allow the user to pause or stop it, obtain the available OpenRouter speech models and voices dynamically, persist the selected model and voice in the existing Settings system, and account for every billable generation through the application's existing AI-cost ledger.
 
@@ -10,7 +10,7 @@ This is an integration task, not permission to rewrite the application.
 
 1. Preserve authentication, authorization, user content, persistence, current reading behavior and existing AI-cost accounting.
 2. Follow this implementation contract.
-3. Follow the repository's existing `AGENTS.md`, OpenCode instructions, ScribeTribe branding specification and established engineering conventions.
+3. Follow the repository's existing `AGENTS.md`, OpenCode instructions, Ink Morrow branding specification and established engineering conventions.
 4. Prefer existing services, components, schemas, queues and test facilities over new parallel abstractions.
 5. If repository evidence conflicts with an assumption in this document, preserve working behavior and adapt the implementation without weakening the acceptance criteria.
 
@@ -143,7 +143,7 @@ Do not hard-code prices into Settings. If the existing Settings UI already shows
 
 ## 6. Reading-page control and player state
 
-Place the control with the current page's reading actions, respecting the existing ScribeTribe component and icon system. It must be real text plus an icon where appropriate, not an unexplained speaker glyph.
+Place the control with the current page's reading actions, respecting the existing Ink Morrow component and icon system. It must be real text plus an icon where appropriate, not an unexplained speaker glyph.
 
 Implement an explicit state machine equivalent to:
 
