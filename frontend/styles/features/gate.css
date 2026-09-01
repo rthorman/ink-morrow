@@ -47,10 +47,30 @@
 .gate-publication-form,
 .gate-publication-form label,
 .gate-art-list,
-.gate-job {
+.gate-job,
+.gate-card--share,
+.gate-share-reveal,
+.gate-share-list {
   display: grid;
   gap: var(--st-space-3);
 }
+
+.gate-share-reveal {
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-sm);
+  padding: var(--st-space-3);
+}
+
+.gate-share-reveal[hidden] { display: none; }
+
+.gate-share-reveal input { min-width: 0; }
+
+.gate-share-row {
+  border-block-start: 1px solid var(--st-border);
+  padding-block-start: var(--st-space-3);
+}
+
+.gate-share-row p { margin-block: 0 var(--st-space-2); }
 
 .gate-fields {
   display: grid;

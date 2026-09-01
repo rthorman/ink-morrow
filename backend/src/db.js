@@ -1192,6 +1192,30 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 9,
+    name: 'hashed immutable publication shares',
+    checksumSource: `PR 17 activates hashed 256-bit publication capabilities with fixed identity, expiry, and one-way revocation.`,
+    up(db) {
+      db.exec(`
+        CREATE TRIGGER shares_identity_immutable
+        BEFORE UPDATE OF publication_snapshot_id, capability_hash, created_at, expires_at ON shares
+        BEGIN
+          SELECT RAISE(ABORT, 'publication share identity is immutable');
+        END;
+
+        CREATE TRIGGER shares_revocation_one_way
+        BEFORE UPDATE OF status, revoked_at ON shares
+        WHEN NOT (
+          OLD.status = 'active' AND NEW.status = 'revoked' AND
+          OLD.revoked_at IS NULL AND NEW.revoked_at IS NOT NULL
+        )
+        BEGIN
+          SELECT RAISE(ABORT, 'publication share revocation is one-way');
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

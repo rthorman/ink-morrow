@@ -17,6 +17,9 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
   let assets = [];
   let placements = [];
   let currentJob = null;
+  let currentSnapshot = null;
+  let currentShares = [];
+  let revealedShareId = null;
   let pollTimer = null;
   let loadToken = 0;
 
@@ -124,6 +127,11 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     if (button) button.disabled = true;
     try {
       const result = await apiCall(`/stories/${story.id}/publications`, 'POST', publicationPayload(story));
+      currentSnapshot = result.snapshot;
+      const createShare = document.getElementById('gateCreateShareBtn');
+      if (createShare) createShare.disabled = false;
+      const hint = document.getElementById('gateShareHint');
+      if (hint) hint.textContent = `Snapshot ${currentSnapshot.sha256.slice(0, 12)} is ready to share.`;
       reviewDialog(result.snapshot, formats);
     } catch (error) { showError(error.message); }
     finally { if (button) button.disabled = false; }
@@ -195,6 +203,103 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     } catch (error) { showError(error.message); }
   }
 
+  function renderShares() {
+    const target = document.getElementById('gateShareList');
+    if (!target) return;
+    target.textContent = '';
+    if (!currentShares.length) {
+      target.appendChild(el('p', 'setting-hint', 'No reading-copy links exist for this manuscript.'));
+      return;
+    }
+    for (const share of currentShares) {
+      const row = el('section', 'gate-share-row');
+      const expiry = share.expires_at ? `Expires ${share.expires_at}` : 'No automatic expiry';
+      row.appendChild(el('p', '', `${share.status === 'active' ? 'Active' : share.status} · ${expiry} · snapshot ${share.snapshot_sha256.slice(0, 12)}`));
+      if (share.status === 'active') {
+        const revoke = el('button', 'btn btn-secondary', 'Revoke link');
+        revoke.type = 'button';
+        revoke.addEventListener('click', () => revokeShare(share.id));
+        row.appendChild(revoke);
+      }
+      target.appendChild(row);
+    }
+  }
+
+  async function loadShares() {
+    if (!activeStoryId) return;
+    const result = await apiCall(`/publication-shares?story_id=${encodeURIComponent(activeStoryId)}`);
+    currentShares = result.shares || [];
+    renderShares();
+  }
+
+  async function createShare() {
+    if (!currentSnapshot) return showError('Review a publication snapshot before creating a reading-copy link.');
+    const button = document.getElementById('gateCreateShareBtn');
+    if (button) button.disabled = true;
+    try {
+      const rawExpiry = document.getElementById('gateShareExpiry')?.value || '';
+      const result = await apiCall(`/publications/${currentSnapshot.id}/shares`, 'POST', {
+        expires_in_seconds: rawExpiry ? Number(rawExpiry) : null,
+      });
+      const absolute = new URL(result.share.share_url, window.location.href).href;
+      const input = document.getElementById('gateShareUrl');
+      if (input) input.value = absolute;
+      revealedShareId = result.share.id;
+      const reveal = document.getElementById('gateShareReveal');
+      if (reveal) reveal.hidden = false;
+      await loadShares();
+      showSuccess('Reading-copy link created. Copy it now; only its hash is stored.');
+    } catch (error) { showError(error.message); }
+    finally { if (button) button.disabled = false; }
+    return undefined;
+  }
+
+  async function performRevoke(shareId) {
+    try {
+      await apiCall(`/publication-shares/${shareId}/revoke`, 'POST', {});
+      if (revealedShareId === shareId) {
+        const input = document.getElementById('gateShareUrl');
+        if (input) input.value = '';
+        const reveal = document.getElementById('gateShareReveal');
+        if (reveal) reveal.hidden = true;
+        revealedShareId = null;
+      }
+      await loadShares();
+      showSuccess('Reading-copy link revoked. It now fails closed.');
+    } catch (error) { showError(error.message); }
+  }
+
+  function revokeShare(shareId) {
+    const body = el('div', 'gate-review');
+    body.append(
+      el('p', '', 'This reading-copy link will stop working immediately.'),
+      el('p', 'gate-review__excluded', 'This cannot be undone. The immutable snapshot remains private and can receive a new link later.'),
+    );
+    dialogs.openDialog({
+      title: 'Revoke reading-copy link?',
+      body,
+      actions: [
+        { label: 'Keep link', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: 'Revoke permanently', className: 'btn-danger',
+          onClick: async (close) => { close(true); await performRevoke(shareId); },
+        },
+      ],
+    });
+  }
+
+  async function copyShare() {
+    const input = document.getElementById('gateShareUrl');
+    if (!input?.value) return;
+    try {
+      await navigator.clipboard.writeText(input.value);
+      showSuccess('Reading-copy link copied.');
+    } catch {
+      input.select();
+      showError('Copy was blocked by the browser. The link is selected for manual copying.');
+    }
+  }
+
   async function chooseStory(storyId) {
     let story = state.data.currentStory?.id === storyId ? state.data.currentStory : state.data.stories.find((item) => item.id === storyId);
     if (!story) {
@@ -222,11 +327,16 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     activeStoryId = story.id;
     document.getElementById('gatePublicationTitle').value = story.title;
     try {
-      const listing = await apiCall(`/stories/${story.id}/assets`);
+      const [listing, shareListing] = await Promise.all([
+        apiCall(`/stories/${story.id}/assets`),
+        apiCall(`/publication-shares?story_id=${encodeURIComponent(story.id)}`),
+      ]);
       if (token !== loadToken || activeStoryId !== story.id) return;
       assets = listing.assets || [];
       placements = listing.placements || [];
+      currentShares = shareListing.shares || [];
       renderArt();
+      renderShares();
     } catch (error) {
       if (token === loadToken) showError(error.message);
     }
@@ -239,6 +349,8 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     document.getElementById('gatePublicationForm')?.addEventListener('submit', reviewPublication);
     document.getElementById('gateCancelJobBtn')?.addEventListener('click', cancelJob);
     document.getElementById('gateRetryJobBtn')?.addEventListener('click', retryJob);
+    document.getElementById('gateCreateShareBtn')?.addEventListener('click', createShare);
+    document.getElementById('gateCopyShareBtn')?.addEventListener('click', copyShare);
   }
 
   function reset() {
@@ -248,13 +360,21 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     assets = [];
     placements = [];
     currentJob = null;
+    currentSnapshot = null;
+    currentShares = [];
+    revealedShareId = null;
     document.getElementById('gateArtList')?.replaceChildren();
     const job = document.getElementById('gateJob');
     if (job) job.hidden = true;
+    const createShare = document.getElementById('gateCreateShareBtn');
+    if (createShare) createShare.disabled = true;
+    const reveal = document.getElementById('gateShareReveal');
+    if (reveal) reveal.hidden = true;
+    document.getElementById('gateShareList')?.replaceChildren();
   }
 
   return {
-    init, enter, reset, reviewPublication, renderJob, pollJob,
+    init, enter, reset, reviewPublication, renderJob, pollJob, createShare, revokeShare, renderShares,
     setRouter(value) { routeController = value; },
   };
 }

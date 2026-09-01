@@ -227,6 +227,10 @@ function buildDom() {
           <div id="gateFormatList"><input type="checkbox" name="publication-format" value="epub" checked><input type="checkbox" name="publication-format" value="pdf" checked></div>
           <div id="gateArtList"></div><button id="gateReviewPublicationBtn" type="submit">Review publication</button>
         </form>
+        <select id="gateShareExpiry"><option value="604800" selected>7 days</option><option value="">Never</option></select>
+        <button id="gateCreateShareBtn" disabled>Share reviewed snapshot</button><p id="gateShareHint"></p>
+        <div id="gateShareReveal" hidden><input id="gateShareUrl"><button id="gateCopyShareBtn">Copy link</button></div>
+        <div id="gateShareList"></div>
         <section id="gateJob" hidden><p id="gateJobStatus"></p><progress id="gateJobProgress"></progress><div id="gateJobDownloads"></div><button id="gateCancelJobBtn">Cancel</button><button id="gateRetryJobBtn" hidden>Retry</button></section>
         <button class="workspace-back-to-desk">Return to Desk</button>
       </section>

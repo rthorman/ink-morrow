@@ -709,7 +709,7 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#gateSection')).toHaveClass(/active/);
     await expect(page.locator('.gate-card--backup')).toContainText('Full fidelity');
     await expect(page.locator('.gate-card--publication')).toContainText('Reading copy');
-    await expect(page.locator('.gate-card--share button')).toBeDisabled();
+    await expect(page.locator('#gateCreateShareBtn')).toBeDisabled();
     await page.fill('#gatePublicationAuthor', 'E2E Author');
     await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
 
@@ -731,6 +731,51 @@ test.describe('ScribeTribe UI', () => {
     expect((await epub.body()).subarray(0, 2).toString()).toBe('PK');
     expect((await pdf.body()).subarray(0, 8).toString()).toBe('%PDF-1.7');
     expect(providerRequests).toEqual([]);
+  });
+
+  test('shared reading copy stays frozen, isolated, and revocable', async ({ page, request }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Shared Lantern', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, {
+      content: 'The frozen public page.', user_input: 'PRIVATE-SHARE-CANARY',
+    });
+    const csrf = await page.evaluate(async () => (await (await fetch('/api/auth/status')).json()).csrf_token);
+
+    await page.goto(`/#/gate/${story.id}`);
+    await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button', { hasText: 'Back' }).click();
+    await expect(page.locator('#gateCreateShareBtn')).toBeEnabled();
+    await page.locator('#gateCreateShareBtn').click();
+    const shareInput = page.locator('#gateShareUrl');
+    await expect(shareInput).not.toHaveValue('');
+    await expect(page.locator('#gateShareReveal')).toBeVisible();
+    const shareUrl = await shareInput.inputValue();
+    expect(shareUrl).toMatch(/^http:\/\/localhost:3100\/share\/#{1}[A-Za-z0-9_-]{43}$/);
+
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'A later private live page.' });
+    const publicRequests = [];
+    page.on('request', (outgoing) => publicRequests.push(outgoing.url()));
+    await page.goto(shareUrl);
+    await expect(page.locator('#shareDocument')).toBeVisible();
+    await expect(page.locator('#shareDocument')).toContainText('The frozen public page.');
+    await expect(page.locator('#shareDocument')).not.toContainText('A later private live page.');
+    await expect(page.locator('body')).not.toContainText('PRIVATE-SHARE-CANARY');
+    expect(publicRequests.some((url) => /provider|models|completion|generate/.test(url))).toBe(false);
+    expect(publicRequests.some((url) => url.includes('/api/public-share'))).toBe(true);
+    expect(await request.get('/api/stories').then((response) => response.status())).toBe(401);
+
+    const shareId = await page.request.get(`/api/publication-shares?story_id=${story.id}`)
+      .then(async (response) => (await response.json()).shares[0].id);
+    const revoked = await page.request.post(`/api/publication-shares/${shareId}/revoke`, {
+      data: {}, headers: { 'X-ScribeTribe-CSRF': csrf },
+    });
+    expect(revoked.status()).toBe(200);
+    await page.reload();
+    await expect(page.locator('#shareStatus')).toContainText('expired or been revoked');
+    await expect(page.locator('#shareDocument')).toBeHidden();
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {

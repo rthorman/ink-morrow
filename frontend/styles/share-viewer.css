@@ -1,0 +1,78 @@
+:root {
+  color-scheme: light dark;
+  font-family: Georgia, 'Times New Roman', serif;
+  background: #17130f;
+  color: #30271f;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: #e9e0d1;
+}
+
+.skip-link {
+  position: absolute;
+  inset-block-start: -5rem;
+  background: #fff;
+  color: #111;
+  padding: 0.75rem;
+}
+
+.skip-link:focus { inset-block-start: 0.5rem; }
+
+.share-masthead {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.8rem max(1rem, calc((100% - 48rem) / 2));
+  background: #211b16;
+  color: #f5ead9;
+  font-family: system-ui, sans-serif;
+}
+
+.share-masthead div,
+.share-masthead span { display: grid; }
+.share-masthead div > span { color: #c9bba8; font-size: 0.82rem; }
+.share-mark { border: 1px solid #8d7557; border-radius: 50%; padding: 0.45rem; }
+
+.share-reader {
+  width: min(48rem, calc(100% - 2rem));
+  margin: 2rem auto;
+  padding: clamp(1.25rem, 4vw, 4rem);
+  background: #fffaf1;
+  box-shadow: 0 0.5rem 2rem #32271933;
+}
+
+.share-title { text-align: center; margin-block: 8vh 12vh; }
+.share-title h1 { font-size: clamp(2rem, 7vw, 4rem); line-height: 1.05; }
+.share-subtitle { font-size: 1.25rem; }
+.share-author { margin-block-start: 3rem; }
+.share-volume > h2 { text-align: center; margin-block: 5rem 3rem; }
+.share-chapter > h3 { font-size: 1.6rem; margin-block: 4rem 2rem; }
+.share-page p { font-size: clamp(1.05rem, 2vw, 1.2rem); line-height: 1.75; }
+.share-page p + p { text-indent: 1.5em; }
+.share-scene-break { border: 0; margin: 2.5rem; }
+.share-scene-break::after { content: '⁂'; display: block; text-align: center; }
+.share-art { margin: 2.5rem 0; text-align: center; }
+.share-art img { display: block; max-width: 100%; height: auto; margin: auto; }
+.share-art figcaption { margin-block-start: 0.5rem; font-style: italic; }
+.share-proof { border-block-start: 1px solid #cfc2af; margin-block-start: 5rem; padding-block-start: 1rem; color: #66594b; font: 0.8rem system-ui, sans-serif; }
+.share-status { text-align: center; font: 1rem system-ui, sans-serif; }
+.share-status--failed { color: #812f2f; }
+
+footer {
+  width: min(48rem, calc(100% - 2rem));
+  margin: 1rem auto 3rem;
+  color: #5d5043;
+  font: 0.8rem system-ui, sans-serif;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  body { background: #17130f; }
+  .share-reader { background: #29221b; color: #f2e7d7; box-shadow: 0 0.5rem 2rem #0008; }
+  .share-proof, footer { color: #baaa96; }
+}

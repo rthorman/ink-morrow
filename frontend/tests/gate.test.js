@@ -28,6 +28,7 @@ const DOCUMENT = {
 function tick() { return new Promise((resolve) => setTimeout(resolve, 0)); }
 
 function installFetch() {
+  let shares = [];
   global.fetch = jest.fn((url, options = {}) => {
     const target = String(url);
     const method = String(options.method || 'GET').toUpperCase();
@@ -48,6 +49,22 @@ function installFetch() {
           { format: 'pdf', filename: 'gate-tale.pdf', download_url: '/api/publication-jobs/job1/files/gate-tale.pdf' },
         ],
       } }));
+    }
+    if (target.includes('/publication-shares?story_id=s1') && method === 'GET') {
+      return Promise.resolve(jsonResponse(200, { shares }));
+    }
+    if (target.endsWith('/publications/snap1/shares') && method === 'POST') {
+      const share = {
+        id: 'share1', snapshot_id: 'snap1', snapshot_sha256: 'b'.repeat(64), story_id: 's1',
+        status: 'active', created_at: '2026-09-01T08:00:00.000Z', expires_at: '2026-09-08T08:00:00.000Z', revoked_at: null,
+        share_url: `/share/#${'c'.repeat(43)}`,
+      };
+      shares = [{ ...share, share_url: undefined }];
+      return Promise.resolve(jsonResponse(201, { share }));
+    }
+    if (target.endsWith('/publication-shares/share1/revoke') && method === 'POST') {
+      shares = [{ ...shares[0], status: 'revoked', revoked_at: '2026-09-01T09:00:00.000Z' }];
+      return Promise.resolve(jsonResponse(200, { share: shares[0] }));
     }
     return Promise.resolve(jsonResponse(200, {}));
   });
@@ -99,5 +116,34 @@ describe('PR 16 Gate', () => {
     expect(document.querySelector('.dialog-manager__title').textContent).toContain('one story and all of its dependencies');
     expect(document.querySelector('.dialog-manager__body').textContent).toContain('working history');
     expect(document.querySelector('.dialog-manager__body').textContent).toContain('Never included: API keys');
+  });
+
+  it('creates a one-time immutable reading-copy link and revokes it', async () => {
+    const fw = await loadScript();
+    fw.__setStoryState(STORY);
+    await fw.enterGate({ storyId: 's1' });
+    expect(document.getElementById('gateCreateShareBtn').disabled).toBe(true);
+
+    document.getElementById('gatePublicationForm').requestSubmit();
+    await tick();
+    expect(document.getElementById('gateCreateShareBtn').disabled).toBe(false);
+    document.getElementById('gateCreateShareBtn').click();
+    await tick();
+    await tick();
+
+    const creation = fetch.mock.calls.find(([url]) => String(url).endsWith('/publications/snap1/shares'));
+    expect(JSON.parse(creation[1].body)).toEqual({ expires_in_seconds: 604800 });
+    expect(document.getElementById('gateShareUrl').value).toMatch(/\/share\/#c{43}$/);
+    expect(document.getElementById('gateShareReveal').hidden).toBe(false);
+    expect(document.getElementById('gateShareList').textContent).toContain('Active');
+
+    document.querySelector('#gateShareList button').click();
+    expect(document.querySelector('.dialog-manager__body').textContent).toContain('cannot be undone');
+    expect(await dialogAction('Revoke permanently')).toBe(true);
+    await tick();
+    await tick();
+    expect(document.getElementById('gateShareReveal').hidden).toBe(true);
+    expect(document.getElementById('gateShareList').textContent).toContain('revoked');
+    expect(fetch.mock.calls.some(([url]) => /provider|models|completion|generate/.test(String(url)))).toBe(false);
   });
 });

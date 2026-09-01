@@ -484,7 +484,7 @@ pull_requests:
   - id: "17"
     slug: snapshot-sharing
     title: Immutable snapshot sharing
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "16"
