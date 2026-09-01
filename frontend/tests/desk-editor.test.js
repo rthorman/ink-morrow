@@ -173,4 +173,3 @@ describe('PR11 recoverable return-to-page', () => {
     expect(document.getElementById('deskRecoveryBanner').hidden).toBe(true);
   });
 });
-
