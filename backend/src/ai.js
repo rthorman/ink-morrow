@@ -301,17 +301,17 @@ async function computeCostUsd(cfg, model, usage, onCatalogue = null) {
  */
 async function chatCompletion(
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts } = {}
+  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts } = {}
 ) {
   return chatCompletionWithConfig(aiConfig(), messages, {
-    temperature, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts,
+    temperature, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts,
   });
 }
 
 async function chatCompletionWithConfig(
   cfg,
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, maxBillableAttempts } = {},
+  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts } = {},
   onCatalogue = null
 ) {
   if (!cfg.apiKey) {
@@ -375,6 +375,7 @@ async function chatCompletionWithConfig(
           max_tokens: useMaxTokens,
           ...(useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
           ...(responseFormat ? { response_format: responseFormat } : {}),
+          ...(requireParameters ? { provider: { require_parameters: true } } : {}),
         },
         {
           headers: {

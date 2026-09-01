@@ -37,6 +37,12 @@ items without evidence are rejected. It contains:
 
 The server requests provider JSON Schema support and also validates the parsed
 reply locally. A schema-invalid successful reply gets one corrective attempt.
+Fresh installations assign `google/gemini-2.5-flash-lite` to the Archivist by
+default because it supports structured output, a long context, and an explicit
+no-reasoning mode. Existing installations keep their saved role assignment.
+If a chosen model cannot accept JSON Schema, the server makes one strict
+plain-JSON fallback and applies the same local validation; invalid data is
+never folded into canon and remains visibly repairable.
 If that fails, the canonical page remains valid and its delta becomes
 `failed`, with its provider spend retained.
 

@@ -92,6 +92,8 @@ describe('PR 04 provider profiles and role assignments', () => {
       });
       expect(JSON.stringify(status.body)).not.toContain(CANARY);
       expect(status.body.roles.map((entry) => entry.role).sort()).toEqual(['archivist', 'narrator', 'scribe']);
+      expect(status.body.roles.find((entry) => entry.role === 'archivist')?.model_id)
+        .toBe('google/gemini-2.5-flash-lite');
 
       const story = await createStory(fixture.app);
       await request(fixture.app)

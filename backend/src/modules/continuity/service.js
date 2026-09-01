@@ -27,7 +27,9 @@ const CONTINUITY_SCHEMA = {
       required: ['schema_version', 'summary', 'events', 'character_updates', 'goal_updates',
         'thread_updates', 'world_fact_updates', 'arc_updates'],
       properties: {
-        schema_version: { const: 2 },
+        // Numeric enum is equivalent to const here and belongs to Gemini's
+        // documented structured-output subset.
+        schema_version: { type: 'integer', enum: [2] },
         summary: { type: 'string' },
         events: {
           type: 'array',
@@ -293,18 +295,24 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
           model: modelOverride || undefined,
           temperature: 0.1,
           maxTokens: 2200,
+          // Memory extraction needs a bounded JSON answer, not hidden chain
+          // of thought. Reasoning-enabled models can otherwise spend this
+          // entire output budget before emitting any visible content.
+          reasoningEffort: 'none',
           maxBillableAttempts: 1,
-          ...(useSchema ? { responseFormat: CONTINUITY_SCHEMA } : {}),
+          ...(useSchema ? { responseFormat: CONTINUITY_SCHEMA, requireParameters: true } : {}),
         });
       } catch (error) {
         // Some OpenRouter providers advertise chat but reject JSON Schema.
-        // A schema-validation 400 has no successful completion and can safely
+        // Validation is normally 400/422; requiring parameter support can
+        // also leave no eligible endpoint (404). None bought a completion, so
         // fall back to the same strict instruction without double-counting.
-        if (useSchema && error.upstreamStatus === 400 && !error.billedAttempts) {
+        if (useSchema && [400, 404, 422].includes(error.upstreamStatus) && !error.billedAttempts) {
           return chatCompletion(callMessages, {
             model: modelOverride || undefined,
             temperature: 0.1,
             maxTokens: 2200,
+            reasoningEffort: 'none',
             maxBillableAttempts: 1,
           });
         }
