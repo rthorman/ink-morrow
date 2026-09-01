@@ -37,4 +37,3 @@ Any reproducible manuscript/canon loss, credential or private-state leak,
 malformed archive/media escape, authentication bypass, public-snapshot
 mutation, duplicate paid request, or inaccessible critical action is a release
 blocker rather than an acceptable known issue.
-
