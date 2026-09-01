@@ -2,6 +2,14 @@
    origin avoids disclosing app visits to a third-party font CDN. */
 
 @font-face {
+  font-family: "UnifrakturCook";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/unifraktur-cook.ttf") format("truetype");
+}
+
+@font-face {
   font-family: "Cormorant Garamond";
   font-style: normal;
   font-weight: 600 700;

@@ -1,14 +1,66 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 220" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" role="img" aria-labelledby="title desc">
   <title id="title">ScribeTribe</title>
-  <desc id="desc">ScribeTribe logo with quill, feline ears and open manuscript.</desc>
-  <g transform="translate(10 -7) scale(.86)">
-    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
-    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
-    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
-    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
-    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
-  </g>
-  <text x="225" y="125" fill="#F2E7D2" font-family="Cormorant Garamond, Georgia, serif" font-size="88" font-weight="700" letter-spacing="-2">Scribe<tspan fill="#DF6E9D">Tribe</tspan></text>
-  <text x="230" y="170" fill="#C7A35B" font-family="IBM Plex Mono, monospace" font-size="19" letter-spacing="4">WHERE STORIES GROW CLAWS</text>
-</svg>
+  <desc id="desc">ScribeTribe wordmark with the feline quill and manuscript sigil.</desc>
+  <defs>
+    <style>
+      @font-face {
+        font-family: "UnifrakturCook";
+        src: url("../fonts/unifraktur-cook.ttf") format("truetype");
+        font-display: swap;
+      }
+    </style>
+    <linearGradient id="book" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8F2949"/>
+      <stop offset="1" stop-color="#4B1028"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F0D69A"/>
+      <stop offset="0.5" stop-color="#C7A35B"/>
+      <stop offset="1" stop-color="#806333"/>
+    </linearGradient>
+    <linearGradient id="moonlitType" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F0E7F6"/>
+      <stop offset="0.38" stop-color="#D2B3E8"/>
+      <stop offset="0.7" stop-color="#A268BD"/>
+      <stop offset="1" stop-color="#6D397F"/>
+    </linearGradient>
+    <filter id="typeGlow" x="-10%" y="-20%" width="120%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+      <feFlood flood-color="#6D397F" flood-opacity=".72" result="color"/>
+      <feComposite in="color" in2="blur" operator="in" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
 
+  <g transform="translate(10 5) scale(.86)">
+    <path d="M42 117C45 84 52 54 66 29l39 39c8-3 15-4 23-4s15 1 23 4l39-39c14 25 21 55 24 88"
+          fill="none" stroke="url(#gold)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M63 92 70 53l25 27M193 92l-7-39-25 27"
+          fill="none" stroke="#6E1834" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M128 65c22 24 31 49 25 73-4 18-14 34-25 51-11-17-21-33-25-51-6-24 3-49 25-73Z"
+          fill="url(#gold)" stroke="#E7CF9A" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M128 85v83M113 126l15 18 15-18" fill="none" stroke="#100A16" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="128" cy="171" r="4.5" fill="#69D9CB"/>
+    <path d="M28 151c38-9 70-2 100 24 30-26 62-33 100-24l-13 66c-34-7-63 0-87 20-24-20-53-27-87-20L28 151Z"
+          fill="url(#book)" stroke="#E0C584" stroke-width="7" stroke-linejoin="round"/>
+    <path d="M128 175v62M42 166c31-5 58 2 82 22M214 166c-31-5-58 2-82 22"
+          fill="none" stroke="#C7A35B" stroke-width="4" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(248 0)">
+    <path d="M8 54h139c30 0 47-11 57-34 12 19 30 29 54 29h299M8 158h549"
+          fill="none" stroke="#806333" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M18 45c15 1 25-5 32-18-1 13 4 22 16 27M547 45c-15 1-25-5-32-18 1 13-4 22-16 27"
+          fill="none" stroke="#A268BD" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="m204 13 11 20-11 20-11-20Zm83 138 8 7-8 7-8-7Z"
+          fill="#5B286E" stroke="#D4B36A" stroke-width="1.7"/>
+    <circle cx="204" cy="33" r="3" fill="#69D9CB"/>
+    <text x="0" y="141" fill="url(#moonlitType)" stroke="#D4B36A" stroke-width="1.25"
+          paint-order="stroke fill" filter="url(#typeGlow)"
+          font-family="UnifrakturCook, Old English Text MT, UnifrakturMaguntia, serif"
+          font-size="101" font-weight="400" letter-spacing="1.2">ScribeTribe</text>
+    <text x="7" y="196" fill="#C7A35B"
+          font-family="IBM Plex Mono, ui-monospace, monospace"
+          font-size="18" font-weight="500" letter-spacing="5.2">WHERE STORIES GROW CLAWS</text>
+  </g>
+</svg>

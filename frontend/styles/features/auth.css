@@ -36,6 +36,14 @@
   text-align: left;
 }
 
+.auth-surface__lockup {
+  display: block;
+  width: min(100%, 390px);
+  height: auto;
+  margin: 0 0 clamp(24px, 4vw, 42px);
+  filter: drop-shadow(0 0 12px rgb(109 57 127 / 0.32));
+}
+
 .auth-surface__form h1 {
   margin: 0 0 12px;
   font-family: var(--st-font-display);
@@ -63,7 +71,7 @@
   height: 100%;
   min-height: 660px;
   object-fit: cover;
-  object-position: center 20%;
+  object-position: 82% center;
   border-left: 1px solid var(--st-border);
   filter: saturate(0.88) brightness(0.82);
 }
@@ -169,7 +177,7 @@ body.st-gated .skip-link {
     max-height: 34vh;
     border-left: 0;
     border-bottom: 1px solid var(--st-border);
-    object-position: center 18%;
+    object-position: 78% 34%;
   }
 
   .auth-surface__form {

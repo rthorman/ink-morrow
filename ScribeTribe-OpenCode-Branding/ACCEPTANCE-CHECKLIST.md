@@ -18,7 +18,7 @@ OpenCode must use this list before reporting completion.
 - [ ] The result reads as a living gothic manuscript, not a generic dark SaaS theme.
 - [ ] At least the home/landing, browse/library and writing surfaces share the same brand system.
 - [ ] Character imagery depicts clearly adult literary scribes without sexualized framing.
-- [ ] No maid, schoolgirl, chibi, pet/collar or copied-franchise visual language appears.
+- [ ] No maid, schoolgirl, chibi, leash/coercive-pet or copied-franchise visual language appears; Moth's approved velvet bell collar remains the sole intentional exception.
 
 ## Artwork integration
 
