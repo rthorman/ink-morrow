@@ -67,9 +67,9 @@ describe('Burn everything after this page', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const dialog = document.querySelector('.dialog-manager');
     expect(dialog.hidden).toBe(false);
-    expect(dialog.querySelector('.dialog-manager__title').textContent).toContain('Delete 2 later pages?');
+    expect(dialog.querySelector('.dialog-manager__title').textContent).toContain('Return story to page 1?');
     expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('Pages 2–3');
-    expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('permanently');
+    expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('recovery copy');
 
     // Cancel keeps every page and closes
     const cancel = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Cancel');
@@ -88,7 +88,7 @@ describe('Burn everything after this page', () => {
     document.getElementById('deleteAfterBtn').click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     const dialog = document.querySelector('.dialog-manager');
-    const confirmBtn = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Delete 2 pages');
+    const confirmBtn = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Return story to page 1');
     confirmBtn.click();
     expect(dialog.hidden).toBe(true);
 

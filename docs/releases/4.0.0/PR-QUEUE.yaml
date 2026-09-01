@@ -342,7 +342,7 @@ pull_requests:
   - id: "11"
     slug: desk
     title: The Desk
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "10"

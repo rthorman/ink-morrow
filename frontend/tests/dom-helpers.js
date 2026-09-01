@@ -181,7 +181,10 @@ function buildDom() {
         <input id="uploadArtInput" type="file">
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
-        <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
+        <div id="deskPageState" hidden><button id="deskPageEditBtn" type="button">Edit active page</button><p id="deskPageSaveState" role="status"></p></div>
+        <section id="deskPageEditor" hidden><h3 id="deskPageEditorTitle"></h3><p id="deskPageEditorNotice"></p><textarea id="deskPageEditorText"></textarea><button id="deskPageSaveNow" type="button">Save now</button><button id="deskPageReloadLatest" type="button" hidden>Load latest page</button><button id="deskPageEditorClose" type="button">Close editor</button></section>
+        <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Return story to this page</button></div>
+        <div id="deskRecoveryBanner" hidden><p id="deskRecoveryText"></p><button id="deskRecoveryUndo"></button></div>
         <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
           <p id="audiobookBannerText" class="audiobook-banner__text"></p>
           <div id="audiobookProgress" class="progress-track" hidden><div id="audiobookProgressFill" class="progress-fill"></div></div>

@@ -127,6 +127,72 @@
   border-color: rgb(90 70 53 / 0.35);
 }
 
+.desk-page-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  margin: -8px 0 20px;
+}
+
+.desk-page-state[hidden],
+.desk-page-editor[hidden],
+.desk-recovery[hidden] {
+  display: none;
+}
+
+.desk-save-state {
+  margin: 0;
+  color: var(--st-text-muted);
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+}
+
+.desk-save-state[data-state='saving'] { color: var(--state-queued); }
+.desk-save-state[data-state='saved'] { color: var(--st-success-600); }
+.desk-save-state[data-state='offline'],
+.desk-save-state[data-state='error'] { color: var(--st-danger-500); }
+.desk-save-state[data-state='conflict'] { color: var(--state-prepared); }
+
+.desk-page-editor {
+  margin: -8px 0 20px;
+  padding: clamp(16px, 2.5vw, 24px);
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-md);
+}
+
+.desk-page-editor__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+}
+
+.desk-page-editor__head h3 { margin-top: 0; }
+
+#deskPageEditorText {
+  min-height: min(48vh, 520px);
+  font-family: var(--st-prose-family, var(--st-font-reading));
+  line-height: 1.7;
+  background: var(--surface-manuscript);
+  color: var(--st-vellum-900);
+}
+
+.desk-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  margin: -6px 0 20px;
+  padding: 12px 16px;
+  background: rgb(45 100 74 / 0.18);
+  border: 1px solid var(--st-success-600);
+  border-radius: var(--st-radius-sm);
+}
+
+.desk-recovery p { margin: 0; }
+
 .page-direction {
   max-width: var(--st-prose-max);
   margin: -6px auto 16px auto;
@@ -474,6 +540,23 @@
   padding: 0.35rem 0;
 }
 
+.desk-tool-sheet {
+  flex: 0 1 auto;
+  color: var(--st-vellum-200);
+}
+
+.desk-tool-sheet > summary {
+  min-height: var(--st-touch-min);
+  padding: 0.55rem 0.75rem;
+  font-family: var(--st-font-ui);
+  color: var(--st-gold-300);
+  cursor: pointer;
+}
+
+.desk-tool-sheet[open] > summary {
+  margin-bottom: 0.2rem;
+}
+
 .desk-group--management {
   margin-top: 0.8rem;
   padding-top: 0.7rem;
@@ -524,4 +607,20 @@
   color: var(--state-prepared);
   border-left: 3px solid var(--state-prepared);
   padding-left: 0.6rem;
+}
+
+@media (max-width: 1023px) and (orientation: portrait) {
+  .writing-interface:not(.read-only) {
+    position: sticky;
+    bottom: calc(68px + env(safe-area-inset-bottom));
+    z-index: 20;
+    max-height: min(54vh, 520px);
+    overflow: auto;
+    background: var(--st-surface-1);
+    box-shadow: 0 -16px 28px rgb(5 3 8 / 0.72);
+  }
+
+  .story-content {
+    margin-bottom: 28px;
+  }
 }

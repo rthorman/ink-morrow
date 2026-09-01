@@ -531,6 +531,49 @@ test.describe('ScribeTribe UI', () => {
     expect(providerRequests).toEqual([]);
   });
 
+  test('Desk edits, copyedits, returns, and restores a manuscript without provider work', async ({ page }) => {
+    const storyRes = await apiPost(page, '/api/stories', { title: 'Desk Revision Proof', characters: [] });
+    const story = (await storyRes.json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The first page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The middle page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The active tail.' });
+    await page.goto(`/#/desk/${story.id}`);
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/api\/(ai|continuity)/.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.locator('#deskPageEditBtn').click();
+    await page.fill('#deskPageEditorText', 'The active tail, revised by its author.');
+    await page.locator('#deskPageSaveNow').click();
+    await expect(page.locator('#deskPageSaveState')).toContainText('Canonical revision saved');
+    await expect(page.locator('#storyContent')).toContainText('revised by its author');
+
+    await page.locator('#prevPageBtn').click();
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 3');
+    await expect(page.locator('#deskPageEditBtn')).toHaveText('Copyedit this page');
+    await page.locator('#deskPageEditBtn').click();
+    await page.fill('#deskPageEditorText', 'The first page, polished for display.');
+    await page.locator('#deskPageSaveNow').click();
+    await expect(page.locator('#deskPageSaveState')).toContainText('canon unchanged');
+    expect(providerRequests).toEqual([]);
+
+    await page.locator('#deskPageEditorClose').click();
+    await page.locator('#deleteAfterBtn').click();
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toContainText('Pages 2â€“3');
+    await dialog.locator('button', { hasText: 'Return story to page 1' }).click();
+    await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
+    await page.locator('#deskRecoveryUndo').click();
+    await expect(page.locator('#deskRecoveryBanner')).toBeHidden();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+  });
+
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
     const longDescription = 'A brass city under twin moons. '.repeat(60);
     await apiPost(page, '/api/worlds', { name: 'Longwinded Realm', description: longDescription, generate_image: false });
