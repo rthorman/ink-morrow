@@ -24,6 +24,14 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
+async function addRosterCharacter(page, name, { role, relation = '' }) {
+  const card = page.locator('#castAvailable .cast-available__card', { hasText: name }).first();
+  await expect(card).toBeVisible();
+  await card.locator('select').selectOption(role);
+  if (relation) await card.locator('input').fill(relation);
+  await card.getByRole('button', { name: 'Add to manuscript' }).click();
+}
+
 test.describe('Ink Morrow UI', () => {
   test.beforeEach(async ({ page }) => {
     await openUnlocked(page);
@@ -138,33 +146,29 @@ test.describe('Ink Morrow UI', () => {
     await page.fill('#startManualOpening', 'The shadow met the flame at midnight.');
     await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
     await selectByLabel(page, '#startWorld', 'E2E Realm');
-    await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
-    await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
-    await selectByLabel(page, '#castCharSelect', 'The Drifter');
-    await page.selectOption('#castTierSelect', 'supporting');
-    await page.fill('#castRelation', 'a debt of silence between them');
+    await page.locator('#castModeCentered').click();
+    await addRosterCharacter(page, 'Lady Seraphina', { role: 'mc' });
+    await addRosterCharacter(page, 'The Drifter', {
+      role: 'supporting', relation: 'a debt of silence between them',
+    });
 
     // Force the same passive catalogue reload that portrait polling performs.
-    // The in-progress add row must not be cleared before the user can press Add.
+    // Added roster choices must remain in the browser draft.
     await page.locator('#charactersBtn').click();
     await expect(page.locator('#charactersSection')).toHaveClass(/active/);
     await page.locator('#writeBtn').click();
     await page.locator('#storyNewBtn').click();
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
-    await expect(page.locator('#castCharSelect')).toHaveValue(/.+/);
-    await expect(page.locator('#castTierSelect')).toHaveValue('supporting');
-    await expect(page.locator('#castRelation')).toHaveValue('a debt of silence between them');
-    await page.locator('#castAddBtn').click();
     const leadRow = page.locator('#castList .cast-list__row--mc');
     await expect(leadRow).toContainText('Lady Seraphina');
     await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
     const supportingRow = page.locator('#castList .cast-list__row', { hasText: 'The Drifter' });
     await expect(supportingRow.locator('.cast-list__role')).toHaveText('Supporting');
+    await expect(supportingRow.locator('.cast-list__relation')).toHaveValue('a debt of silence between them');
 
-    await selectByLabel(page, '#castCharSelect', 'The Witness');
-    await page.selectOption('#castTierSelect', 'background');
-    await page.fill('#castRelation', 'saw what happened from the alley');
-    await page.locator('#castAddBtn').click();
+    await addRosterCharacter(page, 'The Witness', {
+      role: 'background', relation: 'saw what happened from the alley',
+    });
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
     await page.locator('[data-start-stage="2"] [data-start-next="3"]').click();

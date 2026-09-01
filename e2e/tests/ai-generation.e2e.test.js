@@ -9,6 +9,13 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
+async function addRosterCharacter(page, name, role) {
+  const card = page.locator('#castAvailable .cast-available__card', { hasText: name }).first();
+  await expect(card).toBeVisible();
+  await card.locator('select').selectOption(role);
+  await card.getByRole('button', { name: 'Add to manuscript' }).click();
+}
+
 // The first paid action is reviewed; accepting it permanently remembers
 // consent on this device, so later calls deliberately have no dialog.
 async function confirmPaidReview(page, label) {
@@ -235,8 +242,8 @@ test.describe('AI generation flows (mocked)', () => {
     await page.fill('#startManualOpening', 'Sir Context opens the tome.');
     await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
     await selectByLabel(page, '#startWorld', 'Context Realm');
-    await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
-    await selectByLabel(page, '#mcSelect', 'Sir Context');
+    await page.locator('#castModeCentered').click();
+    await addRosterCharacter(page, 'Sir Context', 'mc');
     const leadRow = page.locator('#castList .cast-list__row--mc');
     await expect(leadRow.locator('.cast-list__name')).toHaveText('Sir Context');
     await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
