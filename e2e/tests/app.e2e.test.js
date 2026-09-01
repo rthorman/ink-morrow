@@ -87,7 +87,7 @@ test.describe('Ink Morrow UI', () => {
     await page.fill('#worldName', 'E2E Realm');
     await page.locator('#worldForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' }).first()).toBeVisible({ timeout: 5000 });
 
     // Character in that world (select by visible label, not by guessed value)
     await page.locator('#charactersBtn').click();
@@ -97,24 +97,24 @@ test.describe('Ink Morrow UI', () => {
     await selectByLabel(page, '#characterWorld', 'E2E Realm');
     await page.locator('#characterForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' }).first()).toBeVisible({ timeout: 5000 });
 
     // Free-roaming second character
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Drifter');
     await page.locator('#characterForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' }).first()).toBeVisible({ timeout: 5000 });
 
     // A third character lets the creation flow prove both non-lead tiers.
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Witness');
     await page.locator('#characterNoImageBtn').click();
-    await expect(page.locator('#charactersList .item-card', { hasText: 'The Witness' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'The Witness' }).first()).toBeVisible({ timeout: 5000 });
 
     // Every card carries reference-image controls (e2e key is a dummy, so
     // the portrait itself fails; the UI must still show the state honestly)
-    const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
+    const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' }).first();
     // Regeneration lives in the More menu with its approximate cost
     await drifterCard.locator('.card-more summary').click();
     const regenerateItem = drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' });
@@ -136,7 +136,7 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'The Shadow and the Flame');
     await page.fill('#startManualOpening', 'The shadow met the flame at midnight.');
-    await page.locator('[data-start-next="2"]').click();
+    await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
     await selectByLabel(page, '#startWorld', 'E2E Realm');
     await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
@@ -167,7 +167,7 @@ test.describe('Ink Morrow UI', () => {
     await page.locator('#castAddBtn').click();
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
-    await page.locator('[data-start-next="3"]').click();
+    await page.locator('[data-start-stage="2"] [data-start-next="3"]').click();
     await page.selectOption('#manuscriptStartTone', 'romantic');
     await page.locator('#manuscriptStartSubmit').click();
 
@@ -536,8 +536,8 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'A Local Beginning');
     await page.fill('#startManualOpening', 'Rain whispered against the archive windows.');
-    await page.locator('[data-start-next="2"]').click();
-    await page.locator('[data-start-next="3"]').click();
+    await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
+    await page.locator('[data-start-stage="2"] [data-start-next="3"]').click();
     await page.locator('#manuscriptStartSubmit').click();
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#storyContent')).toContainText('Rain whispered against the archive windows.');
