@@ -116,7 +116,7 @@
 .field-optional {
   font-size: 0.82em;
   font-weight: 500;
-  color: var(--st-ash-600);
+  color: var(--st-text-muted);
 }
 
 .start-paths {

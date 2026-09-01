@@ -1,6 +1,7 @@
 'use strict';
 
 const { createHash, randomUUID } = require('node:crypto');
+const { assertTechnicalInput, MAX_IMAGE_BYTES } = require('../imagery/art-store');
 
 const PUBLICATION_FORMAT = 'scribetribe-publication-document';
 const PUBLICATION_SCHEMA_VERSION = 1;
@@ -113,6 +114,117 @@ function freeze(value) {
 
 function hashDocument(document) {
   return createHash('sha256').update(JSON.stringify(document)).digest('hex');
+}
+
+function validatePublicationDocument(document) {
+  const invalid = (detail) => publicationError(`Publication document is invalid: ${detail}.`, 400, 'PUBLICATION_DOCUMENT_INVALID');
+  const fields = (value, allowed, label, required = allowed) => {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw invalid(`${label} must be an object`);
+    if (Object.keys(value).some((key) => !allowed.includes(key))) throw invalid(`${label} contains an unknown field`);
+    if (required.some((key) => !Object.prototype.hasOwnProperty.call(value, key))) throw invalid(`${label} is missing a required field`);
+  };
+  const bounded = (value, max, { nullable = false, required = false } = {}) => {
+    if (nullable && (value === null || value === undefined)) return true;
+    return typeof value === 'string' && value.length <= max && (!required || value.length > 0);
+  };
+  fields(document, ['format', 'schema_version', 'metadata', 'front_matter', 'volumes', 'back_matter', 'assets'], 'document');
+  if (document.format !== PUBLICATION_FORMAT || document.schema_version !== PUBLICATION_SCHEMA_VERSION) {
+    throw invalid('format or schema version is unsupported');
+  }
+  fields(document.metadata, [...METADATA_FIELDS], 'metadata', ['title', 'author', 'language']);
+  if (!bounded(document.metadata.title, 300, { required: true }) ||
+      !bounded(document.metadata.author, 300) ||
+      !bounded(document.metadata.language, 40, { required: true }) ||
+      !/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(document.metadata.language) ||
+      !bounded(document.metadata.subtitle, 300, { nullable: true }) ||
+      !bounded(document.metadata.description, 4000, { nullable: true }) ||
+      !bounded(document.metadata.publisher, 300, { nullable: true }) ||
+      !bounded(document.metadata.rights, 1000, { nullable: true }) ||
+      !bounded(document.metadata.date, 40, { nullable: true })) {
+    throw invalid('metadata does not match schema 1');
+  }
+
+  if (!Array.isArray(document.assets) || document.assets.length > 1000) throw invalid('assets are not bounded');
+  const assetKeys = new Set();
+  for (const [index, asset] of document.assets.entries()) {
+    const label = `assets[${index}]`;
+    fields(asset, ['key', 'media_type', 'sha256', 'width', 'height', 'title', 'alt_text', 'content_base64'], label);
+    if (!/^asset-[1-9][0-9]*$/.test(asset.key) || assetKeys.has(asset.key) ||
+        !['image/png', 'image/jpeg', 'image/webp'].includes(asset.media_type) ||
+        !/^[a-f0-9]{64}$/.test(asset.sha256) ||
+        !Number.isSafeInteger(asset.width) || asset.width < 1 || asset.width > 4096 ||
+        !Number.isSafeInteger(asset.height) || asset.height < 1 || asset.height > 4096 ||
+        !bounded(asset.title, 300, { nullable: true }) || !bounded(asset.alt_text, 1000) ||
+        typeof asset.content_base64 !== 'string' ||
+        asset.content_base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4 ||
+        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(asset.content_base64)) {
+      throw invalid(`${label} does not match schema 1`);
+    }
+    const content = Buffer.from(asset.content_base64, 'base64');
+    if (content.toString('base64') !== asset.content_base64 ||
+        createHash('sha256').update(content).digest('hex') !== asset.sha256) {
+      throw invalid(`${label} bytes do not match their digest`);
+    }
+    try { assertTechnicalInput(content, asset.media_type); }
+    catch { throw invalid(`${label} is not an exact safe raster container`); }
+    assetKeys.add(asset.key);
+  }
+
+  let pageCount = 0;
+  let blockCount = 0;
+  const blockList = (blocks, label) => {
+    if (!Array.isArray(blocks)) throw invalid(`${label} must be an array`);
+    blockCount += blocks.length;
+    if (blockCount > 2_000_000) throw invalid('block count exceeds the supported limit');
+    for (const [index, block] of blocks.entries()) {
+      const blockLabel = `${label}[${index}]`;
+      if (!block || typeof block !== 'object' || Array.isArray(block)) throw invalid(`${blockLabel} must be an object`);
+      if (block.type === 'paragraph') {
+        fields(block, ['type', 'text'], blockLabel);
+        if (!bounded(block.text, 1_000_000)) throw invalid(`${blockLabel} contains invalid prose`);
+      } else if (block.type === 'scene_break') {
+        fields(block, ['type'], blockLabel);
+      } else if (block.type === 'art') {
+        fields(block, ['type', 'asset_key', 'alt_text', 'position'], blockLabel);
+        if (!assetKeys.has(block.asset_key) || !bounded(block.alt_text, 1000) ||
+            !['before', 'after'].includes(block.position)) throw invalid(`${blockLabel} contains an invalid art reference`);
+      } else {
+        throw invalid(`${blockLabel} has an unsupported type`);
+      }
+    }
+  };
+  const matter = (sections, label) => {
+    if (!Array.isArray(sections) || sections.length > 50) throw invalid(`${label} is not bounded`);
+    for (const [index, section] of sections.entries()) {
+      fields(section, ['role', 'title', 'blocks'], `${label}[${index}]`);
+      if (!MATTER_ROLES.has(section.role) || !bounded(section.title, 300)) throw invalid(`${label}[${index}] does not match schema 1`);
+      blockList(section.blocks, `${label}[${index}].blocks`);
+    }
+  };
+  matter(document.front_matter, 'front_matter');
+  matter(document.back_matter, 'back_matter');
+  if (!Array.isArray(document.volumes) || document.volumes.length > 1000) throw invalid('volumes are not bounded');
+  for (const [volumeIndex, volume] of document.volumes.entries()) {
+    fields(volume, ['ordinal', 'title', 'chapters'], `volumes[${volumeIndex}]`);
+    if (!Number.isSafeInteger(volume.ordinal) || volume.ordinal < 1 || !bounded(volume.title, 300) ||
+        !Array.isArray(volume.chapters) || volume.chapters.length > 10_000) throw invalid(`volumes[${volumeIndex}] does not match schema 1`);
+    for (const [chapterIndex, chapter] of volume.chapters.entries()) {
+      const label = `volumes[${volumeIndex}].chapters[${chapterIndex}]`;
+      fields(chapter, ['ordinal', 'title', 'pages'], label);
+      if (!Number.isSafeInteger(chapter.ordinal) || chapter.ordinal < 1 || !bounded(chapter.title, 300) || !Array.isArray(chapter.pages)) {
+        throw invalid(`${label} does not match schema 1`);
+      }
+      pageCount += chapter.pages.length;
+      if (pageCount > 100_000) throw invalid('page count exceeds the supported limit');
+      for (const [pageIndex, page] of chapter.pages.entries()) {
+        const pageLabel = `${label}.pages[${pageIndex}]`;
+        fields(page, ['ordinal', 'blocks'], pageLabel);
+        if (!Number.isSafeInteger(page.ordinal) || page.ordinal < 1) throw invalid(`${pageLabel} has an invalid ordinal`);
+        blockList(page.blocks, `${pageLabel}.blocks`);
+      }
+    }
+  }
+  return document;
 }
 
 function createPublicationService({ db, stories, artStore }) {
@@ -233,6 +345,7 @@ function createPublicationService({ db, stories, artStore }) {
         back_matter: input.backMatter,
         assets,
       });
+      validatePublicationDocument(document);
       const documentJson = JSON.stringify(document);
       const sha256 = hashDocument(document);
       const id = randomUUID();
@@ -250,8 +363,9 @@ function createPublicationService({ db, stories, artStore }) {
     const row = db.prepare('SELECT id, story_id, schema_version, document_json, sha256, created_at FROM publication_snapshots WHERE id = ?').get(snapshotId);
     if (!row) return null;
     const document = JSON.parse(row.document_json);
-    if (row.schema_version !== PUBLICATION_SCHEMA_VERSION || document.format !== PUBLICATION_FORMAT ||
-        hashDocument(document) !== row.sha256) {
+    let valid = true;
+    try { validatePublicationDocument(document); } catch { valid = false; }
+    if (!valid || row.schema_version !== PUBLICATION_SCHEMA_VERSION || hashDocument(document) !== row.sha256) {
       throw publicationError('The publication snapshot failed its integrity check.', 500, 'PUBLICATION_INTEGRITY_FAILED');
     }
     return freeze({ id: row.id, sha256: row.sha256, created_at: row.created_at, document });
@@ -267,5 +381,6 @@ module.exports = {
   blocksOf,
   freeze,
   hashDocument,
+  validatePublicationDocument,
   createPublicationService,
 };

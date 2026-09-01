@@ -6,8 +6,8 @@ The installation password and browser sessions never enter an archive. Archive e
 
 Format v2 is a clean break: ScribeTribe 4.0 does not import the 3.x
 `scribetribe-portable-archive` v1 format. Use ScribeTribe 3.2.2 to read a v1
-archive. PR 01 establishes the v2 identity and strict manifest scaffold; later
-4.0 implementation PRs extend its domain aggregates before beta release.
+archive. The beta v2 implementation validates strict manifests and complete
+4.0 domain aggregates before any catalogue write.
 
 ## Export scopes and dependency rules
 
@@ -15,10 +15,10 @@ archive. PR 01 establishes the v2 identity and strict manifest scaffold; later
 |---|---|---|
 | Character | Character and their home world, if any | Paintings; working history (normally off); audio remains visible but has no effect because a character has none |
 | World | World | None, some, or all characters whose catalogue home is that world; paintings; working history; audio remains visible but has no effect |
-| Story | Story, every committed page/revision, ready revision continuity, author corrections, story-local world/cast snapshots, story world, every current cast member, and each cast member's different home world | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
-| Full backup | Every world, character, story, page/revision, ready continuity delta, correction, template snapshot, and sanitized device setting | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
+| Story | Story, every committed page/revision, ready revision continuity, author corrections, story-local world/cast snapshots, immutable publication snapshots, story world, every current cast member, and each cast member's different home world | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
+| Full backup | Every world, character, story, page/revision, ready continuity delta, correction, template snapshot, immutable publication snapshot, and sanitized device setting | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
 
-Story continuity is functional data, not optional history. A story would narrate differently without it, so ready current-revision deltas, story-local templates, and author corrections always travel. Immutable page-revision ancestry and canonical/display pointers are likewise authored manuscript evidence and always travel. Prepared pages are not committed story state and travel only with working history. Truncation-recovery suffixes and undo credentials are private local safety state and never enter portable archives.
+Story continuity is functional data, not optional history. A story would narrate differently without it, so ready current-revision deltas, story-local templates, and author corrections always travel. Immutable page-revision ancestry and canonical/display pointers are likewise authored manuscript evidence and always travel. Publication snapshots are durable reading copies and always travel with their story; their public-share records and raw/hashed capabilities do not. Prepared pages are not committed story state and travel only with working history. Truncation-recovery suffixes and undo credentials are private local safety state and never enter portable archives.
 
 The UI defaults portable entity exports to paintings on, audio off, and working history off. A full backup defaults all three on. Audio is always an explicit switch because an audiobook can be much larger than the remaining archive.
 
@@ -36,13 +36,14 @@ When enabled, an archive can contain:
 
 When disabled, the authored manuscript, complete revision ancestry, canonical/display choices, and ready continuity state remain, but direction, model, token, cost, and diagnostic provenance fields are cleared. Audiobook model and voice remain when audio is included because they describe the file; its cost trace is cleared.
 
-API keys, provider credentials, encrypted vault entries/wrapping material, passwords, and the remembered paid-action-consent flag never enter an archive. Full backups carry only the application's explicit settings whitelist (model choices, reading appearance, word target, narrator choice, reasoning level, render quality, and cost-ticker preference).
+API keys, provider credentials, encrypted vault entries/wrapping material, passwords, authentication owner/sessions, the remembered paid-action-consent flag, recovery suffixes/undo credentials, and public-share capabilities/records never enter an archive. Full backups carry only the application's explicit settings whitelist (model choices, reading appearance, word target, narrator choice, reasoning level, render quality, and cost-ticker preference).
 
 ## Exposure review
 
 Creating an export plan does not download anything. The review reports:
 
-- worlds, characters, stories, pages, and continuity rows;
+- worlds, characters, stories, pages, continuity rows, publication snapshots,
+  and images embedded in those immutable snapshots;
 - image and audio file counts;
 - whether directions/model-and-cost history/device settings are present;
 - external home worlds pulled in for a cross-world cast;
@@ -80,7 +81,9 @@ JSON is an aggregate containing its story row, ordered volume/chapter/page
 hierarchy, immutable revision ancestry with canonical/display pointers,
 temporary ordered compatibility prose rows, story-local world/cast snapshots, continuity
 rows, optional redacted writing operations and prepared page, and optional
-ready-audiobook metadata. When visuals are included, schema-7 story aggregates
+ready-audiobook metadata. Schema-8 story aggregates additionally carry strict
+immutable publication snapshot documents and their verified semantic hashes,
+but never shares or capabilities. When visuals are included, schema-7 story aggregates
 also carry ready art-asset metadata and ordered placements anchored to stable
 prose page IDs, while the manifest owns each normalized derivative as an
 `asset` image. Random local storage keys and provider-reference consent never

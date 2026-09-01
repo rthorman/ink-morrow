@@ -105,6 +105,9 @@ const ART_ASSET_FIELDS = [
 const ASSET_PLACEMENT_FIELDS = [
   'id', 'story_id', 'asset_id', 'after_page_id', 'ordinal', 'created_at', 'updated_at',
 ];
+const PUBLICATION_SNAPSHOT_FIELDS = [
+  'id', 'story_id', 'schema_version', 'document_json', 'sha256', 'created_at',
+];
 
 function pick(row, fields) {
   const result = {};
@@ -418,6 +421,11 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
     // `preview` is the schema-1..5 compatibility shape.
     preview: bundle.preview ? without(bundle.preview, ['story_id', 'created_at']) : null,
     audiobook: bundle.audiobook ? without(bundle.audiobook, ['story_id', 'created_at', 'updated_at', 'fingerprint']) : null,
+    publication_snapshots: (bundle.publication_snapshots || []).map((row) => ({
+      schema_version: row.schema_version,
+      sha256: row.sha256,
+      document: parseJson(row.document_json, null),
+    })),
   };
 }
 
@@ -490,6 +498,7 @@ module.exports = {
   AUDIOBOOK_FIELDS,
   ART_ASSET_FIELDS,
   ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
   pick,
   canonicalJson,
   jsonBuffer,

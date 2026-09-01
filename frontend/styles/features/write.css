@@ -574,6 +574,8 @@
 
 .story-context > select {
   flex: 1 1 280px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .story-create-at-desk {
@@ -611,13 +613,11 @@
 
 @media (max-width: 1023px) and (orientation: portrait) {
   .writing-interface:not(.read-only) {
-    position: sticky;
-    bottom: calc(68px + env(safe-area-inset-bottom));
-    z-index: 20;
-    max-height: min(54vh, 520px);
-    overflow: auto;
+    position: static;
+    max-height: none;
+    overflow: visible;
     background: var(--st-surface-1);
-    box-shadow: 0 -16px 28px rgb(5 3 8 / 0.72);
+    box-shadow: none;
   }
 
   .story-content {

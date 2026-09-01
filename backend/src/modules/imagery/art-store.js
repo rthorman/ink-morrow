@@ -640,6 +640,7 @@ module.exports = {
   normalizeImage,
   normalizeImageFile,
   sniffMediaType,
+  assertTechnicalInput,
   artError,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_PIXELS,

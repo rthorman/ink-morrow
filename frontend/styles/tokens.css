@@ -32,7 +32,7 @@
 
   --st-ash-400: #a99fb1;
   --st-ash-600: #726879;
-  --st-danger-500: #d64b58;
+  --st-danger-500: #df5865;
   --st-success-500: #64b98a;
   --st-success-700: #2f5c44;
   --st-success-600: #3d7a58;
@@ -44,7 +44,7 @@
   --st-text: var(--st-vellum-100);
   --st-text-muted: var(--st-ash-400);
   --st-primary: var(--st-oxblood-500);
-  --st-accent: var(--st-violet-500);
+  --st-accent: var(--st-violet-300);
   --st-focus: var(--st-witchlight-400);
   --st-border: rgb(199 163 91 / 0.35);
   --st-border-bright: rgb(224 197 132 / 0.55);

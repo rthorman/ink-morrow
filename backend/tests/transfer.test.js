@@ -21,6 +21,7 @@ const {
   semanticHash,
 } = require('../src/modules/transfer/format');
 const { createWorld, createCharacter, createStory, addPage } = require('./helpers');
+const { hashDocument } = require('../src/modules/publication/document');
 
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 
@@ -62,6 +63,24 @@ async function downloadPlan(app, payload) {
     .expect(200);
   expect(downloaded.headers['content-type']).toMatch(/application\/zip/);
   return { plan: planned.body, bytes: downloaded.body };
+}
+
+async function rewriteStoryBundle(bytes, mutate) {
+  const entries = await readZipEntries(bytes);
+  const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+  const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+  const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+  mutate(bundle);
+  const bundleBuffer = jsonBuffer(bundle);
+  storyMeta.size_bytes = bundleBuffer.length;
+  storyMeta.sha256 = sha256(bundleBuffer);
+  storyMeta.semantic_sha256 = semanticHash('story', bundle);
+  return zipFixture(manifest, [...entries]
+    .filter(([entryPath]) => entryPath !== 'manifest.json')
+    .map(([entryPath, content]) => ({
+      path: entryPath,
+      content: entryPath === storyMeta.path ? bundleBuffer : content,
+    })));
 }
 
 function preflight(app, bytes, settings = null) {
@@ -163,10 +182,17 @@ describe('portable archives and backups', () => {
       .field('provider_reference_allowed', 'true')
       .attach('image', bytes, { filename: 'private-subject.png', contentType: 'image/png' })
       .expect(201);
+    const publication = source.app.locals.publications.snapshot(story.id, {
+      art: { asset_ids: [uploaded.body.asset.id] },
+    });
 
     const exported = await downloadPlan(source.app, {
       scope: 'story', id: story.id, include_visuals: true,
       include_audio: false, include_working_history: true,
+    });
+    expect(exported.plan.exposure).toMatchObject({
+      publication_snapshots: 1,
+      publication_snapshot_images: 1,
     });
     const entries = await readZipEntries(exported.bytes);
     const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
@@ -183,6 +209,9 @@ describe('portable archives and backups', () => {
     expect(bundle.asset_placements).toEqual([
       expect.objectContaining({ asset_id: uploaded.body.asset.id, after_page_id: page.id, ordinal: 1 }),
     ]);
+    expect(bundle.publication_snapshots).toHaveLength(1);
+    expect(JSON.parse(bundle.publication_snapshots[0].document_json).assets[0].sha256)
+      .toBe(publication.document.assets[0].sha256);
     expect(manifest.assets).toEqual(expect.arrayContaining([
       expect.objectContaining({ kind: 'image', owner_kind: 'asset', owner_id: uploaded.body.asset.id, story_id: story.id }),
     ]));
@@ -204,6 +233,11 @@ describe('portable archives and backups', () => {
     ]);
     await request(destination.app).get(imported.body.assets[0].content_url).expect(200)
       .expect('Content-Type', /image\/webp/);
+    const importedPublication = destination.db.prepare(
+      'SELECT document_json FROM publication_snapshots WHERE story_id = ?'
+    ).get(story.id);
+    expect(JSON.parse(importedPublication.document_json).assets[0].content_base64)
+      .toBe(publication.document.assets[0].content_base64);
     expect(destination.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value)
       .toBe(1);
   });
@@ -365,6 +399,90 @@ describe('portable archives and backups', () => {
     expect(destination.db.prepare('SELECT user_input FROM story_pages WHERE id = ?').get(page.id).user_input).toBe('A private author direction');
     expect(fs.readFileSync(path.join(destination.audioDir, `${story.id}.mp3`), 'utf8')).toBe('mp3 bytes');
     await request(destination.app).get(committed.body.safety_backup.download_url).expect(200);
+  });
+
+  it('round-trips immutable publication snapshots while excluding credentials, recovery, and shares', async () => {
+    const story = await createStory(source.app, null, [], { title: 'Release Archive' });
+    const page = await addPage(source.app, story.id, 'The publication-safe paragraph.', 'PRIVATE-DIRECTION-CANARY');
+    const snapshot = source.app.locals.publications.snapshot(story.id, {
+      metadata: { author: 'Archive Author' },
+    });
+    const share = source.app.locals.publicationShares.create(snapshot.id, { expires_in_seconds: 604800 });
+    const capability = new URL(`http://localhost${share.share_url}`).hash.slice(1);
+    const storedShare = source.db.prepare('SELECT capability_hash FROM shares WHERE id = ?').get(share.id);
+    const now = new Date();
+    source.db.prepare(`
+      INSERT INTO recovery_suffixes
+        (id, story_id, anchor_page_id, status, payload_json, created_at, expires_at)
+      VALUES (?, ?, ?, 'recoverable', ?, ?, ?)
+    `).run(randomUUID(), story.id, page.id, JSON.stringify({ deleted_prose: 'RECOVERY-PRIVATE-CANARY' }),
+      now.toISOString(), new Date(now.getTime() + 86400000).toISOString());
+    const providerId = randomUUID();
+    const secretId = randomUUID();
+    source.db.prepare(`
+      INSERT INTO provider_profiles
+        (id, display_name, base_url, capabilities_json, credential_source)
+      VALUES (?, 'Private provider', 'https://provider.invalid', '{}', 'none')
+    `).run(providerId);
+    source.db.prepare(`
+      INSERT INTO provider_secrets (id, profile_id, nonce, ciphertext, auth_tag)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(secretId, providerId, Buffer.from('nonce'), Buffer.from('CREDENTIAL-PRIVATE-CANARY'), Buffer.from('tag'));
+    source.db.prepare(`
+      UPDATE provider_profiles SET credential_source = 'vault', secret_ref = ? WHERE id = ?
+    `).run(secretId, providerId);
+
+    const exported = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    expect(exported.plan.exposure.publication_snapshots).toBe(1);
+    expect(exported.plan.exposure.excluded).toEqual(expect.arrayContaining([
+      'credentials',
+      'authentication owner and sessions',
+      'recovery suffixes and undo credentials',
+      'publication share capabilities and share records',
+    ]));
+    const entries = await readZipEntries(exported.bytes);
+    const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+    const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+    const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+    expect(bundle.publication_snapshots).toHaveLength(1);
+    expect(bundle.publication_snapshots[0]).toMatchObject({
+      story_id: story.id,
+      schema_version: 1,
+      sha256: snapshot.sha256,
+    });
+    expect(bundle).not.toHaveProperty('recovery_suffixes');
+    const archiveText = [...entries.values()].map((entry) => entry.toString('utf8')).join('\n');
+    for (const canary of [
+      'RECOVERY-PRIVATE-CANARY', 'CREDENTIAL-PRIVATE-CANARY', capability,
+      storedShare.capability_hash,
+    ]) expect(archiveText).not.toContain(canary);
+
+    const reviewed = await preflight(destination.app, exported.bytes).expect(200);
+    await request(destination.app)
+      .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
+      .send({ mode: 'merge' })
+      .expect(200);
+    const importedSnapshots = destination.db.prepare(`
+      SELECT * FROM publication_snapshots WHERE story_id = ? ORDER BY created_at, id
+    `).all(story.id);
+    expect(importedSnapshots).toHaveLength(1);
+    expect(importedSnapshots[0].sha256).toBe(snapshot.sha256);
+    expect(JSON.parse(importedSnapshots[0].document_json)).toEqual(snapshot.document);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM shares').get().count).toBe(0);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM recovery_suffixes').get().count).toBe(0);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM provider_secrets').get().count).toBe(0);
+
+    const restored = await downloadPlan(destination.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const restoredEntries = await readZipEntries(restored.bytes);
+    const restoredManifest = JSON.parse(restoredEntries.get('manifest.json').toString('utf8'));
+    expect(restoredManifest.entities.find((entity) => entity.kind === 'story').semantic_sha256)
+      .toBe(storyMeta.semantic_sha256);
   });
 
   it('round-trips durable writing history and an exact restart-safe prepared page', async () => {
@@ -547,6 +665,12 @@ describe('portable archives and backups', () => {
       character_updates: [{ character_id: character.id, condition: 'changed' }],
       goal_updates: [], thread_updates: [], world_fact_updates: [],
     }));
+    source.db.prepare(`
+      INSERT INTO continuity_corrections (id, story_id, scope, subject_id, correction_json)
+      VALUES (?, ?, 'story', ?, ?)
+    `).run(randomUUID(), story.id, story.id, JSON.stringify({
+      schema_version: 1, field: 'premise', value: 'A remapped story correction.', source: 'author',
+    }));
     const { bytes } = await downloadPlan(source.app, {
       scope: 'story', id: story.id, include_visuals: false,
       include_audio: false, include_working_history: false,
@@ -595,6 +719,43 @@ describe('portable archives and backups', () => {
     expect(snapshot.character_id).toBe(importedCharacter.id);
     const memory = destination.db.prepare('SELECT * FROM story_memory_pages WHERE page_id = ?').get(importedPage.id);
     expect(JSON.parse(memory.delta_json).character_updates[0].character_id).toBe(importedCharacter.id);
+    const correction = destination.db.prepare('SELECT * FROM continuity_corrections WHERE story_id = ?').get(importedStory.id);
+    expect(correction.subject_id).toBe(importedStory.id);
+  });
+
+  it('rejects tampered publication snapshots and injected recovery data before writes', async () => {
+    const story = await createStory(source.app, null, [], { title: 'Strict Archive' });
+    await addPage(source.app, story.id, 'A stable page.');
+    source.app.locals.publications.snapshot(story.id, {});
+    const exported = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const tamperedSnapshot = await rewriteStoryBundle(exported.bytes, (bundle) => {
+      const document = JSON.parse(bundle.publication_snapshots[0].document_json);
+      document.metadata.title = 'Tampered after hashing';
+      bundle.publication_snapshots[0].document_json = JSON.stringify(document);
+    });
+    let response = await preflight(destination.app, tamperedSnapshot).expect(400);
+    expect(response.body.error).toMatch(/invalid publication snapshot/i);
+
+    const schemaBypass = await rewriteStoryBundle(exported.bytes, (bundle) => {
+      const row = bundle.publication_snapshots[0];
+      const document = JSON.parse(row.document_json);
+      document.private_state = { canary: 'RECOMPUTED-HASH-CANARY' };
+      row.document_json = JSON.stringify(document);
+      row.sha256 = hashDocument(document);
+    });
+    response = await preflight(destination.app, schemaBypass).expect(400);
+    expect(response.body.error).toMatch(/invalid publication snapshot/i);
+
+    const injectedRecovery = await rewriteStoryBundle(exported.bytes, (bundle) => {
+      bundle.recovery_suffixes = [{ payload_json: 'RECOVERY-INJECTION' }];
+    });
+    response = await preflight(destination.app, injectedRecovery).expect(400);
+    expect(response.body.error).toMatch(/unknown field/i);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM stories').get().count).toBe(0);
+    expect(destination.db.prepare('SELECT COUNT(*) AS count FROM publication_snapshots').get().count).toBe(0);
   });
 
   it('rejects undeclared ZIP entries without changing the database', async () => {

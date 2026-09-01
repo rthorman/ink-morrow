@@ -33,6 +33,7 @@ const {
   audiobookRecord,
   ART_ASSET_FIELDS,
   ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
   pick,
   semanticHash,
   sanitizeSettings,
@@ -287,6 +288,9 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         .filter((placement) => includedAssetIds.has(placement.asset_id))
         .map((placement) => pick(placement, ASSET_PLACEMENT_FIELDS))
       : [];
+    const publicationSnapshots = db.prepare(`
+      SELECT * FROM publication_snapshots WHERE story_id = ? ORDER BY created_at, id
+    `).all(id).map((row) => pick(row, PUBLICATION_SNAPSHOT_FIELDS));
     return {
       bundle: {
         record,
@@ -304,6 +308,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         audiobook,
         art_assets: artAssets,
         asset_placements: assetPlacements,
+        publication_snapshots: publicationSnapshots,
       },
       cover,
       pageImages,
@@ -408,6 +413,14 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const memory = entities
       .filter((entity) => entity.kind === 'story')
       .reduce((sum, entity) => sum + (entity.bundle.continuity_deltas?.length || entity.bundle.memory.length), 0);
+    const publicationSnapshots = entities.reduce((sum, entity) => sum + (entity.bundle.publication_snapshots?.length || 0), 0);
+    const publicationSnapshotImages = entities.reduce((sum, entity) => sum +
+      (entity.bundle.publication_snapshots || []).reduce((snapshotSum, snapshot) => {
+        try {
+          const document = JSON.parse(snapshot.document_json);
+          return snapshotSum + (Array.isArray(document.assets) ? document.assets.length : 0);
+        } catch { return snapshotSum; }
+      }, 0), 0);
     const exposure = {
       worlds: selection.worlds.size,
       characters: selection.characters.size,
@@ -417,9 +430,16 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       images: assets.filter((asset) => asset.kind === 'image').length,
       audio_files: assets.filter((asset) => asset.kind === 'audio').length,
       includes_author_directions: options.includeWorkingHistory,
+      publication_snapshots: publicationSnapshots,
+      publication_snapshot_images: publicationSnapshotImages,
       includes_model_and_cost_history: options.includeWorkingHistory,
       includes_device_settings: Boolean(options.settings),
-      excluded: ['API keys', 'credentials', 'secret vault material', 'passwords', 'paid-action consent'],
+      excluded: [
+        'API keys', 'credentials', 'secret vault material', 'passwords',
+        'authentication owner and sessions', 'paid-action consent',
+        'recovery suffixes and undo credentials',
+        'publication share capabilities and share records',
+      ],
       external_worlds: selection.externalWorlds,
     };
 
