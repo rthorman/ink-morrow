@@ -20,4 +20,3 @@
 - [ ] No real manuscripts, credentials, cookies, share capabilities, private prompts, or unredacted logs are included
 - [ ] Destructive, paid, provider, archive, and network consequences remain literal
 - [ ] I reviewed and understand every submitted change, including AI-assisted or generated material, and have the right to submit it
-
