@@ -1,7 +1,7 @@
 'use strict';
 
 // The one sequential whole-story audiobook queue. Jobs narrate text pages in
-// order (image pages skipped), reuse the narration cache (unchanged pages
+// order (noncanonical art is outside this list), reuse the narration cache (unchanged pages
 // are free), append to a temp file, and rename it into place when done.
 
 const fs = require('fs');

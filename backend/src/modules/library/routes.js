@@ -7,21 +7,34 @@ const express = require('express');
 const { notFound } = require('../../core/http');
 const { buildEpub } = require('../../epub');
 
-function createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }) {
+function createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }) {
   const router = express.Router();
 
   router.get('/api/storage', (req, res) => {
     const storyRows = stories.listStories();
-    const plateRows = db
-      .prepare('SELECT id, story_id, page_number, image_prompt FROM story_pages WHERE image_media_type IS NOT NULL ORDER BY story_id, page_number')
-      .all();
     const platesByStory = new Map();
-    for (const plate of plateRows) {
-      let buffer;
-      try { buffer = imageStore.readImage('page', plate.id)?.buffer; } catch { buffer = null; }
-      const entry = { page_number: plate.page_number, image_prompt: plate.image_prompt || null, size_bytes: buffer ? buffer.length : null };
-      if (!platesByStory.has(plate.story_id)) platesByStory.set(plate.story_id, []);
-      platesByStory.get(plate.story_id).push(entry);
+    for (const story of storyRows) {
+      const pageNumberById = new Map(stories.storyPages(story.id).map((page) => [page.id, page.page_number]));
+      const art = artStore.list(story.id);
+      const placementsByAsset = new Map();
+      for (const placement of art.placements) {
+        if (!placementsByAsset.has(placement.asset_id)) placementsByAsset.set(placement.asset_id, []);
+        placementsByAsset.get(placement.asset_id).push({
+          id: placement.id,
+          after_page_id: placement.after_page_id,
+          after_page_number: placement.after_page_id ? pageNumberById.get(placement.after_page_id) || null : null,
+          ordinal: placement.ordinal,
+        });
+      }
+      platesByStory.set(story.id, art.assets.map((asset) => ({
+        asset_id: asset.id,
+        source: asset.source,
+        title: asset.title,
+        alt_text: asset.alt_text,
+        size_bytes: asset.size_bytes,
+        content_url: asset.content_url,
+        placements: placementsByAsset.get(asset.id) || [],
+      })));
     }
     res.json({
       stories: storyRows.map((story) => {
@@ -33,7 +46,7 @@ function createLibraryRouter({ db, catalog, stories, continuity, imageStore, aud
         })();
         const plates = platesByStory.get(story.id) || [];
         const firstPage = db.prepare(
-          "SELECT SUBSTR(content, 1, 1200) AS content FROM story_pages WHERE story_id = ? AND image_media_type IS NULL AND TRIM(content) <> '' ORDER BY page_number LIMIT 1"
+          "SELECT SUBSTR(content, 1, 1200) AS content FROM story_pages WHERE story_id = ? AND TRIM(content) <> '' ORDER BY page_number LIMIT 1"
         ).get(story.id);
         const diskBytes =
           (coverImage ? coverImage.buffer.length : 0) +
@@ -69,13 +82,26 @@ function createLibraryRouter({ db, catalog, stories, continuity, imageStore, aud
     const characters = continuity.contextForPrompt(story).characters
       .sort((a, b) => (a.role === 'mc' ? -1 : b.role === 'mc' ? 1 : 0));
 
-    // Painted plates travel inside the book: each image page contributes its
-    // bytes (a missing file degrades to a text-only page rather than a broken export).
-    const pages = stories.storyPages(story.id).map((page) => {
-      if (!page.image_media_type) return page;
-      const image = imageStore.readImage('page', page.id);
-      return image ? { ...page, image: { data: image.buffer, mediaType: image.mediaType } } : page;
-    });
+    const pages = stories.storyPages(story.id).map((page) => ({ ...page, art: [] }));
+    const pageById = new Map(pages.map((page) => [page.id, page]));
+    const art = artStore.list(story.id);
+    const assetById = new Map(art.assets.map((asset) => [asset.id, asset]));
+    for (const placement of art.placements) {
+      const asset = assetById.get(placement.asset_id);
+      const target = placement.after_page_id ? pageById.get(placement.after_page_id) : pages[0];
+      if (!asset || !target) continue;
+      const image = artStore.readAsset(story.id, asset.id);
+      if (!image) continue;
+      target.art.push({
+        id: asset.id,
+        data: image.buffer,
+        mediaType: image.mediaType,
+        alt: asset.alt_text || asset.title || 'Story illustration',
+        before: placement.after_page_id === null,
+        ordinal: placement.ordinal,
+      });
+    }
+    for (const page of pages) page.art.sort((left, right) => Number(right.before) - Number(left.before) || left.ordinal - right.ordinal);
 
     const epub = buildEpub({
       title: story.title,

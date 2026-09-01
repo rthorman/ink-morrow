@@ -294,6 +294,8 @@
                                 <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
                                 <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
                                 <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
+                                <button id="uploadArtBtn" class="narrate-btn" type="button" title="Upload a local image and place it after the current prose page">Upload art</button>
+                                <input id="uploadArtInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
                             </div>
                         </div>
 
@@ -478,7 +480,7 @@
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
         <img id="sceneViewerImg" alt="The painted scene" draggable="false">
         <div class="scene-viewer__actions">
-            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Bind this painting into the story as a page after the one it illustrates">Add as page</button>
+            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Place this painting after the prose page it illustrates">Place after page</button>
             <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
             <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
         </div>

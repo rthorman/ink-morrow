@@ -5,6 +5,7 @@ const os = require('os');
 const path = require('path');
 const { DatabaseSync } = require('node:sqlite');
 const request = require('supertest');
+const sharp = require('sharp');
 const {
   createDb,
   runMigrations,
@@ -23,6 +24,8 @@ const {
   settleOperation,
 } = require('../src/core/operation-journal');
 const { createTestApp } = require('./helpers');
+const { createImageStore } = require('../src/images');
+const { createArtStore } = require('../src/modules/imagery/art-store');
 
 describe('ScribeTribe 4.0 kernel', () => {
   let root;
@@ -147,6 +150,59 @@ describe('ScribeTribe 4.0 kernel', () => {
     db.close();
   });
 
+  it('migrates and reconciles schema-6 image pages into noncanonical art', async () => {
+    const dbPath = path.join(root, 'schema-6-art.db');
+    const imageDir = path.join(root, 'images');
+    const imageStore = createImageStore(imageDir);
+    let db = createDb(dbPath, { migrations: MIGRATIONS.slice(0, 6), reconcileOperations: false });
+    db.prepare("INSERT INTO stories (id, title) VALUES ('story-art', 'Migration art')").run();
+    db.prepare("INSERT INTO volumes (id, story_id, ordinal, title) VALUES ('volume-art', 'story-art', 1, 'Volume I')").run();
+    db.prepare("INSERT INTO chapters (id, volume_id, ordinal, title) VALUES ('chapter-art', 'volume-art', 1, 'Chapter I')").run();
+    db.prepare("INSERT INTO story_pages (id, story_id, page_number, content) VALUES ('prose-a', 'story-art', 1, 'One')").run();
+    db.prepare(`
+      INSERT INTO story_pages
+        (id, story_id, page_number, content, image_media_type, image_prompt, cost_usd)
+      VALUES ('old-plate', 'story-art', 2, '', 'image/png', 'A migration plate', 0.04)
+    `).run();
+    db.prepare("INSERT INTO story_pages (id, story_id, page_number, content) VALUES ('prose-b', 'story-art', 3, 'Two')").run();
+    for (const [id, ordinal] of [['prose-a', 1], ['old-plate', 2], ['prose-b', 3]]) {
+      db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)').run(id, 'chapter-art', ordinal);
+    }
+    imageStore.writeImage('page', 'old-plate', await sharp({
+      create: { width: 8, height: 6, channels: 4, background: '#5c1f4d' },
+    }).png().toBuffer(), 'image/png');
+    db.close();
+
+    db = createDb(dbPath, { reconcileOperations: false });
+    expect(db.prepare("SELECT id, page_number FROM story_pages WHERE story_id = 'story-art' ORDER BY page_number").all())
+      .toEqual([{ id: 'prose-a', page_number: 1 }, { id: 'prose-b', page_number: 2 }]);
+    expect(db.prepare("SELECT id, ordinal FROM pages WHERE chapter_id = 'chapter-art' ORDER BY ordinal").all())
+      .toEqual([{ id: 'prose-a', ordinal: 1 }, { id: 'prose-b', ordinal: 2 }]);
+    expect(db.prepare("SELECT * FROM legacy_art_pages WHERE page_id = 'old-plate'").get())
+      .toMatchObject({
+        page_id: 'old-plate', story_id: 'story-art', after_page_id: 'prose-a',
+        media_type: 'image/png', prompt: 'A migration plate', spend_usd: 0.04, ordinal: 1,
+      });
+    const artStore = createArtStore({
+      db,
+      rootDir: imageDir,
+      legacyImageStore: imageStore,
+      logger: { error: jest.fn() },
+    });
+    await artStore.ready;
+    expect(db.prepare("SELECT * FROM legacy_art_pages WHERE page_id = 'old-plate'").get()).toBeUndefined();
+    expect(artStore.getAsset('story-art', 'old-plate')).toMatchObject({
+      source: 'ai-generated', status: 'ready', media_type: 'image/webp', spend_usd: 0.04,
+    });
+    expect(artStore.list('story-art').placements).toEqual([
+      expect.objectContaining({ asset_id: 'old-plate', after_page_id: 'prose-a', ordinal: 1 }),
+    ]);
+    expect(imageStore.fileInfo('page', 'old-plate')).toBeNull();
+    expect(fs.readdirSync(path.join(imageDir, 'assets'))).toHaveLength(1);
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    db.close();
+  });
+
   it('enforces core relationships and operation state transitions', () => {
     const db = createDb(':memory:');
     expect(() => db.prepare(`
@@ -198,6 +254,8 @@ describe('ScribeTribe 4.0 kernel', () => {
     expect(response.body.features.find((feature) => feature.id === 'revisions-recovery').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'continuity-v2').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'writing-transactions').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'art-upload').status).toBe('available');
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

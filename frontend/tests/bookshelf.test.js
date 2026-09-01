@@ -25,8 +25,15 @@ const STORAGE = {
         file_missing: false,
       },
       plates: [
-        { page_number: 2, image_prompt: 'A candlelit hall.', size_bytes: 2048 },
-        { page_number: 5, image_prompt: null, size_bytes: 4096 },
+        {
+          asset_id: 'a1', title: 'Candlelit hall', alt_text: 'A candlelit hall.', size_bytes: 2048,
+          content_url: '/api/stories/s1/assets/a1/content',
+          placements: [{ id: 'pl1', after_page_id: 'p1', after_page_number: 1, ordinal: 1 }],
+        },
+        {
+          asset_id: 'a2', title: null, alt_text: null, size_bytes: 4096,
+          content_url: '/api/stories/s1/assets/a2/content', placements: [],
+        },
       ],
     },
     {
@@ -73,14 +80,14 @@ describe('Bookshelf page', () => {
     const plates = kept.querySelectorAll('.bookshelf-plate');
     expect(plates).toHaveLength(2);
     const firstPlate = plates[0];
-    expect(firstPlate.querySelector('img').getAttribute('src')).toBe('/api/stories/s1/pages/2/image');
+    expect(firstPlate.querySelector('img').getAttribute('src')).toBe('/api/stories/s1/assets/a1/content');
     expect(firstPlate.querySelector('img').getAttribute('alt')).toBe('A candlelit hall.');
-    expect(firstPlate.textContent).toContain('Page 2');
-    expect(firstPlate.querySelector('a').getAttribute('href')).toBe('/api/stories/s1/pages/2/image?download=1');
+    expect(firstPlate.textContent).toContain('Candlelit hall');
+    expect(firstPlate.querySelector('a').getAttribute('href')).toBe('/api/stories/s1/assets/a1/content?download=1');
 
     const bare = entries()[1];
     expect(bare.textContent).toContain('No audiobook kept');
-    expect(bare.textContent).toContain('No plates kept');
+    expect(bare.textContent).toContain('No story art kept');
   });
 
   it('opens one story as an asset interface with downloads and a light delete confirmation', async () => {
@@ -117,7 +124,7 @@ describe('Bookshelf page', () => {
       '/api/stories/s1/export',
       '/api/stories/s1/cover?download=1',
       '/api/stories/s1/audiobook/audio',
-      '/api/stories/s1/pages/2/image?download=1',
+      '/api/stories/s1/assets/a1/content?download=1',
     ]));
 
     const remove = [...modal.querySelectorAll('button')].find((button) => button.textContent === 'Delete cover');
@@ -207,34 +214,38 @@ describe('Bookshelf page', () => {
     expect(global.fetch.mock.calls.filter(([url]) => String(url).includes('/storage')).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('deleting a plate warns about renumbering and refreshes an open reader', async () => {
+  it('deleting art preserves prose numbering and refreshes only the art layer', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'The Kept Tale', tone: 'romantic', page_count: 3, total_cost_usd: 0 },
       storyPages: [
-        { page_number: 1, content: 'One.', user_input: null },
-        { page_number: 2, content: '', image_media_type: 'image/png', cost_usd: 0 },
-        { page_number: 3, content: 'Three.', user_input: null },
+        { id: 'p1', page_number: 1, content: 'One.', user_input: null },
+        { id: 'p2', page_number: 2, content: 'Two.', user_input: null },
+        { id: 'p3', page_number: 3, content: 'Three.', user_input: null },
       ],
+      storyAssets: {
+        assets: [{ id: 'a1', status: 'ready', content_url: '/api/stories/s1/assets/a1/content' }],
+        placements: [{ id: 'pl1', asset_id: 'a1', after_page_id: 'p1', ordinal: 1 }],
+      },
       currentPage: 3,
     });
 
     global.fetch.mockImplementation((url, options) => {
-      if (String(url).includes('/pages/2') && options.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) });
+      if (String(url).includes('/assets/a1') && options.method === 'DELETE') return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve({}) });
       if (String(url).includes('/storage')) return Promise.resolve(jsonResponse(200, STORAGE));
-      if (String(url).endsWith('/s1/pages')) return Promise.resolve(jsonResponse(200, { pages: [{ page_number: 1, content: 'One.', user_input: null }, { page_number: 2, content: 'Three.', user_input: null }] }));
+      if (String(url).endsWith('/s1/assets')) return Promise.resolve(jsonResponse(200, { assets: [], placements: [] }));
       return Promise.resolve(jsonResponse(200, { stories: [] }));
     });
 
     await fw.loadBookshelf();
     await new Promise((r) => setTimeout(r, 0));
     entries()[0].querySelectorAll('.bookshelf-plate button')[0].click();
-    expect(await dialogAction('Delete page 2')).toBe(true);
+    expect(await dialogAction('Delete art')).toBe(true);
 
-    const delCall = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/pages/2') && options.method === 'DELETE');
+    const delCall = global.fetch.mock.calls.find(([url, options]) => String(url).includes('/assets/a1') && options.method === 'DELETE');
     expect(delCall).toBeTruthy();
-    // The open reader reloaded onto the renumbered pages
-    expect(fw.state().storyPages).toHaveLength(2);
-    expect(fw.state().currentPage).toBe(2);
+    expect(fw.state().storyPages).toHaveLength(3);
+    expect(fw.state().currentPage).toBe(3);
+    expect(fw.state().storyAssets).toEqual({ assets: [], placements: [] });
   });
 
   it('a refused confirmation deletes nothing', async () => {

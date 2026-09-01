@@ -5,8 +5,8 @@ import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.j
 const STORY_STATE = {
   currentStory: { id: 's1', title: 'T', tone: 'explicit', page_count: 2, total_cost_usd: 0 },
   storyPages: [
-    { page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
-    { page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
+    { id: 'p1', page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
+    { id: 'p2', page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
   ],
   currentPage: 2,
 };
@@ -488,15 +488,13 @@ describe('Scene viewer zoom & pan', () => {
   });
 });
 
-describe('Add as page: binding a painting into the story', () => {
-  const PLATE_PAGE = {
-    page_number: 3,
-    content: '',
-    user_input: null,
-    cost_usd: 0.06,
-    image_media_type: 'image/png',
-    image_prompt: 'A frozen gothic hall, wide shot.',
+describe('Place generated art after prose', () => {
+  const ART_ASSET = {
+    id: 'a1', story_id: 's1', source: 'ai-generated', status: 'ready',
+    content_url: '/api/stories/s1/assets/a1/content',
+    title: 'Scene illustration', alt_text: 'A frozen gothic hall, wide shot.',
   };
+  const PLACEMENT = { id: 'pl1', story_id: 's1', asset_id: 'a1', after_page_id: 'p2', ordinal: 1 };
 
   function paintedFetch(imagePageResponse) {
     return (url, options) => {
@@ -514,13 +512,15 @@ describe('Add as page: binding a painting into the story', () => {
       if (String(url).includes('/image-page') && options.method === 'POST') {
         return Promise.resolve(imagePageResponse);
       }
+      if (String(url).endsWith('/assets') && (!options || options.method === 'GET')) {
+        return Promise.resolve(jsonResponse(200, { assets: [ART_ASSET], placements: [PLACEMENT] }));
+      }
       if (String(url).endsWith('/pages') && (!options || options.method === 'GET')) {
         return Promise.resolve(
           jsonResponse(200, {
             pages: [
-              { page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
-              { page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
-              PLATE_PAGE,
+              { id: 'p1', page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
+              { id: 'p2', page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
             ],
           })
         );
@@ -550,8 +550,8 @@ describe('Add as page: binding a painting into the story', () => {
     fw.displayCurrentPage();
   });
 
-  it('binds the painting after the current page, closes both modals, and turns to the plate', async () => {
-    fetch.mockImplementation(paintedFetch(jsonResponse(201, { page: PLATE_PAGE })));
+  it('places the painting after the current page without changing narrative state', async () => {
+    fetch.mockImplementation(paintedFetch(jsonResponse(201, { asset: ART_ASSET, placement: PLACEMENT })));
 
     await paintAndOpenViewer(fw);
     document.getElementById('sceneViewerAddPageBtn').click();
@@ -567,16 +567,16 @@ describe('Add as page: binding a painting into the story', () => {
       cost_usd: 0.06,
     });
 
-    // Both modals close, the reader turns to the fresh plate
+    // Both modals close; the same prose page stays current and gains its art.
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
     expect(document.getElementById('imagePromptModal').hidden).toBe(true);
-    expect(fw.state().currentPage).toBe(3);
-    expect(fw.state().storyPages).toHaveLength(3);
+    expect(fw.state().currentPage).toBe(2);
+    expect(fw.state().storyPages).toHaveLength(2);
     const plate = document.querySelector('.scene-plate');
     expect(plate).toBeTruthy();
-    expect(plate.getAttribute('src')).toBe('/api/stories/s1/pages/3/image');
+    expect(plate.getAttribute('src')).toBe('/api/stories/s1/assets/a1/content');
     expect(plate.getAttribute('alt')).toBe('A frozen gothic hall, wide shot.');
-    expect(document.querySelector('.success-message').textContent).toContain('page 3');
+    expect(document.querySelector('.success-message').textContent).toContain('Page numbering is unchanged');
     // The paint was billed once at painting time; binding adds nothing
     expect(fw.state().costs.session).toBeCloseTo(0.06);
     expect(fw.state().costs.story).toBeCloseTo(0.06);
@@ -601,31 +601,28 @@ describe('Add as page: binding a painting into the story', () => {
     expect(floating.classList.contains('message--floating')).toBe(true);
     const btn = document.getElementById('sceneViewerAddPageBtn');
     expect(btn.disabled).toBe(false);
-    expect(btn.textContent).toBe('Add as page');
+    expect(btn.textContent).toBe('Place after page');
   });
 
-  it('an image page renders as a plate and silences the text tools on it', async () => {
+  it('placed art renders after prose while text tools remain available', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0.06 },
       storyPages: [
-        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
-        { ...PLATE_PAGE, page_number: 2 },
-        { page_number: 3, content: 'More prose.', user_input: null, cost_usd: 0 },
+        { id: 'p1', page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { id: 'p2', page_number: 2, content: 'More prose.', user_input: null, cost_usd: 0 },
       ],
+      storyAssets: { assets: [ART_ASSET], placements: [PLACEMENT] },
       currentPage: 2,
     });
     fw.displayCurrentPage();
 
-    // The plate replaces prose; the direction note shows for image pages only
-    // when they carry a direction (a plate never does).
     expect(document.querySelector('.scene-plate')).toBeTruthy();
-    expect(document.querySelector('#storyContent p')).toBeNull();
-    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 3');
+    expect(document.querySelector('#storyContent p').textContent).toBe('More prose.');
+    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
 
-    // No text to narrate or condense on a plate
-    expect(document.getElementById('readAloudBtn').disabled).toBe(true);
-    expect(document.getElementById('narrationAutoBtn').disabled).toBe(true);
-    expect(document.getElementById('imagePromptBtn').disabled).toBe(true);
+    expect(document.getElementById('readAloudBtn').disabled).toBe(false);
+    expect(document.getElementById('narrationAutoBtn').disabled).toBe(false);
+    expect(document.getElementById('imagePromptBtn').disabled).toBe(false);
 
     // An earlier text page wakes everything back up
     fw.navigatePage(-1);
@@ -634,17 +631,57 @@ describe('Add as page: binding a painting into the story', () => {
     expect(document.querySelector('.scene-plate')).toBeNull();
   });
 
-  it('a plate as the last page cannot be retried, but writing continues after it', async () => {
+  it('placed art does not prevent retrying the final prose page', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2, total_cost_usd: 0.06 },
       storyPages: [
-        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
-        { ...PLATE_PAGE, page_number: 2 },
+        { id: 'p1', page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { id: 'p2', page_number: 2, content: 'More prose.', user_input: null, cost_usd: 0 },
       ],
+      storyAssets: { assets: [ART_ASSET], placements: [PLACEMENT] },
       currentPage: 2,
     });
     fw.displayCurrentPage();
-    expect(document.getElementById('retryBtn').disabled).toBe(true); // no prose to rewrite
+    expect(document.getElementById('retryBtn').disabled).toBe(false);
     expect(document.getElementById('userInput').disabled).toBe(false); // the tale continues
+  });
+});
+
+describe('Local art upload', () => {
+  it('uploads multipart data with zero provider permission and preserves prose state', async () => {
+    mockFetch();
+    const asset = {
+      id: 'upload-a1', story_id: 's1', source: 'uploaded', status: 'ready',
+      content_url: '/api/stories/s1/assets/upload-a1/content',
+      title: null, alt_text: null, provider_reference_allowed: false,
+    };
+    const placement = {
+      id: 'upload-p1', story_id: 's1', asset_id: asset.id,
+      after_page_id: 'p2', ordinal: 1,
+    };
+    fetch.mockImplementation((url, options = {}) => {
+      if (String(url).endsWith('/assets/upload') && options.method === 'POST') {
+        return Promise.resolve(jsonResponse(201, { asset, placement }));
+      }
+      if (String(url).endsWith('/assets')) {
+        return Promise.resolve(jsonResponse(200, { assets: [asset], placements: [placement] }));
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    const fw = await loadScript();
+    fw.__setStoryState(STORY_STATE);
+    fw.displayCurrentPage();
+
+    await fw.uploadArt(new File(['safe raster bytes'], 'private-subject.png', { type: 'image/png' }));
+
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/assets/upload'));
+    expect(call[1].body).toBeInstanceOf(FormData);
+    expect(call[1].body.get('after_page_id')).toBe('p2');
+    expect(call[1].body.get('provider_reference_allowed')).toBe('false');
+    expect(call[1].body.get('image').name).toBe('private-subject.png');
+    expect(fw.state().currentPage).toBe(2);
+    expect(fw.state().storyPages).toHaveLength(2);
+    expect(document.querySelector('.scene-plate').getAttribute('src')).toBe(asset.content_url);
+    expect(document.querySelector('.success-message').textContent).toContain('Art placed after page 2');
   });
 });

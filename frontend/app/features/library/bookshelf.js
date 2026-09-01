@@ -1,6 +1,6 @@
 // Library storage: the all-story Bookshelf plus the per-story asset dialog
-// opened from a story card. Deleting a plate deletes a REAL story page
-// (renumbering the rest); an open reader must be refreshed.
+// opened from a story card. Art is noncanonical: deleting it removes its
+// placements but never renumbers prose or invalidates prepared writing.
 
 import { API_BASE_URL } from '../../core/api.js';
 import { formatUsd, formatMinutes, formatMb } from '../../core/dom.js';
@@ -51,7 +51,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       art.loading = 'lazy';
       art.decoding = 'async';
       const line = document.createElement('p');
-      line.textContent = 'No audiobooks or painted plates yet. Moth has found nothing to catalogue.';
+      line.textContent = 'No audiobooks or story art yet. Moth has found nothing to catalogue.';
       const open = document.createElement('a');
       open.className = 'btn btn-primary';
       open.href = '#/library/stories';
@@ -92,7 +92,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     } else {
       const none = document.createElement('p');
       none.className = 'bookshelf-entry__none';
-      none.textContent = 'No plates kept.';
+      none.textContent = 'No story art kept.';
       card.appendChild(none);
     }
     return card;
@@ -153,20 +153,28 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     const wrap = document.createElement('div');
     wrap.className = 'bookshelf-plate';
     const img = document.createElement('img');
-    img.src = `${API_BASE_URL}/stories/${story.id}/pages/${plate.page_number}/image`;
-    img.alt = plate.image_prompt || `Painted plate for page ${plate.page_number}`;
+    img.src = plate.content_url || `${API_BASE_URL}/stories/${story.id}/assets/${plate.asset_id}/content`;
+    img.alt = plate.alt_text || plate.title || 'Story illustration';
     img.loading = 'lazy';
     wrap.appendChild(img);
 
     const caption = document.createElement('p');
-    caption.textContent = `Page ${plate.page_number}${plate.size_bytes ? ` · ${formatMb(plate.size_bytes)}` : ''}`;
+    const positions = (plate.placements || []).map((placement) =>
+      placement.after_page_id === null
+        ? 'Before first page'
+        : placement.after_page_number
+          ? `After page ${placement.after_page_number}`
+          : 'Placed in story'
+    );
+    caption.textContent = `${plate.title || (positions.length ? positions.join(', ') : 'Unplaced art')}` +
+      `${plate.size_bytes ? ` · ${formatMb(plate.size_bytes)}` : ''}`;
     wrap.appendChild(caption);
 
     const actions = document.createElement('div');
     actions.className = 'bookshelf-entry__actions';
     const download = document.createElement('a');
     download.className = 'ghost-btn';
-    download.href = `${API_BASE_URL}/stories/${story.id}/pages/${plate.page_number}/image?download=1`;
+    download.href = `${API_BASE_URL}/stories/${story.id}/assets/${plate.asset_id}/content?download=1`;
     download.textContent = 'Save';
     actions.appendChild(download);
     const del = document.createElement('button');
@@ -175,19 +183,16 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     del.textContent = 'Delete';
     del.addEventListener('click', async () => {
       const yes = await dialogs.confirmDestructive({
-        title: `Delete the plate on page ${plate.page_number}?`,
-        body: `This removes page ${plate.page_number} from "${story.title}" and renumbers every later page. It cannot be undone.`,
-        confirmLabel: `Delete page ${plate.page_number}`,
+        title: `Delete this art from "${story.title}"?`,
+        body: 'The stored image and all of its placements will be permanently removed. Prose pages and numbering stay unchanged.',
+        confirmLabel: 'Delete art',
       });
       if (!yes) return;
       try {
-        await apiCall(`/stories/${story.id}/pages/${plate.page_number}`, 'DELETE');
+        await apiCall(`/stories/${story.id}/assets/${plate.asset_id}`, 'DELETE');
         await afterChange();
-        // An open reader must not sit on renumbered pages
         if (state.data.currentStory && state.data.currentStory.id === story.id) {
-          features.generation.discardSpeculative();
-          features.narration.stopNarration();
-          await features.write.loadStoryPages();
+          await features.write.refreshStoryAssets(story.id);
         }
       } catch (error) {
         showError(scribeErrorMessage(error.message));
@@ -599,7 +604,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     }
     body.appendChild(audio);
 
-    const plates = assetSection(`Painted plates (${(storage.plates || []).length})`);
+    const plates = assetSection(`Story art (${(storage.plates || []).length})`);
     if (storage.plates?.length) {
       const grid = document.createElement('div');
       grid.className = 'bookshelf-plates';
@@ -608,7 +613,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     } else {
       const none = document.createElement('p');
       none.className = 'bookshelf-entry__none';
-      none.textContent = 'No painted plates are stored.';
+      none.textContent = 'No story art is stored.';
       plates.appendChild(none);
     }
     body.appendChild(plates);

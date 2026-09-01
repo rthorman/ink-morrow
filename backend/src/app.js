@@ -27,6 +27,7 @@ const { createWritingTransactions } = require('./modules/writing/transactions');
 const { createImageQueue } = require('./modules/imagery/queue');
 const { createImageryService } = require('./modules/imagery/service');
 const { createImageryRouter } = require('./modules/imagery/routes');
+const { createArtStore } = require('./modules/imagery/art-store');
 const { createNarration } = require('./modules/audio/narration');
 const { createAudiobookQueue } = require('./modules/audio/audiobook-queue');
 const { createAudioRouter } = require('./modules/audio/routes');
@@ -138,13 +139,27 @@ function createApp(
     logger: providerSafeLogger,
   });
   const imageStore = createImageStore(imageDir);
+  const artStore = createArtStore({
+    db,
+    rootDir: imageDir,
+    legacyImageStore: imageStore,
+    logger: providerSafeLogger,
+  });
   // Auto-generation (creation + boot backfill) can be silenced in tests so it
   // never steals mocked upstream calls; explicit redo always works.
   const autoImagesEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_BACKGROUND_IMAGES === '1';
   const imageQueue = createImageQueue({
     db, continuity, generateImage, imageStore, logger: providerSafeLogger, autoImagesEnabled,
   });
-  const imagery = createImageryService({ catalog, stories, continuity, chatCompletion: ai.chatCompletion, generateImage, imageStore });
+  const imagery = createImageryService({
+    catalog,
+    stories,
+    continuity,
+    chatCompletion: ai.chatCompletion,
+    generateImage,
+    imageStore,
+    artStore,
+  });
   const narration = createNarration({ createSpeech: ai.createSpeech });
   // Whole-story audiobooks live on disk next to the images; a pending row
   // left behind by a server restart can never finish - fail it honestly.
@@ -171,6 +186,7 @@ function createApp(
   const transferPlanner = createExportPlanner({
     db,
     imageStore,
+    artStore,
     audioDir,
     appVersion: require('../package.json').version,
   });
@@ -178,6 +194,7 @@ function createApp(
     db,
     planner: transferPlanner,
     imageStore,
+    artStore,
     audioDir,
     audiobooks,
     writingTransactions,
@@ -187,19 +204,20 @@ function createApp(
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.locals.writingTransactions = writingTransactions;
+  app.locals.artStore = artStore;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
   app.use(createProviderRouter({ providers, ai }));
   app.use(createStoriesRouter({
-    store: stories, imageStore, imageQueue, audio, transactions: writingTransactions,
+    store: stories, imageStore, artStore, imageQueue, audio, transactions: writingTransactions,
   }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
-  app.use(createImageryRouter({ stories, imagery, imageStore, imageDir }));
+  app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
-  app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, audiobooks }));
+  app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }));
   app.use(createTransferRouter({ transfers }));
 
   // Boot backfill of entity reference images (no-op without an API key or

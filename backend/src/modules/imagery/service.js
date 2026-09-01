@@ -12,7 +12,7 @@ const RENDER_VARIANTS = {
   medium_2k: { quality: 'medium', resolution: '2K' },
 };
 
-function createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore }) {
+function createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore, artStore = null }) {
   function castCharacters(story, throughPageNumber = null) {
     return continuity.contextForPrompt(story, { throughPageNumber }).characters.map((character) => {
       // Portrait readiness is operational catalogue metadata, not character
@@ -87,6 +87,11 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
       resolvedReferences.push(c.id);
     }
 
+    const assetReferences = body.reference_asset_ids === undefined
+      ? []
+      : artStore?.resolveReferences(story.id, body.reference_asset_ids) || [];
+    for (const reference of assetReferences) inputReferences.push(reference.input);
+
     // The client may drop the identity references after repeated refusals:
     // portraits painted from forced-nudity sheets offend moderation too.
     const dropReferences = body.drop_references === true;
@@ -139,6 +144,7 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
       media_type: result.mediaType,
       cost_usd: result.cost,
       references: dropReferences ? [] : resolvedReferences,
+      asset_references: dropReferences ? [] : assetReferences.map((reference) => reference.id),
       prompt,
     };
   }

@@ -130,8 +130,20 @@
   color: var(--st-violet-300);
 }
 
-/* A bound painting: the page IS the picture. Book-plate framing, centered
-   like the prose column, never wider than the reading measure. */
+/* Noncanonical art is displayed around its stable prose anchor. */
+.placed-art {
+  width: 100%;
+  margin: 8px auto 22px auto;
+  text-align: center;
+}
+
+.placed-art figcaption {
+  margin-top: -8px;
+  font-family: var(--st-font-ui);
+  font-size: 0.82rem;
+  color: var(--st-violet-300);
+}
+
 .scene-plate {
   display: block;
   width: auto;

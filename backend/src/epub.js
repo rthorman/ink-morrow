@@ -149,19 +149,29 @@ function buildEpub({ title, world, characters, pages }, uuid) {
     (credits.length ? `\n${credits.map((c) => `    <p class="credit">${escapeXml(c)}</p>`).join('\n')}` : '');
   const titlePage = xhtmlDoc(title, titleBody);
 
-  // A page may be a painted plate: {image: {data, mediaType}} rides along
-  // and becomes an embedded image plus its manifest entry.
+  // Art shares a prose document but never becomes a numbered EPUB page.
+  // The legacy singular `image` shape remains readable for older archives.
   const pageFiles = pages.map((page) => {
-    const plate = page.image && page.image.data ? page : null;
     let body = `    <h2>Page ${page.page_number}</h2>\n${paragraphsOf(page.content)}`;
-    let imageFile = null;
-    if (plate) {
-      const ext = extFor(plate.image.mediaType);
-      imageFile = { name: `OEBPS/images/page-${page.page_number}.${ext}`, data: plate.image.data };
-      const alt = escapeXml(plate.image_prompt || `Painted scene plate for page ${page.page_number}`);
-      body = `    <div class="plate"><img src="images/page-${page.page_number}.${ext}" alt="${alt}"/></div>\n${body}`;
+    const imageFiles = [];
+    const before = [];
+    const after = [];
+    if (page.image?.data) {
+      const ext = extFor(page.image.mediaType);
+      const filename = `page-${page.page_number}.${ext}`;
+      imageFiles.push({ id: `img${page.page_number}`, name: `OEBPS/images/${filename}`, data: page.image.data, mediaType: page.image.mediaType });
+      before.push(`    <div class="plate"><img src="images/${filename}" alt="${escapeXml(page.image_prompt || `Painted scene plate for page ${page.page_number}`)}"/></div>`);
     }
-    return { name: `OEBPS/page-${page.page_number}.xhtml`, content: xhtmlDoc(`${title} — Page ${page.page_number}`, body), imageFile };
+    for (const [index, art] of (page.art || []).entries()) {
+      if (!art?.data) continue;
+      const ext = extFor(art.mediaType);
+      const filename = `page-${page.page_number}-art-${index + 1}.${ext}`;
+      imageFiles.push({ id: `img${page.page_number}_${index + 1}`, name: `OEBPS/images/${filename}`, data: art.data, mediaType: art.mediaType });
+      const markup = `    <div class="plate"><img src="images/${filename}" alt="${escapeXml(art.alt || 'Story illustration')}"/></div>`;
+      (art.before ? before : after).push(markup);
+    }
+    body = [...before, body, ...after].join('\n');
+    return { name: `OEBPS/page-${page.page_number}.xhtml`, content: xhtmlDoc(`${title} — Page ${page.page_number}`, body), imageFiles };
   });
 
   const navItems = [`      <li><a href="title.xhtml">Cover</a></li>`]
@@ -190,12 +200,9 @@ ${navItems.join('\n')}
     '    <item id="title" href="title.xhtml" media-type="application/xhtml+xml"/>',
   ]
     .concat(
-      pages
-        .filter((p) => p.image && p.image.data)
-        .map(
-          (p) =>
-            `    <item id="img${p.page_number}" href="images/page-${p.page_number}.${extFor(p.image.mediaType)}" media-type="${p.image.mediaType}"/>`
-        )
+      pageFiles.flatMap((file) => file.imageFiles.map((image) =>
+        `    <item id="${image.id}" href="${image.name.replace('OEBPS/', '')}" media-type="${image.mediaType}"/>`
+      ))
     )
     .concat(
       pages.map(
@@ -247,7 +254,10 @@ div.plate img { max-width: 100%; }
     { name: 'OEBPS/nav.xhtml', data: nav },
     { name: 'OEBPS/style.css', data: css },
     { name: 'OEBPS/title.xhtml', data: titlePage },
-    ...pageFiles.flatMap((f) => (f.imageFile ? [{ name: f.imageFile.name, data: f.imageFile.data }, { name: f.name, data: f.content }] : [{ name: f.name, data: f.content }])),
+    ...pageFiles.flatMap((file) => [
+      ...file.imageFiles.map((image) => ({ name: image.name, data: image.data })),
+      { name: file.name, data: file.content },
+    ]),
   ]);
 }
 

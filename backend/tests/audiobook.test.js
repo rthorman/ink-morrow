@@ -5,6 +5,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { PassThrough } = require('stream');
+const sharp = require('sharp');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const { createWorld, createCharacter, createStory } = require('./helpers');
@@ -17,6 +18,12 @@ const SPEECH_MODELS = [
   { id: 'or/voice-1', name: 'Voice One', supported_voices: ['amber'], pricing: { prompt: '0.000015', completion: '0' } },
   { id: 'google/gemini-tts', name: 'Gemini TTS', supported_voices: ['sage'], pricing: { prompt: '0' } },
 ];
+
+async function validPng() {
+  return sharp({
+    create: { width: 6, height: 4, channels: 4, background: '#442244' },
+  }).png().toBuffer();
+}
 
 let db, app, close, audioDir;
 
@@ -146,13 +153,12 @@ describe('Audiobook validation', () => {
 describe('Audiobook generation', () => {
   it('reads every text page in order, skips plates, and assembles one mp3', async () => {
     const story = await seededStory('Full Tale', ['First page words.', 'Second page words.']);
-    // Bind a plate after page 1: it must be skipped, not narrated
+    // Place art after page 1: it never enters the narration sequence.
     await request(app)
       .post(`/api/stories/${story.id}/pages/1/image-page`)
-      .send({ image: Buffer.from('png').toString('base64'), media_type: 'image/png' })
+      .send({ image: (await validPng()).toString('base64'), media_type: 'image/png' })
       .expect(201);
     await request(app).post(`/api/stories/${story.id}/pages`).send({ content: 'Third page words.' }).expect(201);
-    // Now pages: 1 text, 2 plate, 3 text, 4 text (page 3 became 3, third added as 4)
 
     mockAutoSpeech('f');
     const pending = await startAudiobook(story);
@@ -382,9 +388,9 @@ describe('Audiobook cleanup and storage listing', () => {
 
   it('lists per-story audiobooks and plates with sizes for the Bookshelf', async () => {
     const story = await seededStory('Shelf Tale', ['Shelf words one.', 'Shelf words two.']);
-    await request(app)
+    const placed = await request(app)
       .post(`/api/stories/${story.id}/pages/1/image-page`)
-      .send({ image: Buffer.from('plate-bytes').toString('base64'), media_type: 'image/png', prompt: 'A shelf scene.' })
+      .send({ image: (await validPng()).toString('base64'), media_type: 'image/png', prompt: 'A shelf scene.' })
       .expect(201);
     mockAutoSpeech('h');
     await startAudiobook(story);
@@ -395,8 +401,13 @@ describe('Audiobook cleanup and storage listing', () => {
     expect(entry.title).toBe('Shelf Tale');
     expect(entry.audiobook.status).toBe('ready');
     expect(entry.audiobook.size_bytes).toBeGreaterThan(0);
-    expect(entry.plates).toEqual([
-      { page_number: 2, image_prompt: 'A shelf scene.', size_bytes: Buffer.byteLength('plate-bytes') },
-    ]);
+    expect(entry.plates).toHaveLength(1);
+    expect(entry.plates[0]).toMatchObject({
+      asset_id: placed.body.asset.id,
+      source: 'ai-generated',
+      alt_text: 'A shelf scene.',
+      size_bytes: placed.body.asset.size_bytes,
+      placements: [{ after_page_number: 1, ordinal: 1 }],
+    });
   });
 });

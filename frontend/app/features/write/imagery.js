@@ -1,7 +1,7 @@
 // Scene imagery: condense the current page into a tone-honoring image prompt,
 // paint it with cast identity references (announce-and-wait on moderation
 // refusals, reference-dropping after a second refusal), and the zoomable/
-// pannable viewer whose painting can be bound into the tale as a plate.
+// pannable viewer whose painting can be placed without becoming story prose.
 
 import { SCENE_RENDER_VARIANTS } from '../../core/state.js';
 import { formatUsd } from '../../core/dom.js';
@@ -70,9 +70,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     resetSceneViewer();
   }
 
-  // Bind the painting on display into the story: a new image page lands right
-  // after the one it illustrates, both modals close, and the reader turns to
-  // the fresh plate.
+  // Place the painting after the stable prose page. It remains a noncanonical
+  // asset: page numbering, continuity, and any prepared next page stay intact.
   async function addSceneAsPage() {
     const { currentStory, currentPage, storyPages } = data;
     if (!sceneViewerDataUrl || !currentStory || currentPage < 1 || currentPage > storyPages.length) return;
@@ -89,7 +88,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       btn.textContent = 'Binding…';
     }
     try {
-      const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-page`, 'POST', {
+      await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-page`, 'POST', {
         image: base64,
         media_type: mediaType,
         ...(prompt ? { prompt } : {}),
@@ -97,19 +96,15 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       });
       closeSceneViewer();
       imagePromptModal.close();
-      features.generation.discardSpeculative(); // a live write: any prepared next page is stale now
-      const list = await apiCall(`/stories/${currentStory.id}/pages`);
-      data.storyPages = list.pages || [];
-      data.currentPage = Math.max(1, Math.min(data.storyPages.length, res.page.page_number));
-      features.write.displayCurrentPage();
-      showSuccess(`The painting is bound into the tale as page ${res.page.page_number}.`);
+      await features.write.refreshStoryAssets(currentStory.id);
+      showSuccess(`The painting is placed after page ${currentPage}. Page numbering is unchanged.`);
       shell.checkDiskSpace(); // a plate just landed on disk — the banner must know
     } catch (error) {
       showError(scribeErrorMessage(error.message)); // floats above the open modals
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Add as page';
+        btn.textContent = 'Place after page';
       }
     }
   }

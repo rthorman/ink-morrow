@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const request = require('supertest');
+const sharp = require('sharp');
 const { createTestApp, createStory, addPage } = require('./helpers');
 
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
@@ -104,27 +105,32 @@ describe('PR 02 manuscript hierarchy', () => {
     expect(chapterTwo.id).toBe(hierarchy.volumes[0].chapters[1].id);
   });
 
-  it('mirrors insertion, deletion, and truncation without changing surviving page ids', async () => {
+  it('keeps art outside hierarchy while deletion and truncation preserve surviving page ids', async () => {
     const story = await createStory(fixture.app);
     const first = await addPage(fixture.app, story.id, 'First.');
     const second = await addPage(fixture.app, story.id, 'Second.');
     const third = await addPage(fixture.app, story.id, 'Third.');
 
+    const imageBytes = await sharp({
+      create: { width: 4, height: 4, channels: 4, background: '#221122' },
+    }).png().toBuffer();
     const image = await request(fixture.app)
       .post(`/api/stories/${story.id}/pages/1/image-page`)
-      .send({ media_type: 'image/png', image: Buffer.from('paint').toString('base64'), prompt: 'A plate' })
+      .send({ media_type: 'image/png', image: imageBytes.toString('base64'), prompt: 'A plate' })
       .expect(201);
     let hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
     expect(hierarchy.volumes[0].chapters[0].pages.map((page) => [page.id, page.ordinal, page.kind]))
       .toEqual([
-        [first.id, 1, 'text'], [image.body.page.id, 2, 'image'],
-        [second.id, 3, 'text'], [third.id, 4, 'text'],
+        [first.id, 1, 'text'], [second.id, 2, 'text'], [third.id, 3, 'text'],
       ]);
+    expect(image.body.placement.after_page_id).toBe(first.id);
 
-    await request(fixture.app).delete(`/api/stories/${story.id}/pages/3`).expect(204);
+    await request(fixture.app).delete(`/api/stories/${story.id}/pages/2`).expect(204);
     hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
     expect(hierarchy.volumes[0].chapters[0].pages.map((page) => [page.id, page.ordinal]))
-      .toEqual([[first.id, 1], [image.body.page.id, 2], [third.id, 3]]);
+      .toEqual([[first.id, 1], [third.id, 2]]);
+    expect((await request(fixture.app).get(`/api/stories/${story.id}/assets`).expect(200)).body.assets[0].id)
+      .toBe(image.body.asset.id);
 
     await request(fixture.app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
     hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;

@@ -50,6 +50,7 @@ export function createSharedState() {
     currentStory: null,
     currentPage: 1,
     storyPages: [],
+    storyAssets: { assets: [], placements: [] },
     generating: false,
   };
 
@@ -203,6 +204,7 @@ export function createSharedState() {
     data.currentStory = null;
     data.currentPage = 1;
     data.storyPages = [];
+    data.storyAssets = { assets: [], placements: [] };
     data.generating = false;
     modelsCache = null;
     speechModelsCache = null;
@@ -241,6 +243,7 @@ export function createSharedState() {
         currentStory: data.currentStory,
         currentPage: data.currentPage,
         storyPages: data.storyPages,
+        storyAssets: data.storyAssets,
         generating: data.generating,
         settings: { ...settings },
         costs: { session: sessionCost, story: storyCostBase + storyCostExtra },

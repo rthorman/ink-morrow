@@ -29,9 +29,13 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     characters: normalizeCast(JSON.parse(story.characters || '[]')),
     continuity_overrides: JSON.parse(story.continuity_overrides || '{}'),
     page_count: db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(story.id).c,
-    total_cost_usd: db.prepare(
-      'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM story_pages WHERE story_id = ?'
-    ).get(story.id).s,
+    total_cost_usd:
+      db.prepare(
+        'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM story_pages WHERE story_id = ?'
+      ).get(story.id).s +
+      db.prepare(
+        "SELECT COALESCE(SUM(spend_usd), 0) AS s FROM assets WHERE story_id = ? AND status = 'ready' AND source = 'ai-generated'"
+      ).get(story.id).s,
   });
 
   const storyWithHierarchy = (story) => ({
@@ -311,36 +315,6 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     return revisions.truncateAfter(storyId, after, options);
   }
 
-  // Insert a painted plate row after page `after`, renumbering later pages
-  // one-by-one from the highest down so the UNIQUE(story_id, page_number)
-  // constraint never sees a collision.
-  function insertImagePage(storyId, after, { mediaType, imagePrompt, cost }) {
-    const id = randomUUID();
-    const insert = db.prepare(
-      'INSERT INTO story_pages (id, story_id, page_number, content, user_input, cost_usd, image_media_type, image_prompt) VALUES (?, ?, ?, ?, NULL, ?, ?, ?)'
-    );
-    const bump = db.prepare('UPDATE story_pages SET page_number = page_number + 1 WHERE id = ?');
-    const later = db
-      .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number DESC')
-      .all(storyId, after);
-    const anchor = getPageByNumber(storyId, after);
-    hierarchy.inImmediateTransaction(() => {
-      for (const row of later) bump.run(row.id);
-      insert.run(id, storyId, after + 1, '', typeof cost === 'number' ? cost : null, mediaType, imagePrompt);
-      hierarchy.insertPageAfterInTransaction(storyId, anchor?.id || null, id);
-      const revision = revisions.createInitialRevisionInTransaction(id, {
-        content: '',
-        source: 'author',
-        costUsd: typeof cost === 'number' ? cost : 0,
-      });
-      db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
-      revisions.journalInTransaction('page.create', storyId, 'page', id, {
-        source: 'image',
-      }, { page_id: id, revision_id: revision.id });
-    });
-    return getPageById(id);
-  }
-
   // Remove a deleted character from every story cast that references it.
   function removeCharacterFromCasts(characterId) {
     const stories = db.prepare('SELECT id, characters FROM stories').all();
@@ -385,7 +359,6 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     replaceGeneratedPage,
     deletePage,
     truncateAfter,
-    insertImagePage,
     removeCharacterFromCasts,
   };
 }
