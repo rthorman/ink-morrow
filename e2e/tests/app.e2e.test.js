@@ -678,12 +678,12 @@ test.describe('ScribeTribe UI', () => {
       page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'PATCH'),
       card.locator('button', { hasText: 'Move' }).click(),
     ]);
-    await expect(page.locator('.success-message').last()).toContainText('Narrative page order');
+    await expect(page.locator('.success-message').first()).toContainText('Narrative page order');
     await Promise.all([
       page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'DELETE'),
       card.locator('button', { hasText: 'Unplace' }).click(),
     ]);
-    await expect(page.locator('.success-message').last()).toContainText('Gallery-only storage');
+    await expect(page.locator('.success-message').first()).toContainText('Gallery-only storage');
 
     const pages = (await (await page.request.get(`/api/stories/${story.id}/pages`)).json()).pages;
     const art = await (await page.request.get(`/api/stories/${story.id}/assets`)).json();

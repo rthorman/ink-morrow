@@ -254,7 +254,9 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   async function generateSceneImage() {
     const { currentStory } = data;
     const targetPage = imageTargetPage || data.currentPage;
-    if (!currentStory || targetPage < 1 || targetPage > Number(currentStory.page_count || 0)) {
+    const targetExists = data.storyPages.some((page) => page.page_number === targetPage) ||
+      (!data.storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!currentStory || !targetExists) {
       showError('Select a page to illustrate first.');
       return;
     }
