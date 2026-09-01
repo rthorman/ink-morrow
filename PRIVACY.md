@@ -77,13 +77,14 @@ operations associated with the writing flow and may send the contextual data
 needed for each. Cost review and settings should be read before enabling them.
 
 The OpenRouter quick-connect path creates one OpenAI-compatible provider
-profile; the operator may instead configure another compatible endpoint and
-assign separate Scribe, Archivist, Narrator, and image roles. Consult each
-actual provider's privacy, retention, training, regional-processing, and
-security terms. The ScribeTribe maintainer cannot control or erase
-provider-held data.
+profile. **OpenRouter is the only AI supplier tested with ScribeTribe 4.0.**
+The operator may configure another nominally compatible endpoint,
+but it may lack model discovery, image generation, narration, reasoning
+controls, or may not work at all. Consult each actual provider's privacy,
+retention, training, regional-processing, and security terms. The ScribeTribe
+maintainer cannot control or erase provider-held data.
 
-Merely opening the app, browsing the Library, reading pages, exporting a story,
+Merely opening the app, browsing the Library, reading pages, exporting a manuscript,
 or creating a portable archive does not require an AI provider call.
 
 ## Network and third-party requests
@@ -164,3 +165,4 @@ The notice is versioned in the repository. A release that changes telemetry,
 provider disclosure, credentials, uploads, sharing, stored categories, or
 maintainer-operated services must update it in the same pull request. Release
 notes should call out material privacy-boundary changes.
+
