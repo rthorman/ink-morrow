@@ -567,12 +567,49 @@ test.describe('ScribeTribe UI', () => {
     const dialog = page.locator('.dialog-manager');
     await expect(dialog).toContainText('Pages 2');
     await expect(dialog).toContainText('2 pages');
-    await dialog.locator('button', { hasText: 'Return story to page 1' }).click();
+    await dialog.locator('button', { hasText: 'Return and remove 2 later pages' }).click();
     await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
     await page.locator('#deskRecoveryUndo').click();
     await expect(page.locator('#deskRecoveryBanner')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+  });
+
+  test('Chronicle pages the outline, maintains tail structure, and restores only a safe suffix', async ({ page }) => {
+    const storyRes = await apiPost(page, '/api/stories', { title: 'Chronicle Proof', characters: [] });
+    const story = (await storyRes.json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page one.\n\n***\n\nA scene turns.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page two.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page three.' });
+
+    await page.goto(`/#/chronicle/${story.id}`);
+    await expect(page.locator('#chronicleSection')).toHaveClass(/active/);
+    await expect(page.locator('#chronicleStatus')).toContainText('3 narrative pages');
+    await expect(page.locator('#chronicleOutline')).toContainText('Active tail');
+    await expect(page.locator('#chronicleOutline .chronicle-page')).toHaveCount(3);
+
+    await page.locator('#chronicleAddVolume').click();
+    await page.locator('.dialog-manager input').fill('Volume II');
+    await page.locator('.dialog-manager button', { hasText: 'Begin volume' }).click();
+    await expect(page.locator('#chronicleOutline')).toContainText('Volume II - 1 chapter, 0 pages');
+    await page.locator('#chronicleOutline button', { hasText: 'Remove empty volume' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Remove empty volume' }).click();
+    await expect(page.locator('#chronicleOutline')).not.toContainText('Volume II');
+
+    await page.fill('#chroniclePageJump', '2');
+    await page.locator('#chroniclePageJumpBtn').click();
+    await page.locator('.chronicle-page__open', { hasText: 'Open page 2' }).click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await page.locator('#prevPageBtn').click();
+    await page.locator('#deleteAfterBtn').click();
+    await page.locator('.dialog-manager button', { hasText: 'Return and remove 2 later pages' }).click();
+
+    await page.locator('#chronicleBtn').click();
+    await expect(page.locator('#chronicleRecoveries')).toContainText('Safe to restore');
+    await page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Restore 2 pages' }).click();
+    await expect(page.locator('#chronicleStatus')).toContainText('3 narrative pages');
+    await expect(page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' })).toBeDisabled();
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {

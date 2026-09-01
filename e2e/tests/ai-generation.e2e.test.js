@@ -327,7 +327,7 @@ test.describe('Reading old pages and burning the rest', () => {
 
     // Confirming returns the active chain and exposes recovery.
     await page.locator('#deleteAfterBtn').click();
-    await page.locator('.dialog-manager button', { hasText: 'Return story to page 1' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Return and remove 1 later page' }).click();
 
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });

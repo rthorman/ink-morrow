@@ -161,20 +161,35 @@ function createHierarchyStore(db) {
 
     const pages = db.prepare(`
       SELECT p.id, p.chapter_id, p.ordinal, p.created_at, p.updated_at,
-             sp.image_media_type
+             p.canonical_revision_id, p.display_revision_id, sp.image_media_type,
+             SUBSTR(COALESCE(display_revision.content, sp.content, ''), 1, 240) AS excerpt,
+             COALESCE(delta.status, legacy.status, 'pending') AS continuity_status,
+             (SELECT COUNT(*)
+                FROM asset_placements placement
+               WHERE placement.story_id = v.story_id AND placement.after_page_id = p.id) AS art_count
         FROM pages p
         JOIN chapters c ON c.id = p.chapter_id
         JOIN volumes v ON v.id = c.volume_id
         LEFT JOIN story_pages sp ON sp.id = p.id AND sp.story_id = v.story_id
+        LEFT JOIN page_revisions display_revision ON display_revision.id = p.display_revision_id
+        LEFT JOIN continuity_deltas delta ON delta.revision_id = p.canonical_revision_id
+        LEFT JOIN story_memory_pages legacy ON legacy.page_id = p.id
        WHERE v.story_id = ?
        ORDER BY v.ordinal, c.ordinal, p.ordinal
     `).all(storyId);
     pages.forEach((page, index) => {
+      const excerpt = String(page.excerpt || '');
       chapterById.get(page.chapter_id)?.pages.push({
         id: page.id,
         ordinal: page.ordinal,
         display_number: index + 1,
         kind: page.image_media_type ? 'image' : 'text',
+        excerpt,
+        has_scene_break: /(^|\n)\s*(?:\*{3,}|-{3,}|#(?:\s+#){2,})\s*(?:\n|$)/.test(excerpt),
+        continuity_status: page.continuity_status,
+        art_count: Number(page.art_count) || 0,
+        is_copyedited: Boolean(page.canonical_revision_id &&
+          page.display_revision_id !== page.canonical_revision_id),
         created_at: page.created_at,
         updated_at: page.updated_at,
       });
@@ -183,11 +198,24 @@ function createHierarchyStore(db) {
     const activeVolume = volumes.at(-1) || null;
     const activeChapter = activeVolume?.chapters.at(-1) || null;
     const activePage = pages.at(-1) || null;
+    const prepared = db.prepare(`
+      SELECT id, expected_page, spend_usd, created_at
+        FROM prepared_pages WHERE story_id = ?
+    `).get(storyId) || null;
+    const readyCount = pages.filter((page) => page.continuity_status === 'ready').length;
     return {
       summary: {
         volume_count: volumes.length,
         chapter_count: chapters.length,
         page_count: pages.length,
+        continuity: { ready: readyCount, total: pages.length },
+        placed_art_count: pages.reduce((sum, page) => sum + (Number(page.art_count) || 0), 0),
+        prepared: prepared ? {
+          id: prepared.id,
+          expected_page: prepared.expected_page,
+          cost_usd: Number(prepared.spend_usd) || 0,
+          created_at: prepared.created_at,
+        } : null,
         active_tail: activeVolume ? {
           volume_id: activeVolume.id,
           chapter_id: activeChapter?.id || null,

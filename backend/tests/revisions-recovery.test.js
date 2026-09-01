@@ -141,6 +141,12 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       removed_range: { first: 3, last: 4 },
     });
     expect(truncated.body.undo.token).toBeTruthy();
+    const safeList = await request(fixture.app).get(`/api/stories/${story.id}/recoveries`).expect(200);
+    expect(safeList.body.recoveries[0].restore).toEqual({
+      state: 'safe',
+      available: true,
+      reason: null,
+    });
     expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(story.id).c).toBe(2);
     expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM page_revisions WHERE page_id IN (?, ?)')
       .get(pages[2].id, pages[3].id).c).toBe(0);
@@ -174,6 +180,9 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     const truncated = await request(fixture.app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
     await addPage(fixture.app, story.id, 'A new incompatible future.');
 
+    const unsafeList = await request(fixture.app).get(`/api/stories/${story.id}/recoveries`).expect(200);
+    expect(unsafeList.body.recoveries[0].restore).toMatchObject({ state: 'unsafe', available: false });
+
     const unsafe = await request(fixture.app)
       .post(`/api/stories/${story.id}/recoveries/${truncated.body.recovery.id}/restore`)
       .send({})
@@ -191,6 +200,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     current = new Date('2030-01-03T00:00:00.000Z');
     const listed = await request(fixture.app).get(`/api/stories/${story.id}/recoveries`).expect(200);
     expect(listed.body.recoveries[0].status).toBe('expired');
+    expect(listed.body.recoveries[0].restore).toMatchObject({ state: 'expired', available: false });
     const expiredPayload = JSON.parse(fixture.db.prepare('SELECT payload_json FROM recovery_suffixes WHERE id = ?')
       .get(truncated.body.recovery.id).payload_json);
     expect(expiredPayload).toMatchObject({ expired: true, page_count: 1 });

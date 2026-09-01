@@ -24,6 +24,9 @@ autosaves as immutable canonical revisions, earlier pages accept display-only
 copyedits, and returning a story to an earlier page provides a bounded undo
 plus the durable recovery suffix. Prepared and directed writing continue to
 use the PR 06 transaction state machine.
+PR 12 makes Chronicle the bounded publication outline: volume and chapter
+maintenance, short page excerpts, tail/memory/art/prepared markers, and
+server-declared safe recovery restore with JSON export when canon diverges.
 The shell adds a global Library threshold, manuscript switching, and the stable
 Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
 layouts. Its
@@ -47,6 +50,8 @@ The start flow, draft persistence, import mapping, and provider boundary are
 specified in [docs/library-start.md](docs/library-start.md).
 The Desk's edit, generation, recovery, keyboard, and portrait behavior is
 specified in [docs/desk.md](docs/desk.md).
+Chronicle structure, paging, markers, and recovery states are specified in
+[docs/chronicle.md](docs/chronicle.md).
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 

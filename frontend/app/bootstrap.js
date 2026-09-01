@@ -30,6 +30,7 @@ import { createAudiobook } from './features/write/audiobook.js';
 import { createSettings } from './features/settings.js';
 import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
+import { createChronicle } from './features/chronicle.js';
 import { createAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
 
@@ -75,6 +76,7 @@ export function initApp() {
   features.imagery = createImagery({ api, state, notify, shell, features, dialogs });
   features.audiobook = createAudiobook({ api, state, notify, shell, features, dialogs });
   features.aiDrafts = createAiDrafts({ api, state, notify, features, dialogs });
+  features.chronicle = createChronicle({ api, state, notify, features, dialogs, router: null });
 
   // -- router -------------------------------------------------------------------
   // Each boot marks itself live; a superseded boot (a fresh loadScript in
@@ -129,7 +131,9 @@ export function initApp() {
     }
     if (route.name === 'worlds') features.worlds.loadWorlds();
     if (route.name === 'characters') features.characters.loadCharacters();
-    if (WORKSPACE_DESTINATIONS.has(route.name)) {
+    if (route.name === 'chronicle') {
+      features.chronicle.enter(route.params).then(syncManuscriptShell);
+    } else if (WORKSPACE_DESTINATIONS.has(route.name)) {
       features.write.enterFromRoute(route.params).then(syncManuscriptShell);
     }
   }
@@ -163,6 +167,7 @@ export function initApp() {
   features.home.router = router;
   features.library.router = router;
   features.write.router = router;
+  features.chronicle.setRouter(router);
   features.settings.open = () => router.navigate('settings');
 
   // -- shell wiring ------------------------------------------------------------
@@ -210,6 +215,7 @@ export function initApp() {
   features.settings.init(); // registers the applySettings re-render hooks...
   features.transfer.init();
   features.manuscriptStart.init();
+  features.chronicle.init();
   features.home.init();
   features.library.init();
 
@@ -254,6 +260,7 @@ export function initApp() {
     catalogPoll.stop();
     shell.stopDiskBanner();
     features.generation.resetForStoryChange();
+    features.chronicle.reset();
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
@@ -310,7 +317,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts } = features;
+  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -353,6 +360,11 @@ function buildFacade(ctx) {
     savePageEdit: write.savePageEdit,
     reloadLatestPage: write.reloadLatestPage,
     undoReturn: write.undoReturn,
+    loadChronicle: chronicle.load,
+    enterChronicle: chronicle.enter,
+    renderChronicle: chronicle.render,
+    revealChroniclePage: chronicle.revealPage,
+    restoreChronicleRecovery: chronicle.restoreRecovery,
     setWritingEnabled: write.setWritingEnabled,
     openAiDraft: aiDrafts.openAiDraft,
     closeAiDraft: aiDrafts.closeAiDraft,

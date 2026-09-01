@@ -198,7 +198,13 @@ function buildDom() {
         <button id="audiobookBtn" type="button">Audiobook</button>
         <button id="deletePageBtn">Delete Page</button>
       </section>
-      <section id="chronicleSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="chronicleSection" class="content-section">
+        <span data-workspace-story></span><p id="chronicleStatus"></p><div id="chronicleSummary"></div>
+        <input id="chroniclePageJump" type="number"><button id="chroniclePageJumpBtn">Find page</button>
+        <button id="chronicleAddChapter">Begin chapter</button><button id="chronicleAddVolume">Begin volume</button>
+        <button class="workspace-back-to-desk">Return to Desk</button>
+        <div id="chronicleOutline" role="tree"></div><div id="chronicleRecoveries"></div>
+      </section>
       <section id="codexSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
       <section id="gallerySection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
       <section id="gateSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>

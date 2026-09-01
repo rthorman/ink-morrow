@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="styles/features/catalogs.css">
     <link rel="stylesheet" href="styles/features/library.css">
     <link rel="stylesheet" href="styles/features/write.css">
+    <link rel="stylesheet" href="styles/features/chronicle.css">
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/auth.css">
 </head>
@@ -464,11 +465,33 @@
                 </div>
             </section>
 
-            <section id="chronicleSection" class="content-section workspace-empty" aria-labelledby="chronicleTitle">
+            <section id="chronicleSection" class="content-section chronicle" aria-labelledby="chronicleTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="chronicleTitle">Chronicle <span>&mdash; where the work stands</span></h2>
-                <p>Volumes, chapters, pages, prepared work, and recovery records will gather here. The hierarchy remains available through the Desk while the full outline is being prepared.</p>
-                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                <p id="chronicleStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its structure and recovery history.</p>
+                <div id="chronicleSummary" class="chronicle-summary" aria-label="Manuscript status"></div>
+                <div class="chronicle-toolbar" role="group" aria-label="Chronicle controls">
+                    <label for="chroniclePageJump">Go to narrative page</label>
+                    <input id="chroniclePageJump" type="number" min="1" inputmode="numeric">
+                    <button id="chroniclePageJumpBtn" class="btn btn-secondary" type="button">Find page</button>
+                    <button id="chronicleAddChapter" class="btn btn-secondary" type="button">Begin chapter</button>
+                    <button id="chronicleAddVolume" class="btn btn-secondary" type="button">Begin volume</button>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <section class="chronicle-panel" aria-labelledby="chronicleOutlineTitle">
+                    <div class="chronicle-panel__head">
+                        <h3 id="chronicleOutlineTitle">Publication outline</h3>
+                        <p>Volumes contain chapters; chapters contain narrative pages. Scene breaks remain inside prose previews.</p>
+                    </div>
+                    <div id="chronicleOutline" class="chronicle-outline" role="tree" aria-label="Manuscript hierarchy"></div>
+                </section>
+                <section class="chronicle-panel" aria-labelledby="chronicleRecoveryTitle">
+                    <div class="chronicle-panel__head">
+                        <h3 id="chronicleRecoveryTitle">Recovery copies</h3>
+                        <p>Safe copies can rejoin the active tail. Changed manuscripts offer export instead of a silent merge.</p>
+                    </div>
+                    <div id="chronicleRecoveries" class="chronicle-recoveries"></div>
+                </section>
             </section>
 
             <section id="codexSection" class="content-section workspace-empty" aria-labelledby="codexTitle">

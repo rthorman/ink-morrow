@@ -72,6 +72,12 @@ describe('PR 02 manuscript hierarchy', () => {
     expect(hierarchy.volumes.map((volume) => volume.ordinal)).toEqual([1, 2]);
     expect(hierarchy.volumes[0].chapters.map((chapter) => chapter.ordinal)).toEqual([1, 2]);
     expect(hierarchy.volumes[0].chapters[0].pages.map((page) => page.id)).toEqual([pageOne.id, pageTwo.id]);
+    expect(hierarchy.volumes[0].chapters[0].pages[0]).toMatchObject({
+      excerpt: 'First page.',
+      continuity_status: 'pending',
+      art_count: 0,
+      is_copyedited: false,
+    });
     expect(hierarchy.volumes[0].chapters[1].pages.map((page) => page.id)).toEqual([pageThree.id]);
     expect(hierarchy.volumes[1].chapters[0].pages.map((page) => page.id)).toEqual([pageFour.id]);
     expect(hierarchy.volumes.flatMap((volume) => volume.chapters)
@@ -124,6 +130,8 @@ describe('PR 02 manuscript hierarchy', () => {
         [first.id, 1, 'text'], [second.id, 2, 'text'], [third.id, 3, 'text'],
       ]);
     expect(image.body.placement.after_page_id).toBe(first.id);
+    expect(hierarchy.volumes[0].chapters[0].pages[0].art_count).toBe(1);
+    expect(hierarchy.summary.placed_art_count).toBe(1);
 
     await request(fixture.app).delete(`/api/stories/${story.id}/pages/2`).expect(204);
     hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
@@ -202,6 +210,7 @@ describe('PR 02 manuscript hierarchy', () => {
     const hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
     expect(hierarchy.summary).toMatchObject({ volume_count: 10, chapter_count: 100, page_count: 3000 });
     expect(hierarchy.volumes[9].chapters[9].pages[29]).toMatchObject({ ordinal: 30, display_number: 3000 });
+    expect(JSON.stringify(hierarchy)).not.toContain('full manuscript prose');
 
     const plans = [
       fixture.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM volumes WHERE story_id = ? ORDER BY ordinal DESC LIMIT 1').all(story.id),

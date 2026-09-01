@@ -252,6 +252,7 @@ describe('ScribeTribe 4.0 kernel', () => {
     expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'revisions-recovery').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'chronicle').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'continuity-v2').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'writing-transactions').status).toBe('available');

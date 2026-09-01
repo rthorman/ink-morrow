@@ -212,14 +212,16 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       return;
     }
     // Already open (a page turn wrote the hash): trust the reader's state.
-    if (state.data.currentStory && state.data.currentStory.id === params.storyId) {
+    if (state.data.currentStory && state.data.currentStory.id === params.storyId && state.data.storyPages.length > 0) {
       if (params.pageNumber) {
         state.data.currentPage = Math.max(1, Math.min(state.data.storyPages.length, params.pageNumber));
         displayCurrentPage();
       }
       return;
     }
-    let story = state.data.stories.find((s) => s.id === params.storyId);
+    let story = state.data.currentStory?.id === params.storyId
+      ? state.data.currentStory
+      : state.data.stories.find((s) => s.id === params.storyId);
     if (!story) {
       // Boot race: the story list may not have loaded yet.
       await features.stories.loadStories();
@@ -605,7 +607,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       .confirmDestructive({
         title: `Return story to page ${currentPage}?`,
         body: `${range} (${after} ${after === 1 ? 'page' : 'pages'}) of "${currentStory.title}" will leave the active story. Art anchored there remains in the Gallery but is unplaced. A recovery copy is retained, and the next screen offers a brief one-click undo.`,
-        confirmLabel: `Return story to page ${currentPage}`,
+        confirmLabel: `Return and remove ${after} later ${after === 1 ? 'page' : 'pages'}`,
       })
       .then((yes) => {
         if (yes) burnAfterCurrentPage();
