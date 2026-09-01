@@ -832,6 +832,14 @@ test.describe('Scene image prompt', () => {
     await page.locator('#sceneViewerAddPageBtn').click();
     await expect(page.locator('#sceneImageViewerModal')).toBeHidden({ timeout: 5000 });
     await expect(page.locator('#imagePromptModal')).toBeHidden();
+
+    // Painting is a Gallery workflow now. Return to Desk and reload the
+    // persisted manuscript before asserting its reader placement.
+    await page.locator('#writeBtn').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await page.reload();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
+    await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
     // The plate renders from the real image route, not a placeholder
