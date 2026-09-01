@@ -279,6 +279,25 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   a collapsible reading/media tool sheet, and the portrait sticky composer are
   part of the Desk contract. Full behavior: `docs/desk.md`.
 
+### 4.0 PR 12 - Chronicle contract
+
+- Chronicle reads the publication hierarchy through one bounded metadata
+  response. Page prose is limited to a 240-character display excerpt and the
+  client renders at most 80 page rows per chapter window, including for the
+  3,000-page fixture.
+- Volume, chapter, and page order is server order. The UI offers no reorder or
+  scene entity; scene-break text may appear only inside a page excerpt.
+- Every page may name active-tail, continuity coverage, display-copyedit, and
+  placed-art status. Prepared prose is one manuscript-level marker and never a
+  canonical page row.
+- New volumes and chapters begin only at the active tail. Renames preserve
+  stable structure/page identities and canon; only empty active-tail structure
+  exposes removal controls with exact consequences.
+- Recovery safety is server-derived from the current chain fingerprint. Only a
+  `safe` record enables restore. Diverged, restored, and expired records remain
+  honest and offer JSON export rather than a silent merge. Full behavior:
+  `docs/chronicle.md`.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.

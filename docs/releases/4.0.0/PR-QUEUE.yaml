@@ -366,7 +366,7 @@ pull_requests:
   - id: "12"
     slug: chronicle
     title: Chronicle
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "11"

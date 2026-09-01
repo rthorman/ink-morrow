@@ -605,7 +605,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       .confirmDestructive({
         title: `Return story to page ${currentPage}?`,
         body: `${range} (${after} ${after === 1 ? 'page' : 'pages'}) of "${currentStory.title}" will leave the active story. Art anchored there remains in the Gallery but is unplaced. A recovery copy is retained, and the next screen offers a brief one-click undo.`,
-        confirmLabel: `Return story to page ${currentPage}`,
+        confirmLabel: `Return and remove ${after} later ${after === 1 ? 'page' : 'pages'}`,
       })
       .then((yes) => {
         if (yes) burnAfterCurrentPage();

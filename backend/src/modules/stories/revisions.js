@@ -303,8 +303,15 @@ function createRevisionStore(db, {
     return result;
   }
 
-  function recoveryMetadata(row) {
+  function recoveryMetadata(row, currentFingerprint = null) {
     const payload = parseJson(row.payload_json, {});
+    let restoreState = row.status;
+    if (row.status === 'recoverable') {
+      restoreState = currentFingerprint && payload.head_fingerprint &&
+        safeEqual(currentFingerprint, payload.head_fingerprint)
+        ? 'safe'
+        : 'unsafe';
+    }
     return {
       id: row.id,
       story_id: row.story_id,
@@ -316,6 +323,17 @@ function createRevisionStore(db, {
       created_at: row.created_at,
       expires_at: row.expires_at,
       resolved_at: row.resolved_at,
+      restore: {
+        state: restoreState,
+        available: restoreState === 'safe',
+        reason: restoreState === 'unsafe'
+          ? 'The surviving manuscript changed after this recovery was made. Export it for manual reconciliation.'
+          : restoreState === 'expired'
+            ? 'This recovery expired and its private payload was scrubbed.'
+            : restoreState === 'restored'
+              ? 'This recovery has already been restored.'
+              : null,
+      },
     };
   }
 
@@ -576,16 +594,17 @@ function createRevisionStore(db, {
 
   function listRecoveries(storyId, onPlate = null) {
     expireRecoveries(storyId, onPlate);
+    const fingerprint = chainFingerprint(storyId);
     return db.prepare(`
       SELECT * FROM recovery_suffixes WHERE story_id = ? ORDER BY created_at DESC, id DESC
-    `).all(storyId).map(recoveryMetadata);
+    `).all(storyId).map((row) => recoveryMetadata(row, fingerprint));
   }
 
   function getRecovery(storyId, recoveryId, onPlate = null) {
     expireRecoveries(storyId, onPlate);
     const row = db.prepare('SELECT * FROM recovery_suffixes WHERE story_id = ? AND id = ?')
       .get(storyId, recoveryId);
-    return row ? recoveryMetadata(row) : null;
+    return row ? recoveryMetadata(row, chainFingerprint(storyId)) : null;
   }
 
   function exportRecovery(storyId, recoveryId, onPlate = null) {
@@ -599,7 +618,7 @@ function createRevisionStore(db, {
     return {
       format: 'scribetribe-recovery-suffix',
       version: 1,
-      recovery: recoveryMetadata(row),
+      recovery: recoveryMetadata(row, chainFingerprint(storyId)),
       payload,
     };
   }

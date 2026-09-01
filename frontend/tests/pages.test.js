@@ -88,7 +88,7 @@ describe('Burn everything after this page', () => {
     document.getElementById('deleteAfterBtn').click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     const dialog = document.querySelector('.dialog-manager');
-    const confirmBtn = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Return story to page 1');
+    const confirmBtn = [...dialog.querySelectorAll('button')].find((b) => b.textContent === 'Return and remove 2 later pages');
     confirmBtn.click();
     expect(dialog.hidden).toBe(true);
 
