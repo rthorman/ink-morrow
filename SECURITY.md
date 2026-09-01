@@ -73,6 +73,12 @@ That command deletes only the password record and sessions. Stories, worlds, cha
 
 The default `HOST=127.0.0.1` accepts connections only from the same machine.
 
+In plain language, `localhost`/`127.0.0.1` means “this computer only.” A LAN is
+the local home or office network. HTTP does not encrypt traffic in transit;
+HTTPS does, protecting passwords, cookies, prose, and media from being read by
+other equipment along the route. A reverse proxy is the front-door service
+that terminates HTTPS and forwards the request to loopback ScribeTribe.
+
 For durable access from other devices, put an HTTPS reverse proxy on the same machine and leave ScribeTribe bound to loopback. Add the proxy's public hostname to `ALLOWED_HOSTS`, set `TRUST_PROXY=1`, and configure the proxy to preserve `Host` and send `X-Forwarded-Proto: https`. `TRUST_PROXY` trusts forwarding information only from a loopback peer.
 
 Direct LAN HTTP is an explicit escape hatch:
@@ -95,6 +101,19 @@ The login is access control, not encryption:
 - There is one owner only: no usernames, roles, remote recovery, MFA, email, or account sharing.
 - Public internet deployment is outside the supported threat model, even behind TLS.
 
+## Provider and browser compatibility
+
+OpenRouter is the only AI supplier tested with ScribeTribe 4.0. A different
+OpenAI-compatible service may not implement the catalogue, image, speech,
+reasoning, or response behavior ScribeTribe expects, and may fail partially or
+completely. Treat an untested provider as a separate integration and threat
+boundary; review its data handling, authentication, retention, and error
+behavior before sending real material.
+
+Chrome Stable is the only browser tested for the beta. Other modern browsers
+should work, but browser-specific privacy, extension, cookie, storage, media,
+and download behavior remains outside the certified path.
+
 Full-device encryption and encrypted backups remain the right controls for data at rest. Archive encryption may be added separately in a future format revision.
 
 ## Updates and dependencies
@@ -114,3 +133,4 @@ Please avoid posting exploitable details in a public issue. Use the repository's
 
 The operational and data boundaries are also summarized in
 [LEGAL.md](LEGAL.md) and [PRIVACY.md](PRIVACY.md).
+
