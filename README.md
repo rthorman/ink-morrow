@@ -469,4 +469,3 @@ license treatment. Additional plain-language boundaries are in
 ## Contributing
 
 PRs welcome. Keep the gothic theme, keep the test suite green (CI runs the Jest suites **and** the Playwright e2e job), and add tests for new features. By participating you agree to abide by the [Code of Conduct](./CODE_OF_CONDUCT.md).
-
