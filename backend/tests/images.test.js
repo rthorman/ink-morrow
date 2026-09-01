@@ -577,4 +577,3 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     expect(body.input_references).toBeUndefined(); // the portraits never ride along
   });
 });
-
