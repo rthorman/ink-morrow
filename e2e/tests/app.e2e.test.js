@@ -709,7 +709,7 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#gateSection')).toHaveClass(/active/);
     await expect(page.locator('.gate-card--backup')).toContainText('Full fidelity');
     await expect(page.locator('.gate-card--publication')).toContainText('Reading copy');
-    await expect(page.locator('.gate-card--share button')).toBeDisabled();
+    await expect(page.locator('#gateCreateShareBtn')).toBeDisabled();
     await page.fill('#gatePublicationAuthor', 'E2E Author');
     await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
 
