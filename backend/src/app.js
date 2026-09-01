@@ -39,6 +39,8 @@ const { createAuthService } = require('./modules/auth/service');
 const { createAuthRouter } = require('./modules/auth/routes');
 const { createProviderService } = require('./modules/providers/service');
 const { createProviderRouter } = require('./modules/providers/routes');
+const { createPublicationService } = require('./modules/publication/document');
+const { createPublicationRouter } = require('./modules/publication/routes');
 
 function createApp(
   db,
@@ -201,11 +203,13 @@ function createApp(
     writingTransactions,
     transferDir: resolvedTransferDir,
   });
+  const publications = createPublicationService({ db, stories, artStore });
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.locals.writingTransactions = writingTransactions;
   app.locals.artStore = artStore;
+  app.locals.publications = publications;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
@@ -219,6 +223,7 @@ function createApp(
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }));
+  app.use(createPublicationRouter({ publications }));
   app.use(createTransferRouter({ transfers }));
 
   // Boot backfill of entity reference images (no-op without an API key or

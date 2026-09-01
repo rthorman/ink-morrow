@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scribetribe.local/schemas/publication-document-v1.json",
+  "title": "ScribeTribe PublicationDocument",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["format", "schema_version", "metadata", "front_matter", "volumes", "back_matter", "assets"],
+  "properties": {
+    "format": { "const": "scribetribe-publication-document" },
+    "schema_version": { "const": 1 },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["title", "author", "language"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "subtitle": { "type": ["string", "null"], "maxLength": 300 },
+        "author": { "type": "string", "maxLength": 300 },
+        "language": { "type": "string", "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$" },
+        "description": { "type": ["string", "null"], "maxLength": 4000 },
+        "publisher": { "type": ["string", "null"], "maxLength": 300 },
+        "rights": { "type": ["string", "null"], "maxLength": 1000 },
+        "date": { "type": ["string", "null"], "maxLength": 40 }
+      }
+    },
+    "front_matter": { "$ref": "#/$defs/matter" },
+    "volumes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ordinal", "title", "chapters"],
+        "properties": {
+          "ordinal": { "type": "integer", "minimum": 1 },
+          "title": { "type": "string", "maxLength": 300 },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["ordinal", "title", "pages"],
+              "properties": {
+                "ordinal": { "type": "integer", "minimum": 1 },
+                "title": { "type": "string", "maxLength": 300 },
+                "pages": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["ordinal", "blocks"],
+                    "properties": {
+                      "ordinal": { "type": "integer", "minimum": 1 },
+                      "blocks": { "$ref": "#/$defs/blocks" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "back_matter": { "$ref": "#/$defs/matter" },
+    "assets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "media_type", "sha256", "width", "height", "title", "alt_text", "content_base64"],
+        "properties": {
+          "key": { "type": "string", "pattern": "^asset-[1-9][0-9]*$" },
+          "media_type": { "enum": ["image/png", "image/jpeg", "image/webp"] },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "width": { "type": "integer", "minimum": 1 },
+          "height": { "type": "integer", "minimum": 1 },
+          "title": { "type": ["string", "null"], "maxLength": 300 },
+          "alt_text": { "type": "string", "maxLength": 1000 },
+          "content_base64": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "matter": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "title", "blocks"],
+        "properties": {
+          "role": { "enum": ["dedication", "preface", "acknowledgments", "afterword", "about-author", "other"] },
+          "title": { "type": "string", "maxLength": 300 },
+          "blocks": { "$ref": "#/$defs/blocks" }
+        }
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "text"],
+            "properties": { "type": { "const": "paragraph" }, "text": { "type": "string" } }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type"],
+            "properties": { "type": { "const": "scene_break" } }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["type", "asset_key", "alt_text", "position"],
+            "properties": {
+              "type": { "const": "art" },
+              "asset_key": { "type": "string", "pattern": "^asset-[1-9][0-9]*$" },
+              "alt_text": { "type": "string", "maxLength": 1000 },
+              "position": { "enum": ["before", "after"] }
+            }
+          }
+        ]
+      }
+    }
+  }
+}
