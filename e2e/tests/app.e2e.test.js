@@ -172,7 +172,7 @@ test.describe('ScribeTribe UI', () => {
 
     // Creating a story jumps to the write section with the story selected
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
-    await expect(page.locator('#currentStory option', { hasText: 'The Shadow and the Flame' })).toBeAttached({ timeout: 5000 });
+    await expect(page.locator('#shellManuscriptSelect option', { hasText: 'The Shadow and the Flame' })).toBeAttached({ timeout: 5000 });
 
     // Browser state is not enough: the backend must hold both roles and notes.
     const stories = (await (await page.request.get('/api/stories')).json()).stories;
@@ -360,7 +360,7 @@ test.describe('ScribeTribe UI', () => {
 
     // Cost ticker is visible by default
     await expect(page.locator('#costTicker')).toBeVisible();
-    await expect(page.locator('#costTicker')).toContainText(/Session \$0\.0+ · Story \$0\.0+/);
+    await expect(page.locator('#costTicker')).toContainText(/Session \$0\.0+ · Manuscript \$0\.0+/);
 
     // Story font selector changes the story window typeface
     const proseBefore = await page.evaluate(
@@ -828,7 +828,7 @@ test.describe('ScribeTribe UI', () => {
     await page.reload();
     await page.locator('#writeBtn').click();
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
-    for (const sel of ['#currentStory', '#userInput', '#generateBtn', '#readAloudBtn', '#exportBtn']) {
+    for (const sel of ['#shellManuscriptSelect', '#userInput', '#generateBtn', '#readAloudBtn', '#exportBtn']) {
       await expect(page.locator(sel)).toBeAttached();
     }
     await expect(page.locator('label[for="userInput"]')).toBeAttached(); // labels external to fields
@@ -837,3 +837,4 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#worldNewBtn')).toBeAttached();
   });
 });
+
