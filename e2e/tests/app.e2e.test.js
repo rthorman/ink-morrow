@@ -837,4 +837,3 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#worldNewBtn')).toBeAttached();
   });
 });
-
