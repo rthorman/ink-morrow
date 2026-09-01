@@ -343,6 +343,33 @@ describe('Story covers', () => {
     });
   });
 
+  it('shares visual emphasis across an ensemble cover with no invented lead', async () => {
+    const world = await createWorld(app, { name: 'Ensemble Cover Realm', description: 'A moonlit glass city' });
+    const first = await createCharacter(app, world.id, { name: 'First Ink', appearance: 'Gold veil and black gloves' });
+    const second = await createCharacter(app, world.id, { name: 'Second Ink', appearance: 'Red silk and a silver bell' });
+    await waitForImageStatus('worlds', world.id, 'ready');
+    await waitForImageStatus('characters', first.id, 'ready');
+    await waitForImageStatus('characters', second.id, 'ready');
+    axios.post.mockClear();
+
+    const res = await request(app).post('/api/stories').send({
+      title: 'The Ensemble Cover',
+      world_id: world.id,
+      tone: 'romantic',
+      generate_image: true,
+      characters: [
+        { id: first.id, role: 'supporting', relation: 'rival', state: null },
+        { id: second.id, role: 'supporting', relation: 'confidante', state: null },
+      ],
+    }).expect(201);
+    await waitForImageStatus('stories', res.body.story.id, 'ready');
+
+    const call = await waitForImageCall('The Ensemble Cover');
+    expect(call[1].prompt).toContain('ensemble with no designated lead');
+    expect(call[1].prompt).toContain('Share visual emphasis');
+    expect(call[1].prompt).not.toContain('Give the lead visual priority');
+  });
+
   it('deletes and explicitly repaints only the cover, then removes it with the story', async () => {
     const story = await createStory(app, null, [], { title: 'Disposable Cover', generate_image: true });
     await waitForImageStatus('stories', story.id, 'ready');
@@ -550,3 +577,4 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     expect(body.input_references).toBeUndefined(); // the portraits never ride along
   });
 });
+
