@@ -1,7 +1,7 @@
 # Privacy notice for self-hosted ScribeTribe
 
-Last updated: **2026-08-31**
-Current shipped behavior covered: **3.2.2**
+Last updated: **2026-09-01**
+Current shipped behavior covered: **4.0.0-beta.1**
 
 > This is a plain-language project notice, not legal advice. An operator is
 > responsible for the privacy notice and lawful basis required by their own
@@ -34,7 +34,7 @@ and obtain local advice when required.
 
 ## Data stored by the current application
 
-Depending on features used, a 3.2.2 installation stores:
+Depending on features used, a 4.0.0-beta.1 installation stores:
 
 - stories, pages, directions, worlds, lore, characters, cast snapshots and
   author settings;
@@ -43,7 +43,8 @@ Depending on features used, a 3.2.2 installation stores:
 - prepared speculative prose and generation metadata;
 - generated reference images, covers, scene plates, narration cache and
   audiobooks;
-- portable-archive staging and safety backups;
+- portable-archive staging and safety backups, immutable publication
+  snapshots, and public-share expiry/revocation records;
 - a password verifier, hashed session records and authentication timestamps;
 - the provider key in the operator-managed backend environment file; and
 - interface preferences and remembered paid-action consent in that browser's
@@ -75,10 +76,12 @@ Prepared successor generation and continuity extraction are separate provider
 operations associated with the writing flow and may send the contextual data
 needed for each. Cost review and settings should be read before enabling them.
 
-The configured endpoint defaults to OpenRouter in 3.2.2 but can be changed by
-the operator. Consult the actual provider's privacy, retention, training,
-regional-processing and security terms. The ScribeTribe maintainer cannot
-control or erase provider-held data.
+The OpenRouter quick-connect path creates one OpenAI-compatible provider
+profile; the operator may instead configure another compatible endpoint and
+assign separate Scribe, Archivist, Narrator, and image roles. Consult each
+actual provider's privacy, retention, training, regional-processing, and
+security terms. The ScribeTribe maintainer cannot control or erase
+provider-held data.
 
 Merely opening the app, browsing the Library, reading pages, exporting a story,
 or creating a portable archive does not require an AI provider call.
@@ -113,10 +116,12 @@ and downloaded by the operator. Their contents are explained before export.
 Credentials, password records, sessions and remembered paid consent are
 excluded from portable archives.
 
-Deleting something through the current 3.2.2 application may be permanent,
-subject only to backups the operator made. A 4.0.0 recovery design is planned
-but is not shipped at the date of this notice. Securely delete exported files,
-backups and provider-held copies separately when needed.
+Deleting an item may be permanent, subject to the bounded recovery or undo
+path offered for that exact operation and backups the operator made. Tail
+truncation keeps an expiring recovery suffix; restoration refuses when later
+canon makes it unsafe rather than silently merging. Securely delete exported
+files, backups, expired recovery material, and provider-held copies separately
+when needed.
 
 Because the maintainer has no copy of installation data, data-access,
 correction, export, or deletion requests must be handled by the installation
@@ -125,26 +130,20 @@ not possess.
 
 ## Public sharing
 
-The current 3.2.2 release has no public snapshot-sharing feature. The accepted
-4.0.0 plan adds deliberate, immutable, revocable reading snapshots. Before
-that feature ships, this notice and SECURITY.md must be updated to describe its
-final behavior.
-
-Under the accepted design, anyone holding a share capability can read that
+Anyone holding a share capability can read that
 frozen snapshot until it expires or is revoked. It contains owner-selected
 manuscript prose and art only, triggers no AI, and excludes credentials,
 directions, continuity internals, speculative/deleted work, costs and sessions.
 The self-hosting operator remains responsible for the content, capability link,
 TLS, reverse proxy, access logs and recipients.
 
-## Planned 4.0.0 image uploads
+## Image uploads
 
-Image upload is also planned rather than shipped in 3.2.2. The accepted design
-does not semantically inspect or moderate uploaded subject matter and does not
-send an upload to an AI provider by default.
+Image upload does not semantically inspect or moderate uploaded subject matter
+and does not send an upload to an AI provider by default.
 
-For technical safety, the self-hosted application will validate and normalize
-the image and strip embedded location/device metadata from its display
+For technical safety, the self-hosted application validates and normalizes
+the image and strips embedded location/device metadata from its display
 derivative by default. The operator and uploader remain responsible for people,
 personal information, privacy and rights depicted in an image.
 

@@ -1,6 +1,6 @@
 # Legal and liability notices
 
-Last updated: **2026-08-31**
+Last updated: **2026-09-01**
 
 > **Important:** This document is a project notice, not legal advice. It was
 > not prepared by a law firm and has not yet received qualified legal review.
