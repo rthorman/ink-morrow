@@ -696,4 +696,3 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     init,
   };
 }
-
