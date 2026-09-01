@@ -19,4 +19,3 @@ export async function chooseWorkspaceStory({ storyId, state, features }) {
   }
   return story;
 }
-
