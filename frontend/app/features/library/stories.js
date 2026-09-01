@@ -187,4 +187,3 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
 
   return { loadStories, renderStories, repaintCover, stopCoverPoll };
 }
-
