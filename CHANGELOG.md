@@ -53,4 +53,3 @@ See [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 The last 3.x release repaired exact prepared-page promotion and stale-response
 handling. Its MIT-licensed history remains preserved for users who need to
 retain or read 3.x data.
-
