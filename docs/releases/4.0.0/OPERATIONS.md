@@ -4,6 +4,11 @@ This runbook covers a single-owner, self-hosted ScribeTribe 4.0.0-beta.1
 installation. Run Node.js 22.5 or newer and keep the application bound to
 `127.0.0.1` unless a deliberate temporary LAN exception is required.
 
+Chrome is the only browser tested for this beta. OpenRouter is the only AI
+supplier tested; another OpenAI-compatible endpoint may be incomplete or fail
+entirely, especially for image generation, narration, model discovery, and
+reasoning controls.
+
 ## Storage and backup boundaries
 
 `DATA_DIR` owns the SQLite database, normalized images, audio, transfer staging,
@@ -60,6 +65,12 @@ before catalogue writes.
 ## HTTPS reverse proxy and public sharing
 
 Public snapshot sharing requires HTTPS. Keep ScribeTribe on loopback and set:
+
+For operators new to these terms: loopback means the application accepts only
+connections originating on the same computer. HTTPS encrypts traffic between
+the reader's browser and the front-door proxy. The proxy then passes that
+request locally to ScribeTribe. Plain HTTP on a LAN does not provide that
+transport protection.
 
 ```text
 HOST=127.0.0.1
@@ -129,3 +140,4 @@ changes rather than attempting to mutate an existing publication.
 - Configure proxy/application logging to omit request bodies and
   `Authorization`, `Cookie`, and `Set-Cookie` headers. Scrub share tokens,
   filenames, story text, provider errors, and local paths before sharing logs.
+
