@@ -104,10 +104,100 @@
                         <div class="hero__actions">
                             <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
                             <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Begin a manuscript</button>
+                            <button id="heroImportBtn" class="btn btn-secondary" type="button">Import prose</button>
                             <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the Desk</button>
                         </div>
                     </div>
                 </div>
+
+                <section id="manuscriptStartSheet" class="manuscript-start" aria-labelledby="manuscriptStartTitle" hidden>
+                    <div class="manuscript-start__head">
+                        <div>
+                            <p class="hero__kicker">One-sheet start</p>
+                            <h2 id="manuscriptStartTitle">Begin a manuscript</h2>
+                        </div>
+                        <button id="manuscriptStartClose" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
+                    </div>
+                    <p class="manuscript-start__intro">Choose one starting path. Volume I and Chapter I are created automatically; title, world, cast, and deeper foundations remain optional.</p>
+                    <form id="manuscriptStartForm">
+                        <label for="manuscriptStartName">Manuscript name <span class="field-optional">optional</span></label>
+                        <input id="manuscriptStartName" type="text" maxlength="300" placeholder="Untitled manuscript">
+
+                        <div class="start-paths" role="radiogroup" aria-label="How to begin">
+                            <button id="startPathManual" class="start-path active" type="button" role="radio" aria-checked="true" data-start-path="manual">Write the opening</button>
+                            <button id="startPathSeed" class="start-path" type="button" role="radio" aria-checked="false" data-start-path="seed">Give the Scribe a seed</button>
+                            <button id="startPathImport" class="start-path" type="button" role="radio" aria-checked="false" data-start-path="import">Import existing prose</button>
+                        </div>
+
+                        <div id="startManualPanel" class="start-path-panel" data-start-panel="manual">
+                            <label for="startManualOpening">Opening page</label>
+                            <textarea id="startManualOpening" rows="10" maxlength="50000" placeholder="Write or paste the opening. This is saved locally as Page 1 with no provider call."></textarea>
+                        </div>
+                        <div id="startSeedPanel" class="start-path-panel" data-start-panel="seed" hidden>
+                            <label for="startSeedPremise">Premise</label>
+                            <textarea id="startSeedPremise" rows="5" maxlength="5000" placeholder="What wants to happen, and why does it matter?"></textarea>
+                            <label for="startSeedDirection">Optional opening direction</label>
+                            <textarea id="startSeedDirection" rows="3" maxlength="5000" placeholder="A first scene, image, pressure, or voice to begin from."></textarea>
+                        </div>
+                        <div id="startImportPanel" class="start-path-panel" data-start-panel="import" hidden>
+                            <label for="startImportFile">Plain text or Markdown file <span class="field-optional">optional</span></label>
+                            <input id="startImportFile" type="file" accept="text/plain,text/markdown,.txt,.md">
+                            <label for="startImportProse">Imported prose</label>
+                            <textarea id="startImportProse" rows="12" maxlength="500000" placeholder="Paste prose here. Nothing is sent to a provider."></textarea>
+                            <label for="startImportMode">Structure</label>
+                            <select id="startImportMode">
+                                <option value="headings">Map Markdown headings to chapters</option>
+                                <option value="single">Keep everything in Chapter I</option>
+                            </select>
+                        </div>
+
+                        <div id="manuscriptStartHintWrap" class="context-hint" role="note">
+                            <p id="manuscriptStartHint"></p>
+                            <button id="manuscriptStartHintDismiss" class="btn btn-secondary" type="button">Dismiss hint</button>
+                        </div>
+
+                        <details id="startFoundations" class="start-foundations">
+                            <summary>Foundations <span>optional intent and local template copies</span></summary>
+                            <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the story.</p>
+                            <label for="startWorld">World template</label>
+                            <select id="startWorld"><option value="">No world</option></select>
+                            <fieldset id="startCastFieldset" class="start-cast">
+                                <legend>Character templates</legend>
+                                <div id="startCastList"><p class="placeholder">No character templates yet.</p></div>
+                            </fieldset>
+                            <label for="startNarrativeVoice">Narrative voice</label>
+                            <input id="startNarrativeVoice" type="text" maxlength="1000" placeholder="e.g. intimate, lucid, dryly observant">
+                            <label for="startPointOfView">Point of view</label>
+                            <input id="startPointOfView" type="text" maxlength="500" placeholder="e.g. close third through Mara">
+                            <label for="startTense">Tense</label>
+                            <input id="startTense" type="text" maxlength="500" placeholder="e.g. past tense">
+                            <label for="startConstraints">Constraints</label>
+                            <textarea id="startConstraints" rows="4" maxlength="5000" placeholder="Promises, boundaries, motifs, or things this story must avoid."></textarea>
+                            <button id="startDraftFoundationsBtn" class="btn btn-secondary" type="button">Suggest blank foundations with AI&hellip;</button>
+                            <p class="setting-hint">A cost and data review appears before any provider call. Suggestions remain drafts until you accept each field.</p>
+                            <div id="startFoundationDraft" class="foundation-draft" aria-live="polite" hidden></div>
+                            <div id="startProviderSetup" class="provider-setup" hidden>
+                                <h3>Connect the Scribe for this session</h3>
+                                <p>Your manual and import work is already available without this. This key stays in server memory for the current process and is never saved in the browser.</p>
+                                <label for="startProviderKey">OpenRouter API key</label>
+                                <input id="startProviderKey" type="password" autocomplete="off" maxlength="8192">
+                                <button id="startProviderSave" class="btn btn-primary" type="button">Use for this session</button>
+                            </div>
+                        </details>
+
+                        <label for="manuscriptStartTone">Maturity level</label>
+                        <select id="manuscriptStartTone">
+                            <option value="fade-to-black">Tasteful &mdash; intimate moments fade to black</option>
+                            <option value="romantic">Romantic &mdash; sensual, not graphic</option>
+                            <option value="explicit">Explicit &mdash; adult prose (18+)</option>
+                        </select>
+                        <p id="manuscriptStartStatus" class="manuscript-start__status" role="status" aria-live="polite"></p>
+                        <div class="form-actions">
+                            <button id="manuscriptStartCancel" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
+                            <button id="manuscriptStartSubmit" class="btn btn-primary" type="submit">Create manuscript</button>
+                        </div>
+                    </form>
+                </section>
 
                 <div id="homeRecent" class="home-recent" hidden>
                     <h2>Recent manuscripts</h2>

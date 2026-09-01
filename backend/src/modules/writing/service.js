@@ -227,6 +227,33 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
     };
   }
 
+  async function draftFoundations(body, modelOverride) {
+    const seeds = {
+      premise: body.premise,
+      narrative_voice: body.narrative_voice,
+      point_of_view: body.point_of_view,
+      tense: body.tense,
+      constraints: body.constraints,
+    };
+    const { variant } = draftLengthAndVariant(body);
+    const { parsed, result, cost_usd } = await runDraft(() => {
+      const seedLines = Object.entries(seeds)
+        .filter(([, value]) => value)
+        .map(([key, value]) => `${key}: ${value}`);
+      return [
+        'Draft compact foundations for a long-form work of narrative fiction. Preserve the author as the dominant co-author: propose intent and craft choices, never plot the entire book or write opening prose.',
+        seedLines.length
+          ? `THE AUTHOR'S SEED (honor every supplied field and build only into blank fields):\n${seedLines.join('\n')}`
+          : 'The author supplied no seed. Propose a coherent but editable starting point.',
+        'Keep premise and constraints under 120 words each. Keep narrative_voice, point_of_view, and tense under 40 words each.',
+        'The client will present every proposed field separately for the author to accept, edit, or ignore.',
+        draftVariantLine(variant),
+        'Return strict JSON with exactly these keys: {"premise": string, "narrative_voice": string, "point_of_view": string, "tense": string, "constraints": string}',
+      ].filter(Boolean).join('\n\n');
+    });
+    return { foundations: parsed, model: result.model, cost_usd, seeds };
+  }
+
   return {
     castCharacters,
     loadContext,
@@ -236,6 +263,7 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
     parseAiJson,
     draftWorld,
     draftCharacter,
+    draftFoundations,
     DRAFT_LENGTHS,
   };
 }

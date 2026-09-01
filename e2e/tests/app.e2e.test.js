@@ -491,7 +491,7 @@ test.describe('ScribeTribe UI', () => {
     }
   });
 
-  test('Library manages stories while Write owns creation and maturity', async ({ page }) => {
+  test('Library manages manuscripts and starts a provider-free opening', async ({ page }) => {
     // A story exists: Library is the catalogue and opens its per-story assets.
     const worldRes = await apiPost(page, '/api/worlds', { name: 'Disclosure Realm' });
     const world = (await worldRes.json()).world;
@@ -511,13 +511,20 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#storyAssetsBody')).toContainText('Download EPUB');
     await page.locator('#storyAssetsCloseBtn').click();
 
-    // Creation is at Write; its first logical field and maturity choice are clear.
-    await page.locator('#writeBtn').click();
-    await page.locator('#storyNewBtn').click();
-    await expect(page.locator('#storyCreateWrap')).toBeVisible();
-    await expect(page.locator('#storyTitle')).toBeFocused();
-    await expect(page.locator('label[for="storyTone"]')).toHaveText('Maturity level');
-    await expect(page.locator('#storyTone option')).toHaveCount(3);
+    // The primary start flow stays in Library and the manual path makes no
+    // provider or AI request before opening the editable Desk.
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/api\/(providers|ai\/)/.test(request.url())) providerRequests.push(request.url());
+    });
+    await page.locator('#heroStartBtn').click();
+    await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
+    await page.fill('#manuscriptStartName', 'A Local Beginning');
+    await page.fill('#startManualOpening', 'Rain whispered against the archive windows.');
+    await page.locator('#manuscriptStartSubmit').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await expect(page.locator('#storyContent')).toContainText('Rain whispered against the archive windows.');
+    expect(providerRequests).toEqual([]);
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {

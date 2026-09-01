@@ -318,7 +318,7 @@ pull_requests:
   - id: "10"
     slug: library-start
     title: Library and manuscript start
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "09"

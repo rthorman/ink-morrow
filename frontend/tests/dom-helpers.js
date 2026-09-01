@@ -56,8 +56,44 @@ function buildDom() {
         <div class="hero__actions">
           <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
           <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
+          <button id="heroImportBtn" class="btn btn-secondary" type="button">Import prose</button>
           <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
         </div>
+        <section id="manuscriptStartSheet" hidden>
+          <button id="manuscriptStartClose" type="button">Keep draft &amp; close</button>
+          <form id="manuscriptStartForm">
+            <input id="manuscriptStartName" type="text">
+            <button id="startPathManual" data-start-path="manual" type="button" role="radio">Manual</button>
+            <button id="startPathSeed" data-start-path="seed" type="button" role="radio">Seed</button>
+            <button id="startPathImport" data-start-path="import" type="button" role="radio">Import</button>
+            <div data-start-panel="manual"><textarea id="startManualOpening"></textarea></div>
+            <div data-start-panel="seed" hidden><textarea id="startSeedPremise"></textarea><textarea id="startSeedDirection"></textarea></div>
+            <div data-start-panel="import" hidden>
+              <input id="startImportFile" type="file">
+              <textarea id="startImportProse"></textarea>
+              <select id="startImportMode"><option value="headings">Headings</option><option value="single">Single</option></select>
+            </div>
+            <div id="manuscriptStartHintWrap"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
+            <details id="startFoundations">
+              <select id="startWorld"><option value="">No world</option></select>
+              <fieldset id="startCastFieldset"><div id="startCastList"></div></fieldset>
+              <input id="startNarrativeVoice" type="text">
+              <input id="startPointOfView" type="text">
+              <input id="startTense" type="text">
+              <textarea id="startConstraints"></textarea>
+              <button id="startDraftFoundationsBtn" type="button">Draft Foundations</button>
+              <div id="startFoundationDraft" hidden></div>
+              <div id="startProviderSetup" hidden>
+                <input id="startProviderKey" type="password">
+                <button id="startProviderSave" type="button">Use for session</button>
+              </div>
+            </details>
+            <select id="manuscriptStartTone"><option value="fade-to-black">Tasteful</option><option value="romantic">Romantic</option></select>
+            <p id="manuscriptStartStatus"></p>
+            <button id="manuscriptStartCancel" type="button">Keep draft &amp; close</button>
+            <button id="manuscriptStartSubmit" type="submit">Create manuscript</button>
+          </form>
+        </section>
         <div id="homeRecent" class="home-recent" hidden>
           <h2>Recent manuscripts</h2>
           <div id="homeRecentList" class="items-grid"></div>

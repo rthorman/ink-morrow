@@ -75,6 +75,16 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     document.getElementById('currentStory').value = story.id;
     state.data.currentStory = story;
     await loadStoryPages();
+    const pending = state.data.pendingOpeningDirection;
+    if (pending?.storyId === story.id) {
+      const direction = document.getElementById('userInput');
+      if (direction) {
+        direction.value = pending.text;
+        direction.dispatchEvent(new Event('input', { bubbles: true }));
+        direction.focus();
+      }
+      delete state.data.pendingOpeningDirection;
+    }
     if (params.pageNumber) {
       state.data.currentPage = Math.max(1, Math.min(state.data.storyPages.length, params.pageNumber));
       displayCurrentPage();

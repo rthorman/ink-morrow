@@ -239,6 +239,26 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   44-pixel targets, reflow, and keyboard operation remain token-level shell
   guarantees. Full behavior: `docs/adaptive-shell.md`.
 
+### 4.0 PR 10 — Library manuscript start contract
+
+- Library owns the primary **Begin a manuscript** and **Import** actions. The
+  existing Desk creator remains an advanced compatibility path, not onboarding.
+- The one-sheet has three mutually exclusive paths: a local manual opening, a
+  seed carried to the Desk direction, and local prose import. Every path creates
+  the valid Volume I / Chapter I hierarchy supplied by the story service.
+- Cancelling or closing saves the uncreated draft in session storage. A
+  successful start clears it. The provider key field is never persisted by the
+  browser.
+- Manual and import paths must not read provider setup or make an AI request.
+  Provider setup appears only after the author explicitly asks for an AI
+  Foundations draft; the paid review precedes that draft request.
+- Foundations remain optional working direction. Suggestions are bounded JSON
+  and must be accepted field by field; they never mutate global world or
+  character templates.
+- Markdown import maps headings to chapters and otherwise keeps prose in one
+  chapter. It rejects oversized input before mutation and does not discard
+  non-heading text. Full behavior: `docs/library-start.md`.
+
 ## Testing
 
 - Lint: `npm run lint` at the repo root (ESLint 9 flat config in eslint.config.js, installed at the ROOT, invoked via `node node_modules/eslint/bin/eslint.js` — never .bin shebangs on Termux). Config: backend = node/commonjs, frontend/app/** = ESM browser+node dual-world, frontend/tests = ESM + jest globals, e2e/tests = ESM + browser globals (page.evaluate callbacks run in the page). no-unused-vars is tuned (args/caughtErrors none) — express signatures and commented catches are the house style. `npm test` runs lint first; CI has a dedicated lint job gating the Jest job.

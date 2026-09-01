@@ -113,10 +113,11 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
       const copy = document.createElement('div');
       const line = document.createElement('p');
       line.textContent = 'No manuscripts are bound yet. Moth has found nothing to catalogue.';
-      const start = document.createElement('a');
+      const start = document.createElement('button');
       start.className = 'btn btn-primary';
-      start.href = '#/desk';
-      start.textContent = 'Create at the writing desk';
+      start.type = 'button';
+      start.textContent = 'Begin a manuscript';
+      start.addEventListener('click', () => features.manuscriptStart.open('manual'));
       copy.append(line, start);
       empty.append(art, copy);
       container.appendChild(empty);
