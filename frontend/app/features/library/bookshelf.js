@@ -5,22 +5,16 @@
 import { API_BASE_URL } from '../../core/api.js';
 import { formatUsd, formatMinutes, formatMb } from '../../core/dom.js';
 import { wireModal } from '../../core/dialogs.js';
-import { approxCostText, estimateContinuityCost } from '../../core/cost.js';
 
 export function createBookshelf({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess, scribeErrorMessage } = notify;
   let storyAssetsModal = null;
   let activeStoryId = null;
-  let activeContinuity = null;
+  let routeController = null;
 
   async function storageData() {
     return apiCall('/storage');
-  }
-
-  async function continuityData(storyId) {
-    const result = await apiCall(`/stories/${storyId}/continuity`);
-    return result.continuity || null;
   }
 
   async function loadBookshelf() {
@@ -51,11 +45,11 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       art.loading = 'lazy';
       art.decoding = 'async';
       const line = document.createElement('p');
-      line.textContent = 'No audiobooks or story art yet. Moth has found nothing to catalogue.';
+      line.textContent = 'No audiobooks or manuscript art yet. Moth has found nothing to catalogue.';
       const open = document.createElement('a');
       open.className = 'btn btn-primary';
       open.href = '#/library/stories';
-      open.textContent = 'Open stories';
+      open.textContent = 'Open manuscripts';
       empty.append(art, line, open);
       list.appendChild(empty);
       return;
@@ -92,7 +86,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     } else {
       const none = document.createElement('p');
       none.className = 'bookshelf-entry__none';
-      none.textContent = 'No story art kept.';
+      none.textContent = 'No manuscript art kept.';
       card.appendChild(none);
     }
     return card;
@@ -215,15 +209,14 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
   async function refreshActiveAssets() {
     if (!activeStoryId || !storyAssetsModal?.isOpen) return;
     try {
-      const [data, continuity] = await Promise.all([storageData(), continuityData(activeStoryId)]);
+      const data = await storageData();
       const storage = (data.stories || []).find((entry) => entry.id === activeStoryId);
       const story = state.data.stories.find((entry) => entry.id === activeStoryId);
       if (!storage || !story) {
         closeStoryAssets();
         return;
       }
-      activeContinuity = continuity;
-      renderStoryAssets(story, storage, continuity);
+      renderStoryAssets(story, storage);
     } catch (error) {
       showError(scribeErrorMessage(error.message));
     }
@@ -271,7 +264,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
       remove.addEventListener('click', async () => {
         const yes = await dialogs.confirmDestructive({
           title: `Delete the cover of "${story.title}"?`,
-          body: 'Only the cover file is removed. The story, pages, cast, audiobook, and plates stay.',
+          body: 'Only the cover file is removed. The manuscript, pages, cast, audiobook, and plates stay.',
           confirmLabel: 'Delete cover',
         });
         if (!yes) return;
@@ -315,276 +308,24 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     return section;
   }
 
-  function continuityCallEstimate() {
-    return estimateContinuityCost({
-      models: state.modelsCache,
-      model: state.settings.model,
-      pageChars: state.settings.wordsPerPage * 6,
-    });
-  }
-
-  async function buildContinuity(story, storage, { rebuild = false } = {}) {
-    let view = activeContinuity || await continuityData(story.id);
-    let pages = (view?.coverage?.pages || []).filter((page) => rebuild || page.status !== 'ready');
-    const count = pages.length;
-    if (!count) {
-      showSuccess('The continuity ledger already covers every text page.');
-      return;
-    }
-    const perPage = continuityCallEstimate();
-    const estimate = perPage * count;
-    const yes = await dialogs.confirmPaid({
-      title: rebuild ? 'Rebuild this story’s continuity?' : 'Build the missing continuity?',
-      review: {
-        action: rebuild
-          ? `Discard the derived ledger for “${story.title}” and read all ${count} text pages again.`
-          : `Read ${count} missing or failed page${count === 1 ? '' : 's'} into “${story.title}”’s continuity ledger.`,
-        object: `“${story.title}” continuity`,
-        model: state.settings.model || 'the scribe’s default model',
-        quantity: `${count} compact page extraction${count === 1 ? '' : 's'}, one at a time`,
-        sends: 'each manuscript page, its author direction, cast ids, and compact prior story state',
-        estimate,
-        maximum: estimate * 2,
-        note: 'Pages are processed in order and saved after each result. You can safely close the app between pages; malformed JSON gets at most one paid correction.',
-      },
-      confirmLabel: `${rebuild ? 'Rebuild' : 'Build'} ledger (${approxCostText(estimate)})`,
-    });
-    if (!yes) return;
-
-    const section = document.getElementById('storyContinuitySection');
-    const progress = section?.querySelector('.continuity-progress');
-    for (const button of section?.querySelectorAll('button') || []) button.disabled = true;
-    try {
-      if (rebuild) {
-        if (progress) progress.textContent = 'Clearing derived memory…';
-        await apiCall(`/stories/${story.id}/continuity`, 'DELETE');
-        view = await continuityData(story.id);
-        pages = view?.coverage?.pages || [];
-      }
-      const failed = [];
-      for (let i = 0; i < pages.length; i++) {
-        const page = pages[i];
-        if (progress) progress.textContent = `Reading page ${page.page_number} · ${i + 1} of ${pages.length}`;
-        const result = await apiCall(`/stories/${story.id}/continuity/pages/${page.page_id}/sync`, 'POST', {
-          ...(state.settings.model ? { model: state.settings.model } : {}),
-        });
-        state.addCostForStory(story.id, result.memory?.cost_usd);
-        if (result.memory?.status !== 'ready') failed.push(page.page_number);
-      }
-      activeContinuity = await continuityData(story.id);
-      if (activeStoryId === story.id) renderStoryAssets(story, storage, activeContinuity);
-      if (failed.length) showError(`Continuity still needs attention on page${failed.length === 1 ? '' : 's'} ${failed.join(', ')}.`);
-      else showSuccess(`Continuity now covers ${pages.length} page${pages.length === 1 ? '' : 's'}.`);
-    } catch (error) {
-      if (typeof error.costUsd === 'number') state.addCostForStory(story.id, error.costUsd);
-      showError(scribeErrorMessage(error.message));
-      if (activeStoryId === story.id) await refreshActiveAssets();
-    }
-  }
-
-  async function saveContinuityCorrections(story, storage, section) {
-    const base = activeContinuity?.overrides || {};
-    const overrides = {
-      characters: JSON.parse(JSON.stringify(base.characters || {})),
-      goals: JSON.parse(JSON.stringify(base.goals || {})),
-      threads: JSON.parse(JSON.stringify(base.threads || {})),
-    };
-    for (const input of section.querySelectorAll('[data-continuity-character][data-continuity-field]')) {
-      const id = input.dataset.continuityCharacter;
-      const field = input.dataset.continuityField;
-      const value = input.value.trim();
-      if (value) {
-        overrides.characters[id] = { ...(overrides.characters[id] || {}), [field]: value };
-      } else if (overrides.characters[id]) {
-        delete overrides.characters[id][field];
-        if (!Object.keys(overrides.characters[id]).length) delete overrides.characters[id];
-      }
-    }
-    for (const select of section.querySelectorAll('[data-continuity-goal]')) {
-      if (select.value) overrides.goals[select.dataset.continuityGoal] = { status: select.value };
-      else delete overrides.goals[select.dataset.continuityGoal];
-    }
-    for (const select of section.querySelectorAll('[data-continuity-thread]')) {
-      if (select.value) overrides.threads[select.dataset.continuityThread] = { status: select.value };
-      else delete overrides.threads[select.dataset.continuityThread];
-    }
-    try {
-      const result = await apiCall(`/stories/${story.id}/continuity/overrides`, 'PUT', overrides);
-      activeContinuity = result.continuity;
-      renderStoryAssets(story, storage, activeContinuity);
-      showSuccess('Continuity corrections saved. Future pages will use them.');
-    } catch (error) {
-      showError(scribeErrorMessage(error.message));
-    }
-  }
-
-  function statusSelect({ value, inherited, options, dataName, dataValue, ariaLabel }) {
-    const select = document.createElement('select');
-    select.className = 'continuity-status-select';
-    select.dataset[dataName] = dataValue;
-    select.setAttribute('aria-label', ariaLabel);
-    const automatic = document.createElement('option');
-    automatic.value = '';
-    automatic.textContent = `Use ledger (${inherited})`;
-    select.appendChild(automatic);
-    for (const status of options) {
-      const option = document.createElement('option');
-      option.value = status;
-      option.textContent = status;
-      select.appendChild(option);
-    }
-    select.value = value || '';
-    return select;
-  }
-
-  function continuityBlock(story, storage, continuity) {
-    const section = assetSection('Continuity ledger');
-    section.id = 'storyContinuitySection';
-    if (!continuity?.coverage) {
-      const unavailable = document.createElement('p');
-      unavailable.className = 'bookshelf-entry__none';
-      unavailable.textContent = 'Continuity details are unavailable.';
-      section.appendChild(unavailable);
-      return section;
-    }
-
-    const coverage = continuity.coverage;
-    const info = document.createElement('p');
-    info.className = 'story-asset-info';
-    const failedCount = coverage.failed?.length || 0;
-    info.textContent = `${coverage.ready} of ${coverage.total} text pages remembered` +
-      `${failedCount ? ` · ${failedCount} failed` : ''} · ${formatUsd(coverage.memory_cost_usd || 0)} recorded extraction cost`;
-    section.appendChild(info);
-
+  function codexBlock(story) {
+    const section = assetSection('Remembered canon');
     const explanation = document.createElement('p');
     explanation.className = 'setting-hint';
-    explanation.textContent = 'Committed pages own their facts. Deleting or rewriting a page removes its facts; prepared pages own none. Blank corrections below follow the ledger.';
-    section.appendChild(explanation);
-
-    const characters = document.createElement('details');
-    const characterSummary = document.createElement('summary');
-    characterSummary.textContent = `Current character state (${continuity.characters?.length || 0})`;
-    characters.appendChild(characterSummary);
-    for (const character of continuity.characters || []) {
-      const block = document.createElement('div');
-      block.className = 'continuity-character';
-      const name = document.createElement('h4');
-      name.textContent = `${character.name} · ${character.role}`;
-      const current = character.current || {};
-      const facts = document.createElement('p');
-      const knowledge = (current.knowledge || []).slice(-20);
-      const possessions = (current.possessions || []).slice(-20);
-      facts.textContent = [
-        current.location ? `At ${current.location}` : 'Location not recorded',
-        current.condition ? `Condition: ${current.condition}` : 'No changed condition recorded',
-        knowledge.length ? `Recent knowledge: ${knowledge.join('; ')}` : null,
-        possessions.length ? `Recent possessions: ${possessions.join('; ')}` : null,
-      ].filter(Boolean).join(' · ');
-      block.append(name, facts);
-      for (const [field, labelText] of [['location', 'Correct location'], ['condition', 'Correct condition']]) {
-        const label = document.createElement('label');
-        label.textContent = labelText;
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.maxLength = 2000;
-        input.placeholder = current[field] || `No ${field} recorded`;
-        input.value = continuity.overrides?.characters?.[character.id]?.[field] || '';
-        input.dataset.continuityCharacter = character.id;
-        input.dataset.continuityField = field;
-        label.appendChild(input);
-        block.appendChild(label);
-      }
-      characters.appendChild(block);
-    }
-    section.appendChild(characters);
-
-    const goals = document.createElement('details');
-    const goalSummary = document.createElement('summary');
-    goalSummary.textContent = `Goals (${continuity.goals?.length || 0})`;
-    goals.appendChild(goalSummary);
-    for (const goal of continuity.goals || []) {
-      const row = document.createElement('div');
-      row.className = 'continuity-status-row';
-      const label = document.createElement('span');
-      label.textContent = goal.text || '(untitled goal)';
-      row.append(label, statusSelect({
-        value: continuity.overrides?.goals?.[goal.id]?.status,
-        inherited: goal.status,
-        options: ['pending', 'active', 'fulfilled', 'abandoned'],
-        dataName: 'continuityGoal',
-        dataValue: goal.id,
-        ariaLabel: `Status correction for ${goal.text || 'untitled goal'}`,
-      }));
-      goals.appendChild(row);
-    }
-    section.appendChild(goals);
-
-    const threads = document.createElement('details');
-    const threadSummary = document.createElement('summary');
-    threadSummary.textContent = `Story threads (${continuity.threads?.length || 0})`;
-    threads.appendChild(threadSummary);
-    for (const thread of continuity.threads || []) {
-      const row = document.createElement('div');
-      row.className = 'continuity-status-row';
-      const label = document.createElement('span');
-      label.textContent = thread.text || '(untitled thread)';
-      row.append(label, statusSelect({
-        value: continuity.overrides?.threads?.[thread.id]?.status,
-        inherited: thread.status,
-        options: ['open', 'resolved'],
-        dataName: 'continuityThread',
-        dataValue: thread.id,
-        ariaLabel: `Status correction for ${thread.text || 'untitled thread'}`,
-      }));
-      threads.appendChild(row);
-    }
-    section.appendChild(threads);
-
-    const events = document.createElement('details');
-    const eventSummary = document.createElement('summary');
-    const eventCount = continuity.history_counts?.events ?? continuity.events?.length ?? 0;
-    eventSummary.textContent = `Recorded events (${eventCount})`;
-    events.appendChild(eventSummary);
-    const eventList = document.createElement('ol');
-    for (const event of (continuity.events || []).slice(-30).reverse()) {
-      const item = document.createElement('li');
-      item.textContent = `Page ${event.page_number}: ${event.text}`;
-      eventList.appendChild(item);
-    }
-    if (eventList.children.length) events.appendChild(eventList);
-    section.appendChild(events);
-
-    const progress = document.createElement('p');
-    progress.className = 'continuity-progress';
-    progress.setAttribute('role', 'status');
-    section.appendChild(progress);
-
-    const actions = document.createElement('div');
-    actions.className = 'bookshelf-entry__actions';
-    const missing = (coverage.pages || []).filter((page) => page.status !== 'ready').length;
-    const build = document.createElement('button');
-    build.type = 'button';
-    build.className = 'ghost-btn';
-    build.disabled = missing === 0;
-    build.textContent = missing ? `Build ${missing} missing` : 'Memory complete';
-    build.addEventListener('click', () => buildContinuity(story, storage));
-    const rebuild = document.createElement('button');
-    rebuild.type = 'button';
-    rebuild.className = 'ghost-btn';
-    rebuild.disabled = coverage.total === 0;
-    rebuild.textContent = 'Rebuild from manuscript';
-    rebuild.addEventListener('click', () => buildContinuity(story, storage, { rebuild: true }));
-    const save = document.createElement('button');
-    save.type = 'button';
-    save.className = 'ghost-btn';
-    save.textContent = 'Save corrections';
-    save.addEventListener('click', () => saveContinuityCorrections(story, storage, section));
-    actions.append(build, rebuild, save);
-    section.appendChild(actions);
+    explanation.textContent = 'Codex is the single home for foundations, remembered facts, repair, and author corrections.';
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'ghost-btn';
+    open.textContent = 'Open Codex';
+    open.addEventListener('click', () => {
+      closeStoryAssets();
+      routeController?.navigate('codex', { storyId: story.id });
+    });
+    section.append(explanation, open);
     return section;
   }
 
-  function renderStoryAssets(story, storage, continuity = null) {
+  function renderStoryAssets(story, storage) {
     const body = document.getElementById('storyAssetsBody');
     const title = document.getElementById('storyAssetsTitle');
     const total = document.getElementById('storyAssetsTotal');
@@ -592,7 +333,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     title.textContent = story.title;
     total.textContent = `${storage.asset_count || 0} media ${storage.asset_count === 1 ? 'asset' : 'assets'} · ${formatMb(storage.disk_bytes || 0)} on disk`;
     body.textContent = '';
-    body.append(manuscriptBlock(story), coverBlock(story, storage), continuityBlock(story, storage, continuity));
+    body.append(manuscriptBlock(story), coverBlock(story, storage), codexBlock(story));
 
     const audio = assetSection('Audiobook');
     if (storage.audiobook) audio.appendChild(bookshelfAudioBlock(storage, afterModalAssetChange));
@@ -604,7 +345,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     }
     body.appendChild(audio);
 
-    const plates = assetSection(`Story art (${(storage.plates || []).length})`);
+    const plates = assetSection(`Manuscript art (${(storage.plates || []).length})`);
     if (storage.plates?.length) {
       const grid = document.createElement('div');
       grid.className = 'bookshelf-plates';
@@ -613,7 +354,7 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     } else {
       const none = document.createElement('p');
       none.className = 'bookshelf-entry__none';
-      none.textContent = 'No story art is stored.';
+      none.textContent = 'No manuscript art is stored.';
       plates.appendChild(none);
     }
     body.appendChild(plates);
@@ -621,12 +362,11 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
 
   async function openStoryAssets(story) {
     try {
-      const [data, continuity] = await Promise.all([storageData(), continuityData(story.id)]);
+      const data = await storageData();
       const storage = (data.stories || []).find((entry) => entry.id === story.id);
-      if (!storage) throw new Error('Story storage record not found');
+      if (!storage) throw new Error('Manuscript storage record not found');
       activeStoryId = story.id;
-      activeContinuity = continuity;
-      renderStoryAssets(story, storage, continuity);
+      renderStoryAssets(story, storage);
       storyAssetsModal?.open();
     } catch (error) {
       showError(scribeErrorMessage(error.message));
@@ -636,7 +376,6 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
   function closeStoryAssets() {
     storyAssetsModal?.close();
     activeStoryId = null;
-    activeContinuity = null;
   }
 
   function init() {
@@ -659,5 +398,9 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     });
   }
 
-  return { loadBookshelf, openStoryAssets, closeStoryAssets, refreshActiveAssets, init };
+  return {
+    set router(value) { routeController = value; },
+    loadBookshelf, openStoryAssets, closeStoryAssets, refreshActiveAssets, init,
+  };
 }
+
