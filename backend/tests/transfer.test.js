@@ -7,6 +7,7 @@ const { randomUUID } = require('node:crypto');
 const request = require('supertest');
 const yazl = require('yazl');
 const yauzl = require('yauzl');
+const sharp = require('sharp');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 const {
@@ -146,6 +147,65 @@ describe('portable archives and backups', () => {
   afterEach(() => {
     source.close();
     destination.close();
+  });
+
+  it('round-trips normalized art and stable placements without carrying provider consent', async () => {
+    const story = await createStory(source.app, null, [], { title: 'Portable Art' });
+    const page = await addPage(source.app, story.id, 'The anchor remains prose.');
+    const bytes = await sharp({
+      create: { width: 9, height: 7, channels: 4, background: '#553355' },
+    }).png().toBuffer();
+    const uploaded = await request(source.app)
+      .post(`/api/stories/${story.id}/assets/upload`)
+      .field('after_page_id', page.id)
+      .field('title', 'Portable illustration')
+      .field('alt_text', 'An owner-authored portable image.')
+      .field('provider_reference_allowed', 'true')
+      .attach('image', bytes, { filename: 'private-subject.png', contentType: 'image/png' })
+      .expect(201);
+
+    const exported = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: true,
+      include_audio: false, include_working_history: true,
+    });
+    const entries = await readZipEntries(exported.bytes);
+    const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+    const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+    const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+    expect(bundle.art_assets).toHaveLength(1);
+    expect(bundle.art_assets[0]).toMatchObject({
+      id: uploaded.body.asset.id,
+      source: 'uploaded',
+      media_type: 'image/webp',
+      provider_reference_allowed: false,
+    });
+    expect(bundle.art_assets[0]).not.toHaveProperty('storage_key');
+    expect(bundle.asset_placements).toEqual([
+      expect.objectContaining({ asset_id: uploaded.body.asset.id, after_page_id: page.id, ordinal: 1 }),
+    ]);
+    expect(manifest.assets).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'image', owner_kind: 'asset', owner_id: uploaded.body.asset.id, story_id: story.id }),
+    ]));
+
+    const reviewed = await preflight(destination.app, exported.bytes).expect(200);
+    await request(destination.app)
+      .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
+      .send({ mode: 'merge' })
+      .expect(200);
+    const imported = await request(destination.app).get(`/api/stories/${story.id}/assets`).expect(200);
+    expect(imported.body.assets).toHaveLength(1);
+    expect(imported.body.assets[0]).toMatchObject({
+      id: uploaded.body.asset.id,
+      title: 'Portable illustration',
+      provider_reference_allowed: false,
+    });
+    expect(imported.body.placements).toEqual([
+      expect.objectContaining({ asset_id: uploaded.body.asset.id, after_page_id: page.id, ordinal: 1 }),
+    ]);
+    await request(destination.app).get(imported.body.assets[0].content_url).expect(200)
+      .expect('Content-Type', /image\/webp/);
+    expect(destination.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value)
+      .toBe(1);
   });
 
   it('round-trips a story with its world, external cast home world, snapshots, continuity and visuals', async () => {

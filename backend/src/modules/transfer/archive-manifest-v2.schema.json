@@ -89,7 +89,7 @@
         "required": ["kind", "owner_kind", "owner_id", "story_id", "page_number", "archive_path", "media_type", "size_bytes", "sha256"],
         "properties": {
           "kind": { "enum": ["image", "audio"] },
-          "owner_kind": { "enum": ["world", "character", "story", "page"] },
+          "owner_kind": { "enum": ["world", "character", "story", "page", "asset"] },
           "owner_id": { "type": "string", "minLength": 1, "maxLength": 200 },
           "story_id": { "type": ["string", "null"] },
           "page_number": { "type": ["integer", "null"], "minimum": 1 },

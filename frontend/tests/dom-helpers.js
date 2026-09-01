@@ -134,6 +134,8 @@ function buildDom() {
         <button id="readAloudBtn" type="button">Read aloud</button>
         <button id="narrationAutoBtn" type="button" aria-pressed="false">Auto-read</button>
         <button id="imagePromptBtn" type="button">Paint scene</button>
+        <button id="uploadArtBtn" type="button">Upload art</button>
+        <input id="uploadArtInput" type="file">
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
@@ -217,7 +219,7 @@ function buildDom() {
     </div>
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
       <img id="sceneViewerImg" alt="The painted scene">
-      <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Add as page</button>
+      <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Place after page</button>
       <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
       <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
     </div>

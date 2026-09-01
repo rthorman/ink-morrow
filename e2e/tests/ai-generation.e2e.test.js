@@ -695,8 +695,8 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#imagePromptModal')).toBeHidden();
   });
 
-  test('Add as page binds the painting after the illustrated page and closes both modals', async ({ page }) => {
-    // Only the paint itself is mocked; the binding POST, the plate GET and the
+  test('Place after page keeps the painting outside prose and closes both modals', async ({ page }) => {
+    // Only the paint itself is mocked; the binding POST, asset GET and the
     // export below all hit the real server against its in-memory database.
     const PNG_1PX =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -721,7 +721,8 @@ test.describe('Scene image prompt', () => {
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
-    // Illustrate the FIRST page: the plate must land between the two prose pages
+    // Illustrate the first page: the art is displayed with it, but does not
+    // become a third narrative page.
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
     await page.locator('#imagePromptBtn').click();
@@ -734,7 +735,7 @@ test.describe('Scene image prompt', () => {
     await page.locator('#sceneViewerAddPageBtn').click();
     await expect(page.locator('#sceneImageViewerModal')).toBeHidden({ timeout: 5000 });
     await expect(page.locator('#imagePromptModal')).toBeHidden();
-    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
     // The plate renders from the real image route, not a placeholder
     const plate = page.locator('.scene-plate');
@@ -744,21 +745,21 @@ test.describe('Scene image prompt', () => {
       .toBe(true);
     await expect(plate).toHaveAttribute('alt', 'A candlelit gothic hall, frost on black stone.');
 
-    // The old second page shifted to page 3; text tools sleep on the plate
+    // Prose numbering and prose-only tools are unchanged.
     await page.locator('#nextPageBtn').click();
-    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
     await expect(page.locator('#storyContent')).toContainText('Second prose page.');
     await page.locator('#prevPageBtn').click();
-    await expect(page.locator('#readAloudBtn')).toBeDisabled();
-    await expect(page.locator('#imagePromptBtn')).toBeDisabled();
+    await expect(page.locator('#readAloudBtn')).toBeEnabled();
+    await expect(page.locator('#imagePromptBtn')).toBeEnabled();
 
     // The exported EPUB carries the plate inside the book
     const exportRes = await page.request.get(`/api/stories/${story.id}/export`);
     expect(exportRes.ok()).toBe(true);
     const book = await exportRes.body();
     const asText = book.toString('utf8');
-    expect(asText).toContain('<item id="img2" href="images/page-2.png" media-type="image/png"/>');
-    expect(asText).toContain('<img src="images/page-2.png"');
-    expect(asText).toContain('Second prose page.'); // the renumbered page survived
+    expect(asText).toContain('<item id="img1_1" href="images/page-1-art-1.webp" media-type="image/webp"/>');
+    expect(asText).toContain('<img src="images/page-1-art-1.webp"');
+    expect(asText).toContain('Second prose page.');
   });
 });

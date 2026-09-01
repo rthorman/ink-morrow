@@ -31,6 +31,9 @@ const {
   writingOperationRecord,
   preparedPageRecord,
   audiobookRecord,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
+  pick,
   semanticHash,
   sanitizeSettings,
   validId,
@@ -63,7 +66,7 @@ function mediaArchivePath(ownerKind, ownerId, filePath) {
   return `assets/images/${bucket}/${sha256(`${ownerKind}:${ownerId}`).slice(0, 24)}${extension}`;
 }
 
-function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' }) {
+function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = '3.2.0' }) {
   const worldById = db.prepare('SELECT * FROM worlds WHERE id = ?');
   const characterById = db.prepare('SELECT * FROM characters WHERE id = ?');
   const storyById = db.prepare('SELECT * FROM stories WHERE id = ?');
@@ -263,6 +266,27 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         audioFile = { path: candidate, size: fs.statSync(candidate).size, mediaType: 'audio/mpeg' };
       }
     }
+    const artAssets = options.includeVisuals
+      ? db.prepare("SELECT * FROM assets WHERE story_id = ? AND status = 'ready' ORDER BY created_at, id")
+        .all(id)
+        .filter((asset) => Boolean(artStore.fileInfo(id, asset.id)))
+        .map((asset) => ({
+          ...pick(asset, ART_ASSET_FIELDS),
+          provider_result_json: options.includeWorkingHistory ? asset.provider_result_json : null,
+          spend_usd: options.includeWorkingHistory ? asset.spend_usd : 0,
+          provider_reference_allowed: false,
+        }))
+      : [];
+    const includedAssetIds = new Set(artAssets.map((asset) => asset.id));
+    const assetPlacements = options.includeVisuals
+      ? db.prepare(`
+          SELECT * FROM asset_placements WHERE story_id = ?
+           ORDER BY CASE WHEN after_page_id IS NULL THEN 0 ELSE 1 END,
+                    after_page_id, ordinal, id
+        `).all(id)
+        .filter((placement) => includedAssetIds.has(placement.asset_id))
+        .map((placement) => pick(placement, ASSET_PLACEMENT_FIELDS))
+      : [];
     return {
       bundle: {
         record,
@@ -278,10 +302,13 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         prepared_page: preparedPage,
         preview,
         audiobook,
+        art_assets: artAssets,
+        asset_placements: assetPlacements,
       },
       cover,
       pageImages,
       audioFile,
+      artAssets,
     };
   }
 
@@ -335,7 +362,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       await addImageAsset(assets, { ownerKind: 'character', ownerId: id, file: image });
     }
     for (const id of selection.stories) {
-      const { bundle, cover, pageImages, audioFile } = buildStoryBundle(id, options);
+      const { bundle, cover, pageImages, audioFile, artAssets } = buildStoryBundle(id, options);
       const dependencies = [];
       if (bundle.record.world_id) dependencies.push({ kind: 'world', id: bundle.record.world_id });
       for (const cast of bundle.record.characters) dependencies.push({ kind: 'character', id: cast.id });
@@ -349,6 +376,14 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
           storyId: id,
           pageNumber: page.page_number,
           file: pageImages.get(page.id),
+        });
+      }
+      for (const asset of artAssets) {
+        await addImageAsset(assets, {
+          ownerKind: 'asset',
+          ownerId: asset.id,
+          storyId: id,
+          file: artStore.fileInfo(id, asset.id),
         });
       }
       if (audioFile) {

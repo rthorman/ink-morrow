@@ -113,7 +113,7 @@ test.describe('Audiobook', () => {
     await expect(page.locator('#audiobookBanner')).toBeHidden();
   });
 
-  test('the Bookshelf lists a tale\u2019s plates; deleting one renumbers the open tale', async ({ page }) => {
+  test('the Bookshelf lists story art; deleting it keeps prose numbering', async ({ page }) => {
     page.on('dialog', (dialog) => dialog.accept());
 
     const story = await createStoryViaUi(page, 'Bookshelf Test');
@@ -123,7 +123,7 @@ test.describe('Audiobook', () => {
       image: PNG_1PX, media_type: 'image/png', prompt: 'A candlelit hall.',
     });
     await page.selectOption('#currentStory', story.id);
-    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     await page.locator('#libraryBtn').click();
     await page.locator('#libraryBookshelfTab').click();
@@ -136,14 +136,13 @@ test.describe('Audiobook', () => {
       .poll(() => entry.locator('.bookshelf-plate img').evaluate((el) => el.complete && el.naturalWidth > 0), { timeout: 5000 })
       .toBe(true);
 
-    // Deleting the plate is deleting a real page: confirm the shared
-    // destructive dialog, then the open reader renumbers
+    // Deleting art removes its placements but leaves the manuscript intact.
     await entry.locator('.bookshelf-plate button', { hasText: 'Delete' }).click();
     await expect(page.locator('.dialog-manager')).toBeVisible();
-    await expect(page.locator('.dialog-manager__body')).toContainText('renumbers');
-    await page.locator('.dialog-manager button', { hasText: 'Delete page 2' }).click();
+    await expect(page.locator('.dialog-manager__body')).toContainText('numbering stay unchanged');
+    await page.locator('.dialog-manager button', { hasText: 'Delete art' }).click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(entry.locator('.bookshelf-plate')).toHaveCount(0);
-    await expect(entry).toContainText('No plates kept');
+    await expect(entry).toContainText('No story art kept');
   });
 });

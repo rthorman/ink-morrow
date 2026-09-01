@@ -224,7 +224,7 @@ pull_requests:
   - id: "06"
     slug: writing-transactions
     title: Transactional writing state machine
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "05"

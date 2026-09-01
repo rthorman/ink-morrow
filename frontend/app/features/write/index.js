@@ -110,12 +110,17 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const storyId = state.data.currentStory.id;
     const token = ++storyLoadToken;
     try {
-      const [pagesResult, previewResult] = await Promise.all([
+      const [pagesResult, previewResult, assetsResult] = await Promise.all([
         apiCall(`/stories/${storyId}/pages`),
         apiCall(`/stories/${storyId}/pages/preview`).catch(() => ({ preview: null })),
+        apiCall(`/stories/${storyId}/assets`),
       ]);
       if (token !== storyLoadToken || state.data.currentStory?.id !== storyId) return;
       state.data.storyPages = pagesResult.pages || [];
+      state.data.storyAssets = {
+        assets: assetsResult.assets || [],
+        placements: assetsResult.placements || [],
+      };
       state.data.currentPage = Math.max(1, state.data.storyPages.length);
       displayCurrentPage();
       state.resetStoryCost();
@@ -127,7 +132,44 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       if (token !== storyLoadToken || state.data.currentStory?.id !== storyId) return;
       showError(error.message);
       state.data.storyPages = [];
+      state.data.storyAssets = { assets: [], placements: [] };
       displayCurrentPage();
+    }
+  }
+
+  async function refreshStoryAssets(storyId = state.data.currentStory?.id) {
+    if (!storyId) return;
+    const result = await apiCall(`/stories/${storyId}/assets`);
+    if (state.data.currentStory?.id !== storyId) return;
+    state.data.storyAssets = {
+      assets: result.assets || [],
+      placements: result.placements || [],
+    };
+    displayCurrentPage();
+  }
+
+  function appendPlacedArt(contentDiv, afterPageId) {
+    const assets = new Map((state.data.storyAssets?.assets || []).map((asset) => [asset.id, asset]));
+    const placements = (state.data.storyAssets?.placements || [])
+      .filter((placement) => (placement.after_page_id || null) === (afterPageId || null))
+      .sort((left, right) => left.ordinal - right.ordinal);
+    for (const placement of placements) {
+      const asset = assets.get(placement.asset_id);
+      if (!asset || asset.status !== 'ready' || !asset.content_url) continue;
+      const figure = document.createElement('figure');
+      figure.className = 'placed-art';
+      figure.dataset.placementId = placement.id;
+      const image = document.createElement('img');
+      image.className = 'scene-plate';
+      image.src = asset.content_url;
+      image.alt = asset.alt_text || asset.title || 'Story illustration';
+      figure.appendChild(image);
+      if (asset.title) {
+        const caption = document.createElement('figcaption');
+        caption.textContent = asset.title;
+        figure.appendChild(caption);
+      }
+      contentDiv.appendChild(figure);
     }
   }
 
@@ -166,33 +208,26 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     const page = storyPages.length > 0 ? storyPages.find((p) => p.page_number === currentPage) : null;
 
     if (storyPages.length === 0) {
+      appendPlacedArt(contentDiv, null);
       const placeholder = document.createElement('p');
       placeholder.className = 'placeholder';
       placeholder.textContent = 'This story has no pages yet. Give the scribe a direction below…';
       contentDiv.appendChild(placeholder);
     } else if (page) {
-      if (page.image_media_type) {
-        // A bound painting: the page IS the picture.
-        const plate = document.createElement('img');
-        plate.className = 'scene-plate';
-        plate.src = `/api/stories/${currentStory.id}/pages/${currentPage}/image`;
-        plate.alt = page.image_prompt || 'A painted scene plate';
-        contentDiv.appendChild(plate);
-      } else {
-        const para = document.createElement('p');
-        para.textContent = page.content;
-        contentDiv.appendChild(para);
-      }
+      if (currentPage === 1) appendPlacedArt(contentDiv, null);
+      const para = document.createElement('p');
+      para.textContent = page.content;
+      contentDiv.appendChild(para);
       const direction = document.createElement('div');
       direction.className = 'page-direction';
       direction.textContent = page.user_input ? `↳ direction: ${page.user_input}` : '';
       contentDiv.appendChild(direction);
+      appendPlacedArt(contentDiv, page.id);
     }
 
     prevBtn.disabled = generating || currentPage <= 1;
     nextBtn.disabled = generating || currentPage >= storyPages.length;
-    // A plate has no prose to rewrite: retrying it would paint text over a picture.
-    retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length || Boolean(page && page.image_media_type);
+    retryBtn.disabled = generating || storyPages.length === 0 || currentPage !== storyPages.length;
     deletePageBtn.disabled = generating || storyPages.length === 0 || currentPage > storyPages.length;
     // Export and audiobook are story-level actions: they wake with a tale.
     document.getElementById('exportBtn').disabled = false;
@@ -245,18 +280,19 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (generateBtn) generateBtn.disabled = state.data.generating || !enabled;
   }
 
-  // Narration and illustration need a real page to work on, and hold still
-  // while the scribe writes a new one. A bound plate has no text to narrate
-  // or condense, so those buttons sleep on image pages.
+  // Narration and AI illustration need a real prose page. Local upload only
+  // needs a story and can place art before its first page.
   function updatePageActionButtons() {
-    const { currentStory, currentPage, storyPages, generating } = state.data;
-    const page = storyPages.length > 0 ? storyPages.find((p) => p.page_number === currentPage) : null;
+    const { currentStory, storyPages, generating } = state.data;
     const usable = Boolean(currentStory) && storyPages.length > 0 && !generating;
-    const textual = usable && !(page && page.image_media_type);
     for (const id of ['readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn']) {
       const btn = document.getElementById(id);
-      if (btn) btn.disabled = !textual;
+      if (btn) btn.disabled = !usable;
     }
+    const upload = document.getElementById('uploadArtBtn');
+    if (upload) upload.disabled = !currentStory || generating;
+    const input = document.getElementById('uploadArtInput');
+    if (input) input.disabled = !currentStory || generating;
   }
 
   function setPastPageBar(visible, pageNumber, pagesAfter) {
@@ -290,12 +326,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (!currentStory || storyPages.length === 0 || generating) return;
     const page = storyPages.find((p) => p.page_number === currentPage);
     if (!page) return;
-    const isPlate = Boolean(page.image_media_type);
     const yes = await dialogs.confirmDestructive({
       title: `Delete page ${currentPage}?`,
-      body: isPlate
-        ? `Page ${currentPage} of "${currentStory.title}" is a painted plate. It will be permanently deleted; later pages move up to close the gap.`
-        : `Page ${currentPage} of "${currentStory.title}" will be permanently deleted and later pages move up to close the gap. This cannot be undone.`,
+      body: `Page ${currentPage} of "${currentStory.title}" will be permanently deleted and later pages move up to close the gap. Placed art remains in the Gallery but is unplaced. This cannot be undone.`,
       confirmLabel: `Delete page ${currentPage}`,
     });
     if (!yes) return;
@@ -344,7 +377,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     dialogs
       .confirmDestructive({
         title: `Delete ${after} later ${after === 1 ? 'page' : 'pages'}?`,
-        body: `${range} of "${currentStory.title}" will be permanently removed. Any painted plates among them will also be deleted, and page ${currentPage} becomes the end of the story.`,
+        body: `${range} of "${currentStory.title}" will be permanently removed. Art anchored there remains in the Gallery but is unplaced, and page ${currentPage} becomes the end of the story.`,
         confirmLabel: `Delete ${after} ${after === 1 ? 'page' : 'pages'}`,
       })
       .then((yes) => {
@@ -371,10 +404,49 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     }
   }
 
+  async function uploadArt(file) {
+    const { currentStory, currentPage, storyPages, generating } = state.data;
+    if (!currentStory || !file || generating) return;
+    const page = storyPages.find((entry) => entry.page_number === currentPage) || null;
+    const form = new FormData();
+    form.append('image', file, file.name || 'upload');
+    form.append('after_page_id', page?.id || '');
+    form.append('provider_reference_allowed', 'false');
+    const button = document.getElementById('uploadArtBtn');
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Uploading…';
+    }
+    try {
+      const response = await apiFetch(`/api/stories/${currentStory.id}/assets/upload`, {
+        method: 'POST',
+        body: form,
+      });
+      let body = null;
+      try { body = await response.json(); } catch { /* error below has a safe fallback */ }
+      if (!response.ok) throw new Error(body?.error || `Upload failed (${response.status})`);
+      await refreshStoryAssets(currentStory.id);
+      showSuccess(page ? `Art placed after page ${page.page_number}.` : 'Art placed before the first page.');
+      shell.checkDiskSpace();
+      return body;
+    } catch (error) {
+      showError(error.message);
+      return null;
+    } finally {
+      if (button) {
+        button.disabled = !state.data.currentStory || state.data.generating;
+        button.textContent = 'Upload art';
+      }
+      const input = document.getElementById('uploadArtInput');
+      if (input) input.value = '';
+    }
+  }
+
   function resetStoryReader() {
     storyLoadToken++;
     features.generation.resetForStoryChange();
     state.data.storyPages = [];
+    state.data.storyAssets = { assets: [], placements: [] };
     state.data.currentPage = 1;
     displayCurrentPage();
     state.resetStoryCost();
@@ -397,6 +469,13 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     document.getElementById('deletePageBtn').addEventListener('click', deleteCurrentPage);
     document.getElementById('prevPageBtn').addEventListener('click', () => navigatePage(-1));
     document.getElementById('nextPageBtn').addEventListener('click', () => navigatePage(1));
+    const uploadButton = document.getElementById('uploadArtBtn');
+    const uploadInput = document.getElementById('uploadArtInput');
+    uploadButton?.addEventListener('click', () => uploadInput?.click());
+    uploadInput?.addEventListener('change', () => {
+      const file = uploadInput.files?.[0];
+      if (file) uploadArt(file);
+    });
 
     const deleteAfter = document.getElementById('deleteAfterBtn');
     if (deleteAfter) {
@@ -434,6 +513,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     enterFromRoute,
     handleStorySelection,
     loadStoryPages,
+    refreshStoryAssets,
     displayCurrentPage,
     setWritingEnabled,
     updatePageActionButtons,
@@ -443,6 +523,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     openBurnModal,
     closeBurnModal,
     burnAfterCurrentPage,
+    uploadArt,
     resetStoryReader,
     resetAfterStoryDeletion,
     __setStoryState(patch) {
@@ -453,6 +534,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       }
       if ('currentPage' in patch) state.data.currentPage = patch.currentPage;
       if ('storyPages' in patch) state.data.storyPages = patch.storyPages;
+      if ('storyAssets' in patch) state.data.storyAssets = patch.storyAssets;
     },
     init,
   };

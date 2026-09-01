@@ -97,6 +97,14 @@ const AUDIOBOOK_FIELDS = [
   'size_bytes', 'duration_s', 'cost_usd', 'fingerprint', 'error',
   'created_at', 'updated_at',
 ];
+const ART_ASSET_FIELDS = [
+  'id', 'story_id', 'source', 'status', 'source_media_type', 'media_type',
+  'sha256', 'size_bytes', 'width', 'height', 'title', 'alt_text',
+  'metadata_json', 'provider_result_json', 'spend_usd', 'created_at', 'updated_at',
+];
+const ASSET_PLACEMENT_FIELDS = [
+  'id', 'story_id', 'asset_id', 'after_page_id', 'ordinal', 'created_at', 'updated_at',
+];
 
 function pick(row, fields) {
   const result = {};
@@ -279,7 +287,7 @@ function without(object, keys) {
 // own primary id, and transient image status. Story pages are compared by
 // order; dependency ids remain meaningful so differently linked graphs are
 // never collapsed into one collision result.
-function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
+function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore = true } = {}) {
   if (kind === 'world') {
     return without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
@@ -350,6 +358,15 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
       })),
     };
   });
+  const assetIndexById = new Map((bundle.art_assets || []).map((asset, index) => [asset.id, index + 1]));
+  const semanticAssets = (bundle.art_assets || []).map((asset) => without(asset, [
+    'id', 'story_id', 'created_at', 'updated_at', 'provider_reference_allowed',
+  ]));
+  const semanticPlacements = (bundle.asset_placements || []).map((placement) => ({
+    asset: assetIndexById.get(placement.asset_id) || null,
+    after_page_number: pageNumberById.get(placement.after_page_id) || null,
+    ordinal: placement.ordinal,
+  }));
   return {
     record: without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
@@ -358,6 +375,10 @@ function semanticEntity(kind, bundle, { includeHierarchy = true } = {}) {
     pages: (bundle.pages || []).map((page) => without(page, ['id', 'story_id', 'created_at'])),
     ...(includeHierarchy ? { hierarchy: semanticHierarchy } : {}),
     revisions: semanticRevisions,
+    ...(includeArtStore ? {
+      art_assets: semanticAssets,
+      asset_placements: semanticPlacements,
+    } : {}),
     snapshots: (bundle.snapshots || []).map((row) => without(row, ['story_id', 'created_at'])),
     template_snapshots: (bundle.template_snapshots || []).map((row) => without(row, ['id', 'story_id', 'created_at'])),
     memory: (bundle.memory || []).map((row) => ({
@@ -467,6 +488,8 @@ module.exports = {
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
   pick,
   canonicalJson,
   jsonBuffer,

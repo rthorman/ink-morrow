@@ -15,8 +15,8 @@ archive. PR 01 establishes the v2 identity and strict manifest scaffold; later
 |---|---|---|
 | Character | Character and their home world, if any | Paintings; working history (normally off); audio remains visible but has no effect because a character has none |
 | World | World | None, some, or all characters whose catalogue home is that world; paintings; working history; audio remains visible but has no effect |
-| Story | Story, every committed page/revision, ready revision continuity, author corrections, story-local world/cast snapshots, story world, every current cast member, and each cast member's different home world | Paintings/plates; audiobook MP3; working history |
-| Full backup | Every world, character, story, page/revision, ready continuity delta, correction, template snapshot, and sanitized device setting | Paintings/plates; audiobook MP3; working history |
+| Story | Story, every committed page/revision, ready revision continuity, author corrections, story-local world/cast snapshots, story world, every current cast member, and each cast member's different home world | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
+| Full backup | Every world, character, story, page/revision, ready continuity delta, correction, template snapshot, and sanitized device setting | Normalized story art plus its noncanonical placements; catalogue paintings/covers; audiobook MP3; working history |
 
 Story continuity is functional data, not optional history. A story would narrate differently without it, so ready current-revision deltas, story-local templates, and author corrections always travel. Immutable page-revision ancestry and canonical/display pointers are likewise authored manuscript evidence and always travel. Prepared pages are not committed story state and travel only with working history. Truncation-recovery suffixes and undo credentials are private local safety state and never enter portable archives.
 
@@ -68,6 +68,7 @@ assets/
   images/characters/*
   images/covers/*
   images/pages/*
+  images/assets/*
   audio/*.mp3
 ```
 
@@ -79,7 +80,11 @@ JSON is an aggregate containing its story row, ordered volume/chapter/page
 hierarchy, immutable revision ancestry with canonical/display pointers,
 temporary ordered compatibility prose rows, story-local world/cast snapshots, continuity
 rows, optional redacted writing operations and prepared page, and optional
-ready-audiobook metadata. Writer-session and lease identities never travel.
+ready-audiobook metadata. When visuals are included, schema-7 story aggregates
+also carry ready art-asset metadata and ordered placements anchored to stable
+prose page IDs, while the manifest owns each normalized derivative as an
+`asset` image. Random local storage keys and provider-reference consent never
+travel. Writer-session and lease identities never travel.
 Hierarchy identities and scoped ordinals are functional manuscript data, not
 working history, so they always travel. Derived continuity search/FTS rows,
 projection checkpoints, and impact issues are not exported; they are rebuilt locally from verified revision deltas during
@@ -109,7 +114,7 @@ Each top-level entity receives one classification:
 
 “Identical” ignores timestamps, an entity's own primary ID, and story-page IDs (pages are compared in manuscript order), but retains dependency identities so differently linked graphs are not collapsed. It compares the meaningful fields, ordered manuscript, snapshots, continuity, optional working history, and every media file selected for this archive. If visuals or audio were deliberately left out, that omitted category does not create a collision.
 
-ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, and any prepared page; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, plate, cover, and audiobook reference is remapped as one dependency graph. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
+ScribeTribe does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, any prepared page, art assets, and art placements; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, cover, art anchor, and audiobook reference is remapped as one dependency graph. Imported art receives fresh random local storage names and provider-reference consent resets to false. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
 
 ## Merge and full restore
 

@@ -23,6 +23,8 @@ const {
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
   ARCHIVE_EXTENSION,
   semanticHash,
   sanitizeSettings,
@@ -112,6 +114,7 @@ function createTransferService({
   db,
   planner,
   imageStore,
+  artStore,
   audioDir,
   audiobooks,
   writingTransactions,
@@ -245,6 +248,13 @@ function createTransferService({
         const story = byKey.get(`story:${asset.story_id}`);
         const page = story?.bundle.pages.find((entry) => entry.id === asset.owner_id);
         if (!page || page.image_media_type !== asset.media_type) throw httpError('Archive plate is not attached to a matching story page');
+      } else if (asset.owner_kind === 'asset') {
+        const story = byKey.get(`story:${asset.story_id}`);
+        const art = story?.bundle.art_assets?.find((entry) => entry.id === asset.owner_id);
+        if (!art || asset.kind !== 'image' || art.media_type !== asset.media_type ||
+            art.sha256 !== asset.sha256 || art.size_bytes !== asset.size_bytes) {
+          throw httpError('Archive art media is not attached to a matching story asset');
+        }
       } else {
         const entity = byKey.get(`${asset.owner_kind}:${asset.owner_id}`);
         if (!entity || entity.bundle.record.image_media_type !== asset.media_type) {
@@ -255,6 +265,11 @@ function createTransferService({
     for (const entity of imported.entities.filter((item) => item.kind === 'story')) {
       if (entity.bundle.audiobook && !mediaOwners.has(`audio:story:${entity.id}`)) {
         throw httpError('Archive audiobook metadata has no audio file');
+      }
+      for (const art of entity.bundle.art_assets || []) {
+        if (!mediaOwners.has(`image:asset:${art.id}`)) {
+          throw httpError('Archive art metadata has no normalized media file');
+        }
       }
     }
   }
@@ -278,6 +293,15 @@ function createTransferService({
           const asset = local ? imageStore.fileInfo('page', page.id) : imported.assets.find((item) =>
             item.kind === 'image' && item.owner_kind === 'page' && item.story_id === entity.id && item.page_number === page.page_number);
           descriptors.push([`page:${page.page_number}`, asset ? (local ? await hashFile(asset.path) : asset.sha256) : null]);
+        }
+        const artAssets = local
+          ? db.prepare("SELECT id FROM assets WHERE story_id = ? AND status = 'ready' ORDER BY created_at, id").all(id)
+          : (entity.bundle.art_assets || []);
+        for (const [index, art] of artAssets.entries()) {
+          const asset = local ? artStore.fileInfo(id, art.id) : imported.assets.find((item) =>
+            item.kind === 'image' && item.owner_kind === 'asset' && item.owner_id === art.id &&
+            item.story_id === entity.id);
+          descriptors.push([`art:${index + 1}`, asset ? (local ? await hashFile(asset.path) : asset.sha256) : null]);
         }
       }
     }
@@ -304,6 +328,7 @@ function createTransferService({
         const bundle = planner.localBundle(kind, id, options);
         hashes.set(key, semanticHash(kind, bundle, {
           includeHierarchy: imported.manifest.database_schema.version >= 2,
+          includeArtStore: imported.manifest.database_schema.version >= 7,
         }));
       }
       return hashes.get(key);
@@ -464,6 +489,7 @@ function createTransferService({
     const maps = {
       world: new Map(), character: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), page: new Map(), revision: new Map(),
+      asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
     const reservedNames = { world: new Set(), character: new Set(), story: new Set() };
     const copiedNames = new Map();
@@ -517,6 +543,20 @@ function createTransferService({
         if (action.action === 'copy' || (existing && existing.page_id !== revision.page_id)) id = randomUUID();
         maps.revision.set(revision.id, id);
       }
+      const targetStoryId = maps.story.get(entity.id);
+      for (const asset of entity.bundle.art_assets || []) {
+        let id = asset.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM assets WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== targetStoryId)) id = randomUUID();
+        maps.asset.set(asset.id, id);
+        maps.assetStorage.set(asset.id, `${randomUUID()}.webp`);
+      }
+      for (const placement of entity.bundle.asset_placements || []) {
+        let id = placement.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM asset_placements WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== targetStoryId)) id = randomUUID();
+        maps.placement.set(placement.id, id);
+      }
     }
     return { mode, actions, maps, copiedNames };
   }
@@ -525,6 +565,10 @@ function createTransferService({
     if (asset.kind === 'audio') {
       const storyId = maps.story.get(asset.story_id || asset.owner_id);
       return storyId ? path.join(audioDir, `${storyId}.mp3`) : null;
+    }
+    if (asset.owner_kind === 'asset') {
+      const storageKey = maps.assetStorage.get(asset.owner_id);
+      return storageKey ? artStore.importTarget(storageKey) : null;
     }
     const mappedId = asset.owner_kind === 'page'
       ? maps.page.get(asset.owner_id)
@@ -546,6 +590,7 @@ function createTransferService({
         paths.push(...imageStore.pathsFor('story', entity.id));
         const oldPages = db.prepare('SELECT id FROM story_pages WHERE story_id = ?').all(entity.id);
         for (const page of oldPages) paths.push(...imageStore.pathsFor('page', page.id));
+        paths.push(...artStore.pathsForStory(entity.id));
         paths.push(path.join(audioDir, `${entity.id}.mp3`), path.join(audioDir, `${entity.id}.mp3.tmp`));
       }
     }
@@ -560,7 +605,7 @@ function createTransferService({
     const operations = [];
     try {
       for (const asset of session.imported.assets) {
-        const ownerKey = asset.owner_kind === 'page'
+        const ownerKey = ['page', 'asset'].includes(asset.owner_kind)
           ? `story:${asset.story_id}`
           : `${asset.owner_kind}:${asset.owner_id}`;
         const action = resolved.actions.get(ownerKey);
@@ -765,6 +810,30 @@ function createTransferService({
           );
           setPointers.run(revisionId, revisionId, page.id);
         }
+      }
+      for (const assetSource of entity.bundle.art_assets || []) {
+        const asset = {
+          ...assetSource,
+          id: maps.asset.get(assetSource.id),
+          story_id: storyId,
+          storage_key: maps.assetStorage.get(assetSource.id),
+          provider_reference_allowed: 0,
+        };
+        insertOrUpdate(db, 'assets', asset, [
+          ...ART_ASSET_FIELDS, 'storage_key', 'provider_reference_allowed',
+        ]);
+      }
+      for (const placementSource of entity.bundle.asset_placements || []) {
+        const placement = {
+          ...placementSource,
+          id: maps.placement.get(placementSource.id),
+          story_id: storyId,
+          asset_id: maps.asset.get(placementSource.asset_id),
+          after_page_id: placementSource.after_page_id
+            ? maps.page.get(placementSource.after_page_id)
+            : null,
+        };
+        insertOrUpdate(db, 'asset_placements', placement, ASSET_PLACEMENT_FIELDS);
       }
       for (const snapshotSource of entity.bundle.snapshots) {
         const snapshot = {

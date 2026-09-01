@@ -11,9 +11,10 @@ An interactive fiction writing tool with reusable worlds and characters, a gothi
 
 The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
 manuscript hierarchy, PR 03's immutable revisions and truncation recovery,
-PR 04's provider profiles, AI roles, and encrypted secret vault, and PR 05's
-revision-provenanced continuity ledger. Its databases identify themselves as
-`scribetribe-4` schema 5, use transactional migrations
+PR 04's provider profiles, AI roles, and encrypted secret vault, PR 05's
+revision-provenanced continuity ledger, PR 06's transactional writing state
+machine, and PR 07's noncanonical art store and safe upload boundary. Its
+databases identify themselves as `scribetribe-4` schema 7, use transactional migrations
 and an operation journal, create Volume I and Chapter I with every story,
 preserve separate canonical/display prose, and refuse 3.x files before
 modifying them. Later 4.0 features remain unavailable until their PRs land;
@@ -21,6 +22,10 @@ modifying them. Later 4.0 features remain unavailable until their PRs land;
 strict version-2 deltas and quoted evidence to canonical revisions, keeps
 copyedits display-only, folds through sparse deterministic checkpoints, and
 supports reviewed template imports plus impact-aware author corrections.
+PR 07 stores uploaded and generated story art outside the prose hierarchy,
+anchors placements to stable page IDs, and normalizes streamed uploads without
+semantic classification or provider use. Art operations never renumber prose
+or change continuity; see [docs/art-assets.md](docs/art-assets.md).
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 
@@ -88,10 +93,10 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Long-form continuity** — casting freezes a story-local character snapshot; each committed page contributes a separately extracted, page-linked delta. Character location, condition, knowledge, possessions, appearance, personality and relationships fold together with goals, threads, world facts and durable events. The Library inspector shows coverage/current state/history, repairs failed or legacy pages sequentially, and permits small author corrections
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot, regeneration (with its approximate cost) sits in each card's **More** menu, and creation offers both *Create and paint (≈$…)* and *Create without image*
-- **Story catalogue and covers** — Library → Stories shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted stories get an honest empty-cover state and an explicit paid Paint action; opening the card manages that story's EPUB, cover, audiobook, and plates in one place
+- **Story catalogue and covers** — Library → Stories shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted stories get an honest empty-cover state and an explicit paid Paint action; opening the card manages that story's EPUB, cover, audiobook, and story art in one place
 - **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
 - **Canonical worlds, frozen casting** — stories reference the one live world: edit it and future pages follow. Characters are copied once when cast, then page-linked continuity and explicit manual overrides evolve that story-local identity without rewriting the reusable catalogue sheet
-- **Scene illustration** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, with the cast's portraits riding along as identity references; the painting opens in a zoomable, pannable popup with ghost Save/Close buttons. Choose 1K·low (fast, ≈$0.04) or 2K·medium (finest, ≈$0.08) before painting. Prompts are composed renderable in every tone — even 18+ implies artfully, since the image model refuses explicit content wholesale. When the moderator refuses, nothing repaints silently: the scribe rewrites the prompt aggressively safe, announces it, puts it back in the box, and waits for your press — and a second refusal drops the cast portraits (paintings made from forced-nudity sheets offend moderation on their own, no matter how clean the text). **Add as page** binds any painting into the story as an image page right after the one it illustrates — a book plate among the prose, later pages renumber, and it travels inside the EPUB export
+- **Scene illustration and upload** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, or upload owner-selected art without an AI call or subject classification. **Place after page** stores either result as noncanonical story art anchored to the stable prose page; page numbering, continuity, and prepared prose remain unchanged. Uploads are streamed through bounded private staging, decoded and normalized to metadata-free WebP, and never cross a provider boundary unless later selected explicitly with per-asset permission
 - **Per-story maturity setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+), selected when the story is created at Write
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — the selected model—and the server default before any override—exposes its own declared reasoning ladder in Settings, including lower or higher levels when OpenRouter advertises them, with room in the token budget to think
@@ -99,10 +104,10 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
 - **Bounded context retrieval** — the AI gets recent pages verbatim, compact folded state, resolved/active goals and threads, and a few FTS-relevant older memories. Raw old pages are not repeatedly resent, so long stories stay within a predictable prompt budget
 - **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
-- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range, and deleting any single page renumbers the rest transactionally (page IDs, prose, and painted plates keep their identity; the numbering stays a contiguous 1..N)
+- **Read-only history** — earlier pages can't be edited; "Delete later pages" trims the tale through a destructive dialog that names the exact page count and range, and deleting any single page renumbers the remaining prose transactionally. Art anchored to removed pages stays stored but becomes unplaced
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
-- **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and painted scene plates; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and plates
+- **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and story art; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and art
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
@@ -114,16 +119,16 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 ## Requirements
 
-- Node.js **>= 22.5** (uses the built-in `node:sqlite` — no native builds needed, works great on Termux)
+- Node.js **>= 22.5** (uses the built-in `node:sqlite`; safe image normalization uses Sharp's platform package with an explicit WebAssembly fallback for unsupported runtimes)
 - An [OpenRouter](https://openrouter.ai) API key (or any OpenAI-compatible endpoint)
 
 ## Tested on Android / Termux
 
-This tool was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. The whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment, and was verified there:
+The shipped 3.2.2 line was **created and tested on an Android tablet running [Termux](https://termux.dev)** — no PC involved. Its whole stack (Node server, SQLite database, and the full Jest test suite) runs natively in that environment. The 4.0 line retains Termux as a supported release target and adds a WebAssembly image-decoder fallback; its on-device release evidence is recorded at the beta-hardening gate:
 
 - The complete backend and frontend Jest suites pass on-device under Termux
 - The server boots, serves the gothic UI, and generates story pages against a live OpenRouter key — all from Termux
-- No native module compilation is required at any point (that's why the project uses the built-in `node:sqlite` instead of the `sqlite3` npm package)
+- No SQLite native-module compilation is required; the art pipeline can use its packaged WebAssembly fallback when a native Sharp binary is unavailable
 - Test scripts invoke Jest as `node node_modules/jest/bin/jest.js`, which sidesteps Termux's broken `.bin` shebangs — `npm test` just works
 
 The Playwright e2e suite also runs on Termux — both projects (desktop and mobile viewports) — using the native Termux Chromium package, since Playwright's browser downloader does not support Android. `AGENTS.md` documents the one-line patch and setup; on a PC it works out of the box.
@@ -295,8 +300,14 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | PUT | `/api/stories/:id/continuity/overrides` | Save explicit character/goal/thread corrections |
 | POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
 | POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; drop_references=true omits them). A moderation refusal returns `{refused, reason, sanitized_prompt}` instead of repainting — the client announces and waits for a fresh press |
-| POST | `/api/stories/:id/pages/:n/image-page` | Bind a painted scene into the story as an image page right after page N (later pages renumber); body: `{image (base64), media_type, prompt?, cost_usd?}` |
-| GET | `/api/stories/:id/pages/:n/image` | Fetch the painted plate of an image page (404 for text pages) |
+| POST | `/api/stories/:id/pages/:n/image-page` | Compatibility route: normalize a painted scene into an AI-generated asset placed after stable prose page N; prose numbering is unchanged |
+| GET | `/api/stories/:id/assets` | List a story's noncanonical art assets and ordered placements |
+| POST | `/api/stories/:id/assets/upload` | Stream a multipart `image` upload into the safe art store; optional fields include `title`, `alt_text`, `after_page_id`, `ordinal`, and `provider_reference_allowed` |
+| PATCH/DELETE | `/api/stories/:id/assets/:assetId` | Update art metadata/reference permission, or delete an asset and all placements |
+| GET | `/api/stories/:id/assets/:assetId/content` | Read the private normalized derivative; `?download=1` downloads it |
+| POST | `/api/stories/:id/assets/:assetId/placements` | Place an asset before the first page or after a stable page ID |
+| PATCH/DELETE | `/api/stories/:id/placements/:placementId` | Move/reorder or unplace noncanonical art |
+| GET | `/api/stories/:id/pages/:n/image` | Compatibility fetch for the first art placement after prose page N |
 | GET/POST | `/api/characters/:id/image` | Fetch the reference portrait / regenerate it in the background |
 | GET/POST | `/api/worlds/:id/image` | Fetch the world scene / regenerate it in the background |
 | GET | `/api/stories/:id/export` | Download the full story as an EPUB |
@@ -304,7 +315,7 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | POST/GET/DELETE | `/api/stories/:id/audiobook` | Start (one global queue, rejects pcm-only narrators) / poll (status, progress, staleness, queue position) / remove a whole-story mp3 |
 | POST | `/api/stories/:id/audiobook/cancel` | Stop the pending or running reading |
 | GET | `/api/stories/:id/audiobook/audio` | Download the finished audiobook (attachment) |
-| GET | `/api/storage` | Per-story excerpt, measured media bytes/count, cover, audiobook, and scene-plate metadata for Library |
+| GET | `/api/storage` | Per-story excerpt, measured media bytes/count, cover, audiobook, and story-art metadata for Library |
 | POST | `/api/transfers/exports/plan` | Resolve an export scope/dependencies and return its exposure review plus a short-lived download token |
 | GET | `/api/transfers/exports/:token` | Stream the reviewed v2 `.scribetribe` project archive |
 | POST | `/api/transfers/imports/preflight` | Stage and verify a multipart archive, then classify collisions without writing local data |

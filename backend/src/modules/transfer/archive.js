@@ -33,6 +33,8 @@ const {
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
   semanticHash,
   validId,
 } = require('./format');
@@ -274,7 +276,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   assertKnown(bundle, meta.kind === 'story'
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
         'memory', 'continuity_deltas', 'corrections', 'writing_operations',
-        'prepared_page', 'preview', 'audiobook']
+        'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -554,6 +556,53 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     throw httpError('Story archive contains an invalid audiobook record');
   }
   if (bundle.audiobook) assertKnown(bundle.audiobook, AUDIOBOOK_FIELDS, 'Audiobook record');
+  const artAssets = bundle.art_assets || [];
+  const assetPlacements = bundle.asset_placements || [];
+  if (databaseSchemaVersion >= 7 &&
+      (!Array.isArray(bundle.art_assets) || !Array.isArray(bundle.asset_placements))) {
+    throw httpError('Schema-7 story archive is missing art assets or placements');
+  }
+  if (!Array.isArray(artAssets) || !Array.isArray(assetPlacements)) {
+    throw httpError('Story archive contains invalid art collections');
+  }
+  const artIds = new Set();
+  for (const asset of artAssets) {
+    assertKnown(asset, [...ART_ASSET_FIELDS, 'provider_reference_allowed'], 'Story art asset');
+    if (!asset || !validId(asset.id) || asset.story_id !== meta.id || artIds.has(asset.id) ||
+        !['uploaded', 'ai-generated'].includes(asset.source) || asset.status !== 'ready' ||
+        asset.media_type !== 'image/webp' || typeof asset.sha256 !== 'string' ||
+        !/^[a-f0-9]{64}$/.test(asset.sha256) || !Number.isSafeInteger(asset.size_bytes) ||
+        asset.size_bytes < 1 || !Number.isSafeInteger(asset.width) || asset.width < 1 ||
+        !Number.isSafeInteger(asset.height) || asset.height < 1 ||
+        asset.provider_reference_allowed !== false || !validJson(asset.metadata_json) ||
+        (asset.provider_result_json !== null && asset.provider_result_json !== undefined &&
+          !validJson(asset.provider_result_json)) || !Number.isFinite(asset.spend_usd) || asset.spend_usd < 0) {
+      throw httpError('Story archive contains an invalid art asset');
+    }
+    artIds.add(asset.id);
+  }
+  const placementIds = new Set();
+  const ordinalsByAnchor = new Map();
+  for (const placement of assetPlacements) {
+    assertKnown(placement, ASSET_PLACEMENT_FIELDS, 'Story art placement');
+    if (!placement || !validId(placement.id) || placement.story_id !== meta.id ||
+        placementIds.has(placement.id) || !artIds.has(placement.asset_id) ||
+        (placement.after_page_id !== null && placement.after_page_id !== undefined &&
+          !pageIds.has(placement.after_page_id)) ||
+        !Number.isSafeInteger(placement.ordinal) || placement.ordinal < 1) {
+      throw httpError('Story archive contains an invalid art placement');
+    }
+    placementIds.add(placement.id);
+    const anchor = placement.after_page_id || '';
+    if (!ordinalsByAnchor.has(anchor)) ordinalsByAnchor.set(anchor, []);
+    ordinalsByAnchor.get(anchor).push(placement.ordinal);
+  }
+  for (const ordinals of ordinalsByAnchor.values()) {
+    ordinals.sort((left, right) => left - right);
+    if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
+      throw httpError('Story art placement ordinals must be contiguous');
+    }
+  }
 }
 
 function validateManifest(manifest, files) {
@@ -653,14 +702,14 @@ function validateManifest(manifest, files) {
     const assetFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties.assets.items.properties);
     if (!asset || typeof asset !== 'object' || Object.keys(asset).some((key) => !assetFields.includes(key)) ||
         !['image', 'audio'].includes(asset.kind) || !validId(asset.owner_id) ||
-        !['world', 'character', 'story', 'page'].includes(asset.owner_kind)) {
+        !['world', 'character', 'story', 'page', 'asset'].includes(asset.owner_kind)) {
       throw httpError('Archive contains invalid media metadata');
     }
     if ((asset.story_id !== null && !validId(asset.story_id)) ||
         (asset.page_number !== null && (!Number.isSafeInteger(asset.page_number) || asset.page_number < 1)) ||
         (asset.owner_kind === 'page' && (!validId(asset.story_id) || !Number.isSafeInteger(asset.page_number))) ||
         (asset.owner_kind !== 'page' && asset.page_number !== null) ||
-        (['story', 'page'].includes(asset.owner_kind) && !validId(asset.story_id)) ||
+        (['story', 'page', 'asset'].includes(asset.owner_kind) && !validId(asset.story_id)) ||
         (['world', 'character'].includes(asset.owner_kind) && asset.story_id !== null)) {
       throw httpError('Archive media ownership metadata is invalid');
     }
@@ -695,9 +744,23 @@ async function stageAndReadArchive(uploadPath, stageRoot, customLimits = {}) {
     if (await hashFile(file.path) !== meta.sha256) throw httpError(`Integrity check failed for ${meta.path}`);
     const bundle = readJsonFile(file.path, limits.maxJsonBytes);
     validateBundle(meta, bundle, { databaseSchemaVersion: manifest.database_schema.version });
-    if (semanticHash(meta.kind, bundle, {
+    const semantic = semanticHash(meta.kind, bundle, {
       includeHierarchy: manifest.database_schema.version >= 2,
-    }) !== meta.semantic_sha256) {
+      includeArtStore: manifest.database_schema.version >= 7,
+    });
+    // Some schema-1..6 fixtures are produced by a newer exporter and carry
+    // explicit empty art collections. Accept either canonical empty shape;
+    // non-empty art remains a schema-7-only contract.
+    const emptyFutureArt = manifest.database_schema.version < 7 &&
+      Array.isArray(bundle.art_assets) && bundle.art_assets.length === 0 &&
+      Array.isArray(bundle.asset_placements) && bundle.asset_placements.length === 0;
+    const futureEmptySemantic = emptyFutureArt
+      ? semanticHash(meta.kind, bundle, {
+          includeHierarchy: manifest.database_schema.version >= 2,
+          includeArtStore: true,
+        })
+      : null;
+    if (semantic !== meta.semantic_sha256 && futureEmptySemantic !== meta.semantic_sha256) {
       throw httpError(`Semantic integrity check failed for ${meta.path}`);
     }
     entities.push({ ...meta, bundle, staged_path: file.path });

@@ -935,6 +935,192 @@ PR 06 transactional writing state machine activation:
 - authoritative provider result, billed-attempt and speculative-spend records
 `;
 
+function activateArtStore(db) {
+  db.exec(`
+    DROP INDEX idx_asset_placements_anchor_order;
+    DROP INDEX idx_assets_story_created;
+    ALTER TABLE asset_placements RENAME TO asset_placements_scaffold;
+    ALTER TABLE assets RENAME TO assets_scaffold;
+
+    CREATE TABLE assets (
+      id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      source TEXT NOT NULL CHECK (source IN ('uploaded', 'ai-generated')),
+      status TEXT NOT NULL CHECK (status IN ('staging', 'ready', 'failed')),
+      source_media_type TEXT,
+      media_type TEXT CHECK (media_type IS NULL OR media_type IN ('image/webp', 'image/png', 'image/jpeg')),
+      storage_key TEXT NOT NULL UNIQUE CHECK (length(trim(storage_key)) > 0),
+      sha256 TEXT CHECK (sha256 IS NULL OR length(sha256) = 64),
+      size_bytes INTEGER CHECK (size_bytes IS NULL OR size_bytes >= 0),
+      width INTEGER CHECK (width IS NULL OR width > 0),
+      height INTEGER CHECK (height IS NULL OR height > 0),
+      title TEXT CHECK (title IS NULL OR length(title) <= 500),
+      alt_text TEXT CHECK (alt_text IS NULL OR length(alt_text) <= 2000),
+      metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json)),
+      provider_result_json TEXT CHECK (provider_result_json IS NULL OR json_valid(provider_result_json)),
+      spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+      provider_reference_allowed INTEGER NOT NULL DEFAULT 0
+        CHECK (provider_reference_allowed IN (0, 1)),
+      error_code TEXT,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CHECK (status <> 'ready' OR
+        (media_type IS NOT NULL AND sha256 IS NOT NULL AND size_bytes IS NOT NULL
+         AND width IS NOT NULL AND height IS NOT NULL))
+    );
+
+    CREATE INDEX idx_assets_story_created ON assets (story_id, created_at, id);
+    CREATE INDEX idx_assets_story_status ON assets (story_id, status);
+
+    CREATE TABLE asset_placements (
+      id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      asset_id TEXT NOT NULL REFERENCES assets (id) ON DELETE CASCADE,
+      after_page_id TEXT REFERENCES pages (id) ON DELETE CASCADE,
+      ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE UNIQUE INDEX idx_asset_placements_anchor_order
+      ON asset_placements (story_id, COALESCE(after_page_id, ''), ordinal);
+    CREATE INDEX idx_asset_placements_asset ON asset_placements (asset_id);
+
+    CREATE TRIGGER asset_placement_same_story_insert
+    BEFORE INSERT ON asset_placements
+    WHEN NOT EXISTS (
+      SELECT 1 FROM assets asset
+       WHERE asset.id = NEW.asset_id AND asset.story_id = NEW.story_id AND asset.status = 'ready'
+    ) OR (
+      NEW.after_page_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pages page
+        JOIN chapters chapter ON chapter.id = page.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+        WHERE page.id = NEW.after_page_id AND volume.story_id = NEW.story_id
+      )
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'Asset placement belongs to another story or unavailable asset');
+    END;
+
+    CREATE TRIGGER asset_placement_same_story_update
+    BEFORE UPDATE OF story_id, asset_id, after_page_id ON asset_placements
+    WHEN NOT EXISTS (
+      SELECT 1 FROM assets asset
+       WHERE asset.id = NEW.asset_id AND asset.story_id = NEW.story_id AND asset.status = 'ready'
+    ) OR (
+      NEW.after_page_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM pages page
+        JOIN chapters chapter ON chapter.id = page.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+        WHERE page.id = NEW.after_page_id AND volume.story_id = NEW.story_id
+      )
+    )
+    BEGIN
+      SELECT RAISE(ABORT, 'Asset placement belongs to another story or unavailable asset');
+    END;
+
+    CREATE TABLE legacy_art_pages (
+      page_id TEXT PRIMARY KEY CHECK (length(trim(page_id)) > 0),
+      story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+      after_page_id TEXT REFERENCES pages (id) ON DELETE SET NULL,
+      media_type TEXT NOT NULL,
+      prompt TEXT,
+      spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+      ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    INSERT INTO legacy_art_pages
+      (page_id, story_id, after_page_id, media_type, prompt, spend_usd, ordinal, created_at)
+    SELECT image.id, image.story_id,
+           (
+             SELECT prior.id FROM story_pages prior
+              WHERE prior.story_id = image.story_id
+                AND prior.page_number < image.page_number
+                AND prior.image_media_type IS NULL
+              ORDER BY prior.page_number DESC LIMIT 1
+           ),
+           image.image_media_type, image.image_prompt, COALESCE(image.cost_usd, 0),
+           1 + (
+             SELECT COUNT(*) FROM story_pages prior_image
+              WHERE prior_image.story_id = image.story_id
+                AND prior_image.page_number < image.page_number
+                AND prior_image.image_media_type IS NOT NULL
+                AND COALESCE((
+                  SELECT prior_text.id FROM story_pages prior_text
+                   WHERE prior_text.story_id = prior_image.story_id
+                     AND prior_text.page_number < prior_image.page_number
+                     AND prior_text.image_media_type IS NULL
+                   ORDER BY prior_text.page_number DESC LIMIT 1
+                ), '') = COALESCE((
+                  SELECT anchor_text.id FROM story_pages anchor_text
+                   WHERE anchor_text.story_id = image.story_id
+                     AND anchor_text.page_number < image.page_number
+                     AND anchor_text.image_media_type IS NULL
+                   ORDER BY anchor_text.page_number DESC LIMIT 1
+                ), '')
+           ),
+           image.created_at
+      FROM story_pages image
+     WHERE image.image_media_type IS NOT NULL;
+
+    INSERT INTO assets
+      (id, story_id, source, status, source_media_type, media_type, storage_key,
+       sha256, size_bytes, width, height, metadata_json, provider_result_json,
+       spend_usd, created_at, updated_at)
+    SELECT id, story_id,
+           CASE source WHEN 'generated' THEN 'ai-generated' ELSE 'uploaded' END,
+           status, media_type, media_type, storage_key, sha256, size_bytes,
+           width, height,
+           CASE WHEN metadata_json IS NOT NULL AND json_valid(metadata_json) THEN metadata_json ELSE '{}' END,
+           CASE WHEN provider_result_json IS NOT NULL AND json_valid(provider_result_json)
+                THEN provider_result_json ELSE NULL END,
+           spend_usd, created_at, created_at
+      FROM assets_scaffold;
+
+    INSERT INTO asset_placements
+      (id, story_id, asset_id, after_page_id, ordinal, created_at, updated_at)
+    SELECT placement.id, placement.story_id, placement.asset_id,
+           placement.after_page_id, placement.ordinal, placement.created_at, placement.created_at
+      FROM asset_placements_scaffold placement
+      JOIN assets asset ON asset.id = placement.asset_id AND asset.story_id = placement.story_id;
+
+    DROP TABLE asset_placements_scaffold;
+    DROP TABLE assets_scaffold;
+
+    UPDATE pages
+       SET canonical_revision_id = NULL, display_revision_id = NULL
+     WHERE id IN (SELECT page_id FROM legacy_art_pages);
+    DELETE FROM pages WHERE id IN (SELECT page_id FROM legacy_art_pages);
+    DELETE FROM story_pages WHERE id IN (SELECT page_id FROM legacy_art_pages);
+
+    UPDATE story_pages SET page_number = page_number + 1000000000;
+    WITH ranked AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY story_id ORDER BY page_number, rowid) AS position
+        FROM story_pages
+    )
+    UPDATE story_pages
+       SET page_number = (SELECT position FROM ranked WHERE ranked.id = story_pages.id);
+
+    UPDATE pages SET ordinal = ordinal + 1000000000;
+    WITH ranked AS (
+      SELECT id, ROW_NUMBER() OVER (PARTITION BY chapter_id ORDER BY ordinal, rowid) AS position
+        FROM pages
+    )
+    UPDATE pages
+       SET ordinal = (SELECT position FROM ranked WHERE ranked.id = pages.id);
+  `);
+}
+
+const ART_V7_CHECKSUM_SOURCE = `
+PR 07 noncanonical art store and safe-upload activation:
+- replace planned asset scaffolds with story-owned uploaded/AI-generated assets
+- anchor independent placements before the first page or after stable page IDs
+- remove legacy image rows from the canonical page timeline and stage media reconciliation
+- enforce ready-asset and same-story placement ownership in SQLite
+`;
+
 const MIGRATIONS = Object.freeze([
   Object.freeze({
     version: 1,
@@ -982,6 +1168,14 @@ const MIGRATIONS = Object.freeze([
     checksumSource: WRITING_V6_CHECKSUM_SOURCE,
     up(db) {
       activateWritingTransactions(db);
+    },
+  }),
+  Object.freeze({
+    version: 7,
+    name: 'noncanonical art store and safe upload',
+    checksumSource: ART_V7_CHECKSUM_SOURCE,
+    up(db) {
+      activateArtStore(db);
     },
   }),
 ]);

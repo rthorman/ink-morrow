@@ -7,7 +7,7 @@ const express = require('express');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText } = require('../../core/validation');
 
-function createStoriesRouter({ store, imageStore, imageQueue, audio, transactions = null }) {
+function createStoriesRouter({ store, imageStore, artStore = null, imageQueue, audio, transactions = null }) {
   const router = express.Router();
 
   function idempotencyKey(req) {
@@ -67,23 +67,31 @@ function createStoriesRouter({ store, imageStore, imageQueue, audio, transaction
     res.json({ story: store.storyWithHierarchy(store.updateStory(story.id, payload)) });
   });
 
-  router.delete('/api/stories/:id', (req, res) => {
-    const story = store.getStory(req.params.id);
-    if (!story) return notFound(res, 'Story not found');
-    acquireWriter(req, story.id);
-    // Stop any audiobook work for this tale before the row cascade kills it
-    // (the runner's per-page updates are guarded by status = 'pending').
-    audio.abandonStory(story.id);
-    for (const page of store.storyPages(story.id)) {
-      if (page.image_media_type) imageStore.deleteImage('page', page.id); // never leave orphans
+  router.delete('/api/stories/:id', async (req, res, next) => {
+    try {
+      const story = store.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      acquireWriter(req, story.id);
+      // Stop any audiobook work for this tale before the row cascade kills it
+      // (the runner's per-page updates are guarded by status = 'pending').
+      audio.abandonStory(story.id);
+      for (const page of store.storyPages(story.id)) {
+        if (page.image_media_type) imageStore.deleteImage('page', page.id); // pre-PR 07 recovery seam
+      }
+      for (const pageId of store.revisions.recoveryPageIds(story.id)) {
+        imageStore.deleteImage('page', pageId);
+      }
+      imageStore.deleteImage('story', story.id);
+      if (artStore) {
+        await artStore.ready;
+        for (const asset of artStore.list(story.id).assets) artStore.deleteAsset(story.id, asset.id);
+      }
+      store.deleteStoryCascade(story.id);
+      store.invalidatePreview(story.id);
+      res.status(204).end();
+    } catch (error) {
+      next(error);
     }
-    for (const pageId of store.revisions.recoveryPageIds(story.id)) {
-      imageStore.deleteImage('page', pageId);
-    }
-    imageStore.deleteImage('story', story.id);
-    store.deleteStoryCascade(story.id);
-    store.invalidatePreview(story.id);
-    res.status(204).end();
   });
 
   router.get('/api/stories/:id/cover', (req, res) => {

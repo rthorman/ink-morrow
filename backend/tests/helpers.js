@@ -9,7 +9,8 @@ const { createApp } = require('../src/app');
  * Tests never touch the real database file.
  */
 function createTestApp(options = {}) {
-  const db = createDb(':memory:');
+  const { dbPath = ':memory:', ...appOptions } = options;
+  const db = createDb(dbPath);
   // Collect logger output instead of spilling stderr; tests that care about
   // expected provider/quality failures assert against these entries.
   const logEntries = [];
@@ -17,15 +18,15 @@ function createTestApp(options = {}) {
     log: (msg) => logEntries.push({ level: 'log', msg }),
     error: (msg) => logEntries.push({ level: 'error', msg }),
   };
-  const authOptions = options.authRequired
+  const authOptions = appOptions.authRequired
     ? {
         setupCode: 'TEST-SETUP-CODE',
         scryptParams: { N: 1024, r: 8, p: 1, maxmem: 8 * 1024 * 1024 },
         delay: async () => {},
-        ...(options.authOptions || {}),
+        ...(appOptions.authOptions || {}),
       }
-    : options.authOptions;
-  const app = createApp(db, { staticDir: null, logger, ...options, authOptions });
+    : appOptions.authOptions;
+  const app = createApp(db, { staticDir: null, logger, ...appOptions, authOptions });
   app.locals.logEntries = logEntries;
   return {
     db,
@@ -46,6 +47,7 @@ function resetDb(db) {
     DELETE FROM publication_snapshots;
     DELETE FROM asset_placements;
     DELETE FROM assets;
+    DELETE FROM legacy_art_pages;
     DELETE FROM recovery_suffixes;
     DELETE FROM continuity_issues;
     DELETE FROM continuity_corrections;

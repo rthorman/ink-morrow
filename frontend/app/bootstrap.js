@@ -283,6 +283,8 @@ function buildFacade(ctx) {
     loadCharacters: characters.loadCharacters,
     loadStories: stories.loadStories,
     loadStoryPages: write.loadStoryPages,
+    refreshStoryAssets: write.refreshStoryAssets,
+    uploadArt: write.uploadArt,
     renderWorlds: worlds.renderWorlds,
     renderCharacters: characters.renderCharacters,
     renderStories: stories.renderStories,
