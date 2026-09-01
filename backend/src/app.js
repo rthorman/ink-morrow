@@ -41,6 +41,7 @@ const { createProviderService } = require('./modules/providers/service');
 const { createProviderRouter } = require('./modules/providers/routes');
 const { createPublicationService } = require('./modules/publication/document');
 const { createPublicationRouter } = require('./modules/publication/routes');
+const { createPublicationJobs } = require('./modules/publication/jobs');
 
 function createApp(
   db,
@@ -49,6 +50,7 @@ function createApp(
     imageDir = path.join(__dirname, '../../database/images'),
     audioDir = path.join(__dirname, '../../database/audio'),
     transferDir = null,
+    publicationDir = null,
     authRequired = process.env.NODE_ENV !== 'test',
     authOptions = {},
     providerOptions = {},
@@ -204,12 +206,18 @@ function createApp(
     transferDir: resolvedTransferDir,
   });
   const publications = createPublicationService({ db, stories, artStore });
+  const ownsPublicationDir = !publicationDir && process.env.NODE_ENV === 'test';
+  const resolvedPublicationDir = publicationDir || (ownsPublicationDir
+    ? fs.mkdtempSync(path.join(os.tmpdir(), 'st-publications-'))
+    : path.join(__dirname, '../../database/publications'));
+  const publicationJobs = createPublicationJobs({ publications, rootDir: resolvedPublicationDir, clock });
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.locals.writingTransactions = writingTransactions;
   app.locals.artStore = artStore;
   app.locals.publications = publications;
+  app.locals.publicationJobs = publicationJobs;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
@@ -223,7 +231,7 @@ function createApp(
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }));
-  app.use(createPublicationRouter({ publications }));
+  app.use(createPublicationRouter({ publications, jobs: publicationJobs }));
   app.use(createTransferRouter({ transfers }));
 
   // Boot backfill of entity reference images (no-op without an API key or
@@ -280,10 +288,14 @@ function createApp(
     audiobooks.dispose();
     narration.dispose();
     transfers.dispose();
+    publicationJobs.dispose();
     writingTransactions.dispose();
     providers.dispose();
     if (ownsTransferDir) {
       try { fs.rmSync(resolvedTransferDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
+    }
+    if (ownsPublicationDir) {
+      try { fs.rmSync(resolvedPublicationDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
     }
   };
 

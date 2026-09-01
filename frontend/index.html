@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="styles/features/chronicle.css">
     <link rel="stylesheet" href="styles/features/codex.css">
     <link rel="stylesheet" href="styles/features/gallery.css">
+    <link rel="stylesheet" href="styles/features/gate.css">
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/auth.css">
 </head>
@@ -543,10 +544,71 @@
                 <div id="galleryGrid" class="gallery-grid"></div>
             </section>
 
-            <section id="gateSection" class="content-section workspace-empty" aria-labelledby="gateTitle">
+            <section id="gateSection" class="content-section gate" aria-labelledby="gateTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="gateTitle">Gate <span>&mdash; how the work leaves</span></h2>
-                <p>Project backup, publication formats, and reading-copy shares will converge here. Existing EPUB and archive actions keep their current explicit review paths while this view is being prepared.</p>
+                <p class="gate-intro">Backups preserve the private project. Publication files contain only the reviewed reading copy. They are different kinds of leaving.</p>
+                <div class="gate-paths">
+                    <article class="gate-card gate-card--backup">
+                        <p class="gate-card__eyebrow">Full fidelity</p>
+                        <h3>Back up the project</h3>
+                        <p>Build a <code>.scribetribe</code> archive with explicit choices for working history, paintings, audio, and device settings. Credentials are never included.</p>
+                        <button id="gateBackupBtn" class="btn btn-secondary" type="button">Review project backup</button>
+                    </article>
+                    <article class="gate-card gate-card--publication">
+                        <p class="gate-card__eyebrow">Reading copy</p>
+                        <h3>Prepare for publication</h3>
+                        <form id="gatePublicationForm" class="gate-publication-form">
+                            <div class="gate-fields gate-fields--metadata">
+                                <label>Book title <input id="gatePublicationTitle" maxlength="300" required></label>
+                                <label>Author <input id="gatePublicationAuthor" maxlength="300"></label>
+                                <label>Language <input id="gatePublicationLanguage" value="en" maxlength="40" required></label>
+                            </div>
+                            <label>Front matter <span class="field-optional">optional</span><textarea id="gateFrontMatter" rows="3" maxlength="1000000" placeholder="Dedication, preface, or other opening matter"></textarea></label>
+                            <label>Back matter <span class="field-optional">optional</span><textarea id="gateBackMatter" rows="3" maxlength="1000000" placeholder="Afterword, acknowledgments, or author note"></textarea></label>
+                            <fieldset class="gate-formats">
+                                <legend>Publication formats</legend>
+                                <div id="gateFormatList" class="gate-format-list">
+                                    <label><input type="checkbox" name="publication-format" value="epub" checked> EPUB 3.3</label>
+                                    <label><input type="checkbox" name="publication-format" value="pdf" checked> PDF</label>
+                                    <label><input type="checkbox" name="publication-format" value="docx"> DOCX</label>
+                                    <label><input type="checkbox" name="publication-format" value="odt"> ODT</label>
+                                    <label><input type="checkbox" name="publication-format" value="rtf"> RTF</label>
+                                    <label><input type="checkbox" name="publication-format" value="html"> HTML</label>
+                                    <label><input type="checkbox" name="publication-format" value="md"> Markdown</label>
+                                    <label><input type="checkbox" name="publication-format" value="txt"> Plain text</label>
+                                    <label><input type="checkbox" name="publication-format" value="json"> JSON</label>
+                                </div>
+                            </fieldset>
+                            <fieldset class="gate-art">
+                                <legend>Placed art to publish</legend>
+                                <p class="setting-hint">Only checked, already placed art enters the immutable book. Missing alt text is warned, not guessed.</p>
+                                <div id="gateArtList" class="gate-art-list"></div>
+                            </fieldset>
+                            <div class="gate-exclusions">
+                                <h4>Always excluded from publication</h4>
+                                <p>Directions, continuity, prepared prose, recovery suffixes, prompts, provider traces, costs, credentials, sessions, and private working history.</p>
+                            </div>
+                            <button id="gateReviewPublicationBtn" class="btn btn-primary" type="submit">Review publication</button>
+                        </form>
+                    </article>
+                    <article class="gate-card gate-card--share">
+                        <p class="gate-card__eyebrow">Coming next</p>
+                        <h3>Share a reading copy</h3>
+                        <p>Immutable, revocable capability links arrive in the next release step. No live-story or public-sharing behavior is enabled yet.</p>
+                        <button class="btn btn-secondary" type="button" disabled>Sharing not yet available</button>
+                    </article>
+                </div>
+                <section id="gateJob" class="gate-job" aria-labelledby="gateJobTitle" hidden>
+                    <h3 id="gateJobTitle">Publication job</h3>
+                    <p id="gateJobStatus" role="status" aria-live="polite"></p>
+                    <progress id="gateJobProgress" max="1" value="0"></progress>
+                    <div id="gateJobDownloads" class="gate-job__downloads"></div>
+                    <div class="gate-job__actions">
+                        <button id="gateCancelJobBtn" class="btn btn-secondary" type="button">Cancel</button>
+                        <button id="gateRetryJobBtn" class="btn btn-secondary" type="button" hidden>Retry</button>
+                    </div>
+                </section>
                 <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
             </section>
 

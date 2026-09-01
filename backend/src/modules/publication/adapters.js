@@ -2,12 +2,18 @@
 
 const { zipStore } = require('../../epub');
 const sharp = require('sharp');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { PUBLICATION_FORMATS } = require('./document');
+const LITERATA_CMAP = require('../../../../frontend/fonts/literata-latin-cmap.json');
 
 const MIME = Object.freeze({
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   odt: 'application/vnd.oasis.opendocument.text',
   rtf: 'application/rtf',
+  epub: 'application/epub+zip',
+  pdf: 'application/pdf',
   html: 'text/html; charset=utf-8',
   md: 'text/markdown; charset=utf-8',
   txt: 'text/plain; charset=utf-8',
@@ -221,14 +227,223 @@ function renderOdt(document) {
   ]);
 }
 
+function renderEpub(document) {
+  const assets = assetMap(document);
+  const mediaEntries = [];
+  const manifestImages = [];
+  const body = [];
+  for (const line of publicationLines(document)) {
+    const level = headingLevel(line.kind);
+    if (level) body.push(`<h${level}>${xml(line.text)}</h${level}>`);
+    else if (line.kind === 'scene_break') body.push('<hr/>');
+    else if (line.kind === 'art') {
+      const asset = assets.get(line.assetKey);
+      if (!asset) continue;
+      const ext = extensionFor(asset);
+      const name = `images/${asset.key}.${ext}`;
+      mediaEntries.push({ name: `EPUB/${name}`, data: Buffer.from(asset.content_base64, 'base64') });
+      manifestImages.push(`<item id="${asset.key}" href="${name}" media-type="${asset.media_type}"/>`);
+      body.push(`<figure><img src="${name}" alt="${xml(asset.alt_text)}"/><figcaption>${xml(line.text)}</figcaption></figure>`);
+    } else body.push(`<p>${xml(line.text).replace(/\n/g, '<br/>')}</p>`);
+  }
+  const language = xml(document.metadata.language);
+  const title = xml(document.metadata.title);
+  const book = `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="${language}" xml:lang="${language}"><head><title>${title}</title><link rel="stylesheet" href="style.css"/></head><body>${body.join('\n')}</body></html>`;
+  const nav = `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${language}" xml:lang="${language}"><head><title>${title}</title></head><body><nav epub:type="toc" id="toc"><h1>${title}</h1><ol><li><a href="book.xhtml">${title}</a></li></ol></nav></body></html>`;
+  const identifier = `urn:sha256:${createHash('sha256').update(JSON.stringify(document)).digest('hex')}`;
+  const modified = /^\d{4}-\d{2}-\d{2}/.test(document.metadata.date || '')
+    ? `${document.metadata.date.slice(0, 10)}T00:00:00Z`
+    : '2000-01-01T00:00:00Z';
+  const opf = `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="${language}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${identifier}</dc:identifier><dc:title>${title}</dc:title><dc:language>${language}</dc:language>${document.metadata.author ? `<dc:creator>${xml(document.metadata.author)}</dc:creator>` : ''}<meta property="dcterms:modified">${modified}</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="book" href="book.xhtml" media-type="application/xhtml+xml"/><item id="css" href="style.css" media-type="text/css"/>${manifestImages.join('')}</manifest><spine><itemref idref="book"/></spine></package>`;
+  return zipStore([
+    { name: 'mimetype', data: 'application/epub+zip' },
+    { name: 'META-INF/container.xml', data: `<?xml version="1.0" encoding="utf-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>` },
+    { name: 'EPUB/package.opf', data: opf },
+    { name: 'EPUB/nav.xhtml', data: nav },
+    { name: 'EPUB/book.xhtml', data: book },
+    { name: 'EPUB/style.css', data: 'body{font-family:serif;line-height:1.55;margin:5%;}p{orphans:2;widows:2;}img{max-width:100%;height:auto;}figure{break-inside:avoid;text-align:center;}hr{border:0;text-align:center;}hr:after{content:"* * *";}' },
+    ...mediaEntries,
+  ]);
+}
+
+function utf16beHex(value, bom = false) {
+  const little = Buffer.from(String(value), 'utf16le');
+  const big = Buffer.alloc(little.length + (bom ? 2 : 0));
+  let offset = 0;
+  if (bom) { big[0] = 0xfe; big[1] = 0xff; offset = 2; }
+  for (let index = 0; index < little.length; index += 2) {
+    big[offset + index] = little[index + 1];
+    big[offset + index + 1] = little[index];
+  }
+  return big.toString('hex').toUpperCase();
+}
+
+function wrapText(value, limit = 72) {
+  const lines = [];
+  for (const sourceLine of String(value).split('\n')) {
+    const words = sourceLine.split(/\s+/).filter(Boolean);
+    let current = '';
+    for (const word of words) {
+      if (current && current.length + word.length + 1 > limit) {
+        lines.push(current);
+        current = word;
+      } else current = current ? `${current} ${word}` : word;
+    }
+    lines.push(current);
+  }
+  return lines.length ? lines : [''];
+}
+
+function pdfStream(dictionary, data) {
+  const buffer = Buffer.isBuffer(data) ? data : Buffer.from(data, 'binary');
+  return Buffer.concat([
+    Buffer.from(`<< ${dictionary} /Length ${buffer.length} >>\nstream\n`, 'ascii'),
+    buffer,
+    Buffer.from('\nendstream', 'ascii'),
+  ]);
+}
+
+function buildPdfObjects(objects, rootRef, infoRef) {
+  const chunks = [Buffer.from('%PDF-1.7\n%\xE2\xE3\xCF\xD3\n', 'binary')];
+  const offsets = [0];
+  let offset = chunks[0].length;
+  for (const [index, object] of objects.entries()) {
+    offsets.push(offset);
+    const header = Buffer.from(`${index + 1} 0 obj\n`, 'ascii');
+    const body = Buffer.isBuffer(object) ? object : Buffer.from(object, 'binary');
+    const footer = Buffer.from('\nendobj\n', 'ascii');
+    chunks.push(header, body, footer);
+    offset += header.length + body.length + footer.length;
+  }
+  const xrefOffset = offset;
+  const xref = [`xref\n0 ${objects.length + 1}\n`, '0000000000 65535 f \n'];
+  for (const value of offsets.slice(1)) xref.push(`${String(value).padStart(10, '0')} 00000 n \n`);
+  xref.push(`trailer\n<< /Size ${objects.length + 1} /Root ${rootRef} 0 R /Info ${infoRef} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+  chunks.push(Buffer.from(xref.join(''), 'ascii'));
+  return Buffer.concat(chunks);
+}
+
+function renderPdf(document) {
+  const lines = publicationLines(document);
+  const characters = [...new Set(lines.flatMap((line) => [...line.text]))];
+  const glyphFor = (character) => LITERATA_CMAP.glyphs[String(character.codePointAt(0))] || { id: 0, width: 500 };
+  const cidByCharacter = new Map(characters.map((character) => [character, glyphFor(character).id]));
+  const encode = (value) => [...String(value)].map((character) => cidByCharacter.get(character).toString(16).padStart(4, '0')).join('').toUpperCase();
+  const mappedCharacters = characters.filter((character, index) =>
+    characters.findIndex((candidate) => cidByCharacter.get(candidate) === cidByCharacter.get(character)) === index);
+  const cmapEntries = mappedCharacters.map((character) =>
+    `<${cidByCharacter.get(character).toString(16).padStart(4, '0').toUpperCase()}> <${utf16beHex(character)}>`).join('\n');
+  const cmap = `/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /STUnicode def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n${mappedCharacters.length} beginbfchar\n${cmapEntries}\nendbfchar\nendcmap\nCMapName currentdict /CMap defineresource pop\nend\nend`;
+  const fontPath = path.join(__dirname, '../../../../frontend/fonts/literata-latin.ttf');
+  const fontData = fs.readFileSync(fontPath);
+  const objects = [];
+  const add = (value) => { objects.push(value); return objects.length; };
+  const reserve = () => add(null);
+  const fontFileRef = add(pdfStream(`/Length1 ${fontData.length}`, fontData));
+  const toUnicodeRef = add(pdfStream('', cmap));
+  const descriptorRef = add(`<< /Type /FontDescriptor /FontName /STLiterataSubset /Flags 4 /FontBBox [-300 -300 1400 1200] /ItalicAngle 0 /Ascent 950 /Descent -250 /CapHeight 700 /StemV 80 /FontFile2 ${fontFileRef} 0 R >>`);
+  const widths = mappedCharacters.map((character) => `${cidByCharacter.get(character)} [${glyphFor(character).width}]`).join(' ');
+  const cidFontRef = add(`<< /Type /Font /Subtype /CIDFontType2 /BaseFont /STLiterataSubset /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor ${descriptorRef} 0 R /W [${widths}] /CIDToGIDMap /Identity >>`);
+  const fontRef = add(`<< /Type /Font /Subtype /Type0 /BaseFont /STLiterataSubset /Encoding /Identity-H /DescendantFonts [${cidFontRef} 0 R] /ToUnicode ${toUnicodeRef} 0 R >>`);
+  const assetRefs = new Map();
+  for (const asset of document.assets) {
+    const bytes = Buffer.from(asset.content_base64, 'base64');
+    assetRefs.set(asset.key, add(pdfStream(`/Type /XObject /Subtype /Image /Width ${asset.width} /Height ${asset.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode`, bytes)));
+  }
+  const pagesRef = reserve();
+  const pageData = [];
+  let commands = [];
+  let y = 780;
+  const finishPage = () => {
+    if (commands.length) pageData.push(commands.join('\n'));
+    commands = [];
+    y = 780;
+  };
+  const beginActual = (value) => `/Span << /ActualText <${utf16beHex(value, true)}> >> BDC`;
+  for (const line of lines) {
+    const size = line.kind === 'title' ? 24 : ['volume', 'matter'].includes(line.kind) ? 18 : line.kind === 'chapter' ? 15 : 11;
+    const leading = Math.ceil(size * 1.45);
+    if (line.kind === 'art') {
+      if (y < 300) finishPage();
+      const imageRef = assetRefs.get(line.assetKey);
+      if (imageRef) {
+        const asset = document.assets.find((item) => item.key === line.assetKey);
+        const width = 360;
+        const height = Math.min(230, width * asset.height / asset.width);
+        y -= height;
+        commands.push(`q ${width.toFixed(2)} 0 0 ${height.toFixed(2)} 117.5 ${y.toFixed(2)} cm /Im${imageRef} Do Q`);
+        y -= 18;
+      }
+    }
+    const wrapped = wrapText(line.text, size >= 18 ? 44 : 78);
+    const needed = wrapped.length * leading + (size >= 15 ? 12 : 8);
+    if (y - needed < 62) finishPage();
+    commands.push(beginActual(line.text));
+    for (const part of wrapped) {
+      commands.push(`BT /F1 ${size} Tf 1 0 0 1 64 ${y} Tm <${encode(part)}> Tj ET`);
+      y -= leading;
+    }
+    commands.push('EMC');
+    y -= size >= 15 ? 12 : 8;
+  }
+  finishPage();
+  const pageRefs = [];
+  const xObjects = [...assetRefs.entries()].map(([, ref]) => `/Im${ref} ${ref} 0 R`).join(' ');
+  for (const content of pageData) {
+    const contentRef = add(pdfStream('', content));
+    pageRefs.push(add(`<< /Type /Page /Parent ${pagesRef} 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 ${fontRef} 0 R >> /XObject << ${xObjects} >> >> /Contents ${contentRef} 0 R >>`));
+  }
+  objects[pagesRef - 1] = `<< /Type /Pages /Count ${pageRefs.length} /Kids [${pageRefs.map((ref) => `${ref} 0 R`).join(' ')}] >>`;
+  const catalogRef = add(`<< /Type /Catalog /Pages ${pagesRef} 0 R /Lang (${document.metadata.language}) >>`);
+  const infoRef = add(`<< /Title <${utf16beHex(document.metadata.title, true)}> /Author <${utf16beHex(document.metadata.author || '', true)}> /Creator (ScribeTribe) >>`);
+  return buildPdfObjects(objects, catalogRef, infoRef);
+}
+
+function validateEpub(buffer) {
+  const entries = storedZipEntries(buffer);
+  const required = ['mimetype', 'META-INF/container.xml', 'EPUB/package.opf', 'EPUB/nav.xhtml', 'EPUB/book.xhtml'];
+  const missing = required.filter((name) => !entries.has(name));
+  if (missing.length) return { valid: false, errors: missing.map((name) => `Missing ${name}`) };
+  if (entries.get('mimetype').toString() !== 'application/epub+zip') return { valid: false, errors: ['Invalid mimetype'] };
+  const opf = entries.get('EPUB/package.opf').toString('utf8');
+  const errors = [];
+  if (!/<package\b[^>]*version="3\.0"/.test(opf)) errors.push('Package is not EPUB 3.x');
+  if (!/properties="nav"/.test(opf)) errors.push('Navigation document is not declared');
+  for (const match of opf.matchAll(/href="([^"]+)"/g)) {
+    if (!entries.has(`EPUB/${match[1]}`)) errors.push(`Missing manifest resource ${match[1]}`);
+  }
+  return { valid: errors.length === 0, errors };
+}
+
+function validatePdf(buffer) {
+  const source = buffer.toString('latin1');
+  const errors = [];
+  if (!source.startsWith('%PDF-1.7')) errors.push('Missing PDF 1.7 header');
+  if (!/xref\s/.test(source) || !/%%EOF\s*$/.test(source)) errors.push('Missing cross-reference or EOF');
+  if (!/\/FontFile2\s+\d+\s+0\s+R/.test(source)) errors.push('Publication font is not embedded');
+  if (!/\/ToUnicode\s+\d+\s+0\s+R/.test(source)) errors.push('Unicode extraction map is missing');
+  if (!/\/Type\s*\/Page\b/.test(source)) errors.push('PDF has no page');
+  return { valid: errors.length === 0, errors };
+}
+
 async function adapterDocument(document, format) {
-  if (!['docx', 'odt', 'rtf'].includes(format) || !document.assets.some((asset) => asset.media_type === 'image/webp')) {
+  if (!['docx', 'odt', 'rtf', 'pdf'].includes(format) || !document.assets.some((asset) => asset.media_type === 'image/webp')) {
     return document;
   }
   const assets = await Promise.all(document.assets.map(async (asset) => {
     if (asset.media_type !== 'image/webp') return asset;
-    const png = await sharp(Buffer.from(asset.content_base64, 'base64')).png().toBuffer();
-    return { ...asset, media_type: 'image/png', content_base64: png.toString('base64') };
+    const image = sharp(Buffer.from(asset.content_base64, 'base64'));
+    const converted = format === 'pdf' ? await image.jpeg({ quality: 88 }).toBuffer() : await image.png().toBuffer();
+    return {
+      ...asset,
+      media_type: format === 'pdf' ? 'image/jpeg' : 'image/png',
+      content_base64: converted.toString('base64'),
+    };
   }));
   return { ...document, assets };
 }
@@ -244,6 +459,8 @@ async function renderPublication(document, format) {
   const buffer = format === 'docx' ? renderDocx(adapted)
     : format === 'odt' ? renderOdt(adapted)
       : format === 'rtf' ? renderRtf(adapted)
+        : format === 'epub' ? renderEpub(adapted)
+          : format === 'pdf' ? renderPdf(adapted)
         : format === 'html' ? renderHtml(adapted)
           : format === 'md' ? renderMarkdown(adapted)
             : format === 'txt' ? renderText(adapted)
@@ -343,14 +560,34 @@ function rtfTextSequence(source) {
   return values;
 }
 
+function decodeUtf16beHex(value) {
+  const source = Buffer.from(value, 'hex');
+  const start = source.length >= 2 && source[0] === 0xfe && source[1] === 0xff ? 2 : 0;
+  const little = Buffer.alloc(source.length - start);
+  for (let index = start; index < source.length; index += 2) {
+    little[index - start] = source[index + 1];
+    little[index - start + 1] = source[index];
+  }
+  return little.toString('utf16le');
+}
+
 function rereadPublication(format, buffer) {
   const source = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
   if (format === 'json') return semanticView(JSON.parse(source.toString('utf8'))).map((item) => item.text);
+  if (format === 'pdf') {
+    return [...source.toString('latin1').matchAll(/\/ActualText\s*<([A-F0-9]+)>/g)]
+      .map((match) => decodeUtf16beHex(match[1]));
+  }
   if (format === 'txt') return source.toString('utf8').trim().split(/\n{2,}/);
   if (format === 'md') return markdownTextSequence(source.toString('utf8'));
   if (format === 'html') return htmlTextSequence(source.toString('utf8'));
   if (format === 'rtf') return rtfTextSequence(source.toString('ascii'));
   const entries = storedZipEntries(source);
+  if (format === 'epub') {
+    const book = entries.get('EPUB/book.xhtml');
+    if (!book) throw new Error('EPUB has no EPUB/book.xhtml.');
+    return htmlTextSequence(book.toString('utf8'));
+  }
   if (format === 'docx') {
     const documentXml = entries.get('word/document.xml');
     if (!documentXml) throw new Error('DOCX has no word/document.xml.');
@@ -375,6 +612,8 @@ module.exports = {
   adapterDocument,
   rereadPublication,
   storedZipEntries,
+  validateEpub,
+  validatePdf,
   xml,
   rtf,
 };

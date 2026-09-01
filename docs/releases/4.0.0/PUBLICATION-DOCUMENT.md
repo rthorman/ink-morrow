@@ -34,15 +34,25 @@ A stale expected timestamp refuses with `PUBLICATION_STORY_CHANGED`.
 
 `GET /api/publications/:snapshotId` returns the same authenticated snapshot.
 `GET /api/publications/:snapshotId/formats/:format` renders `docx`, `odt`,
-`rtf`, `html`, `md`, `txt`, or `json` from that snapshot. Filenames are
+`rtf`, `epub`, `pdf`, `html`, `md`, `txt`, or `json` from that snapshot. Filenames are
 deterministic. Plain text is emitted in bounded semantic chunks; packaged
 adapters consume only the frozen document and never query the live story.
+
+`POST /api/publications/:snapshotId/exports` starts one cancellable job for a
+reviewed set of formats. Status, retry, cancellation, per-file download, and
+cleanup live under `/api/publication-jobs/:jobId`. Files are written through
+private `.partial` names and renamed only when complete; cancellation and
+failure remove the entire job stage.
 
 DOCX and ODT include their required package parts and selected raster media.
 Their adapters, and RTF, convert the immutable WebP derivative to a compatible
 PNG without changing the snapshot; RTF also retains the accessible description. HTML
 and Markdown are standalone and embed selected raster data. TXT retains the
 ordered accessible description; JSON is the normalized document itself.
+EPUB emits a deterministic EPUB 3 package with navigation and manifest checks.
+PDF uses deterministic A4 geometry, widow/orphan-aware paragraph placement,
+ActualText reading order, the bundled OFL Literata subset, and selected JPEG
+image objects.
 Automated semantic re-read compares all seven adapters with one golden ordered
 view, including Unicode, punctuation, headings, scene breaks and empty
 chapters.

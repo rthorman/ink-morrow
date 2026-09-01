@@ -14,7 +14,7 @@ function filenameFor(title, extension) {
   return `${stem}.${extension}`;
 }
 
-function createPublicationRouter({ publications }) {
+function createPublicationRouter({ publications, jobs = null }) {
   const router = express.Router();
 
   router.post('/api/stories/:id/publications', (req, res, next) => {
@@ -70,6 +70,52 @@ function createPublicationRouter({ publications }) {
       else next(error);
       return undefined;
     }
+  });
+
+  router.post('/api/publications/:snapshotId/exports', (req, res, next) => {
+    try {
+      if (!jobs) throw new Error('Publication jobs are unavailable.');
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(202).json({ job: jobs.create(req.params.snapshotId, req.body?.formats) });
+    } catch (error) { next(error); }
+  });
+
+  router.get('/api/publication-jobs/:jobId', (req, res) => {
+    const job = jobs?.get(req.params.jobId);
+    res.setHeader('Cache-Control', 'no-store');
+    if (!job) return res.status(404).json({ error: 'Publication job not found.' });
+    return res.json({ job });
+  });
+
+  router.post('/api/publication-jobs/:jobId/cancel', async (req, res, next) => {
+    try {
+      const job = await jobs?.cancel(req.params.jobId);
+      if (!job) return res.status(404).json({ error: 'Publication job not found.' });
+      res.setHeader('Cache-Control', 'no-store');
+      return res.status(202).json({ job });
+    } catch (error) { return next(error); }
+  });
+
+  router.post('/api/publication-jobs/:jobId/retry', (req, res, next) => {
+    try {
+      res.setHeader('Cache-Control', 'no-store');
+      res.status(202).json({ job: jobs.retry(req.params.jobId) });
+    } catch (error) { next(error); }
+  });
+
+  router.get('/api/publication-jobs/:jobId/files/:filename', (req, res, next) => {
+    try {
+      const output = jobs.file(req.params.jobId, req.params.filename);
+      res.setHeader('Cache-Control', 'no-store');
+      res.download(output.path, output.filename);
+    } catch (error) { next(error); }
+  });
+
+  router.delete('/api/publication-jobs/:jobId', async (req, res, next) => {
+    try {
+      if (!await jobs?.remove(req.params.jobId)) return res.status(404).json({ error: 'Publication job not found.' });
+      return res.status(204).end();
+    } catch (error) { return next(error); }
   });
 
   return router;

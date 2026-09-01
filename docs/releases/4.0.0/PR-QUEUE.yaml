@@ -460,7 +460,7 @@ pull_requests:
   - id: "16"
     slug: epub-pdf-gate
     title: EPUB, PDF, and Gate
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "15"

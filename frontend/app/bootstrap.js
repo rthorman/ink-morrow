@@ -33,6 +33,7 @@ import { createAiDrafts } from './features/ai-drafts.js';
 import { createChronicle } from './features/chronicle.js';
 import { createCodex } from './features/codex.js';
 import { createGallery } from './features/gallery.js';
+import { createGate } from './features/gate.js';
 import { createAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
 
@@ -81,6 +82,7 @@ export function initApp() {
   features.chronicle = createChronicle({ api, state, notify, features, dialogs, router: null });
   features.codex = createCodex({ api, state, notify, features, dialogs, router: null });
   features.gallery = createGallery({ api, state, notify, features, dialogs, shell, router: null });
+  features.gate = createGate({ api, state, notify, features, dialogs, router: null });
 
   // -- router -------------------------------------------------------------------
   // Each boot marks itself live; a superseded boot (a fresh loadScript in
@@ -141,6 +143,8 @@ export function initApp() {
       features.codex.enter(route.params).then(syncManuscriptShell);
     } else if (route.name === 'gallery') {
       features.gallery.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'gate') {
+      features.gate.enter(route.params).then(syncManuscriptShell);
     } else if (WORKSPACE_DESTINATIONS.has(route.name)) {
       features.write.enterFromRoute(route.params).then(syncManuscriptShell);
     }
@@ -178,6 +182,7 @@ export function initApp() {
   features.chronicle.setRouter(router);
   features.codex.setRouter(router);
   features.gallery.setRouter(router);
+  features.gate.setRouter(router);
   features.settings.open = () => router.navigate('settings');
 
   // -- shell wiring ------------------------------------------------------------
@@ -228,6 +233,7 @@ export function initApp() {
   features.chronicle.init();
   features.codex.init();
   features.gallery.init();
+  features.gate.init();
   features.home.init();
   features.library.init();
 
@@ -275,6 +281,7 @@ export function initApp() {
     features.chronicle.reset();
     features.codex.reset();
     features.gallery.reset();
+    features.gate.reset();
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
@@ -331,7 +338,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery } = features;
+  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery, gate } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -377,6 +384,9 @@ function buildFacade(ctx) {
     loadChronicle: chronicle.load,
     enterChronicle: chronicle.enter,
     renderChronicle: chronicle.render,
+    enterGate: gate.enter,
+    reviewPublication: gate.reviewPublication,
+    renderPublicationJob: gate.renderJob,
     revealChroniclePage: chronicle.revealPage,
     restoreChronicleRecovery: chronicle.restoreRecovery,
     loadCodex: codex.load,
