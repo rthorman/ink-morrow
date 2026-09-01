@@ -22,7 +22,7 @@ jobs:
       - name: Reject retired product identifiers
         run: npm run check:brand
 
-      - name: Check PDF documentation freshness
+      - name: Warn when PDF documentation may be stale
         run: npm run check:docs
 
   lint:

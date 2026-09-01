@@ -39,10 +39,12 @@ The QA tool checks text extraction, outlines, old-brand residue, and page
 counts, then rasterizes every page and builds overview contact sheets.
 
 Every complete render also rewrites `generated.json` with one combined source
-fingerprint and exact hashes for all six PDFs. CI runs `npm run check:docs`; a
-change to any book source, screenshot, brand asset, font, renderer, or theme
-fails until the PDFs and manifest are regenerated together. This is a
-freshness check, not a substitute for the visual inspection above.
+fingerprint and exact hashes for all six PDFs. CI runs `npm run check:docs` and
+annotates a change to any book source, screenshot, brand asset, font, renderer,
+or theme when the PDFs have not been regenerated. It is intentionally a
+warning, not a merge gate. Documentation and release work can run
+`npm run check:docs:strict` when staleness must fail the command. Neither mode
+substitutes for the visual inspection above.
 
 ## Publication QA
 
