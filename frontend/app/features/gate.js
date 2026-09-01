@@ -2,6 +2,8 @@
 // Every selected format is built from one immutable PublicationDocument;
 // this feature never invokes a provider.
 
+import { chooseWorkspaceStory } from '../core/story-context.js';
+
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -300,25 +302,10 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     }
   }
 
-  async function chooseStory(storyId) {
-    let story = state.data.currentStory?.id === storyId ? state.data.currentStory : state.data.stories.find((item) => item.id === storyId);
-    if (!story) {
-      await features.stories.loadStories();
-      story = state.data.stories.find((item) => item.id === storyId);
-    }
-    if (!story) return null;
-    if (state.data.currentStory?.id !== story.id) {
-      features.write.resetStoryReader();
-      state.data.currentStory = story;
-      state.resetStoryCost();
-    }
-    return story;
-  }
-
   async function enter(params = {}) {
     if (!params.storyId) return;
     const token = ++loadToken;
-    const story = await chooseStory(params.storyId);
+    const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
     if (!story) {
       showError('That manuscript could not be found.');
       routeController.navigate('library-stories');
@@ -378,3 +365,4 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     setRouter(value) { routeController = value; },
   };
 }
+
