@@ -403,4 +403,3 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   return { init, enter, load, render, reset, openUpload, openPaint, setRouter(value) { routeController = value; } };
 }
-
