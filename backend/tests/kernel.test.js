@@ -247,7 +247,7 @@ describe('ScribeTribe 4.0 kernel', () => {
     expect(response.body).toMatchObject({
       release_train: '4.0.0-beta.1',
       database: { family: DATABASE_FAMILY, schema_version: DATABASE_SCHEMA_VERSION },
-      archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'scaffold' },
+      archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'available' },
     });
     expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');

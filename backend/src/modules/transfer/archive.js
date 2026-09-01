@@ -35,10 +35,12 @@ const {
   AUDIOBOOK_FIELDS,
   ART_ASSET_FIELDS,
   ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
   semanticHash,
   validId,
 } = require('./format');
 const { hashFile, httpError } = require('./planner');
+const { hashDocument, validatePublicationDocument } = require('../publication/document');
 
 const DEFAULT_LIMITS = Object.freeze({
   maxArchiveBytes: 20 * 1024 * 1024 * 1024,
@@ -276,7 +278,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   assertKnown(bundle, meta.kind === 'story'
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
         'memory', 'continuity_deltas', 'corrections', 'writing_operations',
-        'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements']
+        'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
+        'publication_snapshots']
     : ['record'], `${meta.kind} bundle`);
   assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
@@ -602,6 +605,28 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
       throw httpError('Story art placement ordinals must be contiguous');
     }
+  }
+  const publicationSnapshots = bundle.publication_snapshots || [];
+  if (databaseSchemaVersion >= 8 && !Array.isArray(bundle.publication_snapshots)) {
+    throw httpError('Schema-8 story archive is missing publication snapshots');
+  }
+  if (!Array.isArray(publicationSnapshots)) throw httpError('Story archive contains invalid publication snapshots');
+  const publicationIds = new Set();
+  for (const snapshot of publicationSnapshots) {
+    assertKnown(snapshot, PUBLICATION_SNAPSHOT_FIELDS, 'Publication snapshot');
+    let document;
+    try { document = JSON.parse(snapshot.document_json); } catch { document = null; }
+    let documentValid = false;
+    try { validatePublicationDocument(document); documentValid = true; } catch { /* generic archive refusal below */ }
+    if (!snapshot || !validId(snapshot.id) || publicationIds.has(snapshot.id) ||
+        snapshot.story_id !== meta.id || snapshot.schema_version !== 1 ||
+        typeof snapshot.document_json !== 'string' || snapshot.document_json.length > 100 * 1024 * 1024 ||
+        !documentValid ||
+        typeof snapshot.sha256 !== 'string' || !/^[a-f0-9]{64}$/.test(snapshot.sha256) ||
+        hashDocument(document) !== snapshot.sha256 || !Number.isFinite(Date.parse(snapshot.created_at))) {
+      throw httpError('Story archive contains an invalid publication snapshot');
+    }
+    publicationIds.add(snapshot.id);
   }
 }
 

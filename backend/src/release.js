@@ -48,7 +48,7 @@ function releaseCapabilities(applicationVersion) {
       format: ARCHIVE_FORMAT,
       version: ARCHIVE_VERSION,
       manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
-      status: 'scaffold',
+      status: 'available',
     },
     features: FEATURES.map((feature) => ({ ...feature })),
   };

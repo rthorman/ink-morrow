@@ -65,6 +65,10 @@ When documents conflict, use this order:
 | [UX-ARCHITECTURE.md](UX-ARCHITECTURE.md) | Information architecture, flows, copy, and responsive rules |
 | [ART-DIRECTION.md](ART-DIRECTION.md) | Approved visual direction and reference artwork |
 | [QA-RELEASE-GATES.md](QA-RELEASE-GATES.md) | Supported browser, test matrix, and release blockers |
+| [OPERATIONS.md](OPERATIONS.md) | Backup, restore, reverse-proxy, credential, and incident runbook |
+| [RELEASE-EVIDENCE.md](RELEASE-EVIDENCE.md) | Automated evidence and explicit manual release checkpoints |
+| [KNOWN-ISSUES.md](KNOWN-ISSUES.md) | Beta limits and provisional defect record |
+| [PUBLICATION-EVIDENCE.md](PUBLICATION-EVIDENCE.md) | Publication adapter and reader-validation evidence |
 | [../../../LICENSE-NOTICE.md](../../../LICENSE-NOTICE.md) | 4.0 license, historical boundary, and third-party treatment |
 | [../../../LEGAL.md](../../../LEGAL.md) | License-adjacent legal and liability notices |
 | [../../../PRIVACY.md](../../../PRIVACY.md) | Current self-hosted privacy disclosure |

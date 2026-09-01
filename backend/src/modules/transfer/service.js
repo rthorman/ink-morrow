@@ -25,6 +25,7 @@ const {
   AUDIOBOOK_FIELDS,
   ART_ASSET_FIELDS,
   ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
   ARCHIVE_EXTENSION,
   semanticHash,
   sanitizeSettings,
@@ -936,7 +937,8 @@ function createTransferService({
         }
       }
       const combinedMap = new Map([
-        ...maps.world, ...maps.character, ...maps.page, ...maps.revision,
+        ...maps.world, ...maps.character, ...maps.story, ...maps.volume,
+        ...maps.chapter, ...maps.page, ...maps.revision, ...maps.asset, ...maps.placement,
       ]);
       for (const correctionSource of entity.bundle.corrections || []) {
         const subjectId = correctionSource.subject_id ? (combinedMap.get(correctionSource.subject_id) || correctionSource.subject_id) : null;
@@ -1034,6 +1036,13 @@ function createTransferService({
               created_at: prepared.created_at };
         db.prepare('UPDATE writing_operations SET result_json = ? WHERE id = ?')
           .run(JSON.stringify({ preview: publicPrepared }), prepared.operation_id);
+      }
+      for (const publicationSource of entity.bundle.publication_snapshots || []) {
+        insertOrReplace(db, 'publication_snapshots', {
+          ...publicationSource,
+          id: randomUUID(),
+          story_id: storyId,
+        }, PUBLICATION_SNAPSHOT_FIELDS);
       }
       if (entity.bundle.preview) {
         insertOrUpdate(db, 'story_previews', { ...entity.bundle.preview, story_id: storyId }, PREVIEW_FIELDS, 'story_id');

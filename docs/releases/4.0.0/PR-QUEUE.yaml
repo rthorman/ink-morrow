@@ -508,7 +508,7 @@ pull_requests:
   - id: "18"
     slug: beta-hardening
     title: Archive completion, hardening, and release evidence
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "17"

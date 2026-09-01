@@ -161,20 +161,20 @@
 .chronicle-marker--tail,
 .chronicle-marker--ready,
 .chronicle-marker--safe {
-  border-color: var(--st-success, #4f7f66);
-  color: var(--st-success, #4f7f66);
+  border-color: var(--st-success-500);
+  color: var(--st-success-500);
 }
 
 .chronicle-marker--pending,
 .chronicle-marker--unsafe {
-  border-color: var(--st-warning, #a16d2d);
-  color: var(--st-warning, #a16d2d);
+  border-color: var(--st-gold-500);
+  color: var(--st-gold-500);
 }
 
 .chronicle-marker--failed,
 .chronicle-marker--expired {
-  border-color: var(--st-danger, #a44e4e);
-  color: var(--st-danger, #a44e4e);
+  border-color: var(--st-danger-500);
+  color: var(--st-danger-500);
 }
 
 .chronicle-recoveries {
