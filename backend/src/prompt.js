@@ -65,8 +65,11 @@ function castSections(characters, { withIds = false } = {}) {
     );
   }
   if (supporting.length > 0) {
+    const hasLead = mc.length > 0;
     sections.push(
-      'SUPPORTING CAST (important to the main character; stay consistent with these details and their current standing with the protagonist):\n' +
+      (hasLead
+        ? 'SUPPORTING CAST (important to the lead; stay consistent with these details and their current standing with the lead):\n'
+        : 'ENSEMBLE CAST (there is no designated lead; share narrative focus according to the scene and author direction, and do not invent a protagonist hierarchy):\n') +
         supporting
           .map((c) => {
             const evolvedRelation =
@@ -74,7 +77,8 @@ function castSections(characters, { withIds = false } = {}) {
             const relation = evolvedRelation
               ? `${evolvedRelation} (as the story has reshaped it; it began as: ${c.relation || 'unspecified'})`
               : (c.relation || 'unspecified');
-            return characterBlock(c, { withId: withIds }) + `\n  Relation to the main character: ${relation}`;
+            const relationLabel = hasLead ? 'Relation to the lead' : 'Starting connection or story note';
+            return characterBlock(c, { withId: withIds }) + `\n  ${relationLabel}: ${relation}`;
           })
           .join('\n')
     );
@@ -313,7 +317,11 @@ function buildStoryCoverPrompt({ story, world, characters }) {
       const role = character.role === 'mc' ? 'lead' : character.role || 'supporting';
       lines.push(`- ${character.name} (${role}): ${character.appearance || character.description || 'appearance unspecified'}`);
     }
-    lines.push('Give the lead visual priority; supporting and background figures remain clearly subordinate. Preserve referenced faces, hair, clothing, and silhouettes.');
+    if (ordered.some((character) => character.role === 'mc')) {
+      lines.push('Give the lead visual priority; supporting and background figures remain clearly subordinate. Preserve referenced faces, hair, clothing, and silhouettes.');
+    } else {
+      lines.push('This is an ensemble with no designated lead. Share visual emphasis among supporting characters according to the composition; keep only background figures subordinate. Preserve referenced faces, hair, clothing, and silhouettes.');
+    }
   } else {
     lines.push('No fixed cast: make the world and an evocative story symbol the focus.');
   }
@@ -334,3 +342,4 @@ module.exports = {
   compactLedger,
   STATE_MARKER_TEXT,
 };
+
