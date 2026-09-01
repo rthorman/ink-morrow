@@ -164,7 +164,7 @@ describe('PR11 recoverable return-to-page', () => {
 
     await fw.burnAfterCurrentPage();
     expect(document.getElementById('deskRecoveryBanner').hidden).toBe(false);
-    expect(document.getElementById('deskRecoveryText').textContent).toContain('Page 2 left the active story');
+    expect(document.getElementById('deskRecoveryText').textContent).toContain('Page 2 left the active manuscript');
     await fw.undoReturn();
 
     const undoCall = fetchMock.mock.calls.find(([url]) => url === '/api/stories/s1/recoveries/r1/undo');
@@ -173,3 +173,4 @@ describe('PR11 recoverable return-to-page', () => {
     expect(document.getElementById('deskRecoveryBanner').hidden).toBe(true);
   });
 });
+
