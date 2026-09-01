@@ -166,6 +166,24 @@ Persistent notes for this project (ScribeTribe, ~/src/scribe-tribe).
   consent, receive bounded warning metadata without prose, and cannot apply
   changes. Full behavior: `docs/codex.md`.
 
+### 4.0 Gallery contract (PR 14)
+
+- Gallery is the one owner-facing collection for uploaded and AI-generated
+  art. Upload and Paint with AI are equal entry paths; local upload performs
+  technical validation and normalization without semantic moderation or any
+  provider call.
+- Assets and placements remain separate. Gallery-only, before-first, and
+  after-stable-page placement changes never renumber prose, alter revisions,
+  continuity, prepared work, or canon. Delete removes the asset and its
+  placements; unplace keeps the normalized asset.
+- Provider-reference permission belongs to one local asset and selection for
+  the next painting is a second explicit action. Only ready, permitted,
+  explicitly selected IDs cross the provider boundary; imports reset consent.
+- Grok refusal remains announce-and-wait: the reason and editable replacement
+  are visible, originals remain unchanged, and retry requires a new action.
+  Placed art without alt text receives a publication warning but private
+  Gallery use remains available. Full behavior: `docs/gallery.md`.
+
 ### 4.0 transactional writing contract (PR 06)
 
 - Schema version 6 activates durable `requested` / `running` / `succeeded` /

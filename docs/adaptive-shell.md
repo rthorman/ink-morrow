@@ -17,9 +17,10 @@ opened through a separate, persistent five-destination workspace:
 
 Desk is always available because it owns manuscript creation. Chronicle,
 Codex, Gallery, and Gate remain disabled until a manuscript is selected.
-Codex now owns story-local foundations, provenanced memory, and corrections;
-Gallery and Gate retain explicit holding surfaces until their implementation
-PRs land. None duplicates the Desk reader.
+Codex owns story-local foundations, provenanced memory, and corrections;
+Gallery owns generated/uploaded art, explicit provider references, and stable
+placements. Gate retains an explicit holding surface until its implementation
+PR lands. None duplicates the Desk reader.
 
 The header manuscript switcher contains only unlocked catalogue data. Choosing
 a manuscript opens it at Desk. Locking clears the selection and hides the

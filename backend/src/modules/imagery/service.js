@@ -82,6 +82,7 @@ function createImageryService({
     const modelOverride = modelOverrideOf(body.model);
     if (body.model !== undefined && !modelOverride) return { error: '"model" must be a non-empty string' };
     const reasoningEffort = parseReasoningEffort(body.reasoning_effort);
+    const providerDescription = describeImageProvider();
     const variant = body.render === undefined ? 'low_1k' : asString(body.render);
     if (!RENDER_VARIANTS[variant]) {
       return { error: '"render" must be one of: low_1k, medium_2k' };
@@ -169,6 +170,11 @@ function createImageryService({
       references: dropReferences ? [] : resolvedReferences,
       asset_references: dropReferences ? [] : assetReferences.map((reference) => reference.id),
       prompt,
+      provider: {
+        adapter: providerDescription.adapter,
+        model: providerDescription.model,
+        profile_name: providerDescription.profile_name,
+      },
     };
   }
 

@@ -641,6 +641,60 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#codexFoundations')).not.toContainText('Basalt shore');
   });
 
+  test('Gallery uploads, moves, and unplaces local art without provider or narrative work', async ({ page }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Gallery Proof', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gallery page one.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gallery page two.' });
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/(scene-image|image-prompt)|\/api\/ai\//.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.goto(`/#/gallery/${story.id}`);
+    await expect(page.locator('#gallerySection')).toHaveClass(/active/);
+    await expect(page.locator('#galleryPaintBtn')).toBeVisible();
+    await expect(page.locator('#galleryUploadBtn')).toBeVisible();
+    await page.locator('#galleryUploadInput').setInputFiles({
+      name: 'local-owner-art.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    });
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input[type="text"]').fill('Local owner art');
+    await dialog.locator('select').selectOption({ label: 'Before first page' });
+    await dialog.locator('button', { hasText: 'Upload image' }).click();
+
+    const card = page.locator('.gallery-card', { hasText: 'Local owner art' });
+    await expect(card).toBeVisible({ timeout: 8000 });
+    await expect(card).toContainText('Source: uploaded locally');
+    await expect(card).toContainText('needs alt text');
+    expect(providerRequests).toEqual([]);
+
+    await card.locator('.gallery-placement select').first().selectOption({ label: 'After page 2' });
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'PATCH'),
+      card.locator('button', { hasText: 'Move' }).click(),
+    ]);
+    await expect(page.locator('.success-message').first()).toContainText('Narrative page order');
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'DELETE'),
+      card.locator('button', { hasText: 'Unplace' }).click(),
+    ]);
+    await expect(page.locator('.success-message').first()).toContainText('Gallery-only storage');
+
+    const pages = (await (await page.request.get(`/api/stories/${story.id}/pages`)).json()).pages;
+    const art = await (await page.request.get(`/api/stories/${story.id}/assets`)).json();
+    expect(pages.map((item) => [item.page_number, item.content])).toEqual([
+      [1, 'Gallery page one.'], [2, 'Gallery page two.'],
+    ]);
+    expect(art.assets).toHaveLength(1);
+    expect(art.placements).toEqual([]);
+    expect(providerRequests).toEqual([]);
+  });
+
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {
     const longDescription = 'A brass city under twin moons. '.repeat(60);
     await apiPost(page, '/api/worlds', { name: 'Longwinded Realm', description: longDescription, generate_image: false });

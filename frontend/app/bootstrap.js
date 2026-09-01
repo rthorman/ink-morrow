@@ -32,6 +32,7 @@ import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
 import { createChronicle } from './features/chronicle.js';
 import { createCodex } from './features/codex.js';
+import { createGallery } from './features/gallery.js';
 import { createAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
 
@@ -79,6 +80,7 @@ export function initApp() {
   features.aiDrafts = createAiDrafts({ api, state, notify, features, dialogs });
   features.chronicle = createChronicle({ api, state, notify, features, dialogs, router: null });
   features.codex = createCodex({ api, state, notify, features, dialogs, router: null });
+  features.gallery = createGallery({ api, state, notify, features, dialogs, shell, router: null });
 
   // -- router -------------------------------------------------------------------
   // Each boot marks itself live; a superseded boot (a fresh loadScript in
@@ -137,6 +139,8 @@ export function initApp() {
       features.chronicle.enter(route.params).then(syncManuscriptShell);
     } else if (route.name === 'codex') {
       features.codex.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'gallery') {
+      features.gallery.enter(route.params).then(syncManuscriptShell);
     } else if (WORKSPACE_DESTINATIONS.has(route.name)) {
       features.write.enterFromRoute(route.params).then(syncManuscriptShell);
     }
@@ -173,6 +177,7 @@ export function initApp() {
   features.write.router = router;
   features.chronicle.setRouter(router);
   features.codex.setRouter(router);
+  features.gallery.setRouter(router);
   features.settings.open = () => router.navigate('settings');
 
   // -- shell wiring ------------------------------------------------------------
@@ -222,6 +227,7 @@ export function initApp() {
   features.manuscriptStart.init();
   features.chronicle.init();
   features.codex.init();
+  features.gallery.init();
   features.home.init();
   features.library.init();
 
@@ -268,6 +274,7 @@ export function initApp() {
     features.generation.resetForStoryChange();
     features.chronicle.reset();
     features.codex.reset();
+    features.gallery.reset();
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
@@ -324,7 +331,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex } = features;
+  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -377,6 +384,11 @@ function buildFacade(ctx) {
     renderCodex: codex.render,
     selectCodexTab: codex.selectTab,
     repairCodexMemory: codex.repairMemory,
+    loadGallery: gallery.load,
+    enterGallery: gallery.enter,
+    renderGallery: gallery.render,
+    openGalleryUpload: gallery.openUpload,
+    openGalleryPaint: gallery.openPaint,
     setWritingEnabled: write.setWritingEnabled,
     openAiDraft: aiDrafts.openAiDraft,
     closeAiDraft: aiDrafts.closeAiDraft,
@@ -400,6 +412,7 @@ function buildFacade(ctx) {
     resetImageSanitationForContext: imagery.resetForContextChange,
     resetImageSanitationForReferences: imagery.resetForReferenceChange,
     __sceneModerationState: imagery.__sceneModerationState,
+    __selectedAssetReferences: imagery.__selectedAssetReferences,
     openSceneViewer: imagery.openSceneViewer,
     closeSceneViewer: imagery.closeSceneViewer,
     saveSceneViewer: imagery.saveSceneViewer,

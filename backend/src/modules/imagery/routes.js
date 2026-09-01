@@ -114,17 +114,36 @@ function createImageryRouter({ stories, imagery, imageStore, artStore, imageDir 
       if (cost !== undefined && cost !== null && (typeof cost !== 'number' || !Number.isFinite(cost) || cost < 0)) {
         return badRequest(res, '"cost_usd" must be a non-negative number');
       }
+      if (req.body.gallery_only !== undefined && typeof req.body.gallery_only !== 'boolean') {
+        return badRequest(res, '"gallery_only" must be a boolean');
+      }
+      const title = textField(req.body.title, 'title', 500) || 'Scene illustration';
+      const altText = req.body.alt_text === undefined
+        ? imagePrompt
+        : textField(req.body.alt_text, 'alt_text', 2000);
+      const provider = req.body.provider && typeof req.body.provider === 'object' && !Array.isArray(req.body.provider)
+        ? {
+            adapter: textField(req.body.provider.adapter, 'provider.adapter', 100),
+            model: textField(req.body.provider.model, 'provider.model', 300),
+            profile_name: textField(req.body.provider.profile_name, 'provider.profile_name', 200),
+          }
+        : null;
+      const references = Array.isArray(req.body.references)
+        ? req.body.references.filter((id) => typeof id === 'string' && id.length <= 100).slice(0, 20)
+        : [];
 
       const result = await artStore.createFromBuffer({
         storyId: story.id,
         source: 'ai-generated',
         buffer,
         declaredMediaType: mediaType,
-        title: 'Scene illustration',
-        altText: imagePrompt,
-        providerResult: { prompt: imagePrompt },
+        title,
+        altText,
+        providerResult: { prompt: imagePrompt, provider, references },
         spendUsd: typeof cost === 'number' ? cost : 0,
-        afterPageId: stories.hierarchy.stablePage(story.id, page.id).id,
+        ...(req.body.gallery_only === true
+          ? {}
+          : { afterPageId: stories.hierarchy.stablePage(story.id, page.id).id }),
       });
       res.status(201).json(result);
     } catch (error) {
@@ -138,6 +157,21 @@ function createImageryRouter({ stories, imagery, imageStore, artStore, imageDir 
       const story = stories.getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
       res.json(artStore.list(story.id));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/api/stories/:id/assets/anchors', async (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      res.json({
+        anchors: stories.storyPages(story.id).map((page) => ({
+          page_id: page.id,
+          page_number: page.page_number,
+        })),
+      });
     } catch (error) {
       next(error);
     }

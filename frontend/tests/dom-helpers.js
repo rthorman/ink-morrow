@@ -215,7 +215,11 @@ function buildDom() {
         <section id="codexCanonPanel" hidden><div id="codexCoverage"></div><input id="codexSearch"><div id="codexCanon"></div></section>
         <section id="codexCorrectionsPanel" hidden><div id="codexCorrectionActions"></div><div id="codexCorrections"></div><div id="codexIssues"></div><div id="codexImpactSummary"></div></section>
       </section>
-      <section id="gallerySection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="gallerySection" class="content-section"><span data-workspace-story></span><p id="galleryStatus"></p>
+        <button id="galleryPaintBtn" class="btn btn-primary">Paint with AI</button><button id="galleryUploadBtn" class="btn btn-primary">Upload an image</button>
+        <input id="galleryUploadInput" type="file"><button class="workspace-back-to-desk">Return to Desk</button>
+        <div id="galleryReferenceSummary"></div><div id="galleryGrid"></div>
+      </section>
       <section id="gateSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
       <section id="settingsSection" class="content-section">
         <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
@@ -290,6 +294,7 @@ function buildDom() {
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
       <img id="sceneViewerImg" alt="The painted scene">
       <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Place after page</button>
+      <button id="sceneViewerGalleryBtn" type="button" class="ghost-btn">Save to Gallery</button>
       <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
       <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
     </div>

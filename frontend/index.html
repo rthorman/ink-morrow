@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
     <link rel="stylesheet" href="styles/fonts.css">
@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="styles/features/write.css">
     <link rel="stylesheet" href="styles/features/chronicle.css">
     <link rel="stylesheet" href="styles/features/codex.css">
+    <link rel="stylesheet" href="styles/features/gallery.css">
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/auth.css">
 </head>
@@ -527,11 +528,19 @@
                 </section>
             </section>
 
-            <section id="gallerySection" class="content-section workspace-empty" aria-labelledby="galleryTitle">
+            <section id="gallerySection" class="content-section gallery" aria-labelledby="galleryTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="galleryTitle">Gallery <span>&mdash; images around the manuscript</span></h2>
-                <p>Generated and uploaded art, references, and placements will gather here. Painting and upload remain available from the Desk; original files and prose are unchanged.</p>
-                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                <p id="galleryStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its art.</p>
+                <div class="gallery-toolbar">
+                    <button id="galleryPaintBtn" class="btn btn-primary" type="button">Paint with AI</button>
+                    <button id="galleryUploadBtn" class="btn btn-primary" type="button">Upload an image</button>
+                    <input id="galleryUploadInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <p class="gallery-boundary">Uploads stay local unless you separately permit and select one as a provider reference. Images and placements never become manuscript pages or continuity evidence.</p>
+                <div id="galleryReferenceSummary" class="gallery-reference-summary" aria-live="polite"></div>
+                <div id="galleryGrid" class="gallery-grid"></div>
             </section>
 
             <section id="gateSection" class="content-section workspace-empty" aria-labelledby="gateTitle">
@@ -694,6 +703,7 @@
         <img id="sceneViewerImg" alt="The painted scene" draggable="false">
         <div class="scene-viewer__actions">
             <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Place this painting after the prose page it illustrates">Place after page</button>
+            <button id="sceneViewerGalleryBtn" type="button" class="ghost-btn" title="Keep this painting without placing it in the manuscript">Save to Gallery</button>
             <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
             <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
         </div>
