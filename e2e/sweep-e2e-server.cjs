@@ -45,4 +45,3 @@ for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
   }
 }
 if (swept === 0) console.log('[e2e sweep] no orphaned e2e servers');
-
