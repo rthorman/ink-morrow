@@ -593,10 +593,24 @@
                         </form>
                     </article>
                     <article class="gate-card gate-card--share">
-                        <p class="gate-card__eyebrow">Coming next</p>
+                        <p class="gate-card__eyebrow">Read only</p>
                         <h3>Share a reading copy</h3>
-                        <p>Immutable, revocable capability links arrive in the next release step. No live-story or public-sharing behavior is enabled yet.</p>
-                        <button class="btn btn-secondary" type="button" disabled>Sharing not yet available</button>
+                        <p>Create a high-entropy link to the latest snapshot reviewed above. Later manuscript edits never change it.</p>
+                        <label for="gateShareExpiry">Link expiry</label>
+                        <select id="gateShareExpiry">
+                            <option value="86400">24 hours</option>
+                            <option value="604800" selected>7 days</option>
+                            <option value="2592000">30 days</option>
+                            <option value="">No automatic expiry</option>
+                        </select>
+                        <button id="gateCreateShareBtn" class="btn btn-secondary" type="button" disabled>Share reviewed snapshot</button>
+                        <p id="gateShareHint" class="setting-hint" role="status" aria-live="polite">Review a publication snapshot first.</p>
+                        <div id="gateShareReveal" class="gate-share-reveal" hidden>
+                            <label for="gateShareUrl">Copy this link now — the capability cannot be recovered later</label>
+                            <input id="gateShareUrl" readonly>
+                            <button id="gateCopyShareBtn" class="btn btn-secondary" type="button">Copy link</button>
+                        </div>
+                        <div id="gateShareList" class="gate-share-list" aria-label="Reading-copy links"></div>
                     </article>
                 </div>
                 <section id="gateJob" class="gate-job" aria-labelledby="gateJobTitle" hidden>

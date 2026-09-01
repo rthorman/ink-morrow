@@ -30,7 +30,7 @@ server-declared safe recovery restore with JSON export when canon diverges.
 The shell adds a global Library threshold, manuscript switching, and the stable
 Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
 layouts. Its
-databases identify themselves as `scribetribe-4` schema 7, use transactional migrations
+databases identify themselves as `scribetribe-4` schema 9, use transactional migrations
 and an operation journal, create Volume I and Chapter I with every story,
 preserve separate canonical/display prose, and refuse 3.x files before
 modifying them. Later 4.0 features remain unavailable until their PRs land;
@@ -135,7 +135,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Gallery** — one manuscript workspace for uploaded and AI-generated art, local preview and metadata, explicit provider-reference selection, provenance, download/delete, and Gallery-only or stable before/after-page placement without changing prose or canon
 - **Publication core** — freeze reviewed display prose, hierarchy, metadata, front/back matter, scene breaks, and selected placed art into one immutable allowlisted document, then render semantically checked DOCX, ODT, RTF, EPUB 3.3, PDF, standalone HTML, Markdown, plain text, or documented JSON without exposing prompts, continuity, recovery, costs, credentials, or working history
-- **Gate publication** — keep full-fidelity `.scribetribe` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build EPUB 3.3, PDF, or any core format in one cancellable job with progress, retry, download, and partial-file cleanup; sharing remains a disabled placeholder until its dedicated security step
+- **Gate publication and sharing** — keep full-fidelity `.scribetribe` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build formats or create an expiring, revocable reading-copy link to that same immutable snapshot. Raw 256-bit capabilities are returned once and stored only as hashes; the isolated public viewer cannot open private or provider APIs
 - **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and story art; each Stories card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and art
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
@@ -348,6 +348,10 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | POST | `/api/publication-jobs/:jobId/cancel` | Cancel and remove every partial/staged output |
 | POST | `/api/publication-jobs/:jobId/retry` | Retry a failed or cancelled job as a new clean lifecycle |
 | GET/DELETE | `/api/publication-jobs/:jobId/files/:filename`, `/api/publication-jobs/:jobId` | Download a completed format, or remove the whole job and staging directory |
+| POST | `/api/publications/:snapshotId/shares` | Create a one-time capability URL for an immutable snapshot; optional `expires_in_seconds` is 300 seconds through 365 days |
+| GET | `/api/publication-shares?story_id=…` | List owner-visible link status without ever returning the raw capability again |
+| POST | `/api/publication-shares/:shareId/revoke` | Permanently revoke a reading-copy capability |
+| GET | `/api/public-share` | Public, read-only snapshot endpoint using `Authorization: Share …`; all other `/api` routes remain owner-authenticated |
 | GET | `/api/disk` | Free/total bytes of the filesystem holding the plates (for the low-storage banner) |
 | POST/GET/DELETE | `/api/stories/:id/audiobook` | Start (one global queue, rejects pcm-only narrators) / poll (status, progress, staleness, queue position) / remove a whole-story mp3 |
 | POST | `/api/stories/:id/audiobook/cancel` | Stop the pending or running reading |

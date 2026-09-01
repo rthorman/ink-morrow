@@ -42,6 +42,8 @@ const { createProviderRouter } = require('./modules/providers/routes');
 const { createPublicationService } = require('./modules/publication/document');
 const { createPublicationRouter } = require('./modules/publication/routes');
 const { createPublicationJobs } = require('./modules/publication/jobs');
+const { createPublicationShares } = require('./modules/publication/shares');
+const { createPublicShareRouter, createPublicationShareRouter } = require('./modules/publication/share-routes');
 
 function createApp(
   db,
@@ -97,6 +99,12 @@ function createApp(
     lockAll: providers.lockAll,
   });
   app.use(createAuthRouter({ auth }));
+  // The public reader is the sole unauthenticated API seam. It accepts a
+  // capability in an Authorization header, never in a logged path or query.
+  // The service is assigned before createApp returns and the closure prevents
+  // the rest of /api from bypassing the owner gate.
+  let publicationShares;
+  app.use(createPublicShareRouter({ shares: () => publicationShares }));
   app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
 
   // The release branch grows feature-by-feature. Later frontend PRs can use
@@ -211,6 +219,7 @@ function createApp(
     ? fs.mkdtempSync(path.join(os.tmpdir(), 'st-publications-'))
     : path.join(__dirname, '../../database/publications'));
   const publicationJobs = createPublicationJobs({ publications, rootDir: resolvedPublicationDir, clock });
+  publicationShares = createPublicationShares({ db, publications, clock });
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
@@ -218,6 +227,7 @@ function createApp(
   app.locals.artStore = artStore;
   app.locals.publications = publications;
   app.locals.publicationJobs = publicationJobs;
+  app.locals.publicationShares = publicationShares;
 
   // -- feature routers (unchanged paths) ---------------------------------------
 
@@ -232,6 +242,7 @@ function createApp(
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
   app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }));
   app.use(createPublicationRouter({ publications, jobs: publicationJobs }));
+  app.use(createPublicationShareRouter({ shares: publicationShares }));
   app.use(createTransferRouter({ transfers }));
 
   // Boot backfill of entity reference images (no-op without an API key or
@@ -241,6 +252,11 @@ function createApp(
   // -- static frontend + error handling -------------------------------------
 
   if (staticDir) {
+    app.get(['/share', '/share/'], (req, res) => {
+      res.setHeader('Cache-Control', 'no-store');
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      res.sendFile(path.join(staticDir, 'share.html'));
+    });
     app.use(express.static(staticDir));
     // SPA-ish fallback for non-API GET routes
     app.get(/^\/(?!api\/).*/, (req, res) => {

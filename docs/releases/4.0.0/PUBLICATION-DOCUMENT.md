@@ -53,6 +53,14 @@ EPUB emits a deterministic EPUB 3 package with navigation and manifest checks.
 PDF uses deterministic A4 geometry, widow/orphan-aware paragraph placement,
 ActualText reading order, the bundled OFL Literata subset, and selected JPEG
 image objects.
-Automated semantic re-read compares all seven adapters with one golden ordered
+Automated semantic re-read compares all nine adapters with one golden ordered
 view, including Unicode, punctuation, headings, scene breaks and empty
 chapters.
+
+## Immutable reading-copy links
+
+PR 17 can bind a high-entropy, hash-only capability to this exact snapshot.
+The isolated viewer receives the allowlisted document and digest but no live
+story or private project state. Expiry, one-way revocation, public deployment,
+and proxy logging requirements are specified in
+[`SNAPSHOT-SHARING.md`](SNAPSHOT-SHARING.md).
