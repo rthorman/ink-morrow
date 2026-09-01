@@ -96,7 +96,7 @@ describe('Characters and casting', () => {
     document.getElementById('startWorld').value = 'w1';
     fw.renderCastBuilder();
     const mcOptions = [...document.getElementById('mcSelect').options].map((o) => o.textContent);
-    expect(mcOptions).toEqual(['— Choose who the story follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
+    expect(mcOptions).toEqual(['— Choose who the manuscript follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
   });
 
   it('locks the MC once chosen and removes them from the member pool', async () => {
@@ -328,7 +328,7 @@ describe('Generation and export flows', () => {
   it('blocks generate with no story selected', async () => {
     fw.__setStoryState({ currentStory: null });
     await fw.generateNextPage();
-    expect(document.querySelector('.error-message').textContent).toContain('select a story');
+    expect(document.querySelector('.error-message').textContent).toContain('choose a manuscript');
     expect(fetchMock).not.toHaveBeenCalledWith('/api/stories/s1/pages/generate', expect.anything());
   });
 
@@ -411,3 +411,4 @@ describe('Delete page flow', () => {
     expect(fw.state().currentPage).toBe(1);
   });
 });
+
