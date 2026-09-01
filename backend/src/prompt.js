@@ -342,4 +342,3 @@ module.exports = {
   compactLedger,
   STATE_MARKER_TEXT,
 };
-
