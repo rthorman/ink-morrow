@@ -295,6 +295,21 @@ describe('portable archives and backups', () => {
       evidence: [{ page_revision_id: canonicalRevision, quote: 'crosses the threshold' }],
       source: 'author',
     }));
+    const authorEntryId = randomUUID();
+    source.db.prepare(`
+      INSERT INTO author_canon_entries (id, story_id, kind, subject_id)
+      VALUES (?, ?, 'character_fact', ?)
+    `).run(authorEntryId, story.id, visitor.id);
+    source.db.prepare(`
+      INSERT INTO author_canon_revisions
+        (id, entry_id, revision_number, title, value_json, note)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), authorEntryId, 1, 'Visitor oath', JSON.stringify('The visitor serves the tide.'), 'First wording');
+    source.db.prepare(`
+      INSERT INTO author_canon_revisions
+        (id, entry_id, revision_number, title, value_json, note)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), authorEntryId, 2, 'Visitor oath', JSON.stringify('The visitor opposes the tide.'), 'Revised by author');
     storeImage(source.imageDir, 'worlds', storyWorld.id);
     storeImage(source.imageDir, 'characters', lead.id);
     storeImage(source.imageDir, 'covers', story.id);
@@ -306,7 +321,7 @@ describe('portable archives and backups', () => {
       scope: 'story', id: story.id, include_visuals: true,
       include_audio: false, include_working_history: false,
     });
-    expect(plan.exposure).toMatchObject({ worlds: 2, characters: 2, stories: 1, pages: 3, continuity_rows: 1, images: 3, audio_files: 0 });
+    expect(plan.exposure).toMatchObject({ worlds: 2, characters: 2, stories: 1, pages: 3, continuity_rows: 1, author_canon_entries: 1, images: 3, audio_files: 0 });
     expect(plan.exposure.external_worlds.map((row) => row.name)).toEqual(['Visitor World']);
     expect(plan.exposure.excluded).toContain('API keys');
 
@@ -342,6 +357,13 @@ describe('portable archives and backups', () => {
     expect(importedCorrection.subject_id).toBe(visitor.id);
     expect(JSON.parse(importedCorrection.correction_json).evidence[0].page_revision_id)
       .toBe(importedRevisionPointers.canonical_revision_id);
+    const importedAuthor = destination.db.prepare('SELECT * FROM author_canon_entries WHERE story_id = ?').get(story.id);
+    expect(importedAuthor).toMatchObject({ kind: 'character_fact', subject_id: visitor.id, status: 'active' });
+    expect(destination.db.prepare('SELECT revision_number, title, value_json FROM author_canon_revisions WHERE entry_id = ? ORDER BY revision_number')
+      .all(importedAuthor.id)).toEqual([
+      { revision_number: 1, title: 'Visitor oath', value_json: JSON.stringify('The visitor serves the tide.') },
+      { revision_number: 2, title: 'Visitor oath', value_json: JSON.stringify('The visitor opposes the tide.') },
+    ]);
     const importedVolumes = destination.db.prepare('SELECT id, ordinal, title FROM volumes WHERE story_id = ? ORDER BY ordinal').all(story.id);
     expect(importedVolumes).toEqual([
       { id: volumeOne.id, ordinal: 1, title: 'Volume I' },

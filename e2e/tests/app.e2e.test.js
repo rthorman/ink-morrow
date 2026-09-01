@@ -24,6 +24,14 @@ async function selectByLabel(page, selector, text) {
   return value;
 }
 
+async function addRosterCharacter(page, name, { role, relation = '' }) {
+  const card = page.locator('#castAvailable .cast-available__card', { hasText: name }).first();
+  await expect(card).toBeVisible();
+  await card.locator('select').selectOption(role);
+  if (relation) await card.locator('input').fill(relation);
+  await card.getByRole('button', { name: 'Add to manuscript' }).click();
+}
+
 test.describe('Ink Morrow UI', () => {
   test.beforeEach(async ({ page }) => {
     await openUnlocked(page);
@@ -87,7 +95,7 @@ test.describe('Ink Morrow UI', () => {
     await page.fill('#worldName', 'E2E Realm');
     await page.locator('#worldForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#worldsList .item-card', { hasText: 'E2E Realm' }).first()).toBeVisible({ timeout: 5000 });
 
     // Character in that world (select by visible label, not by guessed value)
     await page.locator('#charactersBtn').click();
@@ -97,24 +105,24 @@ test.describe('Ink Morrow UI', () => {
     await selectByLabel(page, '#characterWorld', 'E2E Realm');
     await page.locator('#characterForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'Lady Seraphina' }).first()).toBeVisible({ timeout: 5000 });
 
     // Free-roaming second character
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Drifter');
     await page.locator('#characterForm .btn-primary').click();
     await confirmPaidReview(page, /Create & paint/);
-    await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'The Drifter' }).first()).toBeVisible({ timeout: 5000 });
 
     // A third character lets the creation flow prove both non-lead tiers.
     if (await page.locator('#characterCreateWrap').isHidden()) await page.locator('#characterNewBtn').click();
     await page.fill('#characterName', 'The Witness');
     await page.locator('#characterNoImageBtn').click();
-    await expect(page.locator('#charactersList .item-card', { hasText: 'The Witness' })).toBeVisible({ timeout: 5000 });
+    await expect(page.locator('#charactersList .item-card', { hasText: 'The Witness' }).first()).toBeVisible({ timeout: 5000 });
 
     // Every card carries reference-image controls (e2e key is a dummy, so
     // the portrait itself fails; the UI must still show the state honestly)
-    const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
+    const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' }).first();
     // Regeneration lives in the More menu with its approximate cost
     await drifterCard.locator('.card-more summary').click();
     const regenerateItem = drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' });
@@ -136,38 +144,35 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'The Shadow and the Flame');
     await page.fill('#startManualOpening', 'The shadow met the flame at midnight.');
-    await page.locator('#startFoundations summary').click();
+    await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
     await selectByLabel(page, '#startWorld', 'E2E Realm');
-    await page.selectOption('#manuscriptStartTone', 'romantic');
-    await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
-    await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
-    await selectByLabel(page, '#castCharSelect', 'The Drifter');
-    await page.selectOption('#castTierSelect', 'supporting');
-    await page.fill('#castRelation', 'a debt of silence between them');
+    await page.locator('#castModeCentered').click();
+    await addRosterCharacter(page, 'Lady Seraphina', { role: 'mc' });
+    await addRosterCharacter(page, 'The Drifter', {
+      role: 'supporting', relation: 'a debt of silence between them',
+    });
 
     // Force the same passive catalogue reload that portrait polling performs.
-    // The in-progress add row must not be cleared before the user can press Add.
+    // Added roster choices must remain in the browser draft.
     await page.locator('#charactersBtn').click();
     await expect(page.locator('#charactersSection')).toHaveClass(/active/);
     await page.locator('#writeBtn').click();
     await page.locator('#storyNewBtn').click();
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
-    await expect(page.locator('#castCharSelect')).toHaveValue(/.+/);
-    await expect(page.locator('#castTierSelect')).toHaveValue('supporting');
-    await expect(page.locator('#castRelation')).toHaveValue('a debt of silence between them');
-    await page.locator('#castAddBtn').click();
     const leadRow = page.locator('#castList .cast-list__row--mc');
     await expect(leadRow).toContainText('Lady Seraphina');
     await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
     const supportingRow = page.locator('#castList .cast-list__row', { hasText: 'The Drifter' });
     await expect(supportingRow.locator('.cast-list__role')).toHaveText('Supporting');
+    await expect(supportingRow.locator('.cast-list__relation')).toHaveValue('a debt of silence between them');
 
-    await selectByLabel(page, '#castCharSelect', 'The Witness');
-    await page.selectOption('#castTierSelect', 'background');
-    await page.fill('#castRelation', 'saw what happened from the alley');
-    await page.locator('#castAddBtn').click();
+    await addRosterCharacter(page, 'The Witness', {
+      role: 'background', relation: 'saw what happened from the alley',
+    });
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
+    await page.locator('[data-start-stage="2"] [data-start-next="3"]').click();
+    await page.selectOption('#manuscriptStartTone', 'romantic');
     await page.locator('#manuscriptStartSubmit').click();
 
     // Creating a story jumps to the write section with the story selected
@@ -535,6 +540,8 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await page.fill('#manuscriptStartName', 'A Local Beginning');
     await page.fill('#startManualOpening', 'Rain whispered against the archive windows.');
+    await page.locator('[data-start-stage="1"] [data-start-next="2"]').click();
+    await page.locator('[data-start-stage="2"] [data-start-next="3"]').click();
     await page.locator('#manuscriptStartSubmit').click();
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#storyContent')).toContainText('Rain whispered against the archive windows.');
@@ -622,7 +629,7 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' })).toBeDisabled();
   });
 
-  test('Codex keeps story foundations frozen and imports only selected Library fields', async ({ page }) => {
+  test('Codex follows live world fields until the author makes a field manuscript-local', async ({ page }) => {
     const world = (await (await apiPost(page, '/api/worlds', {
       name: 'Frozen Coast', genre: 'Gothic', setting: 'Glass shore', description: 'The original coast.',
     })).json()).world;
@@ -639,16 +646,27 @@ test.describe('Ink Morrow UI', () => {
     });
     await page.goto(`/#/codex/${story.id}`);
     await expect(page.locator('#codexSection')).toHaveClass(/active/);
-    await expect(page.locator('#codexFoundations')).toContainText('Frozen Coast');
-    await expect(page.locator('#codexTemplateUpdates')).toContainText('Frozen Coast” → “Changed Coast');
-
-    const changes = page.locator('.codex-template__change');
-    await changes.filter({ hasText: 'Name:' }).locator('input').check();
-    await page.locator('.codex-template__form button', { hasText: 'Import selected fields' }).click();
-    await expect(page.locator('.success-message').last()).toContainText('1 selected foundation field');
     await expect(page.locator('#codexFoundations')).toContainText('Changed Coast');
-    await expect(page.locator('#codexFoundations')).toContainText('Glass shore');
-    await expect(page.locator('#codexFoundations')).not.toContainText('Basalt shore');
+    await expect(page.locator('#codexFoundations')).toContainText('Basalt shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Frozen Coast');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('No Library fields differ');
+
+    const settingCard = page.locator('#codexFoundations .codex-fact')
+      .filter({ has: page.locator('h4', { hasText: 'Setting' }) });
+    await settingCard.locator('.codex-fact__edit').click();
+    await page.locator('.dialog-manager textarea').fill('Moonlit glass shore');
+    await page.locator('.dialog-manager button', { hasText: 'Save foundation' }).click();
+    await expect(page.locator('.success-message').last()).toContainText('Manuscript foundation updated');
+
+    await apiPut(page, `/api/worlds/${world.id}`, {
+      name: 'Storm Coast', genre: 'Gothic', setting: 'Obsidian harbor', description: 'The storm coast.',
+    });
+    await page.reload();
+    await expect(page.locator('#codexFoundations')).toContainText('Storm Coast');
+    await expect(page.locator('#codexFoundations')).toContainText('Moonlit glass shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Obsidian harbor');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('Moonlit glass shore” → “Obsidian harbor');
+    await expect(page.locator('#codexTemplateUpdates')).not.toContainText('Changed Coast” → “Storm Coast');
   });
 
   test('Gallery uploads, moves, and unplaces local art without provider or narrative work', async ({ page }) => {

@@ -1,25 +1,42 @@
 # Codex
 
 Codex is the manuscript workspace for inspecting story-local foundations,
-page-provenanced remembered canon, and author corrections. It consumes the
+page-provenanced remembered canon, and author-declared canon. It consumes the
 continuity-v2 projection; it does not load or render the manuscript as a
 hidden second reader.
 
 ## Three views
 
-- **Foundations** shows frozen world and cast snapshots. Library template
-  changes appear as field-level diffs. Import submits only checked fields and
+- **Foundations** shows the live world and frozen cast sheets. Untouched world
+  fields continue following the reusable Library template. Direct edits and
+  explicitly accepted Library changes pin only those fields to a new
+  story-local snapshot. Library changes appear as field-level diffs. Import submits only checked fields and
   creates a new story-local snapshot; unchecked fields remain frozen.
 - **Remembered canon** shows coverage, current entity state, goals, threads,
   world facts, arcs, and a bounded recent event history. Every derived fact
   exposes its canonical page and stored quotation. Legacy rows that predate
   direct quotes say so and still link to the owning page.
-- **Author corrections** shows separate authoritative correction rows and
-  deterministic later-impact warnings. It never presents a correction as a
-  prose edit or mutates hidden extraction records.
+- **Author canon** lets the author create, revise, and retire world events,
+  world facts, character facts, relationships, goals, threads, story rules,
+  and custom facts. It also shows separate correction rows and deterministic
+  later-impact warnings. It never presents either layer as a prose edit or
+  mutates hidden extraction records.
 
 Prepared next-page prose has no canonical revision and therefore never
 appears in Codex coverage or facts.
+
+The manuscript name can be changed from Codex or the Library card menu. A
+rename changes no manuscript, page, revision, continuity, or publication
+identity.
+
+## Author canon and revision history
+
+An author-canon entry has a stable identity and append-only revisions. Editing
+adds a revision instead of overwriting prior wording. Retiring an entry stops
+it from guiding future writing while preserving its history in the database
+and portable archive. The active revision is included in the writing context
+and explicitly outranks conflicting extracted memory. Any author-canon change
+invalidates prepared prose because the next page's context has changed.
 
 ## Repair and cost
 

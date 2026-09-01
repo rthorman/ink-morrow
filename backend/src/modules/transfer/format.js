@@ -74,6 +74,12 @@ const TEMPLATE_SNAPSHOT_FIELDS = [
 const CORRECTION_FIELDS = [
   'id', 'story_id', 'scope', 'subject_id', 'correction_json', 'created_at', 'updated_at',
 ];
+const AUTHOR_CANON_ENTRY_FIELDS = [
+  'id', 'story_id', 'kind', 'subject_id', 'status', 'created_at', 'updated_at',
+];
+const AUTHOR_CANON_REVISION_FIELDS = [
+  'id', 'entry_id', 'revision_number', 'title', 'value_json', 'note', 'created_at',
+];
 const PREVIEW_FIELDS = [
   'story_id', 'expected_page', 'raw_content', 'model', 'prompt_tokens',
   'completion_tokens', 'cost_usd', 'created_at',
@@ -262,6 +268,14 @@ function correctionRecord(row) {
   return pick(row, CORRECTION_FIELDS);
 }
 
+function authorCanonEntryRecord(row) {
+  return pick(row, AUTHOR_CANON_ENTRY_FIELDS);
+}
+
+function authorCanonRevisionRecord(row) {
+  return pick(row, AUTHOR_CANON_REVISION_FIELDS);
+}
+
 function previewRecord(row) {
   return pick(row, PREVIEW_FIELDS);
 }
@@ -392,6 +406,10 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
       without(row, ['story_id', 'created_at', 'updated_at'])),
     corrections: (bundle.corrections || []).map((row) =>
       without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
+    author_canon_entries: (bundle.author_canon_entries || []).map((row) =>
+      without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
+    author_canon_revisions: (bundle.author_canon_revisions || []).map((row) =>
+      without(row, ['id', 'entry_id', 'created_at'])),
     writing_operations: (bundle.writing_operations || []).map((row) => {
       const request = parseJson(row.request_json, {});
       if (request?.page_id) request.page_number = pageNumberById.get(request.page_id) || null;
@@ -492,6 +510,8 @@ module.exports = {
   CONTINUITY_DELTA_FIELDS,
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
+  AUTHOR_CANON_ENTRY_FIELDS,
+  AUTHOR_CANON_REVISION_FIELDS,
   PREVIEW_FIELDS,
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
@@ -518,6 +538,8 @@ module.exports = {
   continuityDeltaRecord,
   templateSnapshotRecord,
   correctionRecord,
+  authorCanonEntryRecord,
+  authorCanonRevisionRecord,
   previewRecord,
   writingOperationRecord,
   preparedPageRecord,

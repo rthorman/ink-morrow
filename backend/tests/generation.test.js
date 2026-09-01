@@ -105,6 +105,35 @@ describe('POST /api/stories/:id/pages/generate', () => {
     prompt = axios.post.mock.calls[axios.post.mock.calls.length - 1][1].messages[1].content;
     expect(prompt).toContain('ash now falls instead');
     expect(prompt).not.toContain('The moon over Lore Realm never sets.');
+
+    // A deliberate Codex Foundation edit is manuscript-local and outranks
+    // later catalogue changes for only the fields the author touched.
+    await request(app)
+      .put(`/api/stories/${story.id}/continuity/templates/world/${world.id}`)
+      .send({ values: { lore: 'In this manuscript, the moon is a sealed red eye.' } })
+      .expect(200);
+    await request(app).put(`/api/worlds/${world.id}`).send({ lore: 'The Library now says the moon is blue.' }).expect(200);
+    const third = await generatePage(story.id, 'Look up');
+    expect(third.status).toBe(201);
+    prompt = axios.post.mock.calls[axios.post.mock.calls.length - 1][1].messages[1].content;
+    expect(prompt).toContain('the moon is a sealed red eye');
+    expect(prompt).not.toContain('the moon is blue');
+  });
+
+  it('gives active author canon explicit precedence in future writing prompts', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi();
+    const story = await createStory(app);
+    await request(app).post(`/api/stories/${story.id}/continuity/author-canon`).send({
+      kind: 'story_rule', subject_id: null, title: 'The bell rule',
+      value: 'Every midnight bell is heard only by Mara.', note: null,
+    }).expect(201);
+
+    expect((await generatePage(story.id, 'Let midnight arrive')).status).toBe(201);
+    const prompt = axios.post.mock.calls[0][1].messages[1].content;
+    expect(prompt).toContain('AUTHOR CANON');
+    expect(prompt).toContain('prefer this when extracted memory differs');
+    expect(prompt).toContain('Every midnight bell is heard only by Mara.');
   });
 
   it('keeps tone instructions for non-explicit stories too', async () => {

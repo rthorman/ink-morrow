@@ -165,11 +165,28 @@ function createWritingTransactions({
       SELECT id, scope, subject_id, correction_json, updated_at
         FROM continuity_corrections WHERE story_id = ? ORDER BY created_at, rowid
     `).all(storyId);
+    const authorCanon = db.prepare(`
+      SELECT entry.id, entry.kind, entry.subject_id, entry.status, entry.updated_at,
+             revision.id AS revision_id, revision.revision_number,
+             revision.title, revision.value_json, revision.note
+        FROM author_canon_entries entry
+        JOIN author_canon_revisions revision ON revision.entry_id = entry.id
+       WHERE entry.story_id = ?
+         AND revision.revision_number = (
+           SELECT MAX(latest.revision_number)
+             FROM author_canon_revisions latest WHERE latest.entry_id = entry.id
+         )
+       ORDER BY entry.created_at, entry.id
+    `).all(storyId);
     // Folded state is versioned by its canonical evidence chain and explicit
     // author corrections, not by asynchronous projection/checkpoint timing.
     const foldedStateVersion = sha256(stableJson({
       revisions: pages.map((page) => page.canonical_revision_id),
       corrections: corrections.map((row) => [row.id, row.updated_at, sha256(row.correction_json)]),
+      author_canon: authorCanon.map((row) => [
+        row.id, row.status, row.updated_at, row.revision_id,
+        row.revision_number, sha256(`${row.kind}\n${row.subject_id || ''}\n${row.title}\n${row.value_json}\n${row.note || ''}`),
+      ]),
     }));
     const context = {
       story: {

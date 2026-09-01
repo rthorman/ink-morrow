@@ -23,6 +23,17 @@ function labelOf(field) {
   return String(field || '').replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase());
 }
 
+const AUTHOR_CANON_KINDS = [
+  ['world_event', 'World event'],
+  ['world_fact', 'World fact'],
+  ['character_fact', 'Character fact'],
+  ['relationship', 'Relationship'],
+  ['goal', 'Goal'],
+  ['thread', 'Open thread'],
+  ['story_rule', 'Story rule'],
+  ['custom', 'Custom fact'],
+];
+
 export function createCodex({ api, state, notify, features, dialogs, router }) {
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
@@ -71,6 +82,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
         const quote = el('q', 'codex-evidence__quote', item.quote || 'Cited page revision');
         wrap.appendChild(quote);
       }
+    } else if (provenance?.author) {
+      wrap.appendChild(el('span', 'codex-evidence__note', 'Author declaration'));
     } else if (provenance?.correction) {
       wrap.appendChild(el('span', 'codex-evidence__note', 'Author correction'));
     } else if (pageNumber) {
@@ -81,7 +94,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     return wrap;
   }
 
-  function factCard({ kind, title, value, provenance, correction = null }) {
+  function factCard({ kind, title, value, provenance, correction = null, edit = null }) {
     const card = el('article', 'codex-fact');
     card.dataset.codexSearch = `${kind} ${title} ${valueText(value)}`.toLowerCase();
     card.append(el('p', 'codex-fact__kind', kind), el('h4', '', title), el('p', 'codex-fact__value', valueText(value)));
@@ -92,7 +105,56 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       button.addEventListener('click', () => openCorrection(correction));
       card.appendChild(button);
     }
+    if (edit) {
+      const button = el('button', 'btn btn-secondary codex-fact__edit', edit.label || 'Edit');
+      button.type = 'button';
+      button.addEventListener('click', edit.onClick);
+      card.appendChild(button);
+    }
     return card;
+  }
+
+  function openFoundationEdit({ kind, sourceId, field, title, value }) {
+    const body = el('div', 'codex-correction-form');
+    const label = el('label', '', title);
+    const input = field === 'name' ? document.createElement('input') : document.createElement('textarea');
+    if (input.tagName === 'TEXTAREA') input.rows = 5;
+    input.maxLength = field === 'name' ? 300 : 20000;
+    input.value = value || '';
+    label.appendChild(input);
+    body.append(
+      el('p', 'setting-hint', 'This makes the field manuscript-local. The reusable Library template stays unchanged.'),
+      label,
+    );
+    dialogs.openDialog({
+      title: `Edit ${title}`,
+      body,
+      dirty: () => input.value !== (value || ''),
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: 'Save foundation', className: 'btn-primary', onClick: async (close) => {
+            if (field === 'name' && !input.value.trim()) {
+              input.setCustomValidity('Enter a name.');
+              input.reportValidity();
+              return;
+            }
+            close(true);
+            try {
+              const result = await apiCall(`/stories/${activeStoryId}/continuity/templates/${kind}/${sourceId}`, 'PUT', {
+                values: { [field]: input.value.trim() || null },
+              });
+              continuity = result.continuity;
+              templates = (await apiCall(`/stories/${activeStoryId}/continuity/templates`)).templates || [];
+              render();
+              showSuccess('Manuscript foundation updated. The Library template was not changed.');
+            } catch (error) {
+              showError(error.message);
+            }
+          },
+        },
+      ],
+    });
   }
 
   function renderFoundations() {
@@ -100,17 +162,24 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     if (!target) return;
     target.textContent = '';
     target.appendChild(el('h3', '', 'Manuscript-local foundations'));
-    target.appendChild(el('p', 'setting-hint', 'These snapshots stay with this manuscript. Later Library edits do not enter it unless you accept individual fields below.'));
+    target.appendChild(el('p', 'setting-hint', 'Cast sheets stay frozen. World fields follow the live Library template until you edit or explicitly accept a field here; that field then becomes manuscript-local.'));
     const grid = el('div', 'codex-grid');
     const world = continuity?.world;
     if (world) {
       for (const field of ['name', 'genre', 'setting', 'description', 'lore']) {
-        if (world[field]) grid.appendChild(factCard({ kind: 'World foundation', title: labelOf(field), value: world[field], provenance: null }));
+        if (world[field]) grid.appendChild(factCard({
+          kind: 'World foundation', title: labelOf(field), value: world[field], provenance: null,
+          edit: { label: 'Edit foundation', onClick: () => openFoundationEdit({ kind: 'world', sourceId: world.id, field, title: labelOf(field), value: world[field] }) },
+        }));
       }
     }
     for (const character of continuity?.characters || []) {
       for (const field of ['role', 'relation', 'description', 'personality', 'appearance', 'background']) {
-        if (character[field]) grid.appendChild(factCard({ kind: 'Character foundation', title: `${character.name} · ${continuityLabel(field)}`, value: character[field], provenance: null }));
+        if (character[field] && !['role', 'relation'].includes(field)) grid.appendChild(factCard({
+          kind: 'Character foundation', title: `${character.name} · ${continuityLabel(field)}`, value: character[field], provenance: null,
+          edit: { label: 'Edit foundation', onClick: () => openFoundationEdit({ kind: 'character', sourceId: character.id, field, title: `${character.name} · ${continuityLabel(field)}`, value: character[field] }) },
+        }));
+        else if (character[field]) grid.appendChild(factCard({ kind: 'Character foundation', title: `${character.name} · ${continuityLabel(field)}`, value: character[field], provenance: null }));
       }
     }
     if (!grid.children.length) grid.appendChild(el('p', 'codex-empty', 'This manuscript has no world or cast foundations yet.'));
@@ -369,6 +438,152 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     }
   }
 
+  function openAuthorCanon(entry = null) {
+    const body = el('form', 'codex-correction-form');
+    const kindLabel = el('label', '', 'Kind');
+    const kind = document.createElement('select');
+    for (const [value, label] of AUTHOR_CANON_KINDS) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      kind.appendChild(option);
+    }
+    kind.value = entry?.kind || 'world_fact';
+    kindLabel.appendChild(kind);
+    const subjectLabel = el('label', '', 'Character (when this fact belongs to one)');
+    const subject = document.createElement('select');
+    subject.appendChild(new Option('No specific character', ''));
+    for (const character of continuity?.characters || []) subject.appendChild(new Option(character.name, character.id));
+    subject.value = entry?.subject_id || '';
+    subjectLabel.appendChild(subject);
+    const titleLabel = el('label', '', 'Short name');
+    const title = document.createElement('input');
+    title.maxLength = 300;
+    title.value = entry?.title || '';
+    title.placeholder = 'e.g. The Red Eclipse';
+    titleLabel.appendChild(title);
+    const valueLabel = el('label', '', 'What is true');
+    const value = document.createElement('textarea');
+    value.rows = 5;
+    value.maxLength = 20000;
+    value.value = entry ? valueText(entry.value) : '';
+    value.placeholder = 'State the fact plainly enough that the Scribe can use it.';
+    valueLabel.appendChild(value);
+    const noteLabel = el('label', '', 'Private note (optional)');
+    const note = document.createElement('textarea');
+    note.rows = 2;
+    note.maxLength = 2000;
+    note.value = entry?.note || '';
+    noteLabel.appendChild(note);
+    const updateSubject = () => {
+      const usesCharacter = ['character_fact', 'relationship'].includes(kind.value);
+      subjectLabel.hidden = !usesCharacter;
+      if (!usesCharacter) subject.value = '';
+    };
+    kind.addEventListener('change', updateSubject);
+    updateSubject();
+    body.append(
+      el('p', 'setting-hint', 'Author canon outranks extracted memory for future writing. Editing creates a new revision; it never rewrites pages or Archivist evidence.'),
+      kindLabel, subjectLabel, titleLabel, valueLabel, noteLabel,
+    );
+    dialogs.openDialog({
+      title: entry ? `Revise ${entry.title}` : 'Add author canon',
+      body,
+      dirty: () => true,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: entry ? 'Save new revision' : 'Add to canon', className: 'btn-primary', onClick: async (close) => {
+            if (!title.value.trim() || !value.value.trim()) {
+              const target = !title.value.trim() ? title : value;
+              target.setCustomValidity('This field is required.');
+              target.reportValidity();
+              return;
+            }
+            if (['character_fact', 'relationship'].includes(kind.value) && !subject.value) {
+              subject.setCustomValidity('Choose the character this fact belongs to.');
+              subject.reportValidity();
+              return;
+            }
+            close(true);
+            try {
+              const payload = {
+                kind: kind.value,
+                subject_id: subject.value || null,
+                title: title.value.trim(),
+                value: value.value.trim(),
+                note: note.value.trim() || null,
+              };
+              const url = `/stories/${activeStoryId}/continuity/author-canon${entry ? `/${entry.id}` : ''}`;
+              const result = await apiCall(url, entry ? 'PUT' : 'POST', payload);
+              continuity = result.continuity;
+              render();
+              showSuccess(entry ? 'A new author-canon revision is active.' : 'Author canon added. Future writing will receive it.');
+            } catch (error) {
+              showError(error.message);
+            }
+          },
+        },
+      ],
+    });
+  }
+
+  async function retireAuthorCanon(entry) {
+    const yes = await dialogs.confirmDestructive({
+      title: `Retire “${entry.title}”?`,
+      body: 'It will stop guiding future writing. Its revision history stays in the manuscript archive.',
+      confirmLabel: 'Retire from canon',
+    });
+    if (!yes) return;
+    try {
+      const result = await apiCall(`/stories/${activeStoryId}/continuity/author-canon/${entry.id}`, 'DELETE');
+      continuity = result.continuity;
+      render();
+      showSuccess('The entry was retired; its history was preserved.');
+    } catch (error) {
+      showError(error.message);
+    }
+  }
+
+  function renderAuthorCanon() {
+    const target = document.getElementById('codexAuthorCanon');
+    if (!target) return;
+    target.textContent = '';
+    const head = el('div', 'codex-author-head');
+    const copy = el('div');
+    copy.append(
+      el('h3', '', 'Author canon'),
+      el('p', 'setting-hint', 'Declare world events, facts, relationships, goals, threads, story rules, or anything else the Scribe must treat as true.'),
+    );
+    const add = el('button', 'btn btn-primary', 'Add author canon');
+    add.type = 'button';
+    add.addEventListener('click', () => openAuthorCanon());
+    head.append(copy, add);
+    target.appendChild(head);
+    const grid = el('div', 'codex-grid');
+    for (const entry of continuity?.author_canon || []) {
+      const card = factCard({
+        kind: `${labelOf(entry.kind)} · revision ${entry.revision_number}`,
+        title: entry.title,
+        value: entry.value,
+        provenance: { author: true },
+      });
+      if (entry.note) card.appendChild(el('p', 'codex-author-note', entry.note));
+      const actions = el('div', 'codex-author-actions');
+      const editButton = el('button', 'btn btn-secondary', 'Edit');
+      editButton.type = 'button';
+      editButton.addEventListener('click', () => openAuthorCanon(entry));
+      const retire = el('button', 'btn btn-secondary', 'Retire');
+      retire.type = 'button';
+      retire.addEventListener('click', () => retireAuthorCanon(entry));
+      actions.append(editButton, retire);
+      card.appendChild(actions);
+      grid.appendChild(card);
+    }
+    if (!grid.children.length) grid.appendChild(el('p', 'codex-empty', 'No author-declared canon yet. Remembered canon still comes from committed pages.'));
+    target.appendChild(grid);
+  }
+
   function renderCorrections() {
     const actionTarget = document.getElementById('codexCorrectionActions');
     const correctionTarget = document.getElementById('codexCorrections');
@@ -377,7 +592,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     actionTarget.textContent = '';
     correctionTarget.textContent = '';
     issueTarget.textContent = '';
-    actionTarget.append(el('h3', '', 'Correction workflow'), el('p', 'setting-hint', 'Choose “Correct this fact” in Remembered canon. Applying changes the folded state only; it never rewrites prose or hidden Archivist records.'));
+    actionTarget.append(el('h3', '', 'Corrections to remembered facts'), el('p', 'setting-hint', 'Choose “Correct this fact” in Remembered canon. A correction changes folded state only; it never rewrites prose or hidden Archivist records.'));
     correctionTarget.appendChild(el('h3', '', 'Author corrections'));
     for (const correction of continuity?.corrections || []) {
       correctionTarget.appendChild(factCard({
@@ -469,10 +684,51 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     }
   }
 
+  function openRename() {
+    const story = state.data.stories.find((item) => item.id === activeStoryId) || state.data.currentStory;
+    if (!story) return;
+    const body = el('div', 'codex-correction-form');
+    const label = el('label', '', 'Manuscript name');
+    const input = document.createElement('input');
+    input.maxLength = 300;
+    input.value = story.title;
+    label.appendChild(input);
+    body.append(label);
+    dialogs.openDialog({
+      title: 'Rename manuscript',
+      body,
+      dirty: () => input.value.trim() !== story.title,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: 'Rename', className: 'btn-primary', onClick: async (close) => {
+            const title = input.value.trim();
+            if (!title) {
+              input.setCustomValidity('Enter a manuscript name.');
+              input.reportValidity();
+              return;
+            }
+            close(true);
+            try {
+              await apiCall(`/stories/${story.id}`, 'PUT', { title });
+              await features.stories.loadStories();
+              const name = document.getElementById('codexManuscriptName');
+              if (name) name.textContent = title;
+              showSuccess(`Manuscript renamed to “${title}”.`);
+            } catch (error) {
+              showError(error.message);
+            }
+          },
+        },
+      ],
+    });
+  }
+
   function render() {
     renderFoundations();
     renderCoverage();
     renderCanon();
+    renderAuthorCanon();
     renderCorrections();
   }
 
@@ -487,6 +743,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       if (token !== loadToken || activeStoryId !== storyId) return;
       continuity = memory.continuity;
       templates = review.templates || [];
+      const name = document.getElementById('codexManuscriptName');
+      if (name) name.textContent = state.data.stories.find((item) => item.id === storyId)?.title || 'Selected manuscript';
       render();
       setStatus(`${continuity.coverage.ready} of ${continuity.coverage.total} committed text pages remembered. Prose stays on the Desk.`);
     } catch (error) {
@@ -516,6 +774,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       document.getElementById(`codex${name}Tab`)?.addEventListener('click', () => selectTab(name.toLowerCase()));
     }
     document.getElementById('codexSearch')?.addEventListener('input', applyFilter);
+    document.getElementById('codexRenameBtn')?.addEventListener('click', openRename);
   }
 
   function reset() {
@@ -524,10 +783,12 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     continuity = null;
     templates = [];
     facts = [];
-    for (const id of ['codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary']) {
+    for (const id of ['codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary']) {
       const target = document.getElementById(id);
       if (target) target.textContent = '';
     }
+    const name = document.getElementById('codexManuscriptName');
+    if (name) name.textContent = 'No manuscript selected';
     setStatus('Choose a manuscript to inspect its foundations and remembered canon.');
   }
 

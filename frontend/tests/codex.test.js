@@ -18,7 +18,7 @@ function memory() {
     goals: [{ id: 'g1', text: 'Chart the black tide', status: 'active', provenance }],
     threads: [], world_facts: [], arcs: [],
     events: [{ id: 'e1', text: 'Mara enters the glass harbor.', importance: 'major', type: 'transition', ...provenance }],
-    corrections: [], issues: [],
+    corrections: [], author_canon: [], issues: [],
     history_counts: { events: 1, summaries: 1 },
     coverage: {
       total: 3, ready: 1, memory_cost_usd: 0.01,
@@ -125,5 +125,46 @@ describe('PR13 Codex', () => {
     }
     const repairs = fetchMock.mock.calls.filter(([url]) => /\/pages\/p[123]\/sync$/.test(url)).map(([url]) => url);
     expect(repairs).toEqual(['/api/stories/s1/continuity/pages/p2/sync', '/api/stories/s1/continuity/pages/p3/sync']);
+  });
+
+  it('edits manuscript-local foundations and creates versioned author canon', async () => {
+    const afterFoundation = memory();
+    afterFoundation.world.setting = 'A coast ruled by bells';
+    const afterCanon = memory();
+    afterCanon.author_canon = [{
+      id: 'a1', kind: 'world_event', subject_id: null, status: 'active',
+      revision_number: 1, title: 'The Red Eclipse',
+      value: 'It happened four winters before page one.', note: 'Fixed chronology.',
+    }];
+    const fetchMock = mockFetch([
+      { match: (url, options) => url.endsWith('/templates/world/w1') && options.method === 'PUT', response: jsonResponse(200, { snapshot: {}, continuity: afterFoundation }) },
+      { match: (url, options) => url.endsWith('/author-canon') && options.method === 'POST', response: jsonResponse(201, { entry: afterCanon.author_canon[0], continuity: afterCanon }) },
+      { match: '/stories/s1/continuity/templates', response: jsonResponse(200, { templates: [] }) },
+      { match: '/stories/s1/continuity', response: jsonResponse(200, { continuity: memory() }) },
+    ]);
+    const fw = await loadScript();
+    fw.__setStoryState({ currentStory: STORY, storyPages: [] });
+    await fw.enterCodex({ storyId: 's1' });
+
+    const settingCard = [...document.querySelectorAll('#codexFoundations .codex-fact')]
+      .find((card) => card.textContent.includes('Setting'));
+    settingCard.querySelector('.codex-fact__edit').click();
+    document.querySelector('.codex-correction-form textarea').value = 'A coast ruled by bells';
+    await dialogAction('Save foundation');
+    expect(JSON.parse(fetchMock.mock.calls.find(([url, options]) => url.endsWith('/templates/world/w1') && options.method === 'PUT')[1].body))
+      .toEqual({ values: { setting: 'A coast ruled by bells' } });
+
+    fw.selectCodexTab('corrections');
+    [...document.querySelectorAll('#codexAuthorCanon button')].find((button) => button.textContent === 'Add author canon').click();
+    const form = document.querySelector('.codex-correction-form');
+    form.querySelector('select').value = 'world_event';
+    form.querySelector('input').value = 'The Red Eclipse';
+    form.querySelectorAll('textarea')[0].value = 'It happened four winters before page one.';
+    form.querySelectorAll('textarea')[1].value = 'Fixed chronology.';
+    await dialogAction('Add to canon');
+
+    const call = fetchMock.mock.calls.find(([url, options]) => url.endsWith('/author-canon') && options.method === 'POST');
+    expect(JSON.parse(call[1].body)).toMatchObject({ kind: 'world_event', title: 'The Red Eclipse' });
+    expect(document.getElementById('codexAuthorCanon').textContent).toContain('It happened four winters');
   });
 });

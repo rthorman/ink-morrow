@@ -32,7 +32,7 @@ describe('Library management and canonical manuscript creation', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
-    expect(document.activeElement).toBe(document.getElementById('startManualOpening'));
+    expect(document.activeElement).toBe(document.getElementById('manuscriptStartName'));
   });
 
   it('an empty manuscript catalogue returns to the Library one-sheet without duplicating the Desk form', async () => {

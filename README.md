@@ -148,7 +148,7 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
 - **Explicit cast shapes** — every story declares itself *Centered on a lead* or an *Ensemble* up front, in creation and mid-story editing alike; relation labels follow the named lead (and never mention one that does not exist), the mid-story editor offers direct **Make lead / Switch to ensemble** actions, and an empty cast can add a lead directly — never add-then-promote
 - **Cast editing mid-story** — the Library's story cards open a roster/details editor: the roster lists members with roles and cross-world provenance; the selected member edits role, starting connection, and explicit manual story overrides. Dirty drafts guard every close, role changes never dump focus or discard local edits, and the reusable catalogue sheets stay untouched
-- **Long-form continuity** — casting freezes a manuscript-local character snapshot; each committed page contributes a separately extracted, page-linked delta. Character location, condition, knowledge, possessions, appearance, personality and relationships fold together with goals, threads, world facts and durable events. Codex is the single author-facing home for coverage, page evidence, repair, and corrections
+- **Long-form continuity** — casting freezes manuscript-local character sheets; world fields remain live until the author pins individual fields in Codex. Each committed page contributes a separately extracted, page-linked delta. Character state folds together with goals, threads, world facts and durable events. Versioned author canon can add world events, facts, relationships, goals, rules, or custom truths without rewriting prose or extracted evidence
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot, regeneration (with its approximate cost) sits in each card's **More** menu, and creation offers both *Create and paint (≈$…)* and *Create without image*
 - **Manuscript catalogue and covers** — Library → Manuscripts shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted manuscripts get an honest empty-cover state and an explicit paid Paint action; opening the card manages that manuscript's EPUB, cover, audiobook, and art in one place
@@ -367,6 +367,8 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | GET/POST | `/api/stories/:id/pages/preview` | Read free prepared-page metadata / prepare the next page ahead of time (nothing saved until committed). The client only POSTs as a disclosed follow-up of a confirmed action — never on passive story selection |
 | POST | `/api/stories/:id/pages/commit-preview` | Atomically save the identified prepared page, return it immediately, then extract continuity in the background |
 | GET | `/api/stories/:id/continuity` | Inspect memory coverage, folded state, goals, threads and recent events |
+| PUT | `/api/stories/:id/continuity/templates/:kind/:sourceId` | Edit selected manuscript-local Foundation fields without changing the Library template |
+| POST/PUT/DELETE | `/api/stories/:id/continuity/author-canon[/:entryId]` | Create / append a revision / retire an author-canon entry |
 | POST | `/api/stories/:id/continuity/pages/:pageId/sync` | Build or repair one committed text page's memory delta |
 | DELETE | `/api/stories/:id/continuity` | Clear derived memory only (pages, snapshots, corrections and spent-cost ledger remain) |
 | PUT | `/api/stories/:id/continuity/overrides` | Save explicit character/goal/thread corrections |
@@ -443,6 +445,12 @@ The whole thing was finished in one afternoon, while my wife was out having lunc
 You don't need a workstation to build software. You need a story you want to tell and a few free hours.
 
 Ok, ok, so I continued into the night. I did. Its fun. And yes, the wife loves the stories.
+
+Somewhere along the way, this went from a fun afternoon with a tablet to a
+rather serious project. I’ve developed things professionally since 1995, so
+maybe the stripes are permanent now. Anyway, I have a day job. Codex does not.
+So: as much automation as possible it is—though I remain involved. To such a
+degree, apparently, that only my wife actually creates any stories. Oh well.
 
 Credit where due: the historical line through 3.2.2 was written in partnership
 with [OpenCode](https://opencode.ai) running natively on Termux, powered by

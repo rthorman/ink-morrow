@@ -96,15 +96,16 @@ acknowledge or resolve each issue separately.
 
 ## Template review
 
-World and cast templates are frozen as story-local snapshots. The review API
-compares each current Library row with the latest story snapshot. Import must
-name at least one accepted field, and only those fields are copied into a new
-snapshot. Unselected fields retain their story-local values.
+Cast templates are frozen as story-local snapshots. World fields stay live
+until explicitly pinned by a Codex edit or accepted Library change. The review
+API compares each current Library row with the latest story snapshot. Import
+must name at least one accepted field, and only those fields are copied into a
+new snapshot. Unselected world fields keep following the Library.
 
 ## Portable archives
 
 Story archives carry revision ancestry, story-local world/character
-snapshots, revision deltas, and corrections. Copy import remaps page,
+snapshots, revision deltas, corrections, and every author-canon revision. Copy import remaps page,
 revision, world, and character references. Search rows, FTS indexes,
 checkpoints, and impact issues are derived and rebuilt locally. Credentials
 and secret-vault material remain excluded.
@@ -113,12 +114,16 @@ and secret-vault material remain excluded.
 
 | Method | Route | Result |
 |---|---|---|
-| `GET` | `/api/stories/:id/continuity` | Coverage, snapshots, projection, evidence, corrections, issues, and bounded history |
+| `GET` | `/api/stories/:id/continuity` | Coverage, snapshots, projection, evidence, author canon, corrections, issues, and bounded history |
 | `POST` | `/api/stories/:id/continuity/pages/:pageId/sync` | Extract or repair the current canonical revision |
 | `POST` | `/api/stories/:id/continuity/rebuild` | Rebuild deterministic local checkpoints; no AI call |
 | `DELETE` | `/api/stories/:id/continuity` | Clear derived deltas, search, and checkpoints only |
 | `GET` | `/api/stories/:id/continuity/templates` | Review later Library changes field by field |
 | `POST` | `/api/stories/:id/continuity/templates/:kind/:sourceId/import` | Import explicitly selected template fields |
+| `PUT` | `/api/stories/:id/continuity/templates/:kind/:sourceId` | Edit selected manuscript-local Foundation fields |
+| `POST` | `/api/stories/:id/continuity/author-canon` | Create a versioned author-canon entry |
+| `PUT` | `/api/stories/:id/continuity/author-canon/:entryId` | Append a new revision without overwriting history |
+| `DELETE` | `/api/stories/:id/continuity/author-canon/:entryId` | Retire an entry while preserving its revisions |
 | `POST` | `/api/stories/:id/continuity/corrections` | Add an authoritative correction and analyze impact |
 | `PATCH` | `/api/stories/:id/continuity/issues/:issueId` | Acknowledge or resolve a derived issue |
 | `POST` | `/api/stories/:id/continuity/issues/summary` | Optional paid plain-language summary of selected warnings; changes nothing |

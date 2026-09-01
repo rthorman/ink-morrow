@@ -190,13 +190,14 @@ function buildDom() {
       </section>
       <section id="codexSection" class="content-section">
         <span data-workspace-story></span><p id="codexStatus"></p>
+        <div><h3 id="codexManuscriptName">No manuscript selected</h3><button id="codexRenameBtn" type="button">Rename manuscript</button></div>
         <button id="codexFoundationsTab" role="tab" aria-selected="true">Foundations</button>
         <button id="codexCanonTab" role="tab" aria-selected="false">Remembered canon</button>
-        <button id="codexCorrectionsTab" role="tab" aria-selected="false">Author corrections</button>
+        <button id="codexCorrectionsTab" role="tab" aria-selected="false">Author canon</button>
         <button class="workspace-back-to-desk">Return to Desk</button>
         <section id="codexFoundationsPanel"><div id="codexFoundations"></div><div id="codexTemplateUpdates"></div></section>
         <section id="codexCanonPanel" hidden><div id="codexCoverage"></div><input id="codexSearch"><div id="codexCanon"></div></section>
-        <section id="codexCorrectionsPanel" hidden><div id="codexCorrectionActions"></div><div id="codexCorrections"></div><div id="codexIssues"></div><div id="codexImpactSummary"></div></section>
+        <section id="codexCorrectionsPanel" hidden><div id="codexAuthorCanon"></div><div id="codexCorrectionActions"></div><div id="codexCorrections"></div><div id="codexIssues"></div><div id="codexImpactSummary"></div></section>
       </section>
       <section id="gallerySection" class="content-section"><span data-workspace-story></span><p id="galleryStatus"></p>
         <button id="galleryPaintBtn" class="btn btn-primary">Paint with AI</button><button id="galleryUploadBtn" class="btn btn-primary">Upload an image</button>

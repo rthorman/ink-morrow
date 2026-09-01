@@ -136,21 +136,28 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   Sparse 50-page plus head checkpoints, bounded inspection history, and
   revision-keyed FTS/LIKE rows keep prompt retrieval independent of full
   manuscript length. Every derived projection is AI-free and rebuildable.
-- World and character templates freeze into story-local snapshots. Later
-  Library changes are reviewable field by field and only explicitly accepted
-  fields create a new local snapshot.
+- Character templates freeze into story-local snapshots. World fields remain
+  canonical/live until explicitly accepted or edited in Codex; only those
+  selected fields become manuscript-local. Every import/edit appends a local
+  snapshot without changing the Library template.
 - Author corrections are separate authoritative rows with optional revision
   evidence. Deterministic impact analysis records later possible conflicts as
   issues and never edits prose or extracted evidence.
+- Author canon uses stable entries plus immutable, append-only revisions for
+  world events/facts, character facts, relationships, goals, threads, story
+  rules, and custom truths. Active author canon outranks extracted memory in
+  future writing; edit/retire invalidates prepared work and never rewrites
+  prose, extracted deltas, or corrections.
 - Portable story archives carry template snapshots, revision deltas, and
-  corrections. Copy import remaps all world, character, page, and revision
+  corrections plus every author-canon revision. Copy import remaps all world,
+  character, page, author-canon, and revision
   references; search, checkpoints, and issues are rebuilt rather than
   exported. Full behavior: `docs/continuity-ledger.md`.
 
 ### 4.0 Codex contract (PR 13)
 
-- Codex is the only author-facing home for story-local foundations,
-  page-provenanced remembered canon, and corrections. It consumes bounded
+- Codex is the only author-facing home for editable story-local foundations,
+  page-provenanced remembered canon, versioned author canon, and corrections. It consumes bounded
   continuity projections and never downloads the manuscript as a second
   reader; evidence links route to the exact Desk page.
 - Remembered facts expose their canonical revision quotation and page.
@@ -161,6 +168,9 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   later matches remain warnings until the author acknowledges intentional
   prose, returns to the Desk page, or marks review resolved. No path rewrites
   prose, extracted deltas, or unseen state.
+- Authors can create, revise, and retire explicit canon without first finding
+  an extracted fact to correct. Edits append immutable revisions. Manuscript
+  rename is available in Codex and Library and preserves every identity.
 - Library template updates are field-level diffs; only checked fields enter a
   new story-local snapshot. Optional AI impact summaries use separate paid
   consent, receive bounded warning metadata without prose, and cannot apply
@@ -281,10 +291,11 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - Library owns the canonical manuscript creator. **Begin a manuscript**,
   **Import**, the empty catalogue, and Desk **New manuscript** all open the same
   sheet; there is no second Desk creation form.
-- The one-sheet has three mutually exclusive paths: a local manual opening, a
+- The dark workspace has three stages (Beginning, World & cast, Intent &
+  review) and three mutually exclusive paths: a local manual opening, a
   seed carried to the Desk direction, and local prose import. Every path creates
   the valid Volume I / Chapter I hierarchy supplied by the story service.
-- Cancelling or closing saves the uncreated draft in session storage. A
+- Closing saves the uncreated draft and current stage in session storage. A
   successful start clears it. The provider key field is never persisted by the
   browser.
 - Manual and import paths must not read provider setup or make an AI request.
@@ -293,6 +304,8 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - Foundations remain optional working direction. Suggestions are bounded JSON
   and must be accepted field by field; they never mutate global world or
   character templates.
+- Available characters render as a bulk roster with direct role and relation
+  controls. Cover painting begins only after creation from Gallery.
 - Markdown import maps headings to chapters and otherwise keeps prose in one
   chapter. It rejects oversized input before mutation and does not discard
   non-heading text. Full behavior: `docs/library-start.md`.
@@ -393,7 +406,7 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - HISTORICAL 3.x IMAGE-PAGE CONTRACT: superseded on `release/4.0.0` by the PR 07 noncanonical art contract above. The compatibility `image-page` route now creates and places an AI-generated asset; it never inserts a prose row, renumbers pages, invalidates prepared prose, or enters continuity.
 - Low-storage banner (GET /api/disk = statfsSync on imageDir → {free_bytes,total_bytes}, nulls on failure): #diskBanner under the nav shows on EVERY section when free < 1GB or < 5% of the volume (< 250MB escalates to "almost full"), re-checked every 30s and right after each plate binding; hidden on nulls/server-down, keeps last state on error. Jest drives updateDiskBanner/checkDiskSpace directly — initDiskBanner skips its setInterval under JEST_WORKER_ID so tests hold no timers. NOTE: e2e/tests/app.e2e.test.js had a PRE-EXISTING stray `});` at old line 179 that closed its test.describe early (later tests ran as top-level tests, so Playwright never complained); fixed 2026-08-30 — new tests must live INSIDE the describe
 - Audiobooks (schema v7, audiobooks TABLE keyed story_id, bytes at database/audio/<story-id>.mp3 + .mp3.tmp during jobs): whole-tale mp3 read by ONE GLOBAL sequential queue (decided: no parallelism on low-end devices; audiobookCurrent/audiobookQueue/audiobookCancel in app.js). Job narrates narrative prose pages in order; noncanonical art never contributes speech or page count. It reuses the narrationCache keyed sha256(text)+model+voice (unchanged pages free — cache hits make the job fully synchronous, finishing before the 201 lands), appends via writeAll to the tmp file, and renames on done; costs from fetchGenerationCost per segment (best-effort), duration = words/2.5. Cancel checks between pages AND after collecting a page's streams (mid-page). POST validates against the speech catalogue and REJECTS pcm narrators (catalogue entries carry pcm:/gemini/i since 2026-08-30) — audiobooks are mp3-only by design. GET row gains stale (fingerprint = sha256(model+voice+page ids+contents) mismatch), queue_position (0 = reading now), file_missing grace. Boot marks pending rows failed ('Interrupted…'). Story delete cancels+unlinks; DELETE /api/stories/:id/audiobook removes row+file. Frontend: #audiobookBtn beside Export opens a modal (narrator verdict + estimates = pages/words math shared with Settings labels: 150 wpm, ~6KB/s mp3, chars×prompt_per_mchar + words×20×completion_per_mtok), explicit #audiobookStartBtn carrying the price (Create audiobook (≈$…); disabled when unusable/pending/empty, reason in text), then #audiobookBanner (write section, below pastPageBar): pending = text + progress bar + Stop; ready = Download link + Hide (MIDDLE-GROUND visibility: shows once per completed reading — localStorage im-ab-seen:<story>:<updated_at>, Hide marks it; pending always shows; failed shows error + retry). Cost ticked once per reading (chargedAudiobooks Set keyed story@updated_at) + checkDiskSpace on ready. Poll every 2s (skipped under JEST_WORKER_ID)
-- LIBRARY ASSET CONTRACT (v3.0.5, updated by the 4.0 canonical-start follow-up): there is NO duplicate top-level Manuscripts destination or duplicate creation form. Library retains its route-backed Manuscripts/Bookshelf tabs and owns the canonical creator, including maturity, full Centered/Ensemble cast, Create manuscript, and reviewed Create & paint cover choices. Desk #storyNewBtn routes to it. Library → Manuscripts cards show a 2:3 cover or honest status placeholder, first prose excerpt, world/maturity/page context, and measured media bytes from GET /api/storage. Clicking a card opens #storyAssetsModal with manuscript EPUB, cover, audiobook, and art downloads plus an explicit route to Codex; continuity inspection, repair, rebuild, and correction never render in this asset modal. Deleting art removes the asset and placements while prose numbering and prepared writing remain unchanged, then refreshes the open reader's art only. Bookshelf remains the all-manuscript audiovisual aggregate. Cover bytes live in database/images/covers/<story-id>.<ext>; GET/POST/DELETE /api/stories/:id/cover fetches or downloads / explicitly queues repaint / removes only the cover. New Create & paint requests queue a medium 1K 2:3 cover from world + up to three cast references; old manuscripts are never auto-painted on boot because that would create surprise spend. Manuscript deletion unlinks cover, art, and audio. GET /api/storage returns excerpt, cover metadata, asset_count, and real disk_bytes in addition to audio and art placements.
+- LIBRARY ASSET CONTRACT (v3.0.5, updated by the manuscript-workspace follow-up): there is NO duplicate top-level Manuscripts destination or duplicate creation form. Library retains its route-backed Manuscripts/Bookshelf tabs and owns the canonical staged creator, including maturity and the full Centered/Ensemble cast roster. Desk #storyNewBtn routes to it. Cover painting is a separate, reviewed post-create Gallery action. Library → Manuscripts cards show a 2:3 cover or honest status placeholder, first prose excerpt, world/maturity/page context, and measured media bytes from GET /api/storage. Clicking a card opens #storyAssetsModal with manuscript EPUB, cover, audiobook, and art downloads plus an explicit route to Codex; continuity inspection, repair, rebuild, and author canon never render in this asset modal. Deleting art removes the asset and placements while prose numbering and prepared writing remain unchanged, then refreshes the open reader's art only. Bookshelf remains the all-manuscript audiovisual aggregate. Cover bytes live in database/images/covers/<story-id>.<ext>; GET/POST/DELETE /api/stories/:id/cover fetches or downloads / explicitly queues repaint / removes only the cover. Old manuscripts are never auto-painted on boot because that would create surprise spend. Manuscript deletion unlinks cover, art, and audio. GET /api/storage returns excerpt, cover metadata, asset_count, and real disk_bytes in addition to audio and art placements.
 - Narration (implemented per INKMORROW-STREAMING-TTS-IMPLEMENTATION.md, extended 2026-08-29): mp3 pass-through streaming (axios responseType:'stream' -> express pipe, upstream aborted via res.on('close')); pages are SEGMENTED at sentence boundaries (1800 chars; providers cap input — Deepgram 413s, Orpheus/Sesame 400 long text) and pieces stream back-to-back with bisect-retry on provider 400/413; pcm-only narrators (Gemini TTS) detected from the provider refusal and retried as pcm, delivered as one WAV (24kHz 16-bit mono header, not streamed); X-Generation-Id carries comma-joined segment ids; in-memory audio cache keyed sha256(text)+model+voice (replays never re-bill, entries ≤8MB); authoritative cost via GET /generation summed per id in /api/ai/generation-cost (server-cached per id); client bills once per joined id (Set guard); pages >16k chars → 413; CSP includes media-src 'self' blob:
 - Speech catalogue (GET /api/speech-models) exposes TTS pricing {prompt_per_mchar, completion_per_mtok}; Settings narrator picker labels each model with ≈cost per page (chars = wordsPerPage×6.5, audio tokens ≈ words×20 — calibrated against a real Gemini bill), refreshed when words-per-page changes; Grok/MAI/Qwen/Kokoro/Voxtral take mp3 at page length, Gemini is slow (60s+/page) and priciest (~$0.12/page)
 - Scene images: the current 4.0 behavior is defined by the PR 08 Grok sanitation contract above and `docs/grok-sanitization.md`. The legacy viewer, render-quality, entity-image queue, storage, and cost behavior remains, but provider refusal recovery is adapter-scoped, announce-and-wait, and reference dropping is always explicit.

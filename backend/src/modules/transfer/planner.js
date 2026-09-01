@@ -25,6 +25,8 @@ const {
   snapshotRecord,
   memoryRecord,
   continuityDeltaRecord,
+  authorCanonEntryRecord,
+  authorCanonRevisionRecord,
   templateSnapshotRecord,
   correctionRecord,
   previewRecord,
@@ -239,6 +241,14 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const corrections = db.prepare(`
       SELECT * FROM continuity_corrections WHERE story_id = ? ORDER BY created_at, rowid
     `).all(id).map(correctionRecord);
+    const authorCanonEntries = db.prepare(`
+      SELECT * FROM author_canon_entries WHERE story_id = ? ORDER BY created_at, id
+    `).all(id).map(authorCanonEntryRecord);
+    const authorCanonRevisions = db.prepare(`
+      SELECT revision.* FROM author_canon_revisions revision
+      JOIN author_canon_entries entry ON entry.id = revision.entry_id
+      WHERE entry.story_id = ? ORDER BY entry.created_at, revision.revision_number
+    `).all(id).map(authorCanonRevisionRecord);
     // `preview` remains readable on import for schema-1..5 beta archives.
     // Schema 6 writes the durable operation and prepared-page forms instead.
     const preview = options.includeWorkingHistory
@@ -302,6 +312,8 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         memory,
         continuity_deltas: continuityDeltas,
         corrections,
+        author_canon_entries: authorCanonEntries,
+        author_canon_revisions: authorCanonRevisions,
         writing_operations: writingOperations,
         prepared_page: preparedPage,
         preview,
@@ -413,6 +425,9 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const memory = entities
       .filter((entity) => entity.kind === 'story')
       .reduce((sum, entity) => sum + (entity.bundle.continuity_deltas?.length || entity.bundle.memory.length), 0);
+    const authorCanonEntries = entities
+      .filter((entity) => entity.kind === 'story')
+      .reduce((sum, entity) => sum + (entity.bundle.author_canon_entries?.length || 0), 0);
     const publicationSnapshots = entities.reduce((sum, entity) => sum + (entity.bundle.publication_snapshots?.length || 0), 0);
     const publicationSnapshotImages = entities.reduce((sum, entity) => sum +
       (entity.bundle.publication_snapshots || []).reduce((snapshotSum, snapshot) => {
@@ -427,6 +442,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       stories: selection.stories.size,
       pages,
       continuity_rows: memory,
+      author_canon_entries: authorCanonEntries,
       images: assets.filter((asset) => asset.kind === 'image').length,
       audio_files: assets.filter((asset) => asset.kind === 'audio').length,
       includes_author_directions: options.includeWorkingHistory,

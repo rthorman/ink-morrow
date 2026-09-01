@@ -218,6 +218,60 @@ describe('continuity ledger v2', () => {
       .send({ fields: ['secret'] }).expect(400);
   });
 
+  it('keeps editable foundations and versioned author canon separate from extracted evidence', async () => {
+    const world = await createWorld(app, { name: 'Ash Coast', description: 'A wind-cut coast.' });
+    const character = await createCharacter(app, world.id, { name: 'Mara', personality: 'Guarded' });
+    const story = await createStory(app, world.id, [{ id: character.id, role: 'mc', relation: null, state: null }]);
+
+    const edited = await request(app)
+      .put(`/api/stories/${story.id}/continuity/templates/world/${world.id}`)
+      .send({ values: { description: 'A coast where bells remember storms.' } })
+      .expect(200);
+    expect(edited.body.continuity.world.description).toBe('A coast where bells remember storms.');
+    expect((await request(app).get(`/api/worlds/${world.id}`).expect(200)).body.world.description)
+      .toBe('A wind-cut coast.');
+
+    await request(app).put(`/api/worlds/${world.id}`).send({
+      name: 'Changed Ash Coast', description: 'The reusable coast changed.',
+    }).expect(200);
+    const live = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(live.body.continuity.world).toMatchObject({
+      name: 'Changed Ash Coast', description: 'A coast where bells remember storms.',
+    });
+    const templateReview = await request(app).get(`/api/stories/${story.id}/continuity/templates`).expect(200);
+    const worldReview = templateReview.body.templates.find((item) => item.template_kind === 'world');
+    expect(worldReview.changes.map((change) => change.field)).toEqual(['description']);
+
+    const created = await request(app)
+      .post(`/api/stories/${story.id}/continuity/author-canon`)
+      .send({
+        kind: 'world_event', title: 'The Red Eclipse',
+        value: 'The eclipse happened three winters before page one.', note: 'Fixed chronology.',
+      })
+      .expect(201);
+    expect(created.body.entry).toMatchObject({ kind: 'world_event', revision_number: 1, status: 'active' });
+    expect(created.body.continuity.author_canon[0].value).toContain('three winters');
+
+    const revised = await request(app)
+      .put(`/api/stories/${story.id}/continuity/author-canon/${created.body.entry.id}`)
+      .send({ value: 'The eclipse happened four winters before page one.' })
+      .expect(200);
+    expect(revised.body.entry).toMatchObject({ revision_number: 2 });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM author_canon_revisions WHERE entry_id = ?')
+      .get(created.body.entry.id).count).toBe(2);
+
+    const prepared = db.prepare('INSERT INTO story_previews (story_id, expected_page, raw_content) VALUES (?, 1, ?)');
+    prepared.run(story.id, 'Prepared prose');
+    await request(app)
+      .delete(`/api/stories/${story.id}/continuity/author-canon/${created.body.entry.id}`)
+      .expect(200);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM story_previews WHERE story_id = ?').get(story.id).count).toBe(0);
+    const view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(view.body.continuity.author_canon).toEqual([]);
+    expect(db.prepare('SELECT status FROM author_canon_entries WHERE id = ?').get(created.body.entry.id).status)
+      .toBe('retired');
+  });
+
   it('rebuilds a 3,000-page fixture identically and serves bounded inspection state from sparse checkpoints', async () => {
     const story = await createStory(app);
     const chapter = db.prepare(`SELECT chapter.id FROM chapters chapter JOIN volumes volume ON volume.id = chapter.volume_id WHERE volume.story_id = ? LIMIT 1`).get(story.id);

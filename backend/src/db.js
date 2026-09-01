@@ -1225,6 +1225,51 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 10,
+    name: 'versioned author canon',
+    checksumSource: `Author canon keeps stable entries and append-only revisions separate from extracted evidence and corrections.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE author_canon_entries (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN (
+            'world_event', 'world_fact', 'character_fact', 'relationship',
+            'goal', 'thread', 'story_rule', 'custom'
+          )),
+          subject_id TEXT,
+          status TEXT NOT NULL DEFAULT 'active'
+            CHECK (status IN ('active', 'retired')),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX idx_author_canon_entries_story_status
+          ON author_canon_entries (story_id, status, created_at);
+
+        CREATE TABLE author_canon_revisions (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          entry_id TEXT NOT NULL REFERENCES author_canon_entries (id) ON DELETE CASCADE,
+          revision_number INTEGER NOT NULL CHECK (revision_number > 0),
+          title TEXT NOT NULL CHECK (length(trim(title)) > 0),
+          value_json TEXT NOT NULL,
+          note TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (entry_id, revision_number)
+        );
+
+        CREATE INDEX idx_author_canon_revisions_entry
+          ON author_canon_revisions (entry_id, revision_number);
+
+        CREATE TRIGGER author_canon_revisions_immutable
+        BEFORE UPDATE ON author_canon_revisions
+        BEGIN
+          SELECT RAISE(ABORT, 'author canon revisions are immutable');
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

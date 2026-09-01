@@ -36,7 +36,7 @@ const exportPlan = {
   estimated_bytes: 4096,
   options: { include_visuals: true, include_audio: false, include_working_history: false },
   exposure: {
-    worlds: 1, characters: 2, stories: 0, pages: 0, continuity_rows: 0,
+    worlds: 1, characters: 2, stories: 0, pages: 0, continuity_rows: 0, author_canon_entries: 0,
     images: 1, audio_files: 0, includes_device_settings: false,
     excluded: ['API keys', 'credentials', 'passwords', 'paid-action consent'],
     external_worlds: [],
