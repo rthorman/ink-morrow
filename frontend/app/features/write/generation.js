@@ -137,7 +137,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     if (!note) return;
     if (usable) {
       note.hidden = false;
-      note.textContent = 'Next page prepared. Its provider cost was already incurred; it joins Story when used.';
+      note.textContent = 'Next page prepared. Its provider cost was already incurred; it joins the manuscript when used.';
     } else if (ready && !inputEmpty) {
       note.hidden = false;
       note.textContent = 'A page is prepared. Confirming this direction replaces it; canceling keeps it.';
@@ -439,7 +439,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
   async function generateNextPage() {
     const { currentStory, storyPages, currentPage, generating } = data;
     if (!currentStory) {
-      showError('Please select a story first.');
+      showError('Please choose a manuscript first.');
       return;
     }
     if (generating) return;
@@ -706,3 +706,4 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     init,
   };
 }
+
