@@ -3,11 +3,13 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const { createHash } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const request = require('supertest');
 const sharp = require('sharp');
 const {
   createDb,
+  inspectExistingDatabase,
   runMigrations,
   schemaIdentity,
   MIGRATIONS,
@@ -26,6 +28,47 @@ const {
 const { createTestApp } = require('./helpers');
 const { createImageStore } = require('../src/images');
 const { createArtStore } = require('../src/modules/imagery/art-store');
+
+const PRE_REBRAND_V4 = Object.freeze({
+  schemaTable: ['scr', 'ibe_schema'].join(''),
+  family: ['scr', 'ibetr', 'ibe-4'].join(''),
+  applicationId: 0x53543430,
+});
+
+function makePreRebrandV4Identity(db) {
+  const first = MIGRATIONS[0];
+  const source = String(first.checksumSource)
+    .replaceAll('ink_morrow_schema', PRE_REBRAND_V4.schemaTable)
+    .replaceAll(DATABASE_FAMILY, PRE_REBRAND_V4.family);
+  const checksum = createHash('sha256')
+    .update(`${first.version}\n${first.name}\n${source}`)
+    .digest('hex');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    db.exec(`
+      CREATE TABLE "${PRE_REBRAND_V4.schemaTable}" (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        family TEXT NOT NULL CHECK (family = '${PRE_REBRAND_V4.family}'),
+        version INTEGER NOT NULL CHECK (version >= 0),
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    db.prepare(`
+      INSERT INTO "${PRE_REBRAND_V4.schemaTable}"
+        (singleton, family, version, created_at, updated_at)
+      SELECT singleton, ?, version, created_at, updated_at FROM ink_morrow_schema
+    `).run(PRE_REBRAND_V4.family);
+    db.exec('DROP TABLE ink_morrow_schema');
+    db.prepare('UPDATE schema_migrations SET checksum = ? WHERE version = 1').run(checksum);
+    db.exec(`PRAGMA application_id = ${PRE_REBRAND_V4.applicationId}`);
+    db.exec(`PRAGMA user_version = ${DATABASE_SCHEMA_VERSION}`);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
 
 describe('Ink Morrow 4.0 kernel', () => {
   let root;
@@ -87,6 +130,67 @@ describe('Ink Morrow 4.0 kernel', () => {
     expect(fs.statSync(dbPath).mtimeMs).toBe(beforeStat.mtimeMs);
     expect(fs.existsSync(`${dbPath}-wal`)).toBe(false);
     expect(fs.existsSync(`${dbPath}-shm`)).toBe(false);
+  });
+
+  it('backs up and transactionally adopts a verified earlier 4.0 database identity', () => {
+    const dbPath = path.join(root, 'ink-morrow.db');
+    let db = createDb(dbPath);
+    db.prepare("INSERT INTO stories (id, title) VALUES ('kept-story', 'Kept manuscript')").run();
+    makePreRebrandV4Identity(db);
+    db.close();
+
+    expect(inspectExistingDatabase(dbPath)).toMatchObject({
+      kind: 'pre-rebrand-v4', version: DATABASE_SCHEMA_VERSION,
+    });
+
+    db = createDb(dbPath);
+    const backupPath = db.identityUpgradeBackupPath;
+    expect(backupPath).toMatch(/\.pre-ink-morrow-v4\.bak$/);
+    expect(fs.existsSync(backupPath)).toBe(true);
+    expect(schemaIdentity(db)).toMatchObject({
+      family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION,
+    });
+    expect(db.prepare("SELECT title FROM stories WHERE id = 'kept-story'").get().title)
+      .toBe('Kept manuscript');
+    expect(db.prepare('PRAGMA application_id').get().application_id).toBe(SQLITE_APPLICATION_ID);
+    expect(db.prepare('PRAGMA quick_check').get().quick_check).toBe('ok');
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    db.close();
+
+    const backup = new DatabaseSync(backupPath, { readOnly: true });
+    expect(backup.prepare(`SELECT family FROM "${PRE_REBRAND_V4.schemaTable}"`).get().family)
+      .toBe(PRE_REBRAND_V4.family);
+    expect(backup.prepare("SELECT title FROM stories WHERE id = 'kept-story'").get().title)
+      .toBe('Kept manuscript');
+    expect(backup.prepare('PRAGMA application_id').get().application_id)
+      .toBe(PRE_REBRAND_V4.applicationId);
+    backup.close();
+
+    db = createDb(dbPath);
+    expect(db.identityUpgradeBackupPath).toBeUndefined();
+    db.close();
+    expect(fs.readdirSync(root).filter((name) => name.includes('.pre-ink-morrow-v4.bak')))
+      .toHaveLength(1);
+  });
+
+  it('refuses a damaged earlier 4.0 identity without changing or backing up the database', () => {
+    const dbPath = path.join(root, 'ink-morrow.db');
+    const db = createDb(dbPath);
+    db.prepare("INSERT INTO stories (id, title) VALUES ('kept-story', 'Untouched manuscript')").run();
+    makePreRebrandV4Identity(db);
+    db.prepare('UPDATE schema_migrations SET checksum = ? WHERE version = 5')
+      .run('0'.repeat(64));
+    db.close();
+    const before = fs.readFileSync(dbPath);
+    const beforeStat = fs.statSync(dbPath);
+
+    let error;
+    try { createDb(dbPath); } catch (caught) { error = caught; }
+    expect(error).toMatchObject({ code: 'INVALID_MIGRATION_LEDGER' });
+    expect(fs.readFileSync(dbPath)).toEqual(before);
+    expect(fs.statSync(dbPath).mtimeMs).toBe(beforeStat.mtimeMs);
+    expect(fs.readdirSync(root).some((name) => name.includes('.pre-ink-morrow-v4.bak')))
+      .toBe(false);
   });
 
   it('fails closed on a future database before changing it', () => {

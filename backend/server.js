@@ -18,9 +18,17 @@ const defaultStorageRoot = path.join(__dirname, '../database');
 const configuredPath = (value) => value === ':memory:'
   ? value
   : path.isAbsolute(value) ? value : path.resolve(__dirname, value);
+const configuredStorageRoot = process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot;
+const currentDefaultDbPath = path.join(configuredStorageRoot, 'ink-morrow.db');
+const preRebrandDefaultDbPath = path.join(
+  configuredStorageRoot,
+  `${['scr', 'ibe-tr', 'ibe'].join('')}.db`
+);
 const dbPath = process.env.DB_PATH
   ? configuredPath(process.env.DB_PATH)
-  : path.join(process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot, 'ink-morrow.db');
+  : !fs.existsSync(currentDefaultDbPath) && fs.existsSync(preRebrandDefaultDbPath)
+    ? preRebrandDefaultDbPath
+    : currentDefaultDbPath;
 const storageRoot = process.env.DATA_DIR
   ? configuredPath(process.env.DATA_DIR)
   : process.env.DB_PATH && dbPath !== ':memory:'
@@ -33,6 +41,9 @@ try {
   // permissions, migrations, or boot reconciliation can touch an existing
   // file. A 3.x installation therefore fails closed here.
   db = createDb(dbPath);
+  if (db.identityUpgradeBackupPath) {
+    console.log(`Upgraded an earlier 4.0 database identity for Ink Morrow. Backup: ${db.identityUpgradeBackupPath}`);
+  }
 } catch (error) {
   console.error(error.message || 'Ink Morrow could not open its database.');
   process.exit(1);

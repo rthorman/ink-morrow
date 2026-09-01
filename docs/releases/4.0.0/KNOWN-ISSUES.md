@@ -10,6 +10,11 @@ opens, and release-owner triage recorded in
 
 Known limits are:
 
+- Builds immediately after the Ink Morrow rebrand could mistake an earlier
+  4.0 database for a 3.x database because its internal identity still used the
+  pre-rebrand form. Current builds verify the complete 4.0 migration ledger,
+  create a SQLite backup beside the database, and transactionally upgrade only
+  that identity. Manuscript and media records are not discarded.
 - Current Chrome Stable is the only browser tested for this beta. Other
   current standards-respecting browsers should work, but are not certified;
   reproduce browser-specific trouble in Chrome before reporting it.
