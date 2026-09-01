@@ -403,4 +403,3 @@ export function createBookshelf({ api, state, notify, features, dialogs }) {
     loadBookshelf, openStoryAssets, closeStoryAssets, refreshActiveAssets, init,
   };
 }
-
