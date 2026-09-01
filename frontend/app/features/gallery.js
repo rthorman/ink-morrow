@@ -2,6 +2,7 @@
 // explicit provider references, and noncanonical manuscript placements.
 
 import { formatMb, formatUsd } from '../core/dom.js';
+import { chooseWorkspaceStory } from '../core/story-context.js';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -340,21 +341,6 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
     });
   }
 
-  async function chooseStory(storyId) {
-    let story = state.data.currentStory?.id === storyId ? state.data.currentStory : state.data.stories.find((item) => item.id === storyId);
-    if (!story) {
-      await features.stories.loadStories();
-      story = state.data.stories.find((item) => item.id === storyId);
-    }
-    if (!story) return null;
-    if (state.data.currentStory?.id !== story.id) {
-      features.write.resetStoryReader();
-      state.data.currentStory = story;
-      state.resetStoryCost();
-    }
-    return story;
-  }
-
   async function load(storyId) {
     const token = ++loadToken;
     setStatus('Opening normalized images and stable placement anchors…');
@@ -381,9 +367,9 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   async function enter(params = {}) {
     if (!params.storyId) return;
-    const story = await chooseStory(params.storyId);
+    const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
     if (!story) {
-      showError('That story could not be found - it may have been deleted from another window.');
+      showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
     }
@@ -417,3 +403,4 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   return { init, enter, load, render, reset, openUpload, openPaint, setRouter(value) { routeController = value; } };
 }
+
