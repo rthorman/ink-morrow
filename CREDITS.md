@@ -109,4 +109,3 @@ The ScribeTribe 4.0 release line is open-source software under
 [LICENSE-NOTICE.md](LICENSE-NOTICE.md). The historical `main` line through
 version 3.2.2 remains under the MIT License. Bundled fonts and other
 third-party materials retain their separately identified licenses.
-
