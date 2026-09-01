@@ -411,4 +411,3 @@ describe('Delete page flow', () => {
     expect(fw.state().currentPage).toBe(1);
   });
 });
-
