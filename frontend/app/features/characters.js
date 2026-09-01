@@ -83,7 +83,7 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
       const remove = async () => {
         const yes = await dialogs.confirmDestructive({
           title: `Delete character "${character.name}"?`,
-          body: 'The character and their reference portrait will be permanently deleted, and they will be removed from every story cast that references them.',
+          body: 'The character and their reference portrait will be permanently deleted, and they will be removed from every manuscript cast that references them.',
           confirmLabel: 'Delete character',
         });
         if (!yes) return;
@@ -326,3 +326,4 @@ export function createCharacters({ api, state, notify, catalogPoll, entityCard, 
 
   return { loadCharacters, renderCharacters, handleCharacterSubmit, openCharacterEditor, closeCharacterEditor, saveCharacterEditor, init };
 }
+
