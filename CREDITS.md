@@ -45,6 +45,12 @@ image-generation tools.
 Generated brand assets (OpenAI image generation, reference-led; production
 WebP in `frontend/brand/`, PNG masters in the instruction packages):
 
+- `hero-scriptorium-desktop.webp`, `hero-scriptorium-tablet-landscape.webp`,
+  and `hero-scriptorium-tablet-portrait.webp` — separately composed Vesper
+  Library heroes for the three first-class responsive profiles
+- `vesper-quill.webp` — Vesper's phone and empty-state foreground figure; the
+  approved source was converted from a generated light checker field to true
+  alpha before production encoding
 - `vesper-threshold.webp` — Vesper Quill at the locked threshold
   (first-password and unlock surface)
 - `moth-archive.webp` — Moth, Archivist of Forgotten Things (Bookshelf and
@@ -60,9 +66,10 @@ and boundaries are documented in
 `docs/releases/4.0.0/ART-DIRECTION.md`.
 
 Interface typography uses self-hosted Latin/Latin Extended subsets of
-Cormorant Garamond, Inter, Literata, and IBM Plex Mono from Google Fonts. Each
-family is distributed under the SIL Open Font License 1.1; the applicable
-license texts are included in `frontend/fonts/`.
+Cormorant Garamond, Inter, Literata, and IBM Plex Mono from Google Fonts. The
+approved blackletter wordmark uses self-hosted UnifrakturCook. Each family is
+distributed under the SIL Open Font License 1.1; the applicable license texts
+are included in `frontend/fonts/`.
 
 ## Original Code Structure
 

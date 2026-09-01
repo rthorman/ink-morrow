@@ -153,6 +153,8 @@ behavior, and accessibility remain native HTML/CSS.
 - ornate frames around every control;
 - texture behind long-form prose;
 - corset-and-cat-ears sameness across the tribe;
+- leashes or coercive pet framing. Moth's approved narrow velvet bell collar is
+  a deliberate archivist character detail, not a general tribe motif;
 - ambiguous fantasy verbs for paid, destructive, or security actions;
 - fake parchment that reduces contrast; and
 - treating the approved reference as a pixel-perfect page specification.

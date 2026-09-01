@@ -32,13 +32,14 @@
 
 .main-header h1 {
   margin: 0;
-  font-family: var(--st-font-display);
-  font-weight: 700;
-  font-size: clamp(2rem, 4vw, 2.75rem);
+  font-family: "UnifrakturCook", var(--st-font-display);
+  font-weight: 400;
+  font-size: clamp(2.35rem, 4.5vw, 3.15rem);
   line-height: 1.1;
-  letter-spacing: 0.02em;
-  color: var(--st-vellum-100);
-  text-shadow: 0 2px 14px rgb(0 0 0 / 0.6);
+  letter-spacing: 0.01em;
+  color: #d2b3e8;
+  -webkit-text-stroke: 0.35px #d4b36a;
+  text-shadow: 0 0 12px rgb(109 57 127 / 0.5), 0 2px 14px rgb(0 0 0 / 0.7);
 }
 
 .subtitle {
@@ -135,10 +136,15 @@
   cursor: pointer;
 }
 
-.workspace-nav__btn > span[aria-hidden] {
-  font-size: 1.1rem;
-  line-height: 1;
+.tab-rune {
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex: 0 0 auto;
+  overflow: visible;
   color: var(--st-gold-500);
+  filter: drop-shadow(0 0 0 transparent);
+  transition: color var(--st-duration-fast) ease, filter var(--st-duration-fast) ease;
 }
 
 .workspace-nav__btn:hover:not(:disabled),
@@ -148,11 +154,19 @@
   border-color: var(--st-gold-500);
 }
 
+.workspace-nav__btn:hover:not(:disabled) .tab-rune,
+.workspace-nav__btn.active .tab-rune,
+.nav-btn:hover .tab-rune,
+.nav-btn.active .tab-rune {
+  color: var(--st-gold-300);
+  filter: drop-shadow(0 0 6px rgb(162 104 189 / 0.82));
+}
+
 .workspace-nav__btn:disabled {
   opacity: 0.5;
 }
 
-.workspace-nav__btn:disabled > span[aria-hidden] {
+.workspace-nav__btn:disabled .tab-rune {
   color: var(--st-ash-600);
 }
 
