@@ -56,4 +56,3 @@ The immutable release record, automated suite counts, archive/publication
 fixtures, device coverage, pending manual owner checks, and final decision are
 kept in [RELEASE-EVIDENCE.md](RELEASE-EVIDENCE.md). Do not publish the tag while
 that record contains an unresolved release blocker.
-
