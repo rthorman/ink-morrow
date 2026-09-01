@@ -86,10 +86,10 @@ export function createHome({ state, notify, features }) {
     const startBtn = document.getElementById('heroStartBtn');
     if (startBtn) startBtn.addEventListener('click', () => {
       features.storyEditor.openCreator();
-      router.navigate('write');
+      router.navigate('desk');
     });
     const writeBtn = document.getElementById('heroWriteBtn');
-    if (writeBtn) writeBtn.addEventListener('click', () => router.navigate('write'));
+    if (writeBtn) writeBtn.addEventListener('click', () => router.navigate('desk'));
   }
 
   return {

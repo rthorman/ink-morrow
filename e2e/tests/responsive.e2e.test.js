@@ -78,23 +78,61 @@ for (const spec of SPECS) {
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
     await expect(page.locator('#writeSection')).toHaveClass(/scriptorium-bg/);
 
-    const result = await page.evaluate(() => ({
-      overflowX: document.documentElement.scrollWidth - window.innerWidth,
-      heroImg: (document.querySelector('.hero__picture img') || {}).currentSrc || '',
-      heroLine: (document.querySelector('.hero__line') || {}).textContent || '',
-      navHeights: [...document.querySelectorAll('.nav-btn')].map((b) => b.getBoundingClientRect().height),
-      pageButtons: [...document.querySelectorAll('.desk-group--pages button:not([hidden])')].map((b) => {
-        const r = b.getBoundingClientRect();
-        const cs = getComputedStyle(b);
-        return { h: r.height, w: r.width, background: cs.backgroundColor, color: cs.color, border: cs.borderColor };
-      }),
-      managementButtons: [...document.querySelectorAll('.desk-group--management button:not([hidden])')].map((b) => {
-        const r = b.getBoundingClientRect();
-        const cs = getComputedStyle(b);
-        return { h: r.height, w: r.width, background: cs.backgroundColor, color: cs.color };
-      }),
-      writeBg: getComputedStyle(document.getElementById('writeSection'), '::before').backgroundImage,
-    }));
+    const result = await page.evaluate(() => {
+      const rect = (element) => {
+        const r = element.getBoundingClientRect();
+        return { top: r.top, right: r.right, bottom: r.bottom, left: r.left, width: r.width, height: r.height };
+      };
+      const rgb = (value) => (value.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+      const luminance = (value) => {
+        const channels = rgb(value).map((part) => {
+          const normalized = part / 255;
+          return normalized <= 0.04045 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+        });
+        return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+      };
+      const contrast = (foreground, background) => {
+        const a = luminance(foreground);
+        const b = luminance(background);
+        return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      };
+      const workspace = document.getElementById('workspaceNav');
+      const workspaceButtons = [...workspace.querySelectorAll('.workspace-nav__btn')];
+      const main = document.getElementById('mainContent');
+      const manuscript = document.getElementById('storyContent');
+      const manuscriptText = manuscript.querySelector('.placeholder');
+      const manuscriptStyle = getComputedStyle(manuscript);
+      const manuscriptTextStyle = getComputedStyle(manuscriptText);
+      return {
+        overflowX: document.documentElement.scrollWidth - window.innerWidth,
+        heroImg: (document.querySelector('.hero__picture img') || {}).currentSrc || '',
+        heroLine: (document.querySelector('.hero__line') || {}).textContent || '',
+        navHeights: [...document.querySelectorAll('.nav-btn')].map((b) => b.getBoundingClientRect().height),
+        workspace: {
+          position: getComputedStyle(workspace).position,
+          box: rect(workspace),
+          mainBox: rect(main),
+          labels: workspaceButtons.map((button) => button.lastElementChild.textContent),
+          buttons: workspaceButtons.map(rect),
+        },
+        manuscript: {
+          background: manuscriptStyle.backgroundColor,
+          text: manuscriptTextStyle.color,
+          contrast: contrast(manuscriptTextStyle.color, manuscriptStyle.backgroundColor),
+        },
+        pageButtons: [...document.querySelectorAll('.desk-group--pages button:not([hidden])')].map((b) => {
+          const r = b.getBoundingClientRect();
+          const cs = getComputedStyle(b);
+          return { h: r.height, w: r.width, background: cs.backgroundColor, color: cs.color, border: cs.borderColor };
+        }),
+        managementButtons: [...document.querySelectorAll('.desk-group--management button:not([hidden])')].map((b) => {
+          const r = b.getBoundingClientRect();
+          const cs = getComputedStyle(b);
+          return { h: r.height, w: r.width, background: cs.backgroundColor, color: cs.color };
+        }),
+        writeBg: getComputedStyle(document.getElementById('writeSection'), '::before').backgroundImage,
+      };
+    });
 
     expect(result.overflowX).toBeLessThanOrEqual(1); // no horizontal scroll
     const art = result.heroImg.split('/').pop();
@@ -103,6 +141,29 @@ for (const spec of SPECS) {
     if (spec.coarse) {
       for (const h of result.navHeights) expect(h).toBeGreaterThanOrEqual(44);
     }
+
+    // PR 09 shell contract: identical labels and usable targets at every
+    // width, expressed as a rail in landscape and a bottom bar otherwise.
+    expect(result.workspace.labels).toEqual(['Desk', 'Chronicle', 'Codex', 'Gallery', 'Gate']);
+    for (const button of result.workspace.buttons) {
+      expect(button.height).toBeGreaterThanOrEqual(44);
+      expect(button.width).toBeGreaterThanOrEqual(44);
+    }
+    const expectsRail = spec.w >= 900 && spec.w > spec.h;
+    if (expectsRail) {
+      expect(result.workspace.position).toBe('sticky');
+      expect(result.workspace.box.right).toBeLessThanOrEqual(result.workspace.mainBox.left + 1);
+      expect(new Set(result.workspace.buttons.map((button) => Math.round(button.left))).size).toBe(1);
+    } else {
+      expect(result.workspace.position).toBe('fixed');
+      expect(Math.abs(result.workspace.box.bottom - spec.h)).toBeLessThanOrEqual(1);
+      expect(new Set(result.workspace.buttons.map((button) => Math.round(button.top))).size).toBe(1);
+    }
+
+    // Optional art frames the desk; the prose plane itself stays opaque,
+    // light, and comfortably readable.
+    expect(result.manuscript.background).not.toBe('rgba(0, 0, 0, 0)');
+    expect(result.manuscript.contrast).toBeGreaterThanOrEqual(4.5);
 
     // D4 regression: the pagination selector finds REAL buttons (>= 2), they
     // are touch-sized, and none renders as a native grey control.

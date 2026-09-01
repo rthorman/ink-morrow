@@ -24,13 +24,14 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       select.appendChild(option);
     });
     if (keep && [...select.options].some((o) => o.value === keep)) select.value = keep;
+    shell.syncManuscriptShell(state.data.stories, state.data.currentStory);
   }
 
   function openStory(storyId) {
     // Route-driven: the hash change lands in enterFromRoute, which loads the
     // tale. Direct fallback keeps old entry points working pre-router.
     features.storyEditor.closeCreator();
-    if (router) router.navigate('write', { storyId });
+    if (router) router.navigate('desk', { storyId });
     else enterFromRoute({ storyId });
   }
 
@@ -38,7 +39,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   // Stories shelf with an honest message.
   async function enterFromRoute(params = {}) {
     if (!params.storyId) {
-      // A cold #/write boot starts from static HTML. Paint the truthful empty
+      // A cold Desk boot starts from static HTML. Paint the truthful empty
       // desk immediately instead of leaving the markup's fake Page 1 of 1 and
       // enabled controls visible until some later interaction.
       displayCurrentPage();
@@ -86,8 +87,9 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     if (!storyId) {
       features.generation.resetForStoryChange();
       state.data.currentStory = null;
+      shell.syncManuscriptShell(state.data.stories, null);
       resetStoryReader();
-      if (router) router.replace('write');
+      if (router) router.replace('desk');
       return;
     }
     const story = state.data.stories.find((s) => s.id === storyId) || null;
@@ -98,7 +100,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
         await loadStoryPages();
         return;
       }
-      router.navigate('write', { storyId });
+      router.navigate('desk', { storyId });
       return;
     }
     features.generation.resetForStoryChange();
@@ -320,7 +322,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     state.data.currentPage = Math.max(1, Math.min(storyPages.length, state.data.currentPage + direction));
     displayCurrentPage();
     // The hash follows the reader (replace: page turns don't spam history)
-    if (router) router.replace('write', { storyId: currentStory.id, pageNumber: state.data.currentPage });
+    if (router) router.replace('desk', { storyId: currentStory.id, pageNumber: state.data.currentPage });
   }
 
   async function deleteCurrentPage() {
@@ -534,6 +536,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
         features.generation.resetForStoryChange();
         features.imagery?.resetForContextChange(patch.currentStory?.id || null);
         state.data.currentStory = patch.currentStory;
+        shell.syncManuscriptShell(state.data.stories, state.data.currentStory);
         state.resetStoryCost();
       }
       if ('currentPage' in patch) state.data.currentPage = patch.currentPage;

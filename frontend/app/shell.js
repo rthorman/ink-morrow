@@ -1,5 +1,5 @@
-// Global shell: section switching (Phase 4 grows this into the hash router),
-// the scribe status line, and the low-storage banner.
+// Adaptive shell: global Library/utilities, the five stable manuscript
+// destinations, manuscript switching, truthful status, and low-storage state.
 
 export const SCRIBE_FLAVOR = [
   'The quill dips into shadow-ink…',
@@ -39,17 +39,71 @@ export function updateDiskBanner(data) {
 
 export function createShell({ api, notify }) {
   let diskTimer = null;
-  function showSection(section) {
+  const WORKSPACE_BUTTON = {
+    desk: 'writeBtn',
+    chronicle: 'chronicleBtn',
+    codex: 'codexBtn',
+    gallery: 'galleryBtn',
+    gate: 'gateBtn',
+  };
+
+  function showSection(section, { destination = null } = {}) {
     document.querySelectorAll('.content-section').forEach((sec) => sec.classList.remove('active'));
-    document.getElementById(`${section}Section`).classList.add('active');
+    const target = document.getElementById(`${section}Section`);
+    if (target) target.classList.add('active');
     document.querySelectorAll('.nav-btn').forEach((btn) => {
       btn.classList.remove('active');
       btn.removeAttribute('aria-current');
     });
-    const activeBtn = document.getElementById(`${section}Btn`);
+    const globalButtonId = {
+      home: 'homeBtn',
+      library: 'libraryBtn',
+      worlds: 'worldsBtn',
+      characters: 'charactersBtn',
+      settings: 'settingsBtn',
+    }[section] || null;
+    const activeBtn = globalButtonId ? document.getElementById(globalButtonId) : null;
     if (activeBtn) {
       activeBtn.classList.add('active');
       activeBtn.setAttribute('aria-current', 'page');
+    }
+    document.querySelectorAll('.workspace-nav__btn').forEach((button) => {
+      button.classList.remove('active');
+      button.removeAttribute('aria-current');
+    });
+    const workspaceButton = document.getElementById(WORKSPACE_BUTTON[destination]);
+    if (workspaceButton) {
+      workspaceButton.classList.add('active');
+      workspaceButton.setAttribute('aria-current', 'page');
+    }
+    document.body.classList.toggle('st-workspace', Boolean(workspaceButton));
+  }
+
+  function syncManuscriptShell(stories = [], story = null) {
+    const select = document.getElementById('shellManuscriptSelect');
+    if (select) {
+      const wanted = story?.id || '';
+      select.textContent = '';
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = stories.length ? 'Choose a manuscript' : 'No manuscripts yet';
+      select.appendChild(placeholder);
+      for (const item of stories) {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.title;
+        select.appendChild(option);
+      }
+      select.value = [...select.options].some((option) => option.value === wanted) ? wanted : '';
+      select.disabled = stories.length === 0;
+      select.setAttribute('aria-label', story ? `Current manuscript: ${story.title}` : 'Choose a manuscript');
+    }
+    for (const name of ['chronicle', 'codex', 'gallery', 'gate']) {
+      const button = document.getElementById(WORKSPACE_BUTTON[name]);
+      if (button) button.disabled = !story;
+    }
+    for (const label of document.querySelectorAll('[data-workspace-story]')) {
+      label.textContent = story?.title || 'No manuscript selected';
     }
   }
 
@@ -76,5 +130,5 @@ export function createShell({ api, notify }) {
     if (banner) banner.hidden = true;
   }
 
-  return { showSection, checkDiskSpace, initDiskBanner, stopDiskBanner };
+  return { showSection, syncManuscriptShell, checkDiskSpace, initDiskBanner, stopDiskBanner };
 }

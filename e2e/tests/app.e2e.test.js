@@ -32,8 +32,11 @@ test.describe('ScribeTribe UI', () => {
   test('has the gothic header with scribe and working navigation', async ({ page }) => {
     await expect(page).toHaveTitle(/ScribeTribe/);
     await expect(page.locator('.main-header h1')).toHaveText('ScribeTribe');
-    await expect(page.locator('.cat-scribe svg')).toBeVisible();
-    await expect(page.locator('#scribeStatus')).toBeVisible();
+    await expect(page.locator('.cat-scribe img')).toBeVisible();
+    const scribeStatus = page.locator('#scribeStatus');
+    await expect(scribeStatus).toContainText('The scribe');
+    if (page.viewportSize().width <= 520) await expect(scribeStatus).toBeHidden();
+    else await expect(scribeStatus).toBeVisible();
 
     // Cycle every destination (Library covers the Stories surface)
     for (const [btn, section] of [

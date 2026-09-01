@@ -70,6 +70,9 @@ body {
 
 /* Locked/setup/error auth states hold every private surface back. */
 body.st-gated .main-content,
-body.st-gated nav.main-nav {
+body.st-gated nav.main-nav,
+body.st-gated .workspace-nav,
+body.st-gated .shell-manuscript,
+body.st-gated .disk-banner {
   display: none;
 }

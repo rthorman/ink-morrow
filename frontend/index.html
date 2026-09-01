@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
@@ -28,27 +28,26 @@
     <div class="container">
         <header class="main-header">
             <div class="cat-scribe" aria-hidden="true">
-                <svg viewBox="0 0 256 256" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
-                    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
-                    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
-                    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
-                    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
-                </svg>
+                <img src="brand/scribetribe-mark.svg" alt="" width="52" height="52">
             </div>
             <div class="wordmark">
                 <h1>ScribeTribe</h1>
-                <p class="subtitle">Interactive tales, scribed by candlelight</p>
+                <p class="subtitle">Where stories grow claws.</p>
+            </div>
+            <div class="shell-manuscript">
+                <label for="shellManuscriptSelect">Manuscript</label>
+                <select id="shellManuscriptSelect" disabled>
+                    <option value="">No manuscripts yet</option>
+                </select>
             </div>
             <p id="scribeStatus" class="scribe-status" aria-live="polite">The scribe waits, quill at the ready…</p>
         </header>
 
-        <nav class="main-nav" aria-label="Primary">
-            <button id="homeBtn" class="nav-btn active" type="button">Home</button>
-            <button id="writeBtn" class="nav-btn" type="button">Write</button>
-            <button id="libraryBtn" class="nav-btn" type="button">Library</button>
-            <button id="worldsBtn" class="nav-btn" type="button">Worlds</button>
-            <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
+        <nav class="main-nav" aria-label="Global">
+            <button id="homeBtn" class="nav-btn active" type="button">Library</button>
+            <button id="libraryBtn" class="nav-btn" type="button">Manuscripts</button>
+            <button id="worldsBtn" class="nav-btn" type="button">World templates</button>
+            <button id="charactersBtn" class="nav-btn" type="button">Character templates</button>
             <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button">Settings</button>
             <button id="lockBtn" class="nav-btn nav-btn--lock" type="button">Lock</button>
         </nav>
@@ -57,9 +56,18 @@
             <p id="diskBannerText"></p>
         </div>
 
-        <main class="main-content" id="mainContent">
-            <!-- Home Section (manuscript hall) -->
-            <section id="homeSection" class="content-section active" aria-label="Home">
+        <div class="workspace-frame">
+        <nav id="workspaceNav" class="workspace-nav" aria-label="Manuscript workspace">
+            <button id="writeBtn" class="workspace-nav__btn" type="button"><span aria-hidden="true">&#x270E;</span><span>Desk</span></button>
+            <button id="chronicleBtn" class="workspace-nav__btn" type="button" disabled><span aria-hidden="true">&#x2261;</span><span>Chronicle</span></button>
+            <button id="codexBtn" class="workspace-nav__btn" type="button" disabled><span aria-hidden="true">&#x25C8;</span><span>Codex</span></button>
+            <button id="galleryBtn" class="workspace-nav__btn" type="button" disabled><span aria-hidden="true">&#x25A7;</span><span>Gallery</span></button>
+            <button id="gateBtn" class="workspace-nav__btn" type="button" disabled><span aria-hidden="true">&#x21E5;</span><span>Gate</span></button>
+        </nav>
+
+        <main class="main-content" id="mainContent" tabindex="-1">
+            <!-- Library threshold (manuscript hall) -->
+            <section id="homeSection" class="content-section active" aria-label="Library">
                 <div class="hero">
                     <picture class="hero__picture" aria-hidden="true">
                         <source
@@ -90,13 +98,13 @@
                         >
                     </picture>
                     <div class="hero__copy">
-                        <p class="hero__kicker">The manuscript hall</p>
+                        <p class="hero__kicker">The Library</p>
                         <h2 class="hero__line">Where stories grow claws.</h2>
-                        <p class="hero__support">Build worlds, cast your characters, and let the scribes write with you.</p>
+                        <p class="hero__support">Return to a manuscript, begin another, or tend the templates that wait behind every story.</p>
                         <div class="hero__actions">
                             <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
-                            <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
-                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
+                            <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Begin a manuscript</button>
+                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the Desk</button>
                         </div>
                     </div>
                 </div>
@@ -121,8 +129,8 @@
                             <strong>Stories</strong>
                             <span>required only for writing; can start as an ensemble</span>
                         </a>
-                        <a href="#/write" class="home-path__step">
-                            <strong>Write</strong>
+                        <a href="#/desk" class="home-path__step">
+                            <strong>Desk</strong>
                             <span>the desk where pages happen</span>
                         </a>
                     </div>
@@ -205,7 +213,7 @@
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
                     <div class="catalog-head library-story-head">
                         <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
-                        <a class="btn btn-primary" href="#/write">Create at the writing desk</a>
+                        <a class="btn btn-primary" href="#/desk">Begin at the Desk</a>
                     </div>
                     <div id="storiesList" class="items-grid stories-grid"></div>
                 </div>
@@ -215,9 +223,9 @@
                 </div>
             </section>
 
-            <!-- Write Section -->
-            <section id="writeSection" class="content-section" aria-label="Write">
-                <h2 class="sr-only">Writing desk</h2>
+            <!-- Desk Section -->
+            <section id="writeSection" class="content-section" aria-label="Desk">
+                <h2 class="sr-only">Desk &mdash; write the active manuscript</h2>
                 <div class="write-container">
                     <div class="story-context" aria-label="Story context">
                         <label class="sr-only" for="currentStory">Select or create a story</label>
@@ -337,6 +345,34 @@
                 </div>
             </section>
 
+            <section id="chronicleSection" class="content-section workspace-empty" aria-labelledby="chronicleTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="chronicleTitle">Chronicle <span>&mdash; where the work stands</span></h2>
+                <p>Volumes, chapters, pages, prepared work, and recovery records will gather here. The hierarchy remains available through the Desk while the full outline is being prepared.</p>
+                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+            </section>
+
+            <section id="codexSection" class="content-section workspace-empty" aria-labelledby="codexTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="codexTitle">Codex <span>&mdash; what the story remembers</span></h2>
+                <p>Foundations, page-provenanced canon, and author corrections will live here. No continuity data is inferred, rewritten, or hidden by this temporary shell.</p>
+                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+            </section>
+
+            <section id="gallerySection" class="content-section workspace-empty" aria-labelledby="galleryTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="galleryTitle">Gallery <span>&mdash; images around the manuscript</span></h2>
+                <p>Generated and uploaded art, references, and placements will gather here. Painting and upload remain available from the Desk; original files and prose are unchanged.</p>
+                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+            </section>
+
+            <section id="gateSection" class="content-section workspace-empty" aria-labelledby="gateTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="gateTitle">Gate <span>&mdash; how the work leaves</span></h2>
+                <p>Project backup, publication formats, and reading-copy shares will converge here. Existing EPUB and archive actions keep their current explicit review paths while this view is being prepared.</p>
+                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+            </section>
+
             <!-- Settings Section -->
             <section id="settingsSection" class="content-section" aria-label="Settings">
                 <h2>Settings</h2>
@@ -450,6 +486,7 @@
                 </details>
             </section>
         </main>
+        </div>
 
         <footer class="main-footer">            <img class="ornament" src="brand/ornament-divider.svg" alt="" width="320" height="32" decoding="async">
             <p>Ink remembers.</p>

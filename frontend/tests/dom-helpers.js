@@ -32,14 +32,21 @@ function buildDom() {
   document.body.className = '';
   document.body.innerHTML = `
     <div id="authRoot" hidden></div>
-    <nav class="main-nav">
-      <button id="homeBtn" class="nav-btn active">Home</button>
-      <button id="writeBtn" class="nav-btn">Write</button>
-      <button id="libraryBtn" class="nav-btn">Library</button>
-      <button id="worldsBtn" class="nav-btn">Worlds</button>
-      <button id="charactersBtn" class="nav-btn">Characters</button>
+    <select id="shellManuscriptSelect" aria-label="Choose a manuscript" disabled><option value="">No manuscripts yet</option></select>
+    <nav class="main-nav" aria-label="Global">
+      <button id="homeBtn" class="nav-btn active">Library</button>
+      <button id="libraryBtn" class="nav-btn">Manuscripts</button>
+      <button id="worldsBtn" class="nav-btn">World templates</button>
+      <button id="charactersBtn" class="nav-btn">Character templates</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
       <button id="lockBtn" class="nav-btn">Lock</button>
+    </nav>
+    <nav id="workspaceNav" class="workspace-nav" aria-label="Manuscript workspace">
+      <button id="writeBtn" class="workspace-nav__btn">Desk</button>
+      <button id="chronicleBtn" class="workspace-nav__btn" disabled>Chronicle</button>
+      <button id="codexBtn" class="workspace-nav__btn" disabled>Codex</button>
+      <button id="galleryBtn" class="workspace-nav__btn" disabled>Gallery</button>
+      <button id="gateBtn" class="workspace-nav__btn" disabled>Gate</button>
     </nav>
     <div id="diskBanner" class="disk-banner" role="alert" hidden>
       <p id="diskBannerText"></p>
@@ -152,6 +159,10 @@ function buildDom() {
         <button id="audiobookBtn" type="button">Audiobook</button>
         <button id="deletePageBtn">Delete Page</button>
       </section>
+      <section id="chronicleSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="codexSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="gallerySection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
+      <section id="gateSection" class="content-section"><span data-workspace-story></span><button class="workspace-back-to-desk">Return to Desk</button></section>
       <section id="settingsSection" class="content-section">
         <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
         <details class="settings-group" open><summary><h3>Writing AI</h3><span id="writingAiSummary" class="settings-group__summary"></span></summary>
@@ -301,7 +312,7 @@ function buildDom() {
 let loadCounter = 0;
 const PAID_CONSENT_KEY = 'st-paid-consent-v1';
 
-// opts.hash: boot the app at that hash (deep-link); default is a clean '#/home'.
+// opts.hash: boot the app at that hash (deep-link); default is a clean '#/library'.
 async function loadScript(opts = {}) {
   if (!opts.preservePaidConsent) window.localStorage.removeItem(PAID_CONSENT_KEY);
   buildDom();

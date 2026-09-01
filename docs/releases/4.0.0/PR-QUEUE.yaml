@@ -272,7 +272,7 @@ pull_requests:
   - id: "08"
     slug: grok-sanitization
     title: Grok sanitation adapter
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "07"
@@ -295,7 +295,7 @@ pull_requests:
   - id: "09"
     slug: adaptive-shell
     title: Adaptive Scriptorium shell
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "08"
