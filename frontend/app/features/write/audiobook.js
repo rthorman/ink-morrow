@@ -76,7 +76,7 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
     const startBtn = document.getElementById('audiobookStartBtn');
     if (!modal || !body || !startBtn) return;
     if (!data.currentStory) {
-      showError('Select a story first.');
+      showError('Choose a manuscript first.');
       return;
     }
     const verdict = await audiobookNarratorVerdict();
@@ -98,7 +98,7 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
     let blocked = !verdict.usable || estimate.pages === 0;
     if (existingEl) {
       if (row && row.status === 'pending') {
-        existingEl.textContent = 'This tale is already being read aloud — watch the banner below the story.';
+        existingEl.textContent = 'This manuscript is already being read aloud — watch the banner below it.';
         existingEl.hidden = false;
         blocked = true;
       } else if (row && row.status === 'ready') {
@@ -340,3 +340,4 @@ export function createAudiobook({ api, state, notify, shell, features, dialogs }
     init,
   };
 }
+
