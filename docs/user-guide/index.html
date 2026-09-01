@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ScribeTribe 4.0 User Guide</title>
+  <style>
+    @font-face { font-family: Cormorant; src: url("../../frontend/fonts/cormorant-garamond-latin.woff2") format("woff2"); }
+    @font-face { font-family: Inter; src: url("../../frontend/fonts/inter-latin.woff2") format("woff2"); }
+    @font-face { font-family: Literata; src: url("../../frontend/fonts/literata-latin.woff2") format("woff2"); }
+    @font-face { font-family: Plex; src: url("../../frontend/fonts/ibm-plex-mono-latin.woff2") format("woff2"); }
+    @font-face { font-family: Fraktur; src: url("../../frontend/fonts/unifraktur-cook.ttf") format("truetype"); }
+
+    :root {
+      --ink: #130b17;
+      --plum: #241128;
+      --violet: #51305e;
+      --wine: #6e1834;
+      --rose: #a62b58;
+      --gold: #c7a35b;
+      --pale-gold: #e0c584;
+      --vellum: #f6efdf;
+      --vellum-deep: #e8dcc3;
+      --body: #2a2024;
+      --muted: #6e6063;
+      --green: #447a63;
+      --danger: #a62b3a;
+    }
+
+    * { box-sizing: border-box; }
+    @page { size: A4; margin: 0; }
+    html, body { margin: 0; padding: 0; background: #322a32; }
+    body { color: var(--body); font-family: Inter, Arial, sans-serif; font-size: 9.2pt; line-height: 1.43; }
+    main { margin: 0 auto; width: 210mm; }
+    .page {
+      position: relative;
+      width: 210mm;
+      height: 297mm;
+      overflow: hidden;
+      padding: 17mm 18mm 16mm;
+      background:
+        linear-gradient(90deg, rgba(199,163,91,.08), transparent 13%, transparent 87%, rgba(110,24,52,.06)),
+        var(--vellum);
+      break-after: page;
+      page-break-after: always;
+    }
+    .page:last-child { break-after: auto; page-break-after: auto; }
+    .page::before {
+      content: "";
+      position: absolute;
+      inset: 6mm;
+      border: .35mm solid rgba(110,24,52,.27);
+      pointer-events: none;
+    }
+    .page::after {
+      content: "";
+      position: absolute;
+      inset: 7.5mm;
+      border: .15mm solid rgba(199,163,91,.36);
+      pointer-events: none;
+    }
+
+    .running-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5mm; color: var(--wine); }
+    .running-head .brand { font-family: Cormorant, Georgia, serif; font-weight: 700; font-size: 12pt; letter-spacing: .03em; }
+    .running-head .section { font-family: Plex, monospace; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .running-rule { height: 2.5mm; margin: -2mm 0 5mm; background: url("../../frontend/brand/ornament-divider.svg") center / 44mm 5mm no-repeat; opacity: .72; }
+    .folio { position: absolute; left: 18mm; right: 18mm; bottom: 8.7mm; display: flex; justify-content: space-between; color: var(--muted); font-family: Plex, monospace; font-size: 6.5pt; letter-spacing: .08em; }
+    .folio strong { color: var(--wine); font-weight: 600; }
+
+    h1, h2, h3 { color: var(--wine); font-family: Cormorant, Georgia, serif; margin: 0; line-height: 1.03; }
+    h1 { font-size: 29pt; }
+    h2 { font-size: 23pt; margin-bottom: 3mm; }
+    h3 { font-size: 14.5pt; margin: 3.2mm 0 1.4mm; }
+    h4 { color: var(--violet); font-family: Inter, sans-serif; font-size: 8.6pt; text-transform: uppercase; letter-spacing: .08em; margin: 3mm 0 1mm; }
+    p { margin: 0 0 2.3mm; }
+    ul, ol { margin: 1.5mm 0 2.5mm; padding-left: 5mm; }
+    li { margin-bottom: 1.25mm; }
+    strong { color: #3d1a2a; }
+    code { font-family: Plex, monospace; color: var(--wine); background: rgba(110,24,52,.07); padding: .15em .35em; border-radius: 1mm; }
+    pre { margin: 2mm 0 3mm; padding: 3mm; border: .25mm solid rgba(110,24,52,.25); border-left: 1.2mm solid var(--wine); background: #1b101e; color: #f4e6c6; font: 7.5pt/1.5 Plex, monospace; white-space: pre-wrap; }
+    a { color: var(--wine); text-decoration-color: var(--gold); text-underline-offset: .15em; }
+
+    .dek { max-width: 150mm; color: var(--muted); font: 12.5pt/1.35 Literata, Georgia, serif; margin: 0 0 5mm; }
+    .lead { color: #46363b; font: 11.2pt/1.48 Literata, Georgia, serif; }
+    .kicker { color: var(--rose); font: 7.4pt/1 Plex, monospace; letter-spacing: .19em; text-transform: uppercase; margin-bottom: 2mm; }
+    .dropcap::first-letter { float: left; color: var(--wine); font: 40pt/.75 Fraktur, Cormorant, serif; padding: 1.5mm 2mm 0 0; }
+    .small { color: var(--muted); font-size: 7.7pt; }
+    .mono { font-family: Plex, monospace; }
+    .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 5mm; }
+    .cols-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; }
+    .stack { display: grid; gap: 3mm; }
+    .card { padding: 3.3mm; border: .3mm solid rgba(110,24,52,.22); border-radius: 2.5mm; background: rgba(255,255,255,.34); }
+    .card h3 { margin-top: 0; }
+    .card p:last-child, .card ul:last-child { margin-bottom: 0; }
+    .callout { margin: 3mm 0; padding: 3mm 3.5mm; border-left: 1.3mm solid var(--gold); background: rgba(199,163,91,.13); }
+    .callout.warning { border-left-color: var(--danger); background: rgba(166,43,58,.09); }
+    .callout.good { border-left-color: var(--green); background: rgba(68,122,99,.10); }
+    .callout .label { display: block; color: var(--wine); font: 6.8pt/1 Plex, monospace; letter-spacing: .13em; text-transform: uppercase; margin-bottom: 1.2mm; }
+    .steps { counter-reset: step; list-style: none; padding: 0; margin: 2mm 0; }
+    .steps li { position: relative; min-height: 8mm; padding: 1.2mm 0 2.2mm 11mm; border-bottom: .2mm solid rgba(110,24,52,.13); }
+    .steps li:last-child { border-bottom: 0; }
+    .steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: .5mm; width: 7mm; height: 7mm; border-radius: 50%; display: grid; place-items: center; background: var(--wine); color: var(--pale-gold); font: 7.5pt Plex, monospace; }
+    .flow { display: grid; grid-template-columns: repeat(5, 1fr); align-items: stretch; gap: 2mm; margin: 3mm 0; }
+    .flow .node { position: relative; display: grid; place-items: center; min-height: 14mm; padding: 2mm; text-align: center; border: .3mm solid var(--gold); border-radius: 2mm; background: rgba(255,255,255,.32); color: var(--wine); font-weight: 650; }
+    .flow .node:not(:last-child)::after { content: "›"; position: absolute; right: -2.8mm; color: var(--wine); font: 16pt Cormorant, serif; z-index: 2; }
+    .workspace-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; margin-top: 3mm; }
+    .workspace { padding: 2.5mm 3mm; border-left: 1mm solid var(--wine); background: rgba(110,24,52,.055); }
+    .workspace b { display: block; color: var(--wine); font: 13pt Cormorant, serif; }
+    .workspace span { color: var(--muted); font-size: 8pt; }
+
+    figure { margin: 2.5mm 0 3mm; }
+    .screenshot { position: relative; border: .45mm solid var(--gold); border-radius: 2mm; overflow: hidden; box-shadow: 0 2mm 5mm rgba(31,14,27,.19); background: var(--ink); }
+    .screenshot img { width: 100%; display: block; }
+    figcaption { color: var(--muted); font-size: 7.2pt; margin-top: 1.5mm; }
+    .badge { display: inline-grid; place-items: center; width: 5.2mm; height: 5.2mm; margin-right: 1mm; border-radius: 50%; background: var(--wine); color: white; font: 6.8pt Plex, monospace; vertical-align: middle; }
+    .overlay { position: absolute; width: 7mm; height: 7mm; display: grid; place-items: center; border-radius: 50%; background: var(--wine); color: var(--pale-gold); border: .45mm solid var(--pale-gold); box-shadow: 0 1mm 2mm rgba(0,0,0,.45); font: 8pt Plex, monospace; }
+    .legend { display: grid; grid-template-columns: 1fr 1fr; gap: 1.7mm 4mm; margin-top: 2mm; font-size: 7.7pt; }
+    .portrait-shot { max-height: 166mm; width: auto !important; margin: 0 auto; }
+    .art-strip { height: 44mm; overflow: hidden; border-radius: 2.5mm; border: .35mm solid var(--gold); margin: 3mm 0; }
+    .art-strip img { width: 100%; height: 100%; object-fit: cover; object-position: center 28%; }
+    .decision-table { width: 100%; border-collapse: collapse; margin: 2.5mm 0; font-size: 8pt; }
+    .decision-table th { text-align: left; padding: 2mm; background: var(--wine); color: var(--vellum); font-family: Inter, sans-serif; }
+    .decision-table td { padding: 2mm; vertical-align: top; border-bottom: .2mm solid rgba(110,24,52,.2); }
+    .decision-table tr:nth-child(even) td { background: rgba(110,24,52,.04); }
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { position: relative; padding-left: 7mm; }
+    .checklist li::before { content: "□"; position: absolute; left: 0; color: var(--wine); font: 13pt/1 Cormorant, serif; }
+
+    .cover { padding: 0; color: var(--vellum); background: var(--ink); }
+    .cover::before, .cover::after { z-index: 3; border-color: rgba(224,197,132,.5); }
+    .cover-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center; }
+    .cover-shade { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(10,5,12,.94) 0%, rgba(18,9,21,.78) 42%, rgba(18,9,21,.15) 70%), linear-gradient(0deg, rgba(10,5,12,.85), transparent 45%); }
+    .cover-content { position: absolute; z-index: 2; left: 18mm; top: 25mm; width: 92mm; }
+    .cover-lockup { width: 86mm; max-height: 31mm; object-fit: contain; object-position: left center; margin-bottom: 28mm; }
+    .cover h1 { color: var(--pale-gold); font-size: 38pt; text-shadow: 0 1mm 3mm #000; }
+    .cover .subtitle { color: #efe3ce; font: 16pt/1.3 Literata, serif; margin-top: 4mm; }
+    .cover .edition { margin-top: 9mm; color: #d6c4c8; font: 7.5pt Plex, monospace; letter-spacing: .15em; text-transform: uppercase; }
+    .cover .version { position: absolute; z-index: 2; left: 18mm; bottom: 20mm; color: var(--pale-gold); font: 8pt Plex, monospace; }
+
+    .section-art { margin: 0 -18mm 5mm; height: 52mm; overflow: hidden; position: relative; border-bottom: .6mm solid var(--gold); }
+    .section-art img { width: 100%; height: 100%; object-fit: cover; }
+    .section-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(19,11,23,.75), transparent 65%); }
+    .section-art h2 { position: absolute; z-index: 2; left: 18mm; bottom: 5mm; color: var(--pale-gold); text-shadow: 0 1mm 2mm #000; }
+
+    .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 8mm; margin-top: 4mm; }
+    .toc-item { display: grid; grid-template-columns: 8mm 1fr 8mm; align-items: baseline; padding-bottom: 1.5mm; border-bottom: .2mm dotted rgba(110,24,52,.38); }
+    .toc-item .n { color: var(--gold); font: 8pt Plex, monospace; }
+    .toc-item b { color: var(--wine); }
+    .toc-item .p { text-align: right; color: var(--muted); font: 7pt Plex, monospace; }
+  </style>
+</head>
+<body>
+<main>
+  <section class="page cover" aria-label="Cover">
+    <img class="cover-art" src="../../frontend/brand/hero-scriptorium-desktop.webp" alt="A cat-eared scribe writing by candlelight in the gothic Scriptorium">
+    <div class="cover-shade"></div>
+    <div class="cover-content">
+      <img class="cover-lockup" src="../../frontend/brand/scribetribe-lockup.svg" alt="ScribeTribe — where stories grow claws">
+      <div class="kicker">The author’s field guide</div>
+      <h1>User Guide</h1>
+      <p class="subtitle">Write, remember, illuminate, bind—and keep every story under your control.</p>
+      <p class="edition">4.0 beta · single-owner self-hosted edition</p>
+    </div>
+    <div class="version">ScribeTribe 4.0.0-beta.1 · September 2026</div>
+  </section>
+
+  <section class="page" aria-labelledby="start-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Start here</span></div><div class="running-rule"></div>
+    <div class="kicker">Before the first page</div>
+    <h2 id="start-title">Know the shape of the Scriptorium</h2>
+    <p class="dek">ScribeTribe is a self-hosted, single-owner writing environment. You can write manually, invite AI assistance deliberately, preserve story history, manage continuity, add art, and prepare a reading copy without handing control of the manuscript to the software.</p>
+    <div class="callout warning">
+      <span class="label">4.0 clean break</span>
+      Start with a <strong>new, empty <code>DATA_DIR</code></strong>. Never point 4.0 at a 3.x database. Keep ScribeTribe 3.2.2 and its data intact for historical work; there is no in-place migration.
+    </div>
+    <div class="flow" aria-label="The main author journey">
+      <div class="node">Library</div><div class="node">Desk</div><div class="node">Chronicle</div><div class="node">Codex</div><div class="node">Gate</div>
+    </div>
+    <div class="workspace-grid">
+      <div class="workspace"><b>Library</b><span>Choose manuscripts and manage reusable world and character templates.</span></div>
+      <div class="workspace"><b>Desk</b><span>Read, edit, direct, generate, and turn the current page.</span></div>
+      <div class="workspace"><b>Chronicle</b><span>Navigate volumes, chapters, pages, history, and recovery.</span></div>
+      <div class="workspace"><b>Codex</b><span>Inspect what the story remembers and apply explicit corrections.</span></div>
+      <div class="workspace"><b>Gallery</b><span>Upload or generate art, then place it without changing prose or canon.</span></div>
+      <div class="workspace"><b>Gate</b><span>Back up the project, publish formats, or share a frozen reading copy.</span></div>
+    </div>
+    <h3>What calls an AI provider?</h3>
+    <div class="cols-2">
+      <div class="card"><h4>Stays local</h4><p>Manual writing, reading, organizing, copyediting, image upload, backup, import, and publication export do not require a provider call.</p></div>
+      <div class="card"><h4>Leaves the installation</h4><p>Page generation, prepared successors, continuity extraction, AI painting, narration, and other explicit AI actions send necessary context to your configured provider.</p></div>
+    </div>
+    <h3>Contents</h3>
+    <div class="toc">
+      <div class="toc-item"><span class="n">01</span><b>Install & unlock</b><span class="p">3</span></div>
+      <div class="toc-item"><span class="n">06</span><b>History & recovery</b><span class="p">9</span></div>
+      <div class="toc-item"><span class="n">02</span><b>Library & navigation</b><span class="p">4</span></div>
+      <div class="toc-item"><span class="n">07</span><b>Chronicle & Codex</b><span class="p">10</span></div>
+      <div class="toc-item"><span class="n">03</span><b>Begin a manuscript</b><span class="p">5</span></div>
+      <div class="toc-item"><span class="n">08</span><b>Gallery & Gate</b><span class="p">11–12</span></div>
+      <div class="toc-item"><span class="n">04</span><b>Templates</b><span class="p">6</span></div>
+      <div class="toc-item"><span class="n">09</span><b>Safety & operations</b><span class="p">13–15</span></div>
+      <div class="toc-item"><span class="n">05</span><b>The Desk</b><span class="p">7–8</span></div>
+      <div class="toc-item"><span class="n">10</span><b>Quick reference</b><span class="p">16</span></div>
+    </div>
+    <div class="folio"><span><strong>USER GUIDE</strong> · 4.0 beta</span><span>2</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="install-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Install & unlock</span></div><div class="running-rule"></div>
+    <div class="kicker">01 · First run</div><h2 id="install-title">Open a sealed local Scriptorium</h2>
+    <p class="lead dropcap">ScribeTribe runs on your own machine and binds to <code>127.0.0.1</code> by default. Node.js 22.5 or newer is required.</p>
+    <h3>Quick installation</h3>
+    <pre>git clone https://github.com/rthorman/scribe-tribe.git
+cd scribe-tribe
+bash setup.sh
+$EDITOR backend/.env
+./start.sh</pre>
+    <p>Open <code>http://localhost:3000</code>. On the first launch, the terminal prints a one-time setup code. Enter it in the browser, then choose a distinctive password or passphrase of <strong>15–128 characters</strong>.</p>
+    <div class="cols-2">
+      <div>
+        <h3>Before starting 4.0</h3>
+        <ol class="steps">
+          <li>Create a new empty data directory. If the checkout already has 3.x data, set <code>DATA_DIR=../database-v4</code> in <code>backend/.env</code>.</li>
+          <li>Optionally set a provider key. Manual work does not need one.</li>
+          <li>Start the server and keep the terminal available for status and recovery.</li>
+        </ol>
+      </div>
+      <div>
+        <h3>First unlock</h3>
+        <ol class="steps">
+          <li>Copy the one-time code from the server terminal.</li>
+          <li>Set the owner password. There are no usernames or multiple roles.</li>
+          <li>Enable <strong>Keep this scriptorium unlocked</strong> only on a device you control.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="callout good"><span class="label">Safe default</span>Keep <code>HOST=127.0.0.1</code>. For durable access from another device, use an HTTPS reverse proxy to the loopback server. Direct LAN HTTP exposes passwords and manuscripts in transit.</div>
+    <h3>Daily lock and recovery</h3>
+    <ul>
+      <li><strong>Lock</strong> revokes the current browser session.</li>
+      <li><strong>Settings → Security</strong> changes the password and revokes other sessions.</li>
+      <li>If the password is forgotten, stop the server and run <code>npm run auth:reset -- --yes</code> from <code>backend</code>. This removes the local owner and sessions, not manuscripts or media.</li>
+    </ul>
+    <div class="callout warning"><span class="label">Access control, not disk encryption</span>The web password does not encrypt the SQLite database, images, audio, or portable archives. Use full-device encryption and protect exported files.</div>
+    <div class="folio"><span><strong>01</strong> · Install & unlock</span><span>3</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="library-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Library & navigation</span></div><div class="running-rule"></div>
+    <div class="kicker">02 · Orientation</div><h2 id="library-title">The Library is the threshold</h2>
+    <p>The Library owns manuscripts, reusable templates, import and restore, recent work, recovery notices, and the path to Settings. Select a manuscript to enter its five-destination workspace.</p>
+    <figure>
+      <div class="screenshot">
+        <img src="../screenshots/home-desktop.png" alt="Desktop Library showing the manuscript selector, global tabs, story navigation rail, and start actions">
+        <span class="overlay" style="left:49%;top:6%">1</span><span class="overlay" style="left:30%;top:17%">2</span><span class="overlay" style="left:3%;top:42%">3</span><span class="overlay" style="left:20%;top:69%">4</span>
+      </div>
+      <figcaption>Desktop Library. The gothic frame orients you; actions remain literal and the manuscript surface stays quiet.</figcaption>
+    </figure>
+    <div class="legend">
+      <div><span class="badge">1</span><strong>Manuscript selector</strong> — switch the active story.</div>
+      <div><span class="badge">2</span><strong>Global destinations</strong> — Library, manuscripts, templates, Settings, Lock.</div>
+      <div><span class="badge">3</span><strong>Story workspace</strong> — Desk, Chronicle, Codex, Gallery, Gate.</div>
+      <div><span class="badge">4</span><strong>Start actions</strong> — continue, begin, import, or open the Desk.</div>
+    </div>
+    <h3>Navigation stays named</h3>
+    <p>Desktop and landscape tablet use a labelled navigation rail. Portrait tablet and compact layouts use the same five labels in a bottom bar. Nothing important depends on hover or a hidden gesture.</p>
+    <div class="callout"><span class="label">A useful distinction</span><strong>Global</strong> templates can be reused. <strong>Story-local</strong> snapshots belong to one manuscript. The Codex explains the latter; Library templates never silently rewrite an existing story.</div>
+    <div class="folio"><span><strong>02</strong> · Library & navigation</span><span>4</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="begin-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Begin a manuscript</span></div><div class="running-rule"></div>
+    <div class="kicker">03 · One sheet, three paths</div><h2 id="begin-title">Begin with prose, a seed, or an import</h2>
+    <p class="dek">Choose <strong>Begin a manuscript</strong> or <strong>Import prose</strong> from the Library. The start sheet asks only for information needed by the path you choose.</p>
+    <div class="cols-3">
+      <div class="card"><h3>Write the opening</h3><p>Enter or paste the first page. A title is optional. This is the fastest fully manual path and does not require provider setup.</p></div>
+      <div class="card"><h3>Give the Scribe a seed</h3><p>Provide a premise and optional direction. Review provider and cost information before generation.</p></div>
+      <div class="card"><h3>Import existing prose</h3><p>Map recognized headings to structure, or begin as a single chapter. Review the result before continuing.</p></div>
+    </div>
+    <h3>The short start flow</h3>
+    <ol class="steps">
+      <li>Choose one start path and name the manuscript.</li>
+      <li>Select maturity, narrative role, world, and cast only where relevant.</li>
+      <li>Optionally open <strong>Foundations</strong> for premise, voice, point of view, tense, arcs, and constraints.</li>
+      <li>Enter the Desk with Volume I and Chapter I already created.</li>
+    </ol>
+    <div class="art-strip"><img src="../../frontend/brand/vesper-threshold.webp" alt="Vesper, the Scriptorium scribe, seated at a writing desk"></div>
+    <h3>Foundations are guidance, not a gate</h3>
+    <p>AI suggestions in Foundations are drafts. Accept them field by field. You can begin writing without completing every setting, and you can return later.</p>
+    <div class="cols-2">
+      <div class="callout good"><span class="label">Manual first</span>Writing, importing, organizing, copyediting, uploading art, and exporting remain available without a provider.</div>
+      <div class="callout"><span class="label">Cost-bearing action</span>Provider setup appears when you first invoke AI. Read the provider, model, data, and cost review before accepting.</div>
+    </div>
+    <div class="folio"><span><strong>03</strong> · Begin a manuscript</span><span>5</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="templates-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Templates</span></div><div class="running-rule"></div>
+    <div class="kicker">04 · Reusable material</div><h2 id="templates-title">Build worlds and characters once</h2>
+    <p>World and character templates live in the global Library. They are reusable source material—not remote truth imposed on every manuscript.</p>
+    <figure><div class="screenshot"><img src="../screenshots/worlds-desktop.png" alt="World templates catalogue on desktop with a New world action and world cards"></div><figcaption>The global world catalogue. Create without an image when you want a fully local path; painting is a separate paid action.</figcaption></figure>
+    <div class="cols-2">
+      <div>
+        <h3>World templates</h3>
+        <ul><li>Setting, genre, atmosphere, and a lorebook of canonical facts.</li><li>Optional establishing art.</li><li>Reusable across manuscripts.</li></ul>
+      </div>
+      <div>
+        <h3>Character templates</h3>
+        <ul><li>Identity, appearance, personality, background, and home world.</li><li>Optional reference portrait.</li><li>Reusable in centered or ensemble casts.</li></ul>
+      </div>
+    </div>
+    <h3>What happens when you cast a story?</h3>
+    <div class="flow"><div class="node">Library template</div><div class="node">Choose for story</div><div class="node">Frozen snapshot</div><div class="node">Pages add memory</div><div class="node">Author corrects</div></div>
+    <p>A manuscript receives a story-local snapshot. Later Library edits do not silently change that snapshot. When a template has changed, Codex can show a field-level difference and lets you accept only the fields you want.</p>
+    <div class="callout"><span class="label">Canon rule</span>Reusable sheets are reference material. Committed pages, remembered canon, and explicit author corrections define the running story.</div>
+    <div class="folio"><span><strong>04</strong> · Templates</span><span>6</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="desk-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">The Desk</span></div><div class="running-rule"></div>
+    <div class="kicker">05 · The writing loop</div><h2 id="desk-title">The manuscript stays at the center</h2>
+    <figure>
+      <div class="screenshot">
+        <img src="../screenshots/write-desktop.png" alt="Desktop Desk with story selector, navigation rail, page controls, reading and media tools, and manuscript page">
+        <span class="overlay" style="left:3%;top:42%">1</span><span class="overlay" style="left:55%;top:4%">2</span><span class="overlay" style="left:29%;top:35%">3</span><span class="overlay" style="left:77%;top:43%">4</span><span class="overlay" style="left:52%;top:68%">5</span>
+      </div>
+      <figcaption>The Desk on desktop. Controls frame the prose; artwork never sits behind the manuscript.</figcaption>
+    </figure>
+    <div class="legend">
+      <div><span class="badge">1</span>Five stable story destinations.</div><div><span class="badge">2</span>Active manuscript and measured session/story cost.</div>
+      <div><span class="badge">3</span>Previous/next page controls.</div><div><span class="badge">4</span>Read-aloud and media tools.</div>
+      <div><span class="badge">5</span>Editable, quiet manuscript surface.</div>
+    </div>
+    <h3>The ordinary loop</h3>
+    <div class="flow"><div class="node">Read</div><div class="node">Edit if needed</div><div class="node">Direct or leave blank</div><div class="node">Turn the page</div><div class="node">Repeat</div></div>
+    <div class="callout good"><span class="label">Prepared successor</span>After a successful page, ScribeTribe can quietly prepare exactly one successor. Prepared prose is inert: it does not enter canon or continuity until you commit it.</div>
+    <div class="folio"><span><strong>05</strong> · The Desk</span><span>7</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="direction-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Direction & prepared pages</span></div><div class="running-rule"></div>
+    <div class="kicker">05 · The writing loop</div><h2 id="direction-title">The direction changes the action</h2>
+    <div class="cols-2" style="grid-template-columns: 74mm 1fr; align-items:start">
+      <figure style="margin:0"><div class="screenshot"><img class="portrait-shot" src="../screenshots/write-tablet-portrait.png" alt="Portrait-tablet Desk showing manuscript, direction field, primary action, and bottom navigation"></div><figcaption>Portrait tablet keeps the direction composer reachable and the bottom navigation stable.</figcaption></figure>
+      <div>
+        <h3>When direction is empty</h3>
+        <p>If a prepared page waits, <strong>Next Page</strong> commits that exact prose. It does not call the provider for a different version.</p>
+        <h3>When direction has text</h3>
+        <p>The action becomes <strong>Generate as directed</strong>. Pressing it deliberately replaces the waiting preview with a new paid request.</p>
+        <h3>If you clear the direction</h3>
+        <p>The original prepared page is still waiting. The action returns to <strong>Next Page</strong>.</p>
+        <h3>If a request fails</h3>
+        <p>No page is added. Your direction stays visible, and <strong>Try again</strong> names the recovery path.</p>
+        <div class="callout warning"><span class="label">Cost reality</span>A normal AI-assisted page may involve prose, continuity extraction, and preparation of the next page. Estimates are not invoices. Set a hard spending limit on a dedicated provider key.</div>
+        <h3>Other Desk actions</h3>
+        <ul><li><strong>Edit active page</strong> changes current prose.</li><li><strong>Rewrite last page</strong> requests a new version.</li><li><strong>Read aloud / Auto-read</strong> invokes the selected narrator.</li><li><strong>Paint scene / Upload art</strong> opens the image path.</li></ul>
+      </div>
+    </div>
+    <div class="folio"><span><strong>05</strong> · Direction & prepared pages</span><span>8</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="history-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">History & recovery</span></div><div class="running-rule"></div>
+    <div class="kicker">06 · Know which change you are making</div><h2 id="history-title">Copyedit prose—or return canon</h2>
+    <p class="dek">An older page offers two deliberately different operations. Choose by consequence, not by mood.</p>
+    <table class="decision-table">
+      <thead><tr><th>Action</th><th>What changes</th><th>What does not</th><th>Use when</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Copyedit this page</strong></td><td>Visible and exported wording.</td><td>Remembered Codex state is not recalculated.</td><td>Fix spelling, phrasing, and presentation without branching canon.</td></tr>
+        <tr><td><strong>Return story to this page</strong></td><td>Removes all later canonical pages and prepared work.</td><td>The removed suffix is retained for bounded recovery.</td><td>You want the story to continue from an earlier point.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><span class="label">Read the exact range</span>The return confirmation names the volumes, chapters, pages, narrative count, prepared work, and recovery period. The action reads <strong>Return and remove N later pages</strong>.</div>
+    <div class="section-art"><img src="../../frontend/brand/moth-archive.webp" alt="Moth, the archivist, cataloguing manuscripts"><h2>Chronicle keeps the trail visible</h2></div>
+    <div class="cols-2">
+      <div>
+        <h3>Navigate structure</h3>
+        <ul><li>Volumes contain chapters; chapters contain pages.</li><li>The current tail, prepared page, memory coverage, art placements, and recovery records have distinct markers.</li><li>Rename historical structure without pretending prose can be freely reordered.</li></ul>
+      </div>
+      <div>
+        <h3>Recover safely</h3>
+        <ul><li>Recovery records show removal time, range, and expiry.</li><li>One-click restore is offered only when the current canon still permits it.</li><li>If later canon diverged, export the removed material rather than silently merging it.</li></ul>
+      </div>
+    </div>
+    <div class="folio"><span><strong>06</strong> · History & recovery</span><span>9</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="codex-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Chronicle & Codex</span></div><div class="running-rule"></div>
+    <div class="kicker">07 · Structure and truth</div><h2 id="codex-title">Chronicle says where; Codex says what</h2>
+    <div class="cols-2">
+      <div class="card"><h3>Chronicle</h3><p>Use it to move through volumes, chapters, pages, historical states, and recovery records.</p><p class="small mono">Question: Where am I in the work?</p></div>
+      <div class="card"><h3>Codex</h3><p>Use it to inspect story-local foundations, page-provenanced remembered canon, arcs, threads, and corrections.</p><p class="small mono">Question: What is true now?</p></div>
+    </div>
+    <h3>The three Codex layers</h3>
+    <ol class="steps"><li><strong>Foundations</strong> — author intent and the manuscript’s local world/cast snapshots.</li><li><strong>Remembered canon</strong> — facts, events, conditions, goals, threads, and arc movement linked to source pages.</li><li><strong>Author corrections</strong> — explicit authoritative overrides with visible impact state.</li></ol>
+    <h3>Correct a remembered fact</h3>
+    <ol class="steps"><li>Select a fact or field and inspect its current value and page evidence.</li><li>Enter the corrected value.</li><li>Review detected later conflicts.</li><li>Choose to apply the correction, mark the prose intentional, return the story, or cancel.</li><li>Keep the resulting correction record inspectable.</li></ol>
+    <div class="callout"><span class="label">AI does not get the last word</span>AI may summarize possible impacts, but it never applies a correction. Existing prose is never automatically rewritten.</div>
+    <h3>Coverage and repair</h3>
+    <p>If a page lacks a continuity record, the Codex identifies it. Building or rebuilding memory is explicit, proceeds page by page, and receives a cost review. It never triggers a surprise whole-story replay.</p>
+    <div class="folio"><span><strong>07</strong> · Chronicle & Codex</span><span>10</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="gallery-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Gallery</span></div><div class="running-rule"></div>
+    <div class="kicker">08 · Illuminate without changing canon</div><h2 id="gallery-title">Upload or paint, then place deliberately</h2>
+    <div class="section-art"><img src="../../frontend/brand/cinder-cast.webp" alt="Cinder, the illuminator, working with story art"><h2>Two equal paths</h2></div>
+    <div class="cols-2">
+      <div class="card"><h3>Upload an image</h3><ol><li>Choose a file with the native picker.</li><li>Review the local preview and metadata-removal notice.</li><li>Add a title and useful alt text.</li><li>Keep it in Gallery or place it before/after a narrative page.</li></ol></div>
+      <div class="card"><h3>Paint with AI</h3><ol><li>Write or condense a visible prompt.</li><li>Choose references and quality deliberately.</li><li>Review cost and generate.</li><li>Place the result exactly like uploaded art.</li></ol></div>
+    </div>
+    <h3>Placement is noncanonical</h3>
+    <p>Moving or unplacing art does not change page numbers, prose, or continuity. Art anchored to a page that is later removed remains stored in Gallery but becomes unplaced.</p>
+    <div class="callout good"><span class="label">Upload privacy</span>An upload is validated, normalized to metadata-free WebP, and kept local. It is not sent to a provider unless you later select it explicitly as a generation reference and grant permission.</div>
+    <div class="callout"><span class="label">Provider refusal</span>If an image provider refuses a prompt, ScribeTribe explains the refusal, keeps the original upload and prompt unchanged, and shows any sanitized editable prompt. Nothing retries until you press again.</div>
+    <h3>Technical errors stay technical</h3>
+    <p>Unsupported encoding, damaged files, excessive file size, or excessive dimensions are reported as constraints. The application does not semantically classify or moralize about uploaded subject matter.</p>
+    <div class="folio"><span><strong>08</strong> · Gallery</span><span>11</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="gate-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Gate</span></div><div class="running-rule"></div>
+    <div class="kicker">08 · Let the work leave safely</div><h2 id="gate-title">Backup, publication, and sharing are different</h2>
+    <div class="cols-3">
+      <div class="card"><h3>Back up the project</h3><p>Create a full-fidelity <code>.scribetribe</code> v2 archive. Choose whether to include visuals, audio, and working history.</p></div>
+      <div class="card"><h3>Prepare for publication</h3><p>Review one normalized book structure, metadata, front/back matter, art, and style before choosing formats.</p></div>
+      <div class="card"><h3>Share a reading copy</h3><p>Create an immutable, expiring, revocable snapshot. Anyone holding its capability link can read it.</p></div>
+    </div>
+    <table class="decision-table">
+      <thead><tr><th>You need…</th><th>Choose…</th><th>Remember…</th></tr></thead>
+      <tbody>
+        <tr><td>Restorable project state</td><td>Full project backup</td><td>Portable archives are unencrypted and exclude local credentials, sessions, secrets, and share capabilities.</td></tr>
+        <tr><td>A book for readers/editors</td><td>Publication export</td><td>Multiple selected formats come from one normalized snapshot, keeping metadata and structure aligned.</td></tr>
+        <tr><td>Temporary browser reading</td><td>Public reading share</td><td>The copy is frozen. Create a new snapshot after material manuscript changes.</td></tr>
+      </tbody>
+    </table>
+    <h3>Share safely</h3>
+    <ol class="steps"><li>Review the included revision, art, and expiry.</li><li>Create the share only behind a correctly configured HTTPS reverse proxy.</li><li>Copy the returned link once and send it through an appropriate private channel.</li><li>Revoke it in Gate as soon as it is no longer needed.</li></ol>
+    <div class="callout warning"><span class="label">Capability link</span>Anyone with the link can read the frozen snapshot until expiry or revocation. Never place the capability in query strings, analytics, referrers, proxy logs, or public screenshots.</div>
+    <div class="folio"><span><strong>08</strong> · Gate</span><span>12</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="backup-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Backup & restore</span></div><div class="running-rule"></div>
+    <div class="kicker">09 · Preserve the whole installation</div><h2 id="backup-title">Use two forms of backup</h2>
+    <div class="cols-2">
+      <div class="card"><h3>Portable project backup</h3><p>Create it in Gate, include the material you need, download it, and store it on encrypted storage.</p><p><strong>Portable:</strong> good for reviewed transfer and restore.</p></div>
+      <div class="card"><h3>Cold <code>DATA_DIR</code> copy</h3><p>Stop ScribeTribe and copy the entire data directory as one unit.</p><p><strong>Complete:</strong> also preserves owner, sessions, recovery state, and local share records.</p></div>
+    </div>
+    <h3>Before an upgrade</h3>
+    <ol class="steps"><li>Record the installed commit, Node version, and data paths.</li><li>Finish active provider/publication jobs and create a full Gate backup.</li><li>Stop ScribeTribe and make a dated cold copy of the complete data directory.</li><li>Install the reviewed release and validate the catalogue before resuming work.</li></ol>
+    <h3>Restore a 4.0 backup</h3>
+    <ol class="steps"><li>Start 4.0 with a new, empty <code>DATA_DIR</code>.</li><li>Open Gate and preflight the archive.</li><li>Review exposure and collisions; choose <strong>Replace everything</strong> only for an intentional full restore.</li><li>Verify hierarchy, revisions, continuity, media, prepared work, snapshots, and settings.</li><li>Export again and compare with the source evidence.</li></ol>
+    <div class="callout warning"><span class="label">Never mix generations</span>ScribeTribe 4.0 does not open 3.x databases or import format-v1 archives. Never combine a database from one backup with media or transfer directories from another.</div>
+    <h3>What the portable archive deliberately omits</h3>
+    <p>Passwords, sessions, provider secrets, remembered paid consent, recovery credentials, and public-share capabilities/records. The archive itself is not encrypted.</p>
+    <div class="folio"><span><strong>09</strong> · Backup & restore</span><span>13</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="provider-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Provider, cost & privacy</span></div><div class="running-rule"></div>
+    <div class="kicker">09 · Know the boundary</div><h2 id="provider-title">AI is optional; provider consequences are not</h2>
+    <p class="lead">ScribeTribe has no maintainer cloud, analytics, advertising, tracking pixels, or crash telemetry. The operator controls the installation and chooses any provider connection.</p>
+    <h3>Credential choices</h3>
+    <ul><li><strong>Environment:</strong> a key in the operator-managed backend environment.</li><li><strong>Session memory:</strong> available only for the current process session.</li><li><strong>Encrypted vault:</strong> saved locally and unlocked after restart. APIs never return the secret.</li></ul>
+    <div class="callout warning"><span class="label">Spend limit first</span>Create a dedicated provider key and set a hard upstream spending limit before using AI. ScribeTribe’s live estimates and session/story totals are good-faith guidance, not an invoice or guarantee.</div>
+    <h3>Typical provider data</h3>
+    <div class="cols-2">
+      <div><ul><li>Directions and recent prose.</li><li>Relevant remembered canon.</li><li>Selected world, cast, tone, and model settings.</li><li>Text sent for narration.</li></ul></div>
+      <div><ul><li>Image prompts and explicitly selected references.</li><li>Prepared successor context.</li><li>Continuity-extraction context.</li><li>Quality and generation settings.</li></ul></div>
+    </div>
+    <h3>What merely opening the app does not do</h3>
+    <p>Browsing the Library, reading pages, manual editing, organizing, local image upload, publication export, and portable backup do not require an AI call.</p>
+    <div class="callout"><span class="label">Local files remain readable</span>The login protects web access, not storage at rest. Anyone who can read the operating-system account or unencrypted disk can read the database and media. Use device encryption and access-controlled backups.</div>
+    <h3>When something is exposed</h3>
+    <ul><li>Provider key: revoke it at the provider immediately.</li><li>Share capability: revoke the share in Gate.</li><li>Archive: treat it as manuscript disclosure.</li><li>Logs: never publish real prose, prompts, cookies, authorization headers, local paths, or provider responses.</li></ul>
+    <div class="folio"><span><strong>09</strong> · Provider, cost & privacy</span><span>14</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="access-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Comfort & troubleshooting</span></div><div class="running-rule"></div>
+    <div class="kicker">09 · Daily practice</div><h2 id="access-title">Make the Desk fit the way you work</h2>
+    <div class="cols-2">
+      <div>
+        <h3>Input and reading</h3>
+        <ul><li>Every primary path works with keyboard, touch, mouse, or stylus.</li><li>Visible focus and labelled controls support keyboard navigation.</li><li>Portrait tablet keeps the bottom navigation stable; desktop uses a rail.</li><li>Typography, line length, manuscript theme, and reduced motion persist in Settings.</li><li>Placed publication art should have useful alt text.</li></ul>
+      </div>
+      <div>
+        <h3>Routine states</h3>
+        <ul><li><strong>Saved / Saving</strong> appears quietly near the page.</li><li><strong>Offline—kept locally</strong> means browser-local editing state needs the server again.</li><li>A low-storage banner appears below 1 GB or 5% free space.</li><li>Provider and publication work should settle before shutdown or backup.</li></ul>
+      </div>
+    </div>
+    <h3>Fast diagnosis</h3>
+    <table class="decision-table">
+      <thead><tr><th>Symptom</th><th>What to check</th></tr></thead>
+      <tbody>
+        <tr><td>4.0 refuses to start</td><td>Confirm Node 22.5+ and a new empty <code>DATA_DIR</code>; do not reuse a 3.x database.</td></tr>
+        <tr><td>Unlock fails repeatedly</td><td>Wait for the temporary throttle, verify the password, or use terminal recovery after stopping the server.</td></tr>
+        <tr><td>AI action is unavailable</td><td>Open Settings; confirm provider profile, credential source, vault unlock, model role, and network access.</td></tr>
+        <tr><td>Next Page is disabled</td><td>A successor may still be preparing. Do not start a competing request.</td></tr>
+        <tr><td>Continuity looks wrong</td><td>Open Codex, inspect page evidence, and apply an explicit correction or rebuild missing coverage.</td></tr>
+        <tr><td>A removed suffix cannot restore</td><td>Later canon diverged. Export the recovery record rather than forcing a merge.</td></tr>
+        <tr><td>A share does not open</td><td>Check HTTPS proxy configuration, expiry, and revocation. Never move the capability into a query string.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout good"><span class="label">Before asking for help</span>Record the application version, browser, Node version, exact visible error, and correlation reference. Redact manuscripts, credentials, cookies, share links, prompts, and local paths.</div>
+    <div class="folio"><span><strong>09</strong> · Comfort & troubleshooting</span><span>15</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="reference-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Quick reference</span></div><div class="running-rule"></div>
+    <div class="kicker">10 · Leave this page near the Desk</div><h2 id="reference-title">A safe author’s checklist</h2>
+    <div class="cols-2">
+      <div>
+        <h3>Before writing</h3><ul class="checklist"><li>4.0 uses a new empty data directory.</li><li>The provider key has a hard spend limit.</li><li>The correct manuscript is selected.</li><li>World and cast snapshots are the intended ones.</li></ul>
+        <h3>During writing</h3><ul class="checklist"><li>Empty direction commits the waiting page.</li><li>Typed direction deliberately requests a replacement.</li><li>Copyedit changes prose, not remembered canon.</li><li>Return story removes later canon with bounded recovery.</li></ul>
+        <h3>Before sharing</h3><ul class="checklist"><li>The snapshot revision and included art are correct.</li><li>HTTPS is configured and logs omit capability headers.</li><li>The recipient and expiry are appropriate.</li><li>The link will be revoked when no longer needed.</li></ul>
+      </div>
+      <div>
+        <h3>Before an upgrade</h3><ul class="checklist"><li>Full Gate backup downloaded.</li><li>Cold copy of the stopped <code>DATA_DIR</code> made.</li><li>Commit, Node version, and paths recorded.</li><li>Catalogue and exports validated afterward.</li></ul>
+        <h3>Canonical references</h3>
+        <ul>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/README.md">README — install and feature overview</a></li>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/SECURITY.md">Security boundary and safe networking</a></li>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/PRIVACY.md">Self-hosted privacy notice</a></li>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/docs/releases/4.0.0/OPERATIONS.md">Operations, backup, restore, and sharing</a></li>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/docs/releases/4.0.0/KNOWN-ISSUES.md">Current beta limits</a></li>
+          <li><a href="https://github.com/rthorman/scribe-tribe/blob/main/docs/releases/4.0.0/RELEASE-NOTES.md">4.0.0-beta.1 release notes</a></li>
+        </ul>
+        <div class="callout"><span class="label">Version</span>This guide describes <strong>ScribeTribe 4.0.0-beta.1</strong>. Interface details can change during the beta; consult the documentation shipped with the installed tag.</div>
+      </div>
+    </div>
+    <div style="margin-top:10mm;text-align:center">
+      <img src="../../frontend/brand/scribetribe-mark.svg" alt="ScribeTribe book-and-cat-ear mark" style="width:22mm;height:22mm">
+      <h2 style="font-size:27pt;margin-top:3mm">The next page is yours.</h2>
+      <p class="lead" style="max-width:125mm;margin:3mm auto">Keep the manuscript readable, the consequences literal, the provider bounded, and the backups close.</p>
+    </div>
+    <div class="folio"><span><strong>10</strong> · Quick reference</span><span>16</span></div>
+  </section>
+</main>
+</body>
+</html>

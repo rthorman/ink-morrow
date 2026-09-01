@@ -25,6 +25,9 @@ installation, backup, restore, and sharing guidance is in
 current beta limits in
 [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
+The task-oriented [ScribeTribe 4.0 User Guide](docs/user-guide/ScribeTribe-4.0-User-Guide.pdf)
+explains the main authoring flows with the approved interface and branding.
+
 **v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
 
 Prepared pages now carry opaque identities, stale provider replies cannot overwrite newer previews, and a free metadata read restores the green button after refresh. While preparation is in flight the empty-direction button says so and cannot launch a competing write; canceling a directed write keeps the paid preview. Live writes and rewrites revalidate their story snapshot after the provider returns, story-load and generation tokens prevent late responses from painting the wrong manuscript, and async continuity costs stay attached to the story that started them.
