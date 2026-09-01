@@ -67,6 +67,37 @@ function binaryParser(res, callback) {
 }
 
 describe('Noncanonical generated art compatibility', () => {
+  it('saves generated art Gallery-only with bounded provider provenance and stable anchors', async () => {
+    const { story, pages } = await seedStory();
+    const response = await placeGenerated(story.id, 2, {
+      gallery_only: true,
+      title: 'Moonlit gallery study',
+      alt_text: 'A silver-lit study of the second scene.',
+      provider: { adapter: 'grok', model: 'grok-imagine', profile_name: 'Grok Imagine' },
+      references: ['asset-reference-1'],
+    });
+
+    expect(response.body.placement).toBeNull();
+    expect(response.body.asset).toMatchObject({
+      title: 'Moonlit gallery study',
+      alt_text: 'A silver-lit study of the second scene.',
+      provider_provenance: {
+        prompt: 'A candlelit hall, shadows leaning in.',
+        provider: { adapter: 'grok', model: 'grok-imagine', profile_name: 'Grok Imagine' },
+        references: ['asset-reference-1'],
+      },
+    });
+    const listing = await request(app).get(`/api/stories/${story.id}/assets`).expect(200);
+    expect(listing.body.assets).toHaveLength(1);
+    expect(listing.body.placements).toEqual([]);
+    const anchors = await request(app).get(`/api/stories/${story.id}/assets/anchors`).expect(200);
+    expect(anchors.body).toEqual({
+      anchors: pages.map((page, index) => ({ page_id: page.id, page_number: index + 1 })),
+    });
+    expect(JSON.stringify(anchors.body)).not.toContain('page body');
+    expect((await request(app).get(`/api/stories/${story.id}/pages`).expect(200)).body.pages).toHaveLength(3);
+  });
+
   it('places a normalized asset after a stable prose page without renumbering canon', async () => {
     const { story, pages } = await seedStory();
     const response = await placeGenerated(story.id, 1);
@@ -137,6 +168,8 @@ describe('Noncanonical generated art compatibility', () => {
       .send({ image: Buffer.from('not-png').toString('base64'), media_type: 'image/png' }).expect(400);
     await placeGenerated(story.id, 1, { media_type: 'image/gif' }, 400);
     await placeGenerated(story.id, 1, { cost_usd: -1 }, 400);
+    await placeGenerated(story.id, 1, { gallery_only: 'yes' }, 400);
+    await placeGenerated(story.id, 1, { title: 'x'.repeat(501) }, 400);
     expect(db.prepare('SELECT COUNT(*) AS value FROM assets').get().value).toBe(0);
     expect(db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(3);
   });

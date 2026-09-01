@@ -1,0 +1,118 @@
+.gallery {
+  max-width: 88rem;
+  margin-inline: auto;
+}
+
+.gallery > h2 span {
+  color: var(--st-text-muted);
+  font-size: 0.72em;
+  font-weight: 500;
+}
+
+.gallery-toolbar,
+.gallery-card__actions,
+.gallery-placement {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--st-space-2);
+  align-items: center;
+}
+
+.gallery-toolbar {
+  margin-block: var(--st-space-4);
+}
+
+.gallery-boundary,
+.gallery-reference-summary,
+.gallery-card__provenance,
+.gallery-card__muted {
+  color: var(--st-text-muted);
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: var(--st-space-4);
+  margin-block: var(--st-space-4);
+}
+
+.gallery-card {
+  min-width: 0;
+  border: 1px solid var(--st-border);
+  border-radius: var(--st-radius-md);
+  background: var(--st-surface-2);
+  padding: var(--st-space-3);
+}
+
+.gallery-card > img,
+.gallery-upload > img {
+  display: block;
+  inline-size: 100%;
+  max-block-size: 30rem;
+  object-fit: contain;
+  border-radius: var(--st-radius-md);
+  background: var(--st-surface-1);
+}
+
+.gallery-card__metadata,
+.gallery-upload,
+.gallery-paint,
+.gallery-card__placements {
+  display: grid;
+  gap: var(--st-space-3);
+}
+
+.gallery-card__metadata label,
+.gallery-upload label,
+.gallery-paint label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.gallery-check {
+  grid-template-columns: auto 1fr !important;
+  align-items: start;
+}
+
+.gallery-check input {
+  inline-size: 1.2rem;
+  block-size: 1.2rem;
+}
+
+.gallery-check--reference {
+  margin-block: var(--st-space-3);
+}
+
+.gallery-card__placements {
+  border-top: 1px solid var(--st-border);
+  margin-top: var(--st-space-3);
+  padding-top: var(--st-space-3);
+}
+
+.gallery-placement select {
+  flex: 1 1 12rem;
+  min-block-size: 44px;
+}
+
+.gallery-alt-warning {
+  border-inline-start: 4px solid var(--st-warning, #a16d2d);
+  padding-inline-start: var(--st-space-2);
+  color: var(--st-warning, #a16d2d);
+}
+
+.gallery-upload {
+  max-inline-size: 42rem;
+}
+
+.gallery-upload__notice {
+  color: var(--st-text-muted);
+}
+
+@media (max-width: 680px) {
+  .gallery-toolbar .btn,
+  .gallery-card__actions .btn,
+  .gallery-card__actions a,
+  .gallery-placement .btn {
+    inline-size: 100%;
+  }
+}

@@ -259,6 +259,7 @@ describe('ScribeTribe 4.0 kernel', () => {
     expect(response.body.features.find((feature) => feature.id === 'art-upload').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'grok-sanitization').status).toBe('available');
     expect(response.body.features.find((feature) => feature.id === 'adaptive-shell').status).toBe('available');
+    expect(response.body.features.find((feature) => feature.id === 'gallery').status).toBe('available');
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

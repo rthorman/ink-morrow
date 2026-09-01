@@ -414,7 +414,7 @@ pull_requests:
   - id: "14"
     slug: gallery
     title: Gallery
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "13"
