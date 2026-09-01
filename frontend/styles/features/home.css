@@ -199,23 +199,6 @@
   gap: var(--st-space-2);
 }
 
-.start-cast {
-  margin: 0;
-  padding: var(--st-space-3);
-  border: 1px solid rgb(90 70 53 / 0.32);
-}
-
-.start-cast label {
-  display: flex;
-  align-items: center;
-  gap: var(--st-space-2);
-  min-height: var(--st-touch-min);
-}
-
-.start-cast input {
-  width: auto;
-}
-
 .foundation-draft,
 .provider-setup {
   display: grid;
@@ -548,3 +531,4 @@
   color: var(--st-vellum-200);
   line-height: 1.4;
 }
+
