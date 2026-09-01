@@ -83,4 +83,3 @@ body:
           required: true
         - label: I checked the current known issues.
           required: true
-
