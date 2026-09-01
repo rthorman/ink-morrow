@@ -7,6 +7,9 @@ const { parseCastJson } = require('../stories/cast');
 const {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
+  ARCHIVE_MANIFEST_SCHEMA_VERSION,
+  DATABASE_FAMILY,
+  DATABASE_SCHEMA_VERSION,
   EXPORT_SCOPES,
   jsonBuffer,
   sha256,
@@ -15,10 +18,23 @@ const {
   characterRecord,
   storyRecord,
   pageRecord,
+  volumeRecord,
+  chapterRecord,
+  hierarchyPageRecord,
+  revisionRecord,
   snapshotRecord,
   memoryRecord,
+  continuityDeltaRecord,
+  templateSnapshotRecord,
+  correctionRecord,
   previewRecord,
+  writingOperationRecord,
+  preparedPageRecord,
   audiobookRecord,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
+  pick,
   semanticHash,
   sanitizeSettings,
   validId,
@@ -51,7 +67,7 @@ function mediaArchivePath(ownerKind, ownerId, filePath) {
   return `assets/images/${bucket}/${sha256(`${ownerKind}:${ownerId}`).slice(0, 24)}${extension}`;
 }
 
-function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' }) {
+function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = '3.2.0' }) {
   const worldById = db.prepare('SELECT * FROM worlds WHERE id = ?');
   const characterById = db.prepare('SELECT * FROM characters WHERE id = ?');
   const storyById = db.prepare('SELECT * FROM stories WHERE id = ?');
@@ -168,6 +184,22 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
     const record = storyRecord(row, { hasVisual: Boolean(cover), includeWorkingHistory: options.includeWorkingHistory });
     if (cover) record.image_media_type = cover.mediaType;
     const pageImages = new Map();
+    const hierarchy = {
+      volumes: db.prepare('SELECT * FROM volumes WHERE story_id = ? ORDER BY ordinal').all(id).map(volumeRecord),
+      chapters: db.prepare(`
+        SELECT c.* FROM chapters c
+        JOIN volumes v ON v.id = c.volume_id
+        WHERE v.story_id = ?
+        ORDER BY v.ordinal, c.ordinal
+      `).all(id).map(chapterRecord),
+      pages: db.prepare(`
+        SELECT p.* FROM pages p
+        JOIN chapters c ON c.id = p.chapter_id
+        JOIN volumes v ON v.id = c.volume_id
+        WHERE v.story_id = ?
+        ORDER BY v.ordinal, c.ordinal, p.ordinal
+      `).all(id).map(hierarchyPageRecord),
+    };
     const pages = db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(id)
       .map((page) => {
         const record = pageRecord(page, options);
@@ -176,6 +208,14 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         if (image) pageImages.set(page.id, image);
         return record;
       });
+    const revisions = db.prepare(`
+      SELECT r.* FROM page_revisions r
+      JOIN pages p ON p.id = r.page_id
+      JOIN chapters c ON c.id = p.chapter_id
+      JOIN volumes v ON v.id = c.volume_id
+      WHERE v.story_id = ?
+      ORDER BY v.ordinal, c.ordinal, p.ordinal, r.created_at, r.rowid
+    `).all(id).map((revision) => revisionRecord(revision, options));
     const castIds = new Set(parseCastJson(row.characters).map((entry) => entry.id));
     const snapshots = db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ? ORDER BY character_id').all(id)
       .filter((snapshot) => castIds.has(snapshot.character_id))
@@ -184,10 +224,37 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       ? db.prepare('SELECT * FROM story_memory_pages WHERE story_id = ? ORDER BY created_at, page_id').all(id)
       : db.prepare("SELECT * FROM story_memory_pages WHERE story_id = ? AND status = 'ready' ORDER BY created_at, page_id").all(id);
     const memory = memoryRows.map((memoryRow) => memoryRecord(memoryRow, options));
+    const deltaRows = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM continuity_deltas WHERE story_id = ? ORDER BY created_at, revision_id').all(id)
+      : db.prepare(`
+          SELECT delta.* FROM continuity_deltas delta
+          JOIN pages page ON page.canonical_revision_id = delta.revision_id
+          WHERE delta.story_id = ? AND delta.status = 'ready'
+          ORDER BY delta.created_at, delta.revision_id
+        `).all(id);
+    const continuityDeltas = deltaRows.map((deltaRow) => continuityDeltaRecord(deltaRow, options));
+    const templateSnapshots = db.prepare(`
+      SELECT * FROM template_snapshots WHERE story_id = ? ORDER BY created_at, rowid
+    `).all(id).map(templateSnapshotRecord);
+    const corrections = db.prepare(`
+      SELECT * FROM continuity_corrections WHERE story_id = ? ORDER BY created_at, rowid
+    `).all(id).map(correctionRecord);
+    // `preview` remains readable on import for schema-1..5 beta archives.
+    // Schema 6 writes the durable operation and prepared-page forms instead.
     const preview = options.includeWorkingHistory
       ? (() => {
           const value = db.prepare('SELECT * FROM story_previews WHERE story_id = ?').get(id);
           return value ? previewRecord(value) : null;
+        })()
+      : null;
+    const writingOperations = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM writing_operations WHERE story_id = ? ORDER BY sequence').all(id)
+        .map(writingOperationRecord)
+      : [];
+    const preparedPage = options.includeWorkingHistory
+      ? (() => {
+          const value = db.prepare('SELECT * FROM prepared_pages WHERE story_id = ?').get(id);
+          return value ? preparedPageRecord(value) : null;
         })()
       : null;
     let audiobook = null;
@@ -200,18 +267,53 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
         audioFile = { path: candidate, size: fs.statSync(candidate).size, mediaType: 'audio/mpeg' };
       }
     }
+    const artAssets = options.includeVisuals
+      ? db.prepare("SELECT * FROM assets WHERE story_id = ? AND status = 'ready' ORDER BY created_at, id")
+        .all(id)
+        .filter((asset) => Boolean(artStore.fileInfo(id, asset.id)))
+        .map((asset) => ({
+          ...pick(asset, ART_ASSET_FIELDS),
+          provider_result_json: options.includeWorkingHistory ? asset.provider_result_json : null,
+          spend_usd: options.includeWorkingHistory ? asset.spend_usd : 0,
+          provider_reference_allowed: false,
+        }))
+      : [];
+    const includedAssetIds = new Set(artAssets.map((asset) => asset.id));
+    const assetPlacements = options.includeVisuals
+      ? db.prepare(`
+          SELECT * FROM asset_placements WHERE story_id = ?
+           ORDER BY CASE WHEN after_page_id IS NULL THEN 0 ELSE 1 END,
+                    after_page_id, ordinal, id
+        `).all(id)
+        .filter((placement) => includedAssetIds.has(placement.asset_id))
+        .map((placement) => pick(placement, ASSET_PLACEMENT_FIELDS))
+      : [];
+    const publicationSnapshots = db.prepare(`
+      SELECT * FROM publication_snapshots WHERE story_id = ? ORDER BY created_at, id
+    `).all(id).map((row) => pick(row, PUBLICATION_SNAPSHOT_FIELDS));
     return {
       bundle: {
         record,
+        hierarchy,
         pages,
+        revisions,
         snapshots,
+        template_snapshots: templateSnapshots,
         memory,
+        continuity_deltas: continuityDeltas,
+        corrections,
+        writing_operations: writingOperations,
+        prepared_page: preparedPage,
         preview,
         audiobook,
+        art_assets: artAssets,
+        asset_placements: assetPlacements,
+        publication_snapshots: publicationSnapshots,
       },
       cover,
       pageImages,
       audioFile,
+      artAssets,
     };
   }
 
@@ -265,7 +367,7 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       await addImageAsset(assets, { ownerKind: 'character', ownerId: id, file: image });
     }
     for (const id of selection.stories) {
-      const { bundle, cover, pageImages, audioFile } = buildStoryBundle(id, options);
+      const { bundle, cover, pageImages, audioFile, artAssets } = buildStoryBundle(id, options);
       const dependencies = [];
       if (bundle.record.world_id) dependencies.push({ kind: 'world', id: bundle.record.world_id });
       for (const cast of bundle.record.characters) dependencies.push({ kind: 'character', id: cast.id });
@@ -279,6 +381,14 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
           storyId: id,
           pageNumber: page.page_number,
           file: pageImages.get(page.id),
+        });
+      }
+      for (const asset of artAssets) {
+        await addImageAsset(assets, {
+          ownerKind: 'asset',
+          ownerId: asset.id,
+          storyId: id,
+          file: artStore.fileInfo(id, asset.id),
         });
       }
       if (audioFile) {
@@ -302,7 +412,15 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       .reduce((sum, entity) => sum + entity.bundle.pages.length, 0);
     const memory = entities
       .filter((entity) => entity.kind === 'story')
-      .reduce((sum, entity) => sum + entity.bundle.memory.length, 0);
+      .reduce((sum, entity) => sum + (entity.bundle.continuity_deltas?.length || entity.bundle.memory.length), 0);
+    const publicationSnapshots = entities.reduce((sum, entity) => sum + (entity.bundle.publication_snapshots?.length || 0), 0);
+    const publicationSnapshotImages = entities.reduce((sum, entity) => sum +
+      (entity.bundle.publication_snapshots || []).reduce((snapshotSum, snapshot) => {
+        try {
+          const document = JSON.parse(snapshot.document_json);
+          return snapshotSum + (Array.isArray(document.assets) ? document.assets.length : 0);
+        } catch { return snapshotSum; }
+      }, 0), 0);
     const exposure = {
       worlds: selection.worlds.size,
       characters: selection.characters.size,
@@ -312,15 +430,27 @@ function createExportPlanner({ db, imageStore, audioDir, appVersion = '3.2.0' })
       images: assets.filter((asset) => asset.kind === 'image').length,
       audio_files: assets.filter((asset) => asset.kind === 'audio').length,
       includes_author_directions: options.includeWorkingHistory,
+      publication_snapshots: publicationSnapshots,
+      publication_snapshot_images: publicationSnapshotImages,
       includes_model_and_cost_history: options.includeWorkingHistory,
       includes_device_settings: Boolean(options.settings),
-      excluded: ['API keys', 'credentials', 'passwords', 'paid-action consent'],
+      excluded: [
+        'API keys', 'credentials', 'secret vault material', 'passwords',
+        'authentication owner and sessions', 'paid-action consent',
+        'recovery suffixes and undo credentials',
+        'publication share capabilities and share records',
+      ],
       external_worlds: selection.externalWorlds,
     };
 
     const manifest = {
       format: ARCHIVE_FORMAT,
       version: ARCHIVE_VERSION,
+      manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
+      database_schema: {
+        family: DATABASE_FAMILY,
+        version: DATABASE_SCHEMA_VERSION,
+      },
       created_at: new Date().toISOString(),
       created_by: { application: 'ScribeTribe', version: appVersion },
       scope: options.scope,

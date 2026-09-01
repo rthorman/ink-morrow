@@ -7,6 +7,25 @@ import { approxCostText, estimatePageCost, estimateContinuityCost } from '../../
 
 const QUALITY_ATTEMPTS_MAX = 3; // must match backend/src/ai.js
 const CONTINUITY_ATTEMPTS_MAX = 2; // initial structured reply + one correction
+const WRITER_SESSION_KEY = 'st-writer-session-v1';
+
+function opaqueClientId(prefix) {
+  const id = globalThis.crypto?.randomUUID?.() ||
+    `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  return `${prefix}:${id}`;
+}
+
+function writerSessionIdentity() {
+  try {
+    const current = window.sessionStorage.getItem(WRITER_SESSION_KEY);
+    if (current) return current;
+    const created = opaqueClientId('writer');
+    window.sessionStorage.setItem(WRITER_SESSION_KEY, created);
+    return created;
+  } catch {
+    return opaqueClientId('writer-memory');
+  }
+}
 
 export function createGeneration({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
@@ -18,6 +37,8 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
   let actionToken = 0;
   let flavorTimer = null;
   let reviewing = false;
+  const writerSessionId = writerSessionIdentity();
+  let needsFreshPreviewAfterDirectedFailure = false;
   const previewFlights = new Map(); // storyId -> Set(attempt tokens)
   const refreshAfterPreview = new Set();
 
@@ -106,7 +127,9 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
         ? 'Preparing next page…'
         : usable
           ? 'Use prepared page'
-          : 'Write next page';
+          : inputEmpty
+            ? 'Prepare next page'
+            : 'Generate as directed';
     btn.classList.toggle('next-page', usable);
     btn.disabled = data.generating || !writable || (preparing && inputEmpty);
 
@@ -143,18 +166,24 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     const storyId = currentStory.id;
     const expectedPage = storyPages.length + 1;
     const token = ++speculativeToken;
-    speculative = { storyId, expectedPage, ready: false, token, previewKey: null };
+    speculative = { storyId, expectedPage, ready: false, token, previewId: null, previewKey: null };
     if (!previewFlights.has(storyId)) previewFlights.set(storyId, new Set());
     previewFlights.get(storyId).add(token);
     updateSpeculativeUi();
     try {
       const res = await apiCall(`/stories/${storyId}/pages/preview`, 'POST', {
+        idempotency_key: opaqueClientId('prepare'),
+        writer_session_id: writerSessionId,
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
-      state.addSessionCost(res.preview?.cost_usd);
+      if (!res.reused) state.addSessionCost(res.preview?.cost_usd);
       if (!speculative || speculative.storyId !== storyId || speculative.token !== token) return;
+      if (res.pending && !res.preview) {
+        void watchServerSuccessor(storyId, expectedPage, token, { bookCost: true });
+        return;
+      }
       if (!res.preview || res.preview.expected_page !== expectedPage || !previewMatchesStory(storyId, expectedPage)) {
         speculative = null;
         return;
@@ -164,6 +193,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
         expectedPage,
         ready: true,
         token,
+        previewId: res.preview.preview_id || res.preview.id || res.preview.preview_key || null,
         previewKey: res.preview.preview_key || null,
       };
     } catch (error) {
@@ -194,6 +224,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
           expectedPage,
           ready: true,
           token,
+          previewId: preview.preview_id || preview.id || preview.preview_key || null,
           previewKey: preview.preview_key || null,
         }
       : null;
@@ -209,6 +240,35 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     }
   }
 
+  async function watchServerSuccessor(storyId, expectedPage, originToken = null, { bookCost = true } = {}) {
+    const token = originToken || ++speculativeToken;
+    if (!originToken) {
+      speculative = { storyId, expectedPage, ready: false, token, previewId: null, previewKey: null };
+      updateSpeculativeUi();
+    }
+    for (let attempt = 0; attempt < 120; attempt += 1) {
+      if (!speculative || speculative.storyId !== storyId || speculative.token !== token ||
+          data.currentStory?.id !== storyId) return;
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, attempt < 4 ? 0 : 1000));
+      let result;
+      try {
+        result = await apiCall(`/stories/${storyId}/pages/preview`);
+      } catch {
+        if (attempt >= 2) return;
+        continue;
+      }
+      if (!result.preview) continue;
+      if (result.preview.expected_page !== expectedPage || !previewMatchesStory(storyId, expectedPage)) return;
+      if (bookCost) state.addSessionCost(result.preview.cost_usd);
+      restoreSpeculative(storyId, result.preview);
+      return;
+    }
+    if (speculative?.storyId === storyId && speculative.token === token) {
+      speculative = null;
+      updateSpeculativeUi();
+    }
+  }
+
   function discardSpeculative() {
     speculativeToken++;
     speculative = null;
@@ -220,6 +280,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     speculative = null;
     actionToken++;
     reviewing = false;
+    needsFreshPreviewAfterDirectedFailure = false;
     refreshAfterPreview.clear();
     if (data.generating) setGenerating(false);
     else updateSpeculativeUi();
@@ -356,6 +417,25 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     });
   }
 
+  async function confirmOrdinaryPreparation(story, pageNumber) {
+    const estimate = pageEstimate();
+    return dialogs.confirmPaid({
+      title: 'Prepare the next page?',
+      review: {
+        action: `Prepare speculative page ${pageNumber} of "${story.title}".`,
+        object: `"${story.title}", possible page ${pageNumber}`,
+        model: settings.model || 'the scribe\u2019s default model',
+        quantity: `\u2248${settings.wordsPerPage} words of noncanonical prose`,
+        sends: 'the world, cast, continuity state, and recent pages',
+        also: null,
+        estimate,
+        maximum: multipliedEstimate(estimate, QUALITY_ATTEMPTS_MAX),
+        note: 'This spends one speculative Scribe operation. It changes no canon until you use that exact prepared page.',
+      },
+      confirmLabel: `Prepare page (${approxCostText(estimate)})`,
+    });
+  }
+
   async function generateNextPage() {
     const { currentStory, storyPages, currentPage, generating } = data;
     if (!currentStory) {
@@ -392,11 +472,17 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
       let committedPage = null;
       let committedForCurrentStory = false;
       let continuityPending = false;
+      let successorPending = false;
       try {
-        const body = prepared.previewKey ? { preview_key: prepared.previewKey } : {};
+        const body = {
+          preview_id: prepared.previewId || prepared.previewKey,
+          idempotency_key: opaqueClientId('promote'),
+          writer_session_id: writerSessionId,
+        };
         const result = await apiCall(`/stories/${storyId}/pages/commit-preview`, 'POST', body);
         committedPage = result.page;
         continuityPending = result.continuity_pending === true;
+        successorPending = result.successor_pending === true;
         const proseCost = typeof result.page?.cost_usd === 'number' ? result.page.cost_usd : 0;
         const memoryCost = typeof result.page?.continuity_cost_usd === 'number' ? result.page.continuity_cost_usd : 0;
         state.addSessionCost(memoryCost);
@@ -422,6 +508,7 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
             committedForCurrentStory = true;
             committedPage = reconciliation.newestPage;
             continuityPending = Boolean(committedPage?.id);
+            successorPending = Boolean(committedPage?.id);
             showSuccess('The prepared page was committed and recovered after the response was interrupted.');
             document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
           } else {
@@ -432,10 +519,28 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
       } finally {
         finishAction(token);
       }
-      if (committedPage && continuityPending) void syncCommittedContinuity(storyId, committedPage, token);
       if (committedForCurrentStory && data.currentStory?.id === storyId) {
-        void maybeStartSpeculative({ ignoreDirection: true });
+        if (continuityPending && committedPage) void syncCommittedContinuity(storyId, committedPage, token);
+        if (successorPending && committedPage?.page_number === data.storyPages.length) {
+          // The server owns exactly one successor operation. Observe it; never
+          // turn this canon action into a second POST from the browser.
+          void watchServerSuccessor(storyId, committedPage.page_number + 1, null, { bookCost: true });
+        }
       }
+      return;
+    }
+
+    if (!userInput) {
+      if (reviewing) return;
+      reviewing = true;
+      let yes;
+      try {
+        yes = await confirmOrdinaryPreparation(currentStory, pageCount + 1);
+      } finally {
+        reviewing = false;
+      }
+      if (!yes || data.currentStory?.id !== storyId || data.storyPages.length !== pageCount) return;
+      await maybeStartSpeculative({ ignoreDirection: true });
       return;
     }
 
@@ -472,14 +577,18 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     const token = beginAction();
     let written = false;
     let failed = false;
+    let successorPending = false;
     try {
       const result = await apiCall(`/stories/${storyId}/pages/generate`, 'POST', {
+        idempotency_key: opaqueClientId('directed'),
+        writer_session_id: writerSessionId,
         user_input: submittedDirection || null,
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       const newCost = storedPageCost(result.page);
+      successorPending = result.successor_pending === true;
       state.addSessionCost(newCost);
       if (actionIsCurrent(token, storyId)) {
         refreshAfterPreview.delete(storyId);
@@ -490,9 +599,11 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
         document.getElementById('scribeStatus').textContent = SCRIBE_DONE;
         features.write.displayCurrentPage();
         written = true;
+        needsFreshPreviewAfterDirectedFailure = false;
       }
     } catch (error) {
       failed = true;
+      needsFreshPreviewAfterDirectedFailure = true;
       bookFailedSpend(error);
       if (actionIsCurrent(token, storyId)) {
         showError(error.message);
@@ -501,7 +612,9 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     } finally {
       finishAction(token);
     }
-    if (written && actionIsCurrent(token, storyId)) maybeStartSpeculative({ ignoreDirection: true });
+    if (written && actionIsCurrent(token, storyId) && successorPending) {
+      void watchServerSuccessor(storyId, data.storyPages.length + 1, null, { bookCost: true });
+    }
     else if (failed && data.currentStory?.id === storyId) {
       if (previewFlights.has(storyId)) refreshAfterPreview.add(storyId);
       else await refreshSpeculative(storyId);
@@ -536,13 +649,17 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     const oldCost = storedPageCost(storyPages[pageCount - 1]);
     const token = beginAction();
     let rewritten = false;
+    let successorPending = false;
     try {
       const result = await apiCall(`/stories/${storyId}/pages/regenerate`, 'POST', {
+        idempotency_key: opaqueClientId('regenerate'),
+        writer_session_id: writerSessionId,
         words: settings.wordsPerPage,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
       const newCost = storedPageCost(result.page);
+      successorPending = result.successor_pending === true;
       state.addSessionCost(newCost);
       if (actionIsCurrent(token, storyId)) {
         state.addStoryCost(newCost - oldCost);
@@ -561,12 +678,20 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     } finally {
       finishAction(token);
     }
-    if (rewritten && actionIsCurrent(token, storyId)) maybeStartSpeculative({ ignoreDirection: true });
+    if (rewritten && actionIsCurrent(token, storyId) && successorPending) {
+      void watchServerSuccessor(storyId, data.storyPages.length + 1, null, { bookCost: true });
+    }
   }
 
   function init() {
     const userInput = document.getElementById('userInput');
-    if (userInput) userInput.addEventListener('input', updateSpeculativeUi);
+    if (userInput) userInput.addEventListener('input', () => {
+      updateSpeculativeUi();
+      if (needsFreshPreviewAfterDirectedFailure && !userInput.value.trim()) {
+        needsFreshPreviewAfterDirectedFailure = false;
+        void maybeStartSpeculative({ ignoreDirection: true });
+      }
+    });
   }
 
   return {

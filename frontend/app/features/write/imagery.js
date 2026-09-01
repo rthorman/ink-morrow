@@ -1,7 +1,7 @@
 // Scene imagery: condense the current page into a tone-honoring image prompt,
 // paint it with cast identity references (announce-and-wait on moderation
-// refusals, reference-dropping after a second refusal), and the zoomable/
-// pannable viewer whose painting can be bound into the tale as a plate.
+// refusals, an explicit reference-free retry after repeat refusal), and the zoomable/
+// pannable viewer whose painting can be placed without becoming story prose.
 
 import { SCENE_RENDER_VARIANTS } from '../../core/state.js';
 import { formatUsd } from '../../core/dom.js';
@@ -14,10 +14,15 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   const { settings, data } = state;
   const IMAGE_PROMPT_BUTTON_LABEL = 'Scene image';
 
-  // Moderation escalation state: refused once -> rewrite + repaint; refused
-  // twice in a row -> the cast portraits are probably what offends; drop them.
+  // Provider-interoperability state. Nothing here classifies story content:
+  // it only records consecutive Grok outcomes for the current story/reference
+  // context and offers a deliberate reference-free retry when useful.
   let sceneRefusals = 0;
   let dropSceneReferences = false;
+  let referenceDropOffered = false;
+  let moderationStoryId = null;
+  let moderationReferenceFingerprint = null;
+  let lastSanitizedPrompt = null;
   let imageryReviewing = false; // a paid-consent check is running: no second submission
   let imagePromptModal = null; // wired lifecycle controllers
   let sceneViewerModal = null;
@@ -27,10 +32,59 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   let sceneViewerMediaType = null;
   let sceneViewerPrompt = null;
   let sceneViewerCostUsd = null;
+  let sceneViewerProvider = null;
+  let sceneViewerReferences = [];
   let sceneViewerFilename = 'scene.png';
+  let imageTargetPage = null;
+  let selectedAssetReferenceIds = [];
   let viewerScale = 1;
   let viewerX = 0;
   let viewerY = 0;
+
+  function resetSanitationState(storyId = data.currentStory?.id || null) {
+    if (moderationStoryId !== storyId) {
+      imageTargetPage = null;
+      selectedAssetReferenceIds = [];
+    }
+    sceneRefusals = 0;
+    dropSceneReferences = false;
+    referenceDropOffered = false;
+    moderationStoryId = storyId;
+    moderationReferenceFingerprint = null;
+    lastSanitizedPrompt = null;
+    const checkbox = document.getElementById('imagePromptDropReferences');
+    if (checkbox) checkbox.checked = false;
+    const option = document.getElementById('imageReferenceDropOption');
+    if (option) option.hidden = true;
+    const notice = document.getElementById('imageRefusalNotice');
+    if (notice) {
+      notice.hidden = true;
+      notice.textContent = '';
+    }
+  }
+
+  function selectedReferenceMode() {
+    const checkbox = document.getElementById('imagePromptDropReferences');
+    dropSceneReferences = Boolean(referenceDropOffered && checkbox?.checked);
+    return dropSceneReferences;
+  }
+
+  function announceRefusal(res, sanitationCost, offerReferenceDrop) {
+    const notice = document.getElementById('imageRefusalNotice');
+    const reason = res.reason || 'no provider reason was supplied';
+    const billed = typeof sanitationCost === 'number'
+      ? ` The sanitation call cost ${formatUsd(sanitationCost)}.`
+      : '';
+    const next = offerReferenceDrop
+      ? ' References were attached to both refused requests. You may explicitly retry without them below.'
+      : ' Review the editable replacement prompt, then press Paint scene again to make a new request.';
+    if (notice) {
+      notice.textContent = `Grok refused the image request (${reason}). Nothing was painted.${billed}${next}`;
+      notice.hidden = false;
+    }
+    const option = document.getElementById('imageReferenceDropOption');
+    if (option) option.hidden = !offerReferenceDrop;
+  }
 
   function applySceneViewerTransform() {
     const img = document.getElementById('sceneViewerImg');
@@ -52,8 +106,10 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     sceneViewerMediaType = mediaType || null;
     sceneViewerPrompt = typeof meta.prompt === 'string' && meta.prompt.trim() ? meta.prompt.trim() : null;
     sceneViewerCostUsd = typeof meta.costUsd === 'number' && Number.isFinite(meta.costUsd) ? meta.costUsd : null;
+    sceneViewerProvider = meta.provider || null;
+    sceneViewerReferences = Array.isArray(meta.references) ? [...meta.references] : [];
     const ext = mediaType === 'image/jpeg' ? 'jpg' : mediaType === 'image/webp' ? 'webp' : 'png';
-    sceneViewerFilename = `scene-page-${data.currentStory ? data.currentPage : 0}.${ext}`;
+    sceneViewerFilename = `scene-page-${data.currentStory ? (imageTargetPage || data.currentPage) : 0}.${ext}`;
     img.src = dataUrl;
     sceneViewerModal.open(); // wired lifecycle: the viewer locks the background too
     resetSceneViewer();
@@ -67,16 +123,20 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     sceneViewerMediaType = null;
     sceneViewerPrompt = null;
     sceneViewerCostUsd = null;
+    sceneViewerProvider = null;
+    sceneViewerReferences = [];
     resetSceneViewer();
   }
 
-  // Bind the painting on display into the story: a new image page lands right
-  // after the one it illustrates, both modals close, and the reader turns to
-  // the fresh plate.
-  async function addSceneAsPage() {
-    const { currentStory, currentPage, storyPages } = data;
-    if (!sceneViewerDataUrl || !currentStory || currentPage < 1 || currentPage > storyPages.length) return;
-    const btn = document.getElementById('sceneViewerAddPageBtn');
+  // Place the painting after the stable prose page. It remains a noncanonical
+  // asset: page numbering, continuity, and any prepared next page stay intact.
+  async function bindScene({ galleryOnly = false } = {}) {
+    const { currentStory } = data;
+    const targetPage = imageTargetPage || data.currentPage;
+    const targetExists = data.storyPages.some((page) => page.page_number === targetPage) ||
+      (!data.storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!sceneViewerDataUrl || !currentStory || !targetExists) return;
+    const btn = document.getElementById(galleryOnly ? 'sceneViewerGalleryBtn' : 'sceneViewerAddPageBtn');
     // Capture everything BEFORE closing: closeSceneViewer wipes the viewer state.
     const comma = sceneViewerDataUrl.indexOf(',');
     const base64 = sceneViewerDataUrl.startsWith('data:') && comma > 0 ? sceneViewerDataUrl.slice(comma + 1) : sceneViewerDataUrl;
@@ -89,29 +149,39 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       btn.textContent = 'Binding…';
     }
     try {
-      const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-page`, 'POST', {
+      await apiCall(`/stories/${currentStory.id}/pages/${targetPage}/image-page`, 'POST', {
         image: base64,
         media_type: mediaType,
         ...(prompt ? { prompt } : {}),
         ...(typeof costUsd === 'number' ? { cost_usd: costUsd } : {}),
+        ...(sceneViewerProvider ? { provider: sceneViewerProvider } : {}),
+        ...(sceneViewerReferences.length ? { references: sceneViewerReferences } : {}),
+        ...(galleryOnly ? { gallery_only: true } : {}),
       });
       closeSceneViewer();
       imagePromptModal.close();
-      features.generation.discardSpeculative(); // a live write: any prepared next page is stale now
-      const list = await apiCall(`/stories/${currentStory.id}/pages`);
-      data.storyPages = list.pages || [];
-      data.currentPage = Math.max(1, Math.min(data.storyPages.length, res.page.page_number));
-      features.write.displayCurrentPage();
-      showSuccess(`The painting is bound into the tale as page ${res.page.page_number}.`);
+      await features.write.refreshStoryAssets(currentStory.id);
+      await features.gallery?.load(currentStory.id);
+      showSuccess(galleryOnly
+        ? 'The painting is saved in Gallery without a manuscript placement.'
+        : `The painting is placed after page ${targetPage}. Page numbering is unchanged.`);
       shell.checkDiskSpace(); // a plate just landed on disk — the banner must know
     } catch (error) {
       showError(scribeErrorMessage(error.message)); // floats above the open modals
     } finally {
       if (btn) {
         btn.disabled = false;
-        btn.textContent = 'Add as page';
+        btn.textContent = galleryOnly ? 'Save to Gallery' : 'Place after page';
       }
     }
+  }
+
+  function addSceneAsPage() {
+    return bindScene({ galleryOnly: false });
+  }
+
+  function saveSceneToGallery() {
+    return bindScene({ galleryOnly: true });
   }
 
   function saveSceneViewer() {
@@ -146,7 +216,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     applySceneViewerTransform();
   }
 
-  function readyCastReferences() {
+  function readyCastReferenceRows() {
     const { currentStory } = data;
     if (!currentStory) return [];
     const cast = (currentStory.characters || [])
@@ -159,9 +229,19 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     for (const entry of cast) {
       if (refs.length >= 3) break;
       const character = state.data.characters.find((c) => c.id === entry.id);
-      if (character && character.image_status === 'ready') refs.push(character.name);
+      if (character && character.image_status === 'ready') refs.push(character);
     }
     return refs;
+  }
+
+  function readyCastReferences() {
+    return readyCastReferenceRows().map((character) => character.name);
+  }
+
+  function referenceFingerprint() {
+    return readyCastReferenceRows()
+      .map((character) => `${character.id}@${character.image_updated_at || ''}`)
+      .join('|');
   }
 
   function updatePaintButtonPrice() {
@@ -172,11 +252,22 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   }
 
   async function generateSceneImage() {
-    const { currentStory, currentPage, storyPages } = data;
-    if (!currentStory || currentPage < 1 || currentPage > storyPages.length) {
+    const { currentStory } = data;
+    const targetPage = imageTargetPage || data.currentPage;
+    const targetExists = data.storyPages.some((page) => page.page_number === targetPage) ||
+      (!data.storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!currentStory || !targetExists) {
       showError('Select a page to illustrate first.');
       return;
     }
+    const currentReferenceFingerprint = referenceFingerprint();
+    if (
+      moderationStoryId !== currentStory.id ||
+      (moderationReferenceFingerprint !== null && moderationReferenceFingerprint !== currentReferenceFingerprint)
+    ) {
+      resetSanitationState(currentStory.id);
+    }
+    moderationReferenceFingerprint = currentReferenceFingerprint;
     const box = document.getElementById('imagePromptText');
     const btn = document.getElementById('imagePromptGenerateBtn');
     const costEl = document.getElementById('sceneImageCost');
@@ -186,8 +277,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       showError('The prompt box is empty — condense the scene first.');
       return;
     }
-    // The paid paint commitment: resolution, identity references, and the
-    // possible moderation rewrite are all disclosed before the press costs.
+    // The paid paint commitment discloses resolution, identity references,
+    // and the possibility of a Grok sanitation call before the press costs.
     const variant = SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k';
     const paintEstimate = variant === 'medium_2k' ? 0.08 : 0.04;
     const rewriteEstimate = estimatePageCost({
@@ -200,19 +291,20 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       ? Math.max(paintEstimate, rewriteEstimate * 3)
       : null;
     const refs = readyCastReferences();
+    const dropReferences = selectedReferenceMode();
     if (imageryReviewing) return;
     imageryReviewing = true;
     const yes = await dialogs.confirmPaid({
       title: 'Paint this scene?',
       review: {
-        action: `Paint page ${currentPage} of "${currentStory.title}" from the prompt in the box.`,
-        object: `page ${currentPage} of "${currentStory.title}"`,
+        action: `Paint page ${targetPage} of "${currentStory.title}" from the prompt in the box.`,
+        object: `page ${targetPage} of "${currentStory.title}"`,
         quantity: variant === 'medium_2k' ? 'one 2K painting (≈$0.08)' : 'one 1K painting (≈$0.04)',
-        sends: dropSceneReferences
-          ? 'the prompt text only (cast portraits are dropped after repeat refusals)'
-          : refs.length > 0
-            ? `the prompt text and ${refs.length} cast portrait${refs.length === 1 ? '' : 's'} (${refs.join(', ')}) as identity reference${refs.length === 1 ? '' : 's'}`
-            : 'the prompt text only (no cast portraits are ready)',
+        sends: dropReferences
+          ? 'the prompt text only (you explicitly chose to omit identity references)'
+          : refs.length || selectedAssetReferenceIds.length
+            ? `the prompt text${refs.length ? `, ${refs.length} cast portrait${refs.length === 1 ? '' : 's'} (${refs.join(', ')})` : ''}${selectedAssetReferenceIds.length ? `, and ${selectedAssetReferenceIds.length} explicitly selected Gallery reference${selectedAssetReferenceIds.length === 1 ? '' : 's'}` : ''}`
+            : 'the prompt text only (no cast portraits or Gallery references are selected)',
         also: `if the image model refuses, the scribe rewrites the prompt safely and that rewrite is billed (${approxCostText(rewriteEstimate)} before any retry)`,
         estimate: paintEstimate,
         maximum: retryMaximum,
@@ -226,32 +318,47 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     btn.textContent = 'Painting…';
     if (costEl) costEl.hidden = true;
     try {
-      const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/scene-image`, 'POST', {
+      const res = await apiCall(`/stories/${currentStory.id}/pages/${targetPage}/scene-image`, 'POST', {
         prompt,
         render: variant,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
-        ...(dropSceneReferences ? { drop_references: true } : {}),
+        ...(dropReferences ? { drop_references: true } : {}),
+        ...(selectedAssetReferenceIds.length ? { reference_asset_ids: selectedAssetReferenceIds } : {}),
       });
       // The moderator refused. Do NOT repaint: announce, put the rewritten
       // prompt in the box, and wait for the user to press Generate again.
       if (res.refused) {
         sceneRefusals++;
         box.value = res.sanitized_prompt || prompt;
-        if (typeof res.rewrite_cost_usd === 'number' && res.rewrite_cost_usd > 0) {
-          state.addCost(res.rewrite_cost_usd); // the rewrite LLM billed either way
+        lastSanitizedPrompt = box.value.trim();
+        const sanitationCost = typeof res.sanitation_cost_usd === 'number'
+          ? res.sanitation_cost_usd
+          : res.rewrite_cost_usd;
+        if (typeof sanitationCost === 'number' && sanitationCost > 0) {
+          state.addCost(sanitationCost); // the sanitation model billed either way
         }
-        if (sceneRefusals >= 2) {
-          dropSceneReferences = true;
-          showSuccess('Refused again — the scribe suspects the cast portraits. The next painting drops them. Review the rewritten prompt and press Generate image.');
+        const usedReferences = Number(res.references_sent) > 0;
+        if (sceneRefusals >= 2 && res.can_drop_references === true && usedReferences) {
+          referenceDropOffered = true;
+          dropSceneReferences = false;
+          const checkbox = document.getElementById('imagePromptDropReferences');
+          if (checkbox) checkbox.checked = false;
+          announceRefusal(res, sanitationCost, true);
+          showSuccess('Grok refused again while references were attached. Review the rewritten prompt or explicitly choose a reference-free retry.');
         } else {
-          showSuccess('The image model refused this draft (' + (res.reason || 'no reason given') + '). The scribe rewrote it — review the prompt box and press Generate image again.');
+          announceRefusal(res, sanitationCost, referenceDropOffered);
+          showSuccess('Grok refused this draft. The sanitized prompt and exact sanitation cost are shown in the dialog; no image retry occurred.');
         }
         return;
       }
-      sceneRefusals = 0;
-      dropSceneReferences = false;
-      openSceneViewer(`data:${res.media_type};base64,${res.image}`, res.media_type, { prompt, costUsd: res.cost_usd });
+      resetSanitationState(currentStory.id);
+      openSceneViewer(`data:${res.media_type};base64,${res.image}`, res.media_type, {
+        prompt,
+        costUsd: res.cost_usd,
+        provider: res.provider,
+        references: [...(res.references || []), ...(res.asset_references || [])],
+      });
       if (costEl && typeof res.cost_usd === 'number') {
         const refs = Array.isArray(res.references) ? res.references.length : 0;
         costEl.textContent =
@@ -269,9 +376,12 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     }
   }
 
-  async function generateImagePrompt() {
-    const { currentStory, currentPage, storyPages } = data;
-    if (!currentStory || currentPage < 1 || currentPage > storyPages.length) {
+  async function generateImagePrompt(pageNumber = data.currentPage) {
+    const { currentStory, storyPages } = data;
+    const targetPage = Number.parseInt(pageNumber, 10);
+    const targetExists = storyPages.some((page) => page.page_number === targetPage) ||
+      (!storyPages.length && targetPage >= 1 && targetPage <= Number(currentStory?.page_count || 0));
+    if (!currentStory || !targetExists) {
       showError('Select a page to illustrate first.');
       return;
     }
@@ -281,7 +391,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     if (!modal || !box) return;
     // The condensation is paid writing-model work: pass the remembered
     // consent gate before sending it.
-    const page = storyPages.find((p) => p.page_number === currentPage);
+    const page = storyPages.find((p) => p.page_number === targetPage);
     const estimate = estimatePageCost({
       models: state.modelsCache,
       model: settings.model,
@@ -294,8 +404,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     const yes = await dialogs.confirmPaid({
       title: 'Condense this page into a prompt?',
       review: {
-        action: `Condense page ${currentPage} of "${currentStory.title}" into an editable image prompt.`,
-        object: `page ${currentPage} of "${currentStory.title}"`,
+        action: `Condense page ${targetPage} of "${currentStory.title}" into an editable image prompt.`,
+        object: `page ${targetPage} of "${currentStory.title}"`,
         model: settings.model || 'the scribe\u2019s default model',
         quantity: 'a short prompt draft (≈90 words)',
         sends: 'the text of this page to the writing model',
@@ -312,23 +422,21 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       btn.textContent = 'Thinking…';
     }
     try {
-      const res = await apiCall(`/stories/${currentStory.id}/pages/${currentPage}/image-prompt`, 'POST', {
+      const res = await apiCall(`/stories/${currentStory.id}/pages/${targetPage}/image-prompt`, 'POST', {
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
       });
+      resetSanitationState(currentStory.id); // a fresh condense establishes a new provider context
       box.value = res.prompt || '';
+      imageTargetPage = targetPage;
       state.addCost(res.cost_usd); // condensation is paid work for this story
-      sceneRefusals = 0; // a fresh condense resets the moderation escalation
-      dropSceneReferences = false;
       const costEl = document.getElementById('sceneImageCost');
       if (costEl) {
         // Before the paid press: which identity references ride along.
         const refs = readyCastReferences();
-        costEl.textContent = dropSceneReferences
-          ? 'Identity references are dropped (after repeat refusals).'
-          : refs.length > 0
-            ? `Identity references: ${refs.join(', ')}`
-            : 'No cast portraits are ready - the scene paints without identity references.';
+        costEl.textContent = refs.length > 0
+          ? `Identity references: ${refs.join(', ')}`
+          : 'No cast portraits are ready - the scene paints without identity references.';
         costEl.hidden = false;
       }
       updatePaintButtonPrice();
@@ -395,6 +503,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       img.addEventListener('pointercancel', endPointer);
 
       document.getElementById('sceneViewerAddPageBtn')?.addEventListener('click', addSceneAsPage);
+      document.getElementById('sceneViewerGalleryBtn')?.addEventListener('click', saveSceneToGallery);
       document.getElementById('sceneViewerSaveBtn')?.addEventListener('click', saveSceneViewer);
       document.getElementById('sceneViewerCloseBtn')?.addEventListener('click', closeSceneViewer);
       // The viewer is structurally distinct (an image, not a form) but lives
@@ -404,7 +513,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     }
 
     const btn = document.getElementById('imagePromptBtn');
-    if (btn) btn.addEventListener('click', generateImagePrompt);
+    if (btn) btn.addEventListener('click', () => generateImagePrompt());
     const renderSelect = document.getElementById('imageQualitySelect');
     if (renderSelect) renderSelect.addEventListener('change', () => {
       state.setSetting('sceneRenderQuality', renderSelect.value);
@@ -412,6 +521,14 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     });
     const generateBtn = document.getElementById('imagePromptGenerateBtn');
     if (generateBtn) generateBtn.addEventListener('click', generateSceneImage);
+    const dropReferences = document.getElementById('imagePromptDropReferences');
+    if (dropReferences) dropReferences.addEventListener('change', selectedReferenceMode);
+    const promptBox = document.getElementById('imagePromptText');
+    if (promptBox) promptBox.addEventListener('input', () => {
+      if (lastSanitizedPrompt !== null && promptBox.value.trim() !== lastSanitizedPrompt) {
+        resetSanitationState(data.currentStory?.id || null);
+      }
+    });
     // The prompt popup: no dirty guard - its box keeps its text either way.
     imagePromptModal = wireModal('imagePromptModal', { focusId: 'imagePromptText' });
     const cancel = document.getElementById('imagePromptCancelBtn');
@@ -425,7 +542,19 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     closeSceneViewer,
     saveSceneViewer,
     addSceneAsPage,
-    __sceneModerationState: () => ({ refusals: sceneRefusals, dropReferences: dropSceneReferences }),
+    saveSceneToGallery,
+    setAssetReferences(ids) {
+      selectedAssetReferenceIds = [...new Set((ids || []).filter((id) => typeof id === 'string'))].slice(0, 10);
+    },
+    resetForContextChange: resetSanitationState,
+    resetForReferenceChange: () => resetSanitationState(data.currentStory?.id || null),
+    __sceneModerationState: () => ({
+      refusals: sceneRefusals,
+      dropReferences: dropSceneReferences,
+      referenceDropOffered,
+      storyId: moderationStoryId,
+    }),
+    __selectedAssetReferences: () => [...selectedAssetReferenceIds],
     __sceneViewerState: () => ({ scale: viewerScale, x: viewerX, y: viewerY, dataUrl: sceneViewerDataUrl }),
     init,
   };

@@ -5,12 +5,13 @@
 // BEFORE slow generation; previews are single-use and stale-checked.
 
 const express = require('express');
-const { createHash } = require('node:crypto');
+const { createHash, randomUUID } = require('node:crypto');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText, modelOverrideOf, parseReasoningEffort, parseWordTarget, asString } = require('../../core/validation');
 
 function previewKey(preview) {
   if (!preview) return null;
+  if (preview.id) return preview.id;
   return createHash('sha256').update(JSON.stringify([
     preview.story_id,
     preview.expected_page,
@@ -25,6 +26,18 @@ function previewKey(preview) {
 
 function publicPreview(preview) {
   if (!preview) return null;
+  if (preview.id && preview.expected_page) {
+    return {
+      id: preview.id,
+      preview_id: preview.id,
+      preview_key: preview.id,
+      expected_page: preview.expected_page,
+      model: preview.model || null,
+      cost_usd: preview.cost_usd ?? null,
+      operation_id: preview.operation_id || null,
+      created_at: preview.created_at || null,
+    };
+  }
   return {
     expected_page: preview.expected_page,
     model: preview.model || null,
@@ -33,21 +46,44 @@ function publicPreview(preview) {
   };
 }
 
-function paidConflict(res, result, error, code) {
-  return res.status(409).json({
-    error,
-    code,
-    cost_usd: result.cost_usd ?? null,
-    billed_attempts: Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1,
-  });
-}
-
-function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
+function createWritingRouter({ catalog, stories, writing, transactions, ai }) {
   const router = express.Router();
-  // Multi-tab requests can overlap even though one browser state machine does
-  // not. Only the newest request for a story may publish a prepared page.
-  const latestPreviewAttempt = new Map();
-  let previewAttemptSequence = 0;
+
+  function idempotencyKey(req) {
+    const value = req.get('Idempotency-Key') || req.body?.idempotency_key;
+    return typeof value === 'string' && value.trim()
+      ? value.trim().slice(0, 300)
+      : randomUUID();
+  }
+
+  function writerSessionId(req) {
+    const explicit = req.get('X-ScribeTribe-Writer-Session') || req.body?.writer_session_id;
+    if (typeof explicit === 'string' && explicit.trim()) return explicit.trim().slice(0, 300);
+    const authenticated = req.authSession?.tokenHash;
+    return typeof authenticated === 'string' && authenticated.trim()
+      ? `compat:${authenticated.trim()}`.slice(0, 300)
+      : 'legacy-client';
+  }
+
+  function generationSettings(body) {
+    return {
+      words: parseWordTarget(body.words),
+      model: modelOverrideOf(body.model),
+      reasoning_effort: parseReasoningEffort(body.reasoning_effort),
+    };
+  }
+
+  function validateGenerationSettings(body, settings, res) {
+    if (body.model !== undefined && !settings.model) {
+      badRequest(res, '"model" must be a non-empty string');
+      return false;
+    }
+    if (body.reasoning_effort !== undefined && body.reasoning_effort !== null && body.reasoning_effort !== '' && !settings.reasoning_effort) {
+      badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
+      return false;
+    }
+    return true;
+  }
 
   // OpenRouter catalog proxy for the unlocked settings page (no key needed).
   router.get('/api/models', async (req, res, next) => {
@@ -122,50 +158,60 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
     }
   });
 
+  router.post('/api/ai/foundations', async (req, res, next) => {
+    try {
+      const seeds = {
+        premise: optionalText(req.body.premise, { max: 5000 }),
+        narrative_voice: optionalText(req.body.narrative_voice, { max: 1000 }),
+        point_of_view: optionalText(req.body.point_of_view, { max: 500 }),
+        tense: optionalText(req.body.tense, { max: 500 }),
+        constraints: optionalText(req.body.constraints, { max: 5000 }),
+      };
+      if (Object.values(seeds).includes(undefined)) return badRequest(res, 'Foundation seed fields must be text');
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const result = await writing.draftFoundations({ ...req.body, ...seeds }, modelOverride);
+      const pick = (key) => asString(result.foundations[key]) || result.seeds[key] || '';
+      res.json({
+        foundations: {
+          premise: pick('premise'),
+          narrative_voice: pick('narrative_voice'),
+          point_of_view: pick('point_of_view'),
+          tense: pick('tense'),
+          constraints: pick('constraints'),
+        },
+        model: result.model,
+        cost_usd: result.cost_usd,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // -- generation ---------------------------------------------------------------
 
   router.post('/api/stories/:id/pages/generate', async (req, res, next) => {
     try {
       const story = stories.getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
-      const userInput = optionalText(req.body.user_input, { max: 10000 }) || 'Continue the story.';
-      if (userInput === undefined) return badRequest(res, '"user_input" must be text');
-      const modelOverride = modelOverrideOf(req.body.model);
-      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
-      const wordTarget = parseWordTarget(req.body.words);
-      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
-      if (req.body.reasoning_effort !== undefined && req.body.reasoning_effort !== null && req.body.reasoning_effort !== '' && !reasoningEffort) {
-        return badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
+      const direction = optionalText(req.body.user_input, { max: 10000 });
+      if (direction === undefined) return badRequest(res, '"user_input" must be text');
+      if (!direction) {
+        return res.status(409).json({
+          error: 'An empty direction cannot trigger live generation. Prepare a page, then promote its exact identity.',
+          code: 'DIRECTION_REQUIRED',
+        });
       }
-
-      const expectedPage = stories.nextPageNumber(story.id);
-      const contextRevision = stories.previewRevision(story.id);
-      const result = await writing.completePage({ story, userInput, wordTarget, modelOverride, reasoningEffort });
-      if (
-        stories.nextPageNumber(story.id) !== expectedPage ||
-        stories.previewRevision(story.id) !== contextRevision
-      ) {
-        return paidConflict(
-          res,
-          result,
-          'The story changed while this page was being written, so the stale prose was not saved.',
-          'WRITE_SUPERSEDED'
-        );
-      }
-      const prose = writing.consumeStoryText(result.content);
-      let page = stories.insertGeneratedPage(story.id, {
-        content: prose,
-        userInput,
-        model: result.model,
-        promptTokens: result.usage?.prompt_tokens ?? null,
-        completionTokens: result.usage?.completion_tokens ?? null,
-        costUsd: result.cost_usd,
-        pageNumber: expectedPage,
+      const generation = generationSettings(req.body);
+      if (!validateGenerationSettings(req.body, generation, res)) return;
+      const result = await transactions.directedGenerate({
+        story,
+        key: idempotencyKey(req),
+        writerSessionId: writerSessionId(req),
+        direction,
+        generation,
       });
-      stories.invalidatePreview(story.id);
-      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: result.model });
-      page = synced.page || page;
-      res.status(201).json({ page });
+      res.status(201).json(result);
     } catch (error) {
       next(error);
     }
@@ -181,44 +227,16 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
       const last = pages[pages.length - 1];
       if (last.image_media_type) return badRequest(res, 'The last page is a painted plate and has no prose to regenerate');
 
-      const wordTarget = parseWordTarget(req.body.words);
-      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
-      const contextRevision = stories.previewRevision(story.id);
-      const result = await writing.completePage({
+      const generation = generationSettings(req.body);
+      if (!validateGenerationSettings(req.body, generation, res)) return;
+      const result = await transactions.regenerate({
         story,
-        userInput: last.user_input || 'Continue the story.',
-        wordTarget,
-        modelOverride: modelOverrideOf(req.body.model),
-        reasoningEffort,
-        excludeLast: true,
+        key: idempotencyKey(req),
+        writerSessionId: writerSessionId(req),
+        page: last,
+        generation,
       });
-      const currentPages = stories.storyPages(story.id);
-      const currentLast = currentPages[currentPages.length - 1];
-      if (
-        !currentLast ||
-        currentLast.id !== last.id ||
-        currentLast.content !== last.content ||
-        stories.previewRevision(story.id) !== contextRevision
-      ) {
-        return paidConflict(
-          res,
-          result,
-          'The story changed while this rewrite was being written, so the stale prose was not saved.',
-          'REWRITE_SUPERSEDED'
-        );
-      }
-      const prose = writing.consumeStoryText(result.content);
-
-      let page = stories.replaceGeneratedPage(last.id, {
-        content: prose,
-        model: result.model,
-        promptTokens: result.usage?.prompt_tokens ?? null,
-        completionTokens: result.usage?.completion_tokens ?? null,
-        costUsd: result.cost_usd,
-      });
-      const synced = await continuity.maybeSyncPage(stories.getStory(story.id), page, { model: result.model });
-      page = synced.page || page;
-      res.json({ page });
+      res.json(result);
     } catch (error) {
       next(error);
     }
@@ -231,107 +249,87 @@ function createWritingRouter({ catalog, stories, writing, continuity, ai }) {
   router.get('/api/stories/:id/pages/preview', (req, res) => {
     const story = stories.getStory(req.params.id);
     if (!story) return notFound(res, 'Story not found');
-    const preview = stories.getPreview.get(story.id);
-    if (!preview) return res.json({ preview: null });
-    if (stories.nextPageNumber(story.id) !== preview.expected_page) {
-      stories.invalidatePreview(story.id);
-      return res.json({ preview: null });
-    }
-    res.json({ preview: publicPreview(preview) });
+    res.json({ preview: transactions.prepared(story.id) });
   });
 
   router.post('/api/stories/:id/pages/preview', async (req, res, next) => {
-    let attempt = null;
     try {
       const story = stories.getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
-      const modelOverride = modelOverrideOf(req.body.model);
-      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
-      const wordTarget = parseWordTarget(req.body.words);
-      const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
-      if (req.body.reasoning_effort !== undefined && req.body.reasoning_effort !== null && req.body.reasoning_effort !== '' && !reasoningEffort) {
-        return badRequest(res, '"reasoning_effort" must be one of: none, minimal, low, medium, high, xhigh, max');
-      }
-
-      // Snapshot the page count BEFORE the (slow) generation: a preview that
-      // raced with any context mutation is billed but never written into the
-      // preview slot. This prevents an old reply from overwriting a newer,
-      // valid prepared page in the database.
-      const expectedPage = stories.nextPageNumber(story.id);
-      const contextRevision = stories.previewRevision(story.id);
-      attempt = ++previewAttemptSequence;
-      latestPreviewAttempt.set(story.id, attempt);
-      const result = await writing.completePage({ story, userInput: 'Continue the story.', wordTarget, modelOverride, reasoningEffort });
-      const superseded = latestPreviewAttempt.get(story.id) !== attempt;
-      const contextChanged = stories.previewRevision(story.id) !== contextRevision;
-      const pageMoved = stories.nextPageNumber(story.id) !== expectedPage;
-      if (superseded || contextChanged || pageMoved) {
-        return res.status(409).json({
-          error: 'The prepared page finished after the story moved on, so it was not saved.',
-          code: 'PREVIEW_SUPERSEDED',
-          cost_usd: result.cost_usd ?? null,
-          billed_attempts: Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1,
-        });
-      }
-      stories.upsertPreview.run(
-        story.id,
-        expectedPage,
-        result.content,
-        result.model,
-        result.usage?.prompt_tokens ?? null,
-        result.usage?.completion_tokens ?? null,
-        result.cost_usd
-      );
-      res.json({ preview: publicPreview(stories.getPreview.get(story.id)) });
+      const generation = generationSettings(req.body);
+      if (!validateGenerationSettings(req.body, generation, res)) return;
+      const result = await transactions.prepare({
+        story,
+        key: idempotencyKey(req),
+        writerSessionId: writerSessionId(req),
+        generation,
+      });
+      res.status(result.pending ? 202 : 200).json(result);
     } catch (error) {
       next(error);
-    } finally {
-      if (attempt !== null && latestPreviewAttempt.get(req.params.id) === attempt) {
-        latestPreviewAttempt.delete(req.params.id);
-      }
     }
   });
 
-  router.post('/api/stories/:id/pages/commit-preview', async (req, res, next) => {
+  router.post('/api/stories/:id/pages/commit-preview', (req, res, next) => {
     try {
       const story = stories.getStory(req.params.id);
       if (!story) return notFound(res, 'Story not found');
-      const preview = stories.getPreview.get(story.id);
-      if (!preview) return notFound(res, 'No prepared page for this story. Generate normally.');
-      if (req.body.preview_key !== undefined && typeof req.body.preview_key !== 'string') {
-        return badRequest(res, '"preview_key" must be a string');
-      }
-      const requestedKey = asString(req.body.preview_key);
-      if (requestedKey && requestedKey !== previewKey(preview)) {
-        return res.status(409).json({
-          error: 'A newer prepared page replaced this one. Refresh the writing desk before committing.',
-          code: 'PREVIEW_REPLACED',
-        });
-      }
-      if (stories.nextPageNumber(story.id) !== preview.expected_page) {
-        stories.invalidatePreview(story.id);
-        return res.status(409).json({ error: 'The prepared page has gone stale - the story moved on without it.' });
-      }
-
-      const prose = writing.consumeStoryText(preview.raw_content);
-      const page = stories.insertGeneratedPage(story.id, {
-        content: prose,
-        userInput: null,
-        model: preview.model,
-        promptTokens: preview.prompt_tokens,
-        completionTokens: preview.completion_tokens,
-        costUsd: preview.cost_usd,
-        pageNumber: preview.expected_page,
+      const preparedId = asString(req.body.preview_id || req.body.preview_key);
+      if (!preparedId) return badRequest(res, '"preview_id" is required');
+      const result = transactions.promote({
+        story,
+        key: idempotencyKey(req),
+        writerSessionId: writerSessionId(req),
+        preparedId,
       });
-      stories.invalidatePreview(story.id);
-      const continuityPending = continuity.isAutoEnabled();
-      // The prepared prose is committed before another provider call begins.
-      // Respond immediately, then let the continuity clerk work behind the
-      // reader. A client sync request joins this same in-flight job.
-      res.status(201).json({ page, continuity_pending: continuityPending });
-      if (continuityPending) {
-        void continuity.maybeSyncPage(stories.getStory(story.id), page, { model: preview.model }).catch(() => {});
-      }
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/api/stories/:id/writing-state', (req, res) => {
+    const story = stories.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    res.json({
+      preview: transactions.prepared(story.id),
+      lease: transactions.currentLease(story.id),
+      costs: transactions.costs(story.id),
+    });
+  });
+
+  router.post('/api/stories/:id/writer-lease', (req, res) => {
+    const story = stories.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    res.json({ lease: transactions.acquireLease(story.id, writerSessionId(req)) });
+  });
+
+  router.delete('/api/stories/:id/writer-lease', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      transactions.releaseLease(story.id, writerSessionId(req));
+      res.status(204).end();
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/api/stories/:id/writing-operations/:key', (req, res) => {
+    const story = stories.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const operation = transactions.operation(story.id, req.params.key);
+    if (!operation) return notFound(res, 'Writing operation not found');
+    res.json({ operation });
+  });
+
+  router.delete('/api/stories/:id/writing-operations/:key', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const operation = transactions.cancel(story.id, req.params.key, writerSessionId(req));
+      if (!operation) return notFound(res, 'Writing operation not found');
+      res.json({ operation });
     } catch (error) {
       next(error);
     }

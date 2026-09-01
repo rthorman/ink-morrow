@@ -62,6 +62,209 @@
   gap: 12px;
 }
 
+/* ------------------------------------------------------------------ manuscript start */
+
+.manuscript-start {
+  margin: 0 0 var(--st-space-8);
+  padding: clamp(18px, 3vw, 34px);
+  color: var(--st-ink-900);
+  background: var(--st-vellum-50);
+  border: 1px solid var(--st-gold-500);
+  border-radius: var(--st-radius-lg);
+  box-shadow: var(--st-shadow-raised);
+}
+
+.manuscript-start[hidden],
+.start-path-panel[hidden],
+.foundation-draft[hidden],
+.provider-setup[hidden] {
+  display: none;
+}
+
+.manuscript-start__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--st-space-4);
+}
+
+.manuscript-start h2 {
+  margin-bottom: var(--st-space-2);
+  color: var(--st-oxblood-900);
+  border-color: rgb(90 70 53 / 0.28);
+}
+
+.manuscript-start__intro {
+  max-width: 72ch;
+  margin: 0 0 var(--st-space-4);
+  color: var(--st-ink-700);
+}
+
+.manuscript-start form {
+  display: grid;
+  gap: var(--st-space-3);
+}
+
+.manuscript-start input,
+.manuscript-start textarea,
+.manuscript-start select {
+  color: var(--st-ink-900);
+  background: rgb(255 252 244);
+  border-color: rgb(90 70 53 / 0.48);
+}
+
+.field-optional {
+  font-size: 0.82em;
+  font-weight: 500;
+  color: var(--st-text-muted);
+}
+
+.start-paths {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--st-space-2);
+  margin: var(--st-space-2) 0;
+}
+
+.start-path {
+  min-height: var(--st-touch-min);
+  padding: 10px 12px;
+  color: var(--st-ink-800);
+  background: var(--st-vellum-100);
+  border: 1px solid rgb(90 70 53 / 0.4);
+  border-radius: var(--st-radius-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.start-path.active {
+  color: var(--st-vellum-50);
+  background: var(--st-oxblood-700);
+  border-color: var(--st-oxblood-900);
+}
+
+.start-path-panel {
+  display: grid;
+  gap: var(--st-space-2);
+  padding: var(--st-space-4);
+  background: rgb(237 226 203 / 0.55);
+  border: 1px solid rgb(90 70 53 / 0.28);
+  border-radius: var(--st-radius-md);
+}
+
+.context-hint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  padding: 10px 12px;
+  color: var(--st-ink-800);
+  background: rgb(199 163 91 / 0.2);
+  border-left: 4px solid var(--st-gold-700);
+}
+
+.context-hint p {
+  margin: 0;
+}
+
+.context-hint .btn {
+  flex: 0 0 auto;
+}
+
+.start-foundations {
+  padding: var(--st-space-3);
+  background: rgb(255 252 244 / 0.7);
+  border: 1px solid rgb(90 70 53 / 0.32);
+  border-radius: var(--st-radius-md);
+}
+
+.start-foundations summary {
+  min-height: var(--st-touch-min);
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  color: var(--st-oxblood-900);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.start-foundations summary span {
+  color: var(--st-ash-600);
+  font-size: 0.86em;
+  font-weight: 500;
+}
+
+.start-foundations[open] {
+  display: grid;
+  gap: var(--st-space-2);
+}
+
+.start-cast {
+  margin: 0;
+  padding: var(--st-space-3);
+  border: 1px solid rgb(90 70 53 / 0.32);
+}
+
+.start-cast label {
+  display: flex;
+  align-items: center;
+  gap: var(--st-space-2);
+  min-height: var(--st-touch-min);
+}
+
+.start-cast input {
+  width: auto;
+}
+
+.foundation-draft,
+.provider-setup {
+  display: grid;
+  gap: var(--st-space-2);
+  padding: var(--st-space-3);
+  background: rgb(199 163 91 / 0.16);
+  border: 1px solid var(--st-gold-700);
+  border-radius: var(--st-radius-sm);
+}
+
+.foundation-draft__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--st-space-2);
+  align-items: start;
+  padding-top: var(--st-space-2);
+  border-top: 1px solid rgb(90 70 53 / 0.22);
+}
+
+.foundation-draft__row p {
+  margin: 3px 0 0;
+  white-space: pre-wrap;
+}
+
+.manuscript-start__status {
+  min-height: 1.4em;
+  margin: 0;
+  color: var(--st-ink-700);
+}
+
+@media (max-width: 700px) {
+  .manuscript-start__head {
+    flex-direction: column;
+  }
+
+  .start-paths {
+    grid-template-columns: 1fr;
+  }
+
+  .foundation-draft__row {
+    grid-template-columns: 1fr;
+  }
+
+  .context-hint {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 
 /* ================================================================== */
 /* Responsive art direction                                            */

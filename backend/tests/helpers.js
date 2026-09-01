@@ -9,7 +9,8 @@ const { createApp } = require('../src/app');
  * Tests never touch the real database file.
  */
 function createTestApp(options = {}) {
-  const db = createDb(':memory:');
+  const { dbPath = ':memory:', ...appOptions } = options;
+  const db = createDb(dbPath);
   // Collect logger output instead of spilling stderr; tests that care about
   // expected provider/quality failures assert against these entries.
   const logEntries = [];
@@ -17,15 +18,15 @@ function createTestApp(options = {}) {
     log: (msg) => logEntries.push({ level: 'log', msg }),
     error: (msg) => logEntries.push({ level: 'error', msg }),
   };
-  const authOptions = options.authRequired
+  const authOptions = appOptions.authRequired
     ? {
         setupCode: 'TEST-SETUP-CODE',
         scryptParams: { N: 1024, r: 8, p: 1, maxmem: 8 * 1024 * 1024 },
         delay: async () => {},
-        ...(options.authOptions || {}),
+        ...(appOptions.authOptions || {}),
       }
-    : options.authOptions;
-  const app = createApp(db, { staticDir: null, logger, ...options, authOptions });
+    : appOptions.authOptions;
+  const app = createApp(db, { staticDir: null, logger, ...appOptions, authOptions });
   app.locals.logEntries = logEntries;
   return {
     db,
@@ -41,6 +42,25 @@ function createTestApp(options = {}) {
 /** Clear all rows between tests within a file (keeps schema + open handle). */
 function resetDb(db) {
   db.exec(`
+    DELETE FROM operation_journal;
+    DELETE FROM shares;
+    DELETE FROM publication_snapshots;
+    DELETE FROM asset_placements;
+    DELETE FROM assets;
+    DELETE FROM legacy_art_pages;
+    DELETE FROM recovery_suffixes;
+    DELETE FROM continuity_issues;
+    DELETE FROM continuity_corrections;
+    DELETE FROM continuity_projection_checkpoints;
+    DELETE FROM continuity_search;
+    DELETE FROM continuity_deltas;
+    DELETE FROM template_snapshots;
+    DELETE FROM writing_operations;
+    DELETE FROM prepared_pages;
+    DELETE FROM pages;
+    DELETE FROM page_revisions;
+    DELETE FROM chapters;
+    DELETE FROM volumes;
     DELETE FROM auth_sessions;
     DELETE FROM auth_owner;
     DELETE FROM story_pages;

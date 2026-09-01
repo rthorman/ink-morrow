@@ -70,6 +70,12 @@ chmod +x start.sh
 echo ""
 echo "🎉 Setup complete!"
 echo ""
+if [ -f "database/scribe-tribe.db" ]; then
+    echo "⚠️  ScribeTribe 4.0 will not reinterpret an existing 3.x database."
+    echo "   Set DATA_DIR=../database-v4 in backend/.env for a clean 4.0 store,"
+    echo "   or keep this directory on ScribeTribe 3.2.2. The old file is not changed."
+    echo ""
+fi
 echo "Next steps:"
 echo "  1. Edit backend/.env - set OPENROUTER_API_KEY"
 echo "  2. ./start.sh   (or: cd backend && npm start)"

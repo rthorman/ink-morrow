@@ -84,6 +84,10 @@
 .nav-btn {
   min-height: var(--st-touch-min);
   padding: 10px 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
   font-family: var(--st-font-ui);
   font-size: 1rem;
   font-weight: 500;

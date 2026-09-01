@@ -1,6 +1,32 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 64" aria-hidden="true">
-  <path d="M8 32h235c22 0 34-8 45-22 5 15 15 22 32 22s27-7 32-22c11 14 23 22 45 22h235" fill="none" stroke="#806333" stroke-width="2"/>
-  <path d="m320 9 12 23-12 23-12-23z" fill="#6E1834" stroke="#E0C584" stroke-width="2"/>
-  <circle cx="320" cy="32" r="3" fill="#69D9CB"/>
-  <path d="M248 32c-12-11-25-14-40-9m184 9c12-11 25-14 40-9" fill="none" stroke="#C7A35B" stroke-width="2" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 72" aria-hidden="true">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#806333" stop-opacity="0"/>
+      <stop offset="0.2" stop-color="#A9823F"/>
+      <stop offset="0.72" stop-color="#E0C584"/>
+      <stop offset="1" stop-color="#806333"/>
+    </linearGradient>
+    <filter id="violetGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.2" result="b"/>
+      <feFlood flood-color="#8B5AA3" flood-opacity=".62"/>
+      <feComposite in2="b" operator="in"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <path d="M8 36h202c28 0 46-9 60-27 8 18 22 27 42 27"
+        fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="square"/>
+  <path d="M632 36H430c-28 0-46-9-60-27-8 18-22 27-42 27"
+        fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="square"/>
+  <path d="M80 36c13 0 22-7 27-20 2 12 9 19 21 20-12 1-19 8-21 20-5-13-14-20-27-20Zm480 0c-13 0-22-7-27-20-2 12-9 19-21 20 12 1 19 8 21 20 5-13 14-20 27-20Z"
+        fill="none" stroke="#A268BD" stroke-width="1.8" stroke-linejoin="miter"/>
+  <path d="M174 36h50m-35-10 11 10-11 10M466 36h-50m35-10-11 10 11 10"
+        fill="none" stroke="#C7A35B" stroke-width="1.6" stroke-linecap="square" stroke-linejoin="miter"/>
+
+  <g filter="url(#violetGlow)">
+    <path d="m320 6 17 30-17 30-17-30Z" fill="#5B286E" stroke="#E0C584" stroke-width="2.4"/>
+    <path d="m320 15 9 21-9 21-9-21Z" fill="#8F2949" stroke="#C7A35B" stroke-width="1.5"/>
+    <path d="M320 20v30m-6-13 6 7 6-7" fill="none" stroke="#F0D69A" stroke-width="2.4" stroke-linecap="square" stroke-linejoin="miter"/>
+  </g>
+  <circle cx="320" cy="51" r="2.8" fill="#69D9CB"/>
 </svg>

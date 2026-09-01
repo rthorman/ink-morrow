@@ -297,6 +297,7 @@ describe('Generation and export flows', () => {
 
   it('keeps the reader intact and shows an error when generation fails', async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(500, { error: 'AI on strike' }));
+    document.getElementById('userInput').value = 'Continue despite the danger.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;

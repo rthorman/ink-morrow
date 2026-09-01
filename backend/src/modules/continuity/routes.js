@@ -32,6 +32,78 @@ function createContinuityRouter({ stories, store, continuity }) {
     }
   });
 
+  // Rebuilds only local projections/checkpoints from already validated
+  // revision deltas. It never calls a provider or changes manuscript prose.
+  router.post('/api/stories/:id/continuity/rebuild', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const rebuilt = store.rebuild(story.id);
+      res.json({ rebuilt, continuity: continuity.view(story) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.get('/api/stories/:id/continuity/templates', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      res.json({ templates: store.templateReview(story) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/api/stories/:id/continuity/templates/:kind/:sourceId/import', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const fields = req.body?.fields;
+      const snapshot = store.importTemplateFields(story, req.params.kind, req.params.sourceId, fields);
+      stories.invalidatePreview(story.id);
+      res.status(201).json({ snapshot, continuity: continuity.view(stories.getStory(story.id)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/api/stories/:id/continuity/corrections', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const result = store.createCorrection(story, req.body);
+      stories.invalidatePreview(story.id);
+      res.status(201).json(result);
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.patch('/api/stories/:id/continuity/issues/:issueId', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const issue = store.setIssueStatus(story.id, req.params.issueId, req.body?.status);
+      if (!issue) return notFound(res, 'Continuity issue not found');
+      res.json({ issue });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/api/stories/:id/continuity/issues/summary', async (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const model = modelOverrideOf(req.body?.model);
+      if (req.body?.model !== undefined && !model) return badRequest(res, '"model" must be a non-empty string');
+      res.json(await continuity.summarizeImpact(story, req.body?.issue_ids, { model }));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // Clears only derived records. Manuscript pages, cast snapshots, explicit
   // corrections, and the honest historical cost ledger remain untouched.
   router.delete('/api/stories/:id/continuity', (req, res) => {

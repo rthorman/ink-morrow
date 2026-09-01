@@ -32,9 +32,42 @@ export async function csrfToken(page) {
   });
 }
 
-export async function apiPost(page, path, data) {
-  return page.request.post(path, {
-    data,
-    headers: { 'X-ScribeTribe-CSRF': await csrfToken(page) },
+async function writerSessionId(page) {
+  return page.evaluate(() => {
+    const key = 'st-writer-session-v1';
+    let value = window.sessionStorage.getItem(key);
+    if (!value) {
+      value = `writer:${globalThis.crypto.randomUUID()}`;
+      window.sessionStorage.setItem(key, value);
+    }
+    return value;
   });
+}
+
+export async function apiPost(page, path, data) {
+  const response = await page.request.post(path, {
+    data,
+    headers: {
+      'X-ScribeTribe-CSRF': await csrfToken(page),
+      'X-ScribeTribe-Writer-Session': await writerSessionId(page),
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`POST ${path} failed (${response.status()}): ${await response.text()}`);
+  }
+  return response;
+}
+
+export async function apiPut(page, path, data) {
+  const response = await page.request.put(path, {
+    data,
+    headers: {
+      'X-ScribeTribe-CSRF': await csrfToken(page),
+      'X-ScribeTribe-Writer-Session': await writerSessionId(page),
+    },
+  });
+  if (!response.ok()) {
+    throw new Error(`PUT ${path} failed (${response.status()}): ${await response.text()}`);
+  }
+  return response;
 }

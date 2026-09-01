@@ -2,24 +2,28 @@
 // and drive history. The Express server never sees these - everything after
 // # stays in the browser.
 //
-// Routes:
-//   #/home
-//   #/write
-//   #/write/:storyId
-//   #/write/:storyId/page/:pageNumber
+// Canonical routes:
+//   #/library
+//   #/desk[/<storyId>[/page/<pageNumber>]]
+//   #/(chronicle|codex|gallery|gate)/<storyId>
 //   #/library/stories
 //   #/library/bookshelf
 //   #/worlds
 //   #/characters
 //   #/settings
 //
-// An unknown hash recovers to #/home with a message.
+// #/home and #/write remain resolving aliases during the 4.0 transition; they
+// do not create duplicate destinations. Unknown hashes recover to Library.
 
 const ROUTES = [
-  { name: 'home', pattern: /^\/home$/ },
-  { name: 'write', pattern: /^\/write$/ },
-  { name: 'write-story', pattern: /^\/write\/([^/]+)$/ },
-  { name: 'write-page', pattern: /^\/write\/([^/]+)\/page\/(\d+)$/ },
+  { name: 'home', pattern: /^\/(?:library|home)$/ },
+  { name: 'desk', pattern: /^\/(?:desk|write)$/ },
+  { name: 'desk-story', pattern: /^\/(?:desk|write)\/([^/]+)$/ },
+  { name: 'desk-page', pattern: /^\/(?:desk|write)\/([^/]+)\/page\/(\d+)$/ },
+  { name: 'chronicle-story', pattern: /^\/chronicle\/([^/]+)$/ },
+  { name: 'codex-story', pattern: /^\/codex\/([^/]+)$/ },
+  { name: 'gallery-story', pattern: /^\/gallery\/([^/]+)$/ },
+  { name: 'gate-story', pattern: /^\/gate\/([^/]+)$/ },
   { name: 'library-stories', pattern: /^\/library\/stories$/ },
   { name: 'library-bookshelf', pattern: /^\/library\/bookshelf$/ },
   { name: 'worlds', pattern: /^\/worlds$/ },
@@ -33,8 +37,11 @@ export function parseHash(hash) {
   for (const route of ROUTES) {
     const match = path.match(route.pattern);
     if (match) {
-      if (route.name === 'write-story') return { name: 'write', params: { storyId: match[1] } };
-      if (route.name === 'write-page') return { name: 'write', params: { storyId: match[1], pageNumber: Number(match[2]) } };
+      if (route.name === 'desk-story') return { name: 'desk', params: { storyId: match[1] } };
+      if (route.name === 'desk-page') return { name: 'desk', params: { storyId: match[1], pageNumber: Number(match[2]) } };
+      if (route.name.endsWith('-story')) {
+        return { name: route.name.slice(0, -6), params: { storyId: match[1] } };
+      }
       return { name: route.name, params: {} };
     }
   }
@@ -43,17 +50,23 @@ export function parseHash(hash) {
 
 export function formatHash(name, params = {}) {
   switch (name) {
-    case 'home': return '#/home';
-    case 'write':
-      if (params.storyId && params.pageNumber) return `#/write/${params.storyId}/page/${params.pageNumber}`;
-      if (params.storyId) return `#/write/${params.storyId}`;
-      return '#/write';
+    case 'home': return '#/library';
+    case 'write': // compatibility for pre-PR09 callers
+    case 'desk':
+      if (params.storyId && params.pageNumber) return `#/desk/${params.storyId}/page/${params.pageNumber}`;
+      if (params.storyId) return `#/desk/${params.storyId}`;
+      return '#/desk';
+    case 'chronicle':
+    case 'codex':
+    case 'gallery':
+    case 'gate':
+      return params.storyId ? `#/${name}/${params.storyId}` : '#/desk';
     case 'library-stories': return '#/library/stories';
     case 'library-bookshelf': return '#/library/bookshelf';
     case 'worlds': return '#/worlds';
     case 'characters': return '#/characters';
     case 'settings': return '#/settings';
-    default: return '#/home';
+    default: return '#/library';
   }
 }
 
@@ -111,7 +124,7 @@ export function createRouter({ onRoute, onUnknown, isAlive }) {
 
   function start() {
     window.addEventListener('hashchange', dispatch);
-    if (!window.location.hash) window.location.hash = '#/home';
+    if (!window.location.hash) window.location.hash = '#/library';
     dispatch();
   }
 

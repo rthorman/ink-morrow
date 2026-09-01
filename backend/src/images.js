@@ -3,6 +3,7 @@
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
+const { adapterForImageModel, boundedText } = require('./modules/imagery/provider-adapters');
 
 // Grok Imagine Image 2.0 via OpenRouter's dedicated Image API. Billing is
 // all-or-nothing upstream: a failed generation throws and is never charged.
@@ -22,40 +23,58 @@ function imageConfig() {
  * Resolves with { buffer, mediaType, cost }.
  */
 // Turns an axios failure into an Error carrying the upstream status and,
-// when the provider explained itself, the real reason. 4xx pass through
-// (a moderation refusal is a 400 the caller may want to retry around).
-function imageError(error) {
+// when the provider explained itself, a bounded reason. Adapter metadata
+// decides whether a client error is a provider-specific refusal contract.
+function imageError(error, cfg = {}) {
   const status = error.response?.status;
   const data = error.response?.data;
   let message = null;
-  const providerRefusal = Number.isFinite(status) && status >= 400 && status < 500;
-  if (providerRefusal && data !== undefined && data !== null) {
+  const providerClientError = Number.isFinite(status) && status >= 400 && status < 500;
+  if (providerClientError && data !== undefined && data !== null) {
     try {
       const parsed = typeof data === 'string' || Buffer.isBuffer(data) ? JSON.parse(data.toString()) : data;
       message = parsed?.error?.message || (typeof parsed?.error === 'string' ? parsed.error : null);
     } catch {
-      message = String(data).slice(0, 200);
+      message = String(data);
     }
   }
-  const err = new Error(
-    message
-      ? `The image model refused this request: ${message}`
-      : providerRefusal
-        ? `The image provider rejected this request (${status}).`
-        : 'The image provider failed before returning a usable result.'
-  );
-  err.statusCode = providerRefusal ? status : 502;
+  message = boundedText(message);
+  const adapter = adapterForImageModel(cfg.model);
+  const providerRefusal = adapter.detectsRefusal({ status, reason: message });
+  const providerName = boundedText(cfg.profileName, 100) || 'The image provider';
+  let publicMessage = 'The image provider failed before returning a usable result.';
+  if (providerRefusal) {
+    publicMessage = `${adapter.displayName} refused this request${message ? `: ${message}` : '.'}`;
+  } else if (message) {
+    publicMessage = `${providerName} rejected the image request: ${message}`;
+  } else if (providerClientError) {
+    publicMessage = `${providerName} rejected the image request (${status}).`;
+  }
+  const err = new Error(publicMessage);
+  err.statusCode = providerClientError ? status : 502;
+  err.code = providerRefusal ? 'IMAGE_PROVIDER_REFUSAL' : providerClientError ? 'IMAGE_PROVIDER_REJECTED' : 'IMAGE_PROVIDER_FAILED';
+  err.imageProvider = {
+    adapter: adapter.id,
+    model: String(cfg.model || ''),
+    profileId: cfg.profileId || null,
+    profileName: providerName,
+    refusal: providerRefusal,
+    reason: message || null,
+  };
   return err;
 }
 
-async function generateImage({
+async function generateImage(input) {
+  return generateImageWithConfig(imageConfig(), input);
+}
+
+async function generateImageWithConfig(cfg, {
   prompt,
   aspectRatio = '3:4',
   resolution = '1K',
   quality = 'low',
   inputReferences = [],
 }) {
-  const cfg = imageConfig();
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key is not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -82,7 +101,7 @@ async function generateImage({
       }
     );
   } catch (error) {
-    throw imageError(error);
+    throw imageError(error, cfg);
   }
   const image = response.data?.data?.[0];
   if (!image?.b64_json) {
@@ -94,6 +113,40 @@ async function generateImage({
     buffer: Buffer.from(image.b64_json, 'base64'),
     mediaType: image.media_type || 'image/png',
     cost: typeof response.data?.usage?.cost === 'number' ? response.data.usage.cost : null,
+  };
+}
+
+function createImageClient({ providers }) {
+  function resolvedConfig() {
+    return providers.resolve('scribe', {
+      capability: 'image',
+      model: process.env.IMAGE_MODEL || 'x-ai/grok-imagine-image-2.0',
+    });
+  }
+
+  return {
+    generateImage: async (input) => {
+      const cfg = resolvedConfig();
+      try { return await generateImageWithConfig(cfg, input); }
+      catch (error) {
+        error.message = providers.redact(error.message || 'Image provider request failed.');
+        if (error.imageProvider?.reason) {
+          error.imageProvider.reason = boundedText(providers.redact(error.imageProvider.reason));
+        }
+        throw error;
+      }
+    },
+    describeImageProvider() {
+      const cfg = resolvedConfig();
+      const adapter = adapterForImageModel(cfg.model);
+      return {
+        adapter: adapter.id,
+        model: cfg.model,
+        profile_id: cfg.profileId,
+        profile_name: cfg.profileName,
+        renderable_prompt_instruction: adapter.renderablePromptInstruction,
+      };
+    },
   };
 }
 
@@ -198,4 +251,4 @@ function createImageStore(rootDir) {
   };
 }
 
-module.exports = { generateImage, createImageStore, imageConfig, extFor };
+module.exports = { generateImage, createImageClient, createImageStore, imageConfig, extFor };

@@ -86,6 +86,7 @@ function createAuthService({
   const attempts = new Map();
   let lastCleanup = 0;
   let lastAttemptCleanup = 0;
+  let vaultLifecycle = null;
 
   const ownerRow = () => db.prepare('SELECT * FROM auth_owner WHERE id = 1').get();
   const ownerExists = () => Boolean(ownerRow());
@@ -128,6 +129,19 @@ function createAuthService({
     });
     const expected = Buffer.from(owner.password_hash, 'base64');
     return actual.length === expected.length && timingSafeEqual(actual, expected);
+  }
+
+  async function verifyPassword(password) {
+    const owner = ownerRow();
+    return Boolean(owner && await passwordMatches(password, owner));
+  }
+
+  function vaultStatus() {
+    return vaultLifecycle?.status ? vaultLifecycle.status() : undefined;
+  }
+
+  function attachVaultLifecycle(lifecycle) {
+    vaultLifecycle = lifecycle || null;
   }
 
   function attemptKey(req, action) {
@@ -179,6 +193,9 @@ function createAuthService({
     lastCleanup = timestamp;
     db.prepare('DELETE FROM auth_sessions WHERE absolute_expires_at <= ? OR last_seen_at + idle_timeout_ms <= ?')
       .run(timestamp, timestamp);
+    if (vaultLifecycle?.lockAll && db.prepare('SELECT COUNT(*) AS count FROM auth_sessions').get().count === 0) {
+      vaultLifecycle.lockAll();
+    }
   }
 
   function sessionFromRequest(req, { touch = true } = {}) {
@@ -212,7 +229,7 @@ function createAuthService({
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(sha256(token), csrfToken, timestamp, timestamp, absoluteExpires, idleTimeout);
     res.setHeader('Set-Cookie', sessionCookie(token, { remember, secure: req.secure }));
-    return { state: 'unlocked', csrf_token: csrfToken, expires_at: absoluteExpires };
+    return { state: 'unlocked', csrf_token: csrfToken, expires_at: absoluteExpires, vault: vaultStatus() };
   }
 
   function status(req) {
@@ -220,7 +237,7 @@ function createAuthService({
     if (!ownerExists()) return { state: 'setup-required' };
     const session = sessionFromRequest(req);
     if (!session) return { state: 'locked' };
-    return { state: 'unlocked', csrf_token: session.csrf_token, expires_at: session.absolute_expires_at };
+    return { state: 'unlocked', csrf_token: session.csrf_token, expires_at: session.absolute_expires_at, vault: vaultStatus() };
   }
 
   async function setup(req, res, { code, password, remember = true }) {
@@ -278,6 +295,13 @@ function createAuthService({
       throw error;
     }
     clearAttempts(attempt);
+    if (vaultLifecycle?.unlockIfPresent) {
+      try {
+        await vaultLifecycle.unlockIfPresent(password);
+      } catch {
+        logger.error('The provider vault could not be unlocked after login; saved credentials remain unavailable.');
+      }
+    }
     return createSession(req, res, Boolean(remember));
   }
 
@@ -325,6 +349,7 @@ function createAuthService({
 
   function logout(req, res) {
     if (req.authSession) deleteSession.run(req.authSession.tokenHash);
+    vaultLifecycle?.lockAll?.();
     res.setHeader('Set-Cookie', clearCookie(req.secure));
     return { state: ownerExists() ? 'locked' : 'setup-required' };
   }
@@ -346,6 +371,9 @@ function createAuthService({
       throw error;
     }
     const record = await makePasswordRecord(normalizePassword(newPassword));
+    const preparedVault = vaultLifecycle?.prepareRewrap
+      ? await vaultLifecycle.prepareRewrap(currentPassword, normalizePassword(newPassword))
+      : null;
     const timestamp = now();
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -354,6 +382,7 @@ function createAuthService({
            SET password_hash = ?, password_salt = ?, scrypt_n = ?, scrypt_r = ?, scrypt_p = ?, updated_at = ?
          WHERE id = 1
       `).run(record.hash, record.salt, record.N, record.r, record.p, timestamp);
+      vaultLifecycle?.applyRewrap?.(preparedVault);
       db.prepare('DELETE FROM auth_sessions').run();
       db.exec('COMMIT');
     } catch (error) {
@@ -377,6 +406,8 @@ function createAuthService({
     requireSameOrigin,
     requireCsrf,
     sessionFromRequest,
+    verifyPassword,
+    attachVaultLifecycle,
   };
 }
 
@@ -384,6 +415,18 @@ function resetAuthentication(db) {
   db.exec('BEGIN IMMEDIATE');
   try {
     db.prepare('DELETE FROM auth_sessions').run();
+    const hasProviderVault = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'provider_vault'").get();
+    if (hasProviderVault) {
+      db.prepare('DELETE FROM provider_secrets').run();
+      db.prepare('DELETE FROM provider_vault').run();
+      db.prepare(`
+        UPDATE provider_profiles
+           SET credential_source = CASE WHEN builtin = 1 THEN 'environment' ELSE 'none' END,
+               environment_key = CASE WHEN builtin = 1 THEN 'OPENROUTER_API_KEY' ELSE NULL END,
+               secret_ref = NULL,
+               updated_at = CURRENT_TIMESTAMP
+      `).run();
+    }
     db.prepare('DELETE FROM auth_owner').run();
     db.exec('COMMIT');
   } catch (error) {

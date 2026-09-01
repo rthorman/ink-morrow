@@ -66,7 +66,7 @@ async function main() {
 
     // Establish the owner session before any protected seed API is called.
     const setupPage = await context.newPage();
-    await setupPage.goto(`${BASE}/#/home`);
+    await setupPage.goto(`${BASE}/#/library`);
     await setupPage.waitForSelector('#authSetupForm');
     await setupPage.fill('#authSetupCode', SETUP_CODE);
     await setupPage.fill('#authNewPassword', PASSWORD);
@@ -105,10 +105,10 @@ async function main() {
     const outDir = path.join('..', 'docs', 'screenshots');
     fs.mkdirSync(outDir, { recursive: true });
     const shots = [
-      { name: 'home-desktop', url: `${BASE}/#/home`, viewport: { width: 1440, height: 900 } },
-      { name: 'write-desktop', url: `${BASE}/#/write/${story.id}`, viewport: { width: 1440, height: 900 } },
-      { name: 'home-tablet-portrait', url: `${BASE}/#/home`, viewport: { width: 768, height: 1366 } },
-      { name: 'write-tablet-portrait', url: `${BASE}/#/write/${story.id}`, viewport: { width: 768, height: 1366 } },
+      { name: 'home-desktop', url: `${BASE}/#/library`, viewport: { width: 1440, height: 900 } },
+      { name: 'write-desktop', url: `${BASE}/#/desk/${story.id}`, viewport: { width: 1440, height: 900 } },
+      { name: 'home-tablet-portrait', url: `${BASE}/#/library`, viewport: { width: 768, height: 1366 } },
+      { name: 'write-tablet-portrait', url: `${BASE}/#/desk/${story.id}`, viewport: { width: 768, height: 1366 } },
       { name: 'library-desktop', url: `${BASE}/#/library/stories`, viewport: { width: 1440, height: 900 } },
       { name: 'worlds-desktop', url: `${BASE}/#/worlds`, viewport: { width: 1440, height: 900 } },
     ];

@@ -5,8 +5,8 @@ import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.j
 const STORY_STATE = {
   currentStory: { id: 's1', title: 'T', tone: 'explicit', page_count: 2, total_cost_usd: 0 },
   storyPages: [
-    { page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
-    { page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
+    { id: 'p1', page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
+    { id: 'p2', page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
   ],
   currentPage: 2,
 };
@@ -70,6 +70,15 @@ describe('Scene image prompt button', () => {
     await new Promise((r) => setTimeout(r, 0));
     const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-prompt') && options.method === 'POST');
     expect(JSON.parse(call[1].body)).toEqual({});
+  });
+
+  it('uses the loaded stable page when catalogue page_count is briefly stale', async () => {
+    fw.__setStoryState({ currentStory: { ...STORY_STATE.currentStory, page_count: 0 } });
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    const call = fetch.mock.calls.find(([url, options]) => String(url).includes('/image-prompt') && options.method === 'POST');
+    expect(String(call[0])).toContain('/stories/s1/pages/2/image-prompt');
   });
 
   it('cancel closes the popup, Escape too; backdrop click as well', async () => {
@@ -238,7 +247,10 @@ describe('Scene image prompt button', () => {
             refused: true,
             reason: 'nudity not allowed',
             sanitized_prompt: 'A fully clothed, safely composed take on the scene.',
+            sanitation_cost_usd: 0.002,
             rewrite_cost_usd: 0.002,
+            references_sent: 2,
+            can_drop_references: true,
           })
         );
       }
@@ -255,8 +267,10 @@ describe('Scene image prompt button', () => {
 
     // Rewritten prompt back in the box, announced loudly, viewer stays shut
     expect(document.getElementById('imagePromptText').value).toBe('A fully clothed, safely composed take on the scene.');
-    expect(document.querySelector('.success-message').textContent).toContain('rewrote it');
-    expect(document.querySelector('.success-message').textContent).toContain('Generate image again');
+    expect(document.querySelector('.success-message').textContent).toContain('no image retry occurred');
+    expect(document.getElementById('imageRefusalNotice').hidden).toBe(false);
+    expect(document.getElementById('imageRefusalNotice').textContent).toContain('sanitation call cost $0.0020');
+    expect(document.getElementById('imageRefusalNotice').textContent).toContain('Nothing was painted');
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
     // The rewrite LLM billed: session + story ticked
     expect(fw.state().costs.session).toBeCloseTo(0.002);
@@ -265,7 +279,7 @@ describe('Scene image prompt button', () => {
     expect(document.getElementById('sceneImageCost').hidden).toBe(true);
   });
 
-  it('a second refusal escalates: the next press drops the cast portraits', async () => {
+  it('a second refusal offers an explicit reference-free retry', async () => {
     let n = 0;
     fetch.mockImplementation((url, options) => {
       if (String(url).includes('/scene-image')) {
@@ -276,6 +290,9 @@ describe('Scene image prompt button', () => {
             reason: 'still not passing',
             sanitized_prompt: `Hardened attempt ${n}.`,
             rewrite_cost_usd: 0,
+            sanitation_cost_usd: 0,
+            references_sent: 2,
+            can_drop_references: true,
           }));
         }
         return Promise.resolve(jsonResponse(200, {
@@ -305,9 +322,15 @@ describe('Scene image prompt button', () => {
     document.getElementById('imagePromptGenerateBtn').click();
     expect(await paidReview('confirm')).toBe(true);
     await new Promise((r) => setTimeout(r, 0));
-    // Second refusal in a row: the portraits are suspected
+    // A second refusal while references were attached offers a truthful,
+    // explicit reference-free path; it never silently changes the next send.
+    expect(fw.__sceneModerationState().dropReferences).toBe(false);
+    expect(fw.__sceneModerationState().referenceDropOffered).toBe(true);
+    expect(document.getElementById('imageReferenceDropOption').hidden).toBe(false);
+    expect(lastNotice()).toContain('references were attached');
+
+    document.getElementById('imagePromptDropReferences').click();
     expect(fw.__sceneModerationState().dropReferences).toBe(true);
-    expect(lastNotice()).toContain('portraits');
 
     document.getElementById('imagePromptGenerateBtn').click();
     expect(await paidReview('confirm')).toBe(true);
@@ -320,7 +343,68 @@ describe('Scene image prompt button', () => {
     expect(fw.state().costs.session).toBeCloseTo(0.04);
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(false);
     // Success clears the escalation
-    expect(fw.__sceneModerationState()).toEqual({ refusals: 0, dropReferences: false });
+    expect(fw.__sceneModerationState()).toEqual({
+      refusals: 0,
+      dropReferences: false,
+      referenceDropOffered: false,
+      storyId: 's1',
+    });
+  });
+
+  it('resets refusal state when the selected references or story changes', async () => {
+    fetch.mockImplementation((url) => {
+      if (String(url).includes('/scene-image')) {
+        return Promise.resolve(jsonResponse(200, {
+          refused: true,
+          reason: 'reference composition refused',
+          sanitized_prompt: 'A safely framed replacement prompt with recognizable silhouettes.',
+          sanitation_cost_usd: 0,
+          references_sent: 2,
+          can_drop_references: true,
+        }));
+      }
+      if (String(url).includes('/image-prompt')) return Promise.resolve(imagePromptResponse());
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    fw.state().characters.push({
+      id: 'c1', name: 'Mara', image_status: 'ready', image_updated_at: 'portrait-v1',
+    });
+    fw.__setStoryState({
+      currentStory: {
+        ...STORY_STATE.currentStory,
+        characters: [{ id: 'c1', role: 'mc' }],
+      },
+    });
+
+    document.getElementById('imagePromptBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fw.__sceneModerationState().refusals).toBe(1);
+
+    // A newly painted version of a selected cast reference starts a fresh
+    // refusal context automatically; this response is refusal one, not two.
+    fw.state().characters[0].image_updated_at = 'portrait-v2';
+    document.getElementById('imagePromptGenerateBtn').click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fw.__sceneModerationState().refusals).toBe(1);
+    expect(fw.__sceneModerationState().referenceDropOffered).toBe(false);
+
+    fw.__setStoryState({
+      currentStory: { id: 's2', title: 'Another tale', tone: 'romantic', page_count: 1, total_cost_usd: 0 },
+      storyPages: [{ id: 's2p1', page_number: 1, content: 'Another scene.', user_input: null, cost_usd: 0 }],
+      currentPage: 1,
+    });
+    expect(fw.__sceneModerationState()).toEqual({
+      refusals: 0,
+      dropReferences: false,
+      referenceDropOffered: false,
+      storyId: 's2',
+    });
+    expect(document.getElementById('imageRefusalNotice').hidden).toBe(true);
   });
 
   it('canceling the paint review keeps the prompt box and sends nothing', async () => {
@@ -488,15 +572,13 @@ describe('Scene viewer zoom & pan', () => {
   });
 });
 
-describe('Add as page: binding a painting into the story', () => {
-  const PLATE_PAGE = {
-    page_number: 3,
-    content: '',
-    user_input: null,
-    cost_usd: 0.06,
-    image_media_type: 'image/png',
-    image_prompt: 'A frozen gothic hall, wide shot.',
+describe('Place generated art after prose', () => {
+  const ART_ASSET = {
+    id: 'a1', story_id: 's1', source: 'ai-generated', status: 'ready',
+    content_url: '/api/stories/s1/assets/a1/content',
+    title: 'Scene illustration', alt_text: 'A frozen gothic hall, wide shot.',
   };
+  const PLACEMENT = { id: 'pl1', story_id: 's1', asset_id: 'a1', after_page_id: 'p2', ordinal: 1 };
 
   function paintedFetch(imagePageResponse) {
     return (url, options) => {
@@ -514,13 +596,15 @@ describe('Add as page: binding a painting into the story', () => {
       if (String(url).includes('/image-page') && options.method === 'POST') {
         return Promise.resolve(imagePageResponse);
       }
+      if (String(url).endsWith('/assets') && (!options || options.method === 'GET')) {
+        return Promise.resolve(jsonResponse(200, { assets: [ART_ASSET], placements: [PLACEMENT] }));
+      }
       if (String(url).endsWith('/pages') && (!options || options.method === 'GET')) {
         return Promise.resolve(
           jsonResponse(200, {
             pages: [
-              { page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
-              { page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
-              PLATE_PAGE,
+              { id: 'p1', page_number: 1, content: 'The hall was cold.', user_input: null, cost_usd: 0 },
+              { id: 'p2', page_number: 2, content: 'She lit the candle.', user_input: null, cost_usd: 0 },
             ],
           })
         );
@@ -550,8 +634,8 @@ describe('Add as page: binding a painting into the story', () => {
     fw.displayCurrentPage();
   });
 
-  it('binds the painting after the current page, closes both modals, and turns to the plate', async () => {
-    fetch.mockImplementation(paintedFetch(jsonResponse(201, { page: PLATE_PAGE })));
+  it('places the painting after the current page without changing narrative state', async () => {
+    fetch.mockImplementation(paintedFetch(jsonResponse(201, { asset: ART_ASSET, placement: PLACEMENT })));
 
     await paintAndOpenViewer(fw);
     document.getElementById('sceneViewerAddPageBtn').click();
@@ -567,16 +651,16 @@ describe('Add as page: binding a painting into the story', () => {
       cost_usd: 0.06,
     });
 
-    // Both modals close, the reader turns to the fresh plate
+    // Both modals close; the same prose page stays current and gains its art.
     expect(document.getElementById('sceneImageViewerModal').hidden).toBe(true);
     expect(document.getElementById('imagePromptModal').hidden).toBe(true);
-    expect(fw.state().currentPage).toBe(3);
-    expect(fw.state().storyPages).toHaveLength(3);
+    expect(fw.state().currentPage).toBe(2);
+    expect(fw.state().storyPages).toHaveLength(2);
     const plate = document.querySelector('.scene-plate');
     expect(plate).toBeTruthy();
-    expect(plate.getAttribute('src')).toBe('/api/stories/s1/pages/3/image');
+    expect(plate.getAttribute('src')).toBe('/api/stories/s1/assets/a1/content');
     expect(plate.getAttribute('alt')).toBe('A frozen gothic hall, wide shot.');
-    expect(document.querySelector('.success-message').textContent).toContain('page 3');
+    expect(document.querySelector('.success-message').textContent).toContain('Page numbering is unchanged');
     // The paint was billed once at painting time; binding adds nothing
     expect(fw.state().costs.session).toBeCloseTo(0.06);
     expect(fw.state().costs.story).toBeCloseTo(0.06);
@@ -601,31 +685,28 @@ describe('Add as page: binding a painting into the story', () => {
     expect(floating.classList.contains('message--floating')).toBe(true);
     const btn = document.getElementById('sceneViewerAddPageBtn');
     expect(btn.disabled).toBe(false);
-    expect(btn.textContent).toBe('Add as page');
+    expect(btn.textContent).toBe('Place after page');
   });
 
-  it('an image page renders as a plate and silences the text tools on it', async () => {
+  it('placed art renders after prose while text tools remain available', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 3, total_cost_usd: 0.06 },
       storyPages: [
-        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
-        { ...PLATE_PAGE, page_number: 2 },
-        { page_number: 3, content: 'More prose.', user_input: null, cost_usd: 0 },
+        { id: 'p1', page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { id: 'p2', page_number: 2, content: 'More prose.', user_input: null, cost_usd: 0 },
       ],
+      storyAssets: { assets: [ART_ASSET], placements: [PLACEMENT] },
       currentPage: 2,
     });
     fw.displayCurrentPage();
 
-    // The plate replaces prose; the direction note shows for image pages only
-    // when they carry a direction (a plate never does).
     expect(document.querySelector('.scene-plate')).toBeTruthy();
-    expect(document.querySelector('#storyContent p')).toBeNull();
-    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 3');
+    expect(document.querySelector('#storyContent p').textContent).toBe('More prose.');
+    expect(document.getElementById('pageIndicator').textContent).toBe('Page 2 of 2');
 
-    // No text to narrate or condense on a plate
-    expect(document.getElementById('readAloudBtn').disabled).toBe(true);
-    expect(document.getElementById('narrationAutoBtn').disabled).toBe(true);
-    expect(document.getElementById('imagePromptBtn').disabled).toBe(true);
+    expect(document.getElementById('readAloudBtn').disabled).toBe(false);
+    expect(document.getElementById('narrationAutoBtn').disabled).toBe(false);
+    expect(document.getElementById('imagePromptBtn').disabled).toBe(false);
 
     // An earlier text page wakes everything back up
     fw.navigatePage(-1);
@@ -634,17 +715,57 @@ describe('Add as page: binding a painting into the story', () => {
     expect(document.querySelector('.scene-plate')).toBeNull();
   });
 
-  it('a plate as the last page cannot be retried, but writing continues after it', async () => {
+  it('placed art does not prevent retrying the final prose page', async () => {
     fw.__setStoryState({
       currentStory: { id: 's1', title: 'T', tone: 'romantic', page_count: 2, total_cost_usd: 0.06 },
       storyPages: [
-        { page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
-        { ...PLATE_PAGE, page_number: 2 },
+        { id: 'p1', page_number: 1, content: 'Prose.', user_input: null, cost_usd: 0 },
+        { id: 'p2', page_number: 2, content: 'More prose.', user_input: null, cost_usd: 0 },
       ],
+      storyAssets: { assets: [ART_ASSET], placements: [PLACEMENT] },
       currentPage: 2,
     });
     fw.displayCurrentPage();
-    expect(document.getElementById('retryBtn').disabled).toBe(true); // no prose to rewrite
+    expect(document.getElementById('retryBtn').disabled).toBe(false);
     expect(document.getElementById('userInput').disabled).toBe(false); // the tale continues
+  });
+});
+
+describe('Local art upload', () => {
+  it('uploads multipart data with zero provider permission and preserves prose state', async () => {
+    mockFetch();
+    const asset = {
+      id: 'upload-a1', story_id: 's1', source: 'uploaded', status: 'ready',
+      content_url: '/api/stories/s1/assets/upload-a1/content',
+      title: null, alt_text: null, provider_reference_allowed: false,
+    };
+    const placement = {
+      id: 'upload-p1', story_id: 's1', asset_id: asset.id,
+      after_page_id: 'p2', ordinal: 1,
+    };
+    fetch.mockImplementation((url, options = {}) => {
+      if (String(url).endsWith('/assets/upload') && options.method === 'POST') {
+        return Promise.resolve(jsonResponse(201, { asset, placement }));
+      }
+      if (String(url).endsWith('/assets')) {
+        return Promise.resolve(jsonResponse(200, { assets: [asset], placements: [placement] }));
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    const fw = await loadScript();
+    fw.__setStoryState(STORY_STATE);
+    fw.displayCurrentPage();
+
+    await fw.uploadArt(new File(['safe raster bytes'], 'private-subject.png', { type: 'image/png' }));
+
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/assets/upload'));
+    expect(call[1].body).toBeInstanceOf(FormData);
+    expect(call[1].body.get('after_page_id')).toBe('p2');
+    expect(call[1].body.get('provider_reference_allowed')).toBe('false');
+    expect(call[1].body.get('image').name).toBe('private-subject.png');
+    expect(fw.state().currentPage).toBe(2);
+    expect(fw.state().storyPages).toHaveLength(2);
+    expect(document.querySelector('.scene-plate').getAttribute('src')).toBe(asset.content_url);
+    expect(document.querySelector('.success-message').textContent).toContain('Art placed after page 2');
   });
 });

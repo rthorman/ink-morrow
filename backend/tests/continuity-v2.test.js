@@ -1,0 +1,264 @@
+'use strict';
+
+jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
+const axios = require('axios');
+const request = require('supertest');
+const { randomUUID } = require('node:crypto');
+const { createTestApp, resetDb, createWorld, createCharacter, createStory, addPage } = require('./helpers');
+const {
+  createContinuityStore,
+  validateContinuityDeltaV2,
+  ContinuitySchemaError,
+} = require('../src/modules/continuity/store');
+const { verifyEvidenceQuotes } = require('../src/modules/continuity/service');
+const { resetModelCache } = require('../src/ai');
+
+let app, db, close;
+
+function reply(content) {
+  return { data: { choices: [{ message: { content } }] } };
+}
+
+function v2Delta(overrides = {}) {
+  return {
+    schema_version: 2,
+    summary: 'A canonical revision changed the story.',
+    events: [],
+    character_updates: [],
+    goal_updates: [],
+    thread_updates: [],
+    world_fact_updates: [],
+    arc_updates: [],
+    ...overrides,
+  };
+}
+
+function at(characterId, location, quote) {
+  return v2Delta({
+    summary: `${location} is now canonical.`,
+    events: [{
+      id: null,
+      text: `${characterId} reaches ${location}.`,
+      character_ids: [characterId],
+      importance: 'major',
+      type: 'transition',
+      evidence: [{ quote }],
+    }],
+    character_updates: [{
+      character_id: characterId,
+      location,
+      condition: null,
+      knowledge_gained: [],
+      knowledge_lost: [],
+      possessions_gained: [],
+      possessions_lost: [],
+      personality: null,
+      appearance: null,
+      relationships: [],
+      evidence: [{ quote }],
+    }],
+  });
+}
+
+async function sync(storyId, pageId, delta) {
+  axios.post.mockResolvedValueOnce(reply(JSON.stringify(delta)));
+  return request(app).post(`/api/stories/${storyId}/continuity/pages/${pageId}/sync`).send({}).expect(200);
+}
+
+beforeAll(() => {
+  process.env.OPENROUTER_API_KEY = 'test-key';
+  process.env.AI_RETRY_BASE_DELAY = '1';
+  ({ app, db, close } = createTestApp());
+});
+
+beforeEach(() => {
+  resetDb(db);
+  resetModelCache();
+  axios.post.mockReset();
+  axios.get.mockReset();
+});
+
+afterAll(() => {
+  close();
+  delete process.env.OPENROUTER_API_KEY;
+});
+
+describe('continuity ledger v2', () => {
+  it('strictly rejects unknown and malformed v2 model fields', () => {
+    expect(validateContinuityDeltaV2(v2Delta(), [])).toEqual(v2Delta());
+    expect(() => validateContinuityDeltaV2({ ...v2Delta(), surprise: true }, []))
+      .toThrow(ContinuitySchemaError);
+    expect(() => validateContinuityDeltaV2(v2Delta({
+      events: [{ id: null, text: 'A door opens.', character_ids: [], importance: 'major', type: 'action', evidence: [] }],
+    }), [])).toThrow(/evidence/);
+    const cited = validateContinuityDeltaV2(v2Delta({
+      events: [{ id: null, text: 'A door opens.', character_ids: [], importance: 'major', type: 'action', evidence: [{ quote: 'door opens' }] }],
+    }), []);
+    expect(() => verifyEvidenceQuotes(cited, 'Nothing of the sort occurs.')).toThrow(/quote/i);
+    expect(verifyEvidenceQuotes(cited, 'At last, the door opens.')).toBe(cited);
+  });
+
+  it('retries a schema-invalid v2 response once instead of silently dropping fields', async () => {
+    const story = await createStory(app);
+    const page = await addPage(app, story.id, 'The strict ledger begins.');
+    axios.post.mockResolvedValueOnce(reply(JSON.stringify({ ...v2Delta(), unknown: 'unsafe' })))
+      .mockResolvedValueOnce(reply(JSON.stringify(v2Delta())));
+
+    const result = await request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
+      .send({})
+      .expect(200);
+
+    expect(result.body.memory).toMatchObject({ status: 'ready', schema_version: 2 });
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
+  it('binds deltas to canonical revisions, preserves copyedits, replaces the tail delta, and truncates suffix effects', async () => {
+    const character = await createCharacter(app, null, { name: 'Mara' });
+    const story = await createStory(app, null, [{ id: character.id, role: 'mc', relation: null, state: null }]);
+    const first = await addPage(app, story.id, 'Mara reaches Harbor One.');
+    const second = await addPage(app, story.id, 'Mara reaches Harbor Two.');
+    const third = await addPage(app, story.id, 'Mara reaches Harbor Three.');
+    await sync(story.id, first.id, at(character.id, 'Harbor One', 'reaches Harbor One'));
+    await sync(story.id, second.id, at(character.id, 'Harbor Two', 'reaches Harbor Two'));
+    await sync(story.id, third.id, at(character.id, 'Harbor Three', 'reaches Harbor Three'));
+
+    const originalFirstRevision = db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(first.id).canonical_revision_id;
+    await request(app).post(`/api/stories/${story.id}/pages/${first.id}/copyedits`)
+      .send({ content: 'Mara REACHES Harbor One.' }).expect(201);
+    expect(db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(first.id).canonical_revision_id)
+      .toBe(originalFirstRevision);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM continuity_deltas WHERE revision_id = ?').get(originalFirstRevision).count)
+      .toBe(1);
+
+    const oldTailRevision = db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(third.id).canonical_revision_id;
+    await request(app).put(`/api/stories/${story.id}/pages/${third.id}/revisions`)
+      .send({ content: 'Mara reaches the Winter Inn.' }).expect(200);
+    let view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(view.body.continuity.coverage).toMatchObject({ total: 3, ready: 2 });
+    expect(view.body.continuity.characters[0].current.location).toBe('Harbor Two');
+    expect(db.prepare('SELECT status FROM continuity_deltas WHERE revision_id = ?').get(oldTailRevision).status).toBe('ready');
+
+    await sync(story.id, third.id, at(character.id, 'Winter Inn', 'reaches the Winter Inn'));
+    view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(view.body.continuity.characters[0].current.location).toBe('Winter Inn');
+    expect(view.body.continuity.events.some((event) => event.text.includes('Harbor Three'))).toBe(false);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM continuity_deltas WHERE story_id = ?').get(story.id).count).toBe(4);
+
+    await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
+    view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(view.body.continuity.characters[0].current.location).toBe('Harbor One');
+    expect(view.body.continuity.delta_count).toBe(1);
+  });
+
+  it('keeps corrections authoritative and discovers later conflicts without inventing edits', async () => {
+    const character = await createCharacter(app, null, { name: 'Ilex' });
+    const story = await createStory(app, null, [{ id: character.id, role: 'mc', relation: null, state: null }]);
+    const first = await addPage(app, story.id, 'Ilex sleeps in the harbor loft.');
+    const second = await addPage(app, story.id, 'At dawn, Ilex leaves the harbor loft.');
+    await sync(story.id, first.id, at(character.id, 'harbor loft', 'sleeps in the harbor loft'));
+    await sync(story.id, second.id, at(character.id, 'harbor road', 'leaves the harbor loft'));
+    const revision = db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(first.id).canonical_revision_id;
+
+    const corrected = await request(app).post(`/api/stories/${story.id}/continuity/corrections`).send({
+      scope: 'character',
+      subject_id: character.id,
+      field: 'location',
+      value: 'mountain refuge',
+      reason: 'The harbor passage was metaphorical.',
+      evidence: [{ page_revision_id: revision, quote: 'sleeps in the harbor loft' }],
+    }).expect(201);
+
+    expect(corrected.body.continuity.characters[0].current.location).toBe('mountain refuge');
+    expect(corrected.body.continuity.characters[0].evidence.location.correction.correction_id)
+      .toBe(corrected.body.correction.id);
+    expect(corrected.body.issues).toHaveLength(1);
+    expect(corrected.body.issues[0].detail).toMatchObject({ page_id: second.id, suggested_edit: null });
+    const issue = await request(app)
+      .patch(`/api/stories/${story.id}/continuity/issues/${corrected.body.issues[0].id}`)
+      .send({ status: 'acknowledged' }).expect(200);
+    expect(issue.body.issue.status).toBe('acknowledged');
+
+    axios.post.mockResolvedValueOnce(reply('The later harbor mention may conflict with the author correction; no prose was changed.'));
+    const summary = await request(app)
+      .post(`/api/stories/${story.id}/continuity/issues/summary`)
+      .send({ issue_ids: [corrected.body.issues[0].id] })
+      .expect(200);
+    expect(summary.body.summary).toContain('no prose was changed');
+    const prompt = axios.post.mock.calls.at(-1)[1].messages;
+    expect(prompt[0].content).toContain('Do not propose or apply prose changes');
+    expect(prompt[1].content).not.toContain('At dawn, Ilex leaves');
+    await request(app).post(`/api/stories/${story.id}/continuity/issues/summary`)
+      .send({ issue_ids: ['not-this-story'] }).expect(400);
+  });
+
+  it('imports only explicitly reviewed Library template fields', async () => {
+    const world = await createWorld(app, { name: 'Old World', description: 'Old world description' });
+    const character = await createCharacter(app, world.id, { name: 'Old Name', description: 'Old description', personality: 'Steady' });
+    const story = await createStory(app, world.id, [{ id: character.id, role: 'mc', relation: null, state: null }]);
+    await request(app).put(`/api/worlds/${world.id}`).send({
+      name: 'New World', description: 'New world description', genre: world.genre, setting: world.setting,
+    }).expect(200);
+    await request(app).put(`/api/characters/${character.id}`).send({
+      name: 'New Name', description: 'New description', personality: 'Changed',
+      appearance: character.appearance, background: character.background, world_id: world.id,
+    }).expect(200);
+
+    const review = await request(app).get(`/api/stories/${story.id}/continuity/templates`).expect(200);
+    const characterReview = review.body.templates.find((item) => item.template_kind === 'character');
+    expect(characterReview.changes.map((change) => change.field)).toEqual(expect.arrayContaining(['name', 'description', 'personality']));
+
+    await request(app)
+      .post(`/api/stories/${story.id}/continuity/templates/character/${character.id}/import`)
+      .send({ fields: ['description'] }).expect(201);
+    const view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
+    expect(view.body.continuity.characters[0]).toMatchObject({ name: 'Old Name', description: 'New description', personality: 'Steady' });
+    await request(app)
+      .post(`/api/stories/${story.id}/continuity/templates/character/${character.id}/import`)
+      .send({ fields: ['secret'] }).expect(400);
+  });
+
+  it('rebuilds a 3,000-page fixture identically and serves bounded inspection state from sparse checkpoints', async () => {
+    const story = await createStory(app);
+    const chapter = db.prepare(`SELECT chapter.id FROM chapters chapter JOIN volumes volume ON volume.id = chapter.volume_id WHERE volume.story_id = ? LIMIT 1`).get(story.id);
+    const insertStoryPage = db.prepare('INSERT INTO story_pages (id, story_id, page_number, content) VALUES (?, ?, ?, ?)');
+    const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
+    const insertRevision = db.prepare(`INSERT INTO page_revisions (id, page_id, kind, content, source, cost_usd) VALUES (?, ?, 'canonical', ?, 'migration', 0)`);
+    const pointPage = db.prepare('UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?');
+    const insertDelta = db.prepare(`
+      INSERT INTO continuity_deltas (revision_id, story_id, status, schema_version, delta_json, content_hash, summary)
+      VALUES (?, ?, 'ready', 2, ?, ?, ?)
+    `);
+    db.exec('BEGIN');
+    try {
+      for (let number = 1; number <= 3000; number += 1) {
+        const pageId = randomUUID();
+        const revisionId = randomUUID();
+        const content = `Neutral fixture page ${number}.`;
+        const delta = v2Delta({ summary: `Fixture summary ${number}.` });
+        insertStoryPage.run(pageId, story.id, number, content);
+        insertPage.run(pageId, chapter.id, number);
+        insertRevision.run(revisionId, pageId, content);
+        pointPage.run(revisionId, revisionId, pageId);
+        insertDelta.run(revisionId, story.id, JSON.stringify(delta), '0'.repeat(64), delta.summary);
+      }
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+
+    const store = createContinuityStore(db);
+    const first = store.rebuild(story.id);
+    const firstProjection = store.project(db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id));
+    const second = store.rebuild(story.id);
+    const secondProjection = store.project(db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id));
+    expect(first.projection_hash).toBe(second.projection_hash);
+    expect(firstProjection.projection_hash).toBe(secondProjection.projection_hash);
+    expect(secondProjection.delta_count).toBe(3000);
+    expect(secondProjection.history_counts.summaries).toBe(3000);
+    expect(secondProjection.summaries).toHaveLength(200);
+    expect(db.prepare('SELECT COUNT(*) AS count FROM continuity_projection_checkpoints WHERE story_id = ?').get(story.id).count)
+      .toBeLessThanOrEqual(61);
+  });
+});

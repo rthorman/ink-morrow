@@ -1,6 +1,6 @@
 {
   "brand": "ScribeTribe",
-  "version": "1.1.0",
+  "version": "4.0.0",
   "coordinateSystem": "Normalized coordinates from the top-left corner",
   "assets": [
     {
@@ -32,7 +32,7 @@
       "dimensions": { "width": 1448, "height": 1086 },
       "media": "(min-width: 768px) and (max-width: 1199px) and (orientation: landscape), (min-width: 1200px) and (pointer: coarse) and (orientation: landscape)",
       "decorative": true,
-      "focalPoint": { "x": 0.62, "y": 0.48 },
+      "focalPoint": { "x": 0.78, "y": 0.48 },
       "textSafeRegion": { "xMin": 0.025, "xMax": 0.31, "yMin": 0.05, "yMax": 0.28 },
       "notes": "Independent 4:3 tablet-landscape composition. Use a compact real-text panel in the upper-left shadow and keep faces, the quill and manuscript unobstructed."
     },
@@ -55,8 +55,8 @@
     {
       "id": "brand-lockup",
       "production": "assets/brand/scribetribe-lockup.svg",
-      "dimensions": { "width": 760, "height": 220 },
-      "notes": "Horizontal lockup for headers and onboarding. Live-text construction is preferred when exact font rendering matters."
+      "dimensions": { "width": 900, "height": 240 },
+      "notes": "Horizontal blackletter lockup for headers and onboarding. The bundled UnifrakturCook font is open-licensed and self-hosted."
     },
     {
       "id": "favicon",
@@ -66,8 +66,44 @@
     {
       "id": "ornament-divider",
       "production": "assets/brand/ornament-divider.svg",
-      "dimensions": { "width": 640, "height": 64 },
+      "dimensions": { "width": 640, "height": 72 },
       "decorative": true
+    },
+    {
+      "id": "tab-symbols",
+      "production": "assets/brand/tab-symbols.svg",
+      "dimensions": { "width": 24, "height": 24 },
+      "notes": "External SVG sprite containing eleven differentiated runic symbols for the global and manuscript-workspace navigation. Text labels remain mandatory."
+    },
+    {
+      "id": "vesper-threshold",
+      "master": "assets/brand/vesper-threshold.png",
+      "production": "assets/brand/vesper-threshold.webp",
+      "dimensions": { "width": 1672, "height": 941 },
+      "decorative": true,
+      "focalPoint": { "x": 0.79, "y": 0.46 },
+      "textSafeRegion": { "xMin": 0.02, "xMax": 0.42, "yMin": 0.08, "yMax": 0.92 },
+      "notes": "Authentication threshold scene. In split panels, crop toward Vesper on the right; the form remains native HTML."
+    },
+    {
+      "id": "cinder-branching-revision",
+      "master": "assets/brand/cinder-cast.png",
+      "production": "assets/brand/cinder-cast.webp",
+      "dimensions": { "width": 1536, "height": 1024 },
+      "decorative": true,
+      "focalPoint": { "x": 0.52, "y": 0.42 },
+      "textSafeRegion": { "xMin": 0.05, "xMax": 0.95, "yMin": 0.88, "yMax": 0.99 },
+      "notes": "Cinder's branching-revision scene. Keep the face, working hand, quill origin and three luminous paths unobstructed."
+    },
+    {
+      "id": "moth-archive",
+      "master": "assets/brand/moth-archive.png",
+      "production": "assets/brand/moth-archive.webp",
+      "dimensions": { "width": 1536, "height": 1024 },
+      "decorative": true,
+      "focalPoint": { "x": 0.77, "y": 0.49 },
+      "textSafeRegion": { "xMin": 0.02, "xMax": 0.36, "yMin": 0.08, "yMax": 0.9 },
+      "notes": "Moth's archive scene with controlled copy-safe shadow on the left."
     }
   ]
 }

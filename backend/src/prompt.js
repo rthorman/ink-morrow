@@ -205,10 +205,11 @@ const IMAGE_TONE_INSTRUCTIONS = {
     'All characters are adults.',
 };
 
-function buildImagePrompt({ story, world, characters, pages }) {
+function buildImagePrompt({ story, world, characters, pages, providerInstruction = null }) {
   const parts = [];
   parts.push('You are an art director translating a written scene into a single prompt for an image-generation AI.');
   parts.push(`CONTENT RULES: ${IMAGE_TONE_INSTRUCTIONS[story.tone] || IMAGE_TONE_INSTRUCTIONS['fade-to-black']}`);
+  if (providerInstruction) parts.push(providerInstruction);
 
   if (world) {
     parts.push(
@@ -225,8 +226,9 @@ function buildImagePrompt({ story, world, characters, pages }) {
     parts.push(
       'Cast appearance notes above reflect how the story has reshaped each character so far. ' +
         'Describe only the characters actually present in the scene to illustrate, AS THEY ARE IN THIS MOMENT: ' +
-        'what is happening on the final page changes how they look - a burning character is on fire, ' +
-        'an undressed character is undressed, a wounded character is wounded.'
+        'what is happening on the final page changes how they look. Translate sensitive facts into renderable visual ' +
+        'language: use safe drapery, framing, silhouette, smoke, expression, and non-graphic aftermath rather than ' +
+        'explicit anatomy, exposure, blood, wounds, or gore.'
     );
   }
 

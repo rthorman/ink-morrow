@@ -199,7 +199,7 @@ describe('POST /api/stories/:id/pages/generate', () => {
 
     const stale = await generation;
     expect(stale.status).toBe(409);
-    expect(stale.body.code).toBe('WRITE_SUPERSEDED');
+    expect(stale.body.code).toBe('CONTEXT_CHANGED');
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
     expect(pages.body.pages.map((page) => page.content)).toEqual(['A page was added from another tab.']);
   });
@@ -594,7 +594,7 @@ describe('Mutable per-story character state', () => {
     // valid and its memory is visibly pending instead of accepting the marker.
     const memory = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
     expect(memory.body.continuity.coverage.ready).toBe(0);
-    expect(memory.body.continuity.coverage.pending_page_ids).toHaveLength(1);
+    expect(memory.body.continuity.coverage.pages[0].status).toBe('pending');
 
     mockAi('Page two.');
     await generatePage(story.id, 'go on');
@@ -666,7 +666,7 @@ describe('Speculative next-page preview', () => {
     expect(JSON.stringify(status.body)).not.toContain('secret prepared continuation');
   });
 
-  it('rejects an old preview identity without deleting the newer prepared page', async () => {
+  it('reuses the one prepared page instead of silently spending on a replacement', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const story = await createStory(app);
     mockAi('Prepared version A.');
@@ -674,24 +674,20 @@ describe('Speculative next-page preview', () => {
 
     mockAi('Prepared version B.');
     const second = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
-    expect(second.body.preview.preview_key).not.toBe(first.body.preview.preview_key);
-
-    const staleCommit = await request(app)
-      .post(`/api/stories/${story.id}/pages/commit-preview`)
-      .send({ preview_key: first.body.preview.preview_key })
-      .expect(409);
-    expect(staleCommit.body.code).toBe('PREVIEW_REPLACED');
+    expect(second.body.preview.preview_key).toBe(first.body.preview.preview_key);
+    expect(second.body.reused).toBe(true);
+    expect(axios.post).toHaveBeenCalledTimes(1);
 
     const status = await request(app).get(`/api/stories/${story.id}/pages/preview`).expect(200);
-    expect(status.body.preview.preview_key).toBe(second.body.preview.preview_key);
+    expect(status.body.preview.preview_key).toBe(first.body.preview.preview_key);
     const committed = await request(app)
       .post(`/api/stories/${story.id}/pages/commit-preview`)
-      .send({ preview_key: second.body.preview.preview_key })
+      .send({ preview_id: first.body.preview.preview_id })
       .expect(201);
-    expect(committed.body.page.content).toBe('Prepared version B.');
+    expect(committed.body.page.content).toBe('Prepared version A.');
   });
 
-  it('does not let an older overlapping request overwrite the newest preview', async () => {
+  it('joins an overlapping preparation instead of starting a second provider call', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const story = await createStory(app);
     const replies = [];
@@ -699,23 +695,20 @@ describe('Speculative next-page preview', () => {
 
     const firstPromise = request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).then((res) => res);
     while (replies.length < 1) await new Promise((resolve) => setImmediate(resolve));
-    const secondPromise = request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).then((res) => res);
-    while (replies.length < 2) await new Promise((resolve) => setImmediate(resolve));
+    const second = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({});
+    expect(second.status).toBe(202);
+    expect(second.body.pending).toBe(true);
+    expect(replies).toHaveLength(1);
 
-    replies[1]({ data: { choices: [{ message: { content: 'The newest prepared page.' } }] } });
-    const second = await secondPromise;
-    expect(second.status).toBe(200);
-
-    replies[0]({ data: { choices: [{ message: { content: 'The late old page.' } }] } });
+    replies[0]({ data: { choices: [{ message: { content: 'The single prepared page.' } }] } });
     const first = await firstPromise;
-    expect(first.status).toBe(409);
-    expect(first.body.code).toBe('PREVIEW_SUPERSEDED');
+    expect(first.status).toBe(200);
 
     const committed = await request(app)
       .post(`/api/stories/${story.id}/pages/commit-preview`)
-      .send({ preview_key: second.body.preview.preview_key })
+      .send({ preview_id: first.body.preview.preview_id })
       .expect(201);
-    expect(committed.body.page.content).toBe('The newest prepared page.');
+    expect(committed.body.page.content).toBe('The single prepared page.');
   });
 
   it('does not resurrect a preview that finishes after a live page advances the story', async () => {
@@ -764,14 +757,16 @@ describe('Speculative next-page preview', () => {
     expect(pagesAfterPreview.body.pages).toHaveLength(1); // still just the first page
 
     // Commit: saved instantly, page 2 with accounting
-    const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+    const commit = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: res.body.preview.preview_id }).expect(201);
     expect(commit.body.page.page_number).toBe(2);
     expect(commit.body.page.content).toBe('The prepared continuation.');
     expect(commit.body.page.user_input).toBeNull();
     expect(commit.body.page.prompt_tokens).toBe(100);
 
     // Second commit without a fresh preview
-    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: res.body.preview.preview_id }).expect(409);
   });
 
   it('a prepared page survives a full server restart (the green button outlives it)', async () => {
@@ -789,7 +784,7 @@ describe('Speculative next-page preview', () => {
       const story = await createStory(app1, world.id, []);
 
       mockAi('The prepared continuation.');
-      await request(app1).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+      const prepared = await request(app1).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
 
       // Full restart: new app instance on the same database file
       db1.close();
@@ -798,7 +793,8 @@ describe('Speculative next-page preview', () => {
 
       // The prepared page is still there and commits as-is - no silent
       // fallback to a fresh (re-billed) generation
-      const commit = await request(app2).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+      const commit = await request(app2).post(`/api/stories/${story.id}/pages/commit-preview`)
+        .send({ preview_id: prepared.body.preview.preview_id }).expect(201);
       expect(commit.body.page.page_number).toBe(1);
       expect(commit.body.page.content).toBe('The prepared continuation.');
       db2.close();
@@ -814,13 +810,14 @@ describe('Speculative next-page preview', () => {
     const story = await createStory(app, world.id, [{ id: mc.id, role: 'mc', relation: null, state: null }]);
 
     mockAi('The prepared page.');
-    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    const prepared = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
 
     // The writer generates normally in the meantime -> the preview is discarded
     mockAi('The real page.');
     await generatePage(story.id, 'a real direction');
 
-    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: prepared.body.preview.preview_id }).expect(409);
 
     // And nothing was duplicated
     const pages = await request(app).get(`/api/stories/${story.id}/pages`).expect(200);
@@ -860,15 +857,17 @@ describe('Speculative next-page preview', () => {
         }],
       },
     });
-    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({ model: 'vendor/x', words: 50 }).expect(200);
+    const prepared = await request(app).post(`/api/stories/${story.id}/pages/preview`)
+      .send({ model: 'vendor/x', words: 50 }).expect(200);
     expect(axios.post.mock.calls[0][1].model).toBe('vendor/x');
     expect(axios.post.mock.calls[0][1].max_tokens).toBe(50 * 2 + 250);
 
-    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(201);
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: prepared.body.preview.preview_id }).expect(201);
     const meta = await request(app).get(`/api/stories/${story.id}`).expect(200);
     expect(meta.body.story.characters[0].state).toBeNull();
     const continuity = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
-    expect(continuity.body.continuity.coverage.pending_page_ids).toHaveLength(1);
+    expect(continuity.body.continuity.coverage.pages[0].status).toBe('pending');
   });
 
   it('truncating invalidates a preview', async () => {
@@ -881,10 +880,11 @@ describe('Speculative next-page preview', () => {
     await generatePage(story.id, 'more');
 
     mockAi('Prepared.');
-    await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
+    const prepared = await request(app).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
 
     await request(app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
-    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`).send({}).expect(404);
+    await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
+      .send({ preview_id: prepared.body.preview.preview_id }).expect(409);
   });
 });
 

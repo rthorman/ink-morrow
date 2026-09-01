@@ -15,11 +15,30 @@ const { createApp } = require('./src/app');
 process.umask(0o077);
 try { fs.chmodSync(path.join(__dirname, '.env'), 0o600); } catch { /* missing on first launch or unsupported */ }
 const defaultStorageRoot = path.join(__dirname, '../database');
-fs.mkdirSync(defaultStorageRoot, { recursive: true, mode: 0o700 });
-try { fs.chmodSync(defaultStorageRoot, 0o700); } catch { /* permissions are best-effort off POSIX */ }
+const configuredPath = (value) => value === ':memory:'
+  ? value
+  : path.isAbsolute(value) ? value : path.resolve(__dirname, value);
+const dbPath = process.env.DB_PATH
+  ? configuredPath(process.env.DB_PATH)
+  : path.join(process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot, 'scribe-tribe.db');
+const storageRoot = process.env.DATA_DIR
+  ? configuredPath(process.env.DATA_DIR)
+  : process.env.DB_PATH && dbPath !== ':memory:'
+    ? path.dirname(dbPath)
+    : defaultStorageRoot;
 
-const dbPath = process.env.DB_PATH || path.join(defaultStorageRoot, 'scribe-tribe.db');
-const db = createDb(dbPath);
+let db;
+try {
+  // createDb performs a read-only family/version inspection before WAL,
+  // permissions, migrations, or boot reconciliation can touch an existing
+  // file. A 3.x installation therefore fails closed here.
+  db = createDb(dbPath);
+} catch (error) {
+  console.error(error.message || 'ScribeTribe could not open its database.');
+  process.exit(1);
+}
+fs.mkdirSync(storageRoot, { recursive: true, mode: 0o700 });
+try { fs.chmodSync(storageRoot, 0o700); } catch { /* permissions are best-effort off POSIX */ }
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 // Local-only is the safe default. Direct LAN HTTP must be a deliberate
@@ -53,6 +72,9 @@ const app = createApp(db, {
   allowedHosts,
   trustProxy: process.env.TRUST_PROXY === '1',
   authOptions,
+  imageDir: path.join(storageRoot, 'images'),
+  audioDir: path.join(storageRoot, 'audio'),
+  transferDir: path.join(storageRoot, 'transfers'),
 });
 
 const server = app.listen(PORT, HOST, () => {
@@ -63,6 +85,7 @@ function shutdown(signal) {
   console.log(`\n${signal} received - closing down...`);
   server.close(() => {
     try {
+      app.locals.dispose?.();
       db.close();
     } catch {
       // already closed

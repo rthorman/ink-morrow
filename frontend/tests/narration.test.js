@@ -62,6 +62,20 @@ describe('Narration settings', () => {
     expect(fw.state().settings.narrationVoice).toBeNull();
   });
 
+  it('routes an unconfigured reader to Settings so the Desk remains returnable', async () => {
+    fw.__setStoryState(storyState(PAGES));
+    document.getElementById('readAloudBtn').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(window.location.hash).toBe('#/settings');
+    expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
+
+    document.getElementById('writeBtn').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(window.location.hash).toBe('#/desk/s1');
+    expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
+  });
+
   it('populates the model list and dependent voices', async () => {
     await fw.loadSpeechModels();
     fw.renderNarrationSettings();
@@ -152,6 +166,7 @@ describe('Narration player', () => {
   it('explains and points to Settings when unconfigured', async () => {
     document.getElementById('readAloudBtn').click();
     expect(document.querySelector('.error-message').textContent).toContain('not configured');
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
   });
 

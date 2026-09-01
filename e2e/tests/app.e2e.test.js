@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { apiPost, E2E_PASSWORD, openUnlocked } from '../auth.js';
+import { apiPost, apiPut, E2E_PASSWORD, openUnlocked } from '../auth.js';
 
 // The first paid action opens the shared review; remembered device consent
 // deliberately bypasses it for later actions.
@@ -32,8 +32,11 @@ test.describe('ScribeTribe UI', () => {
   test('has the gothic header with scribe and working navigation', async ({ page }) => {
     await expect(page).toHaveTitle(/ScribeTribe/);
     await expect(page.locator('.main-header h1')).toHaveText('ScribeTribe');
-    await expect(page.locator('.cat-scribe svg')).toBeVisible();
-    await expect(page.locator('#scribeStatus')).toBeVisible();
+    await expect(page.locator('.cat-scribe img')).toBeVisible();
+    const scribeStatus = page.locator('#scribeStatus');
+    await expect(scribeStatus).toContainText('The scribe');
+    if (page.viewportSize().width <= 520) await expect(scribeStatus).toBeHidden();
+    else await expect(scribeStatus).toBeVisible();
 
     // Cycle every destination (Library covers the Stories surface)
     for (const [btn, section] of [
@@ -488,7 +491,7 @@ test.describe('ScribeTribe UI', () => {
     }
   });
 
-  test('Library manages stories while Write owns creation and maturity', async ({ page }) => {
+  test('Library manages manuscripts and starts a provider-free opening', async ({ page }) => {
     // A story exists: Library is the catalogue and opens its per-story assets.
     const worldRes = await apiPost(page, '/api/worlds', { name: 'Disclosure Realm' });
     const world = (await worldRes.json()).world;
@@ -496,7 +499,9 @@ test.describe('ScribeTribe UI', () => {
 
     await page.locator('#libraryBtn').click();
     await expect(page.locator('#librarySection')).toHaveClass(/active/);
-    const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' });
+    // Retries share the job's in-memory server, so select the first matching
+    // fixture if an earlier attempt already created the same title.
+    const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' }).first();
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect(card).toContainText('0 KB media on disk');
     await expect(page.locator('#storyCreateWrap')).toBeHidden();
@@ -508,13 +513,269 @@ test.describe('ScribeTribe UI', () => {
     await expect(page.locator('#storyAssetsBody')).toContainText('Download EPUB');
     await page.locator('#storyAssetsCloseBtn').click();
 
-    // Creation is at Write; its first logical field and maturity choice are clear.
-    await page.locator('#writeBtn').click();
-    await page.locator('#storyNewBtn').click();
-    await expect(page.locator('#storyCreateWrap')).toBeVisible();
-    await expect(page.locator('#storyTitle')).toBeFocused();
-    await expect(page.locator('label[for="storyTone"]')).toHaveText('Maturity level');
-    await expect(page.locator('#storyTone option')).toHaveCount(3);
+    // The primary start flow stays in Library and the manual path makes no
+    // provider or AI request before opening the editable Desk.
+    await page.locator('#homeBtn').click();
+    await expect(page.locator('#homeSection')).toHaveClass(/active/);
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/api\/(providers|ai\/)/.test(request.url())) providerRequests.push(request.url());
+    });
+    await page.locator('#heroStartBtn').click();
+    await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
+    await page.fill('#manuscriptStartName', 'A Local Beginning');
+    await page.fill('#startManualOpening', 'Rain whispered against the archive windows.');
+    await page.locator('#manuscriptStartSubmit').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await expect(page.locator('#storyContent')).toContainText('Rain whispered against the archive windows.');
+    expect(providerRequests).toEqual([]);
+  });
+
+  test('Desk edits, copyedits, returns, and restores a manuscript without provider work', async ({ page }) => {
+    const storyRes = await apiPost(page, '/api/stories', { title: 'Desk Revision Proof', characters: [] });
+    const story = (await storyRes.json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The first page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The middle page.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'The active tail.' });
+    await page.goto(`/#/desk/${story.id}`);
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/api\/(ai|continuity)/.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.locator('#deskPageEditBtn').click();
+    await page.fill('#deskPageEditorText', 'The active tail, revised by its author.');
+    await page.locator('#deskPageSaveNow').click();
+    await expect(page.locator('#deskPageSaveState')).toContainText('Canonical revision saved');
+    await expect(page.locator('#storyContent')).toContainText('revised by its author');
+
+    await page.locator('#prevPageBtn').click();
+    await page.locator('#prevPageBtn').click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 3');
+    await expect(page.locator('#deskPageEditBtn')).toHaveText('Copyedit this page');
+    await page.locator('#deskPageEditBtn').click();
+    await page.fill('#deskPageEditorText', 'The first page, polished for display.');
+    await page.locator('#deskPageSaveNow').click();
+    await expect(page.locator('#deskPageSaveState')).toContainText('canon unchanged');
+    expect(providerRequests).toEqual([]);
+
+    await page.locator('#deskPageEditorClose').click();
+    await page.locator('#deleteAfterBtn').click();
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toContainText('Pages 2');
+    await expect(dialog).toContainText('2 pages');
+    await dialog.locator('button', { hasText: 'Return and remove 2 later pages' }).click();
+    await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
+    await page.locator('#deskRecoveryUndo').click();
+    await expect(page.locator('#deskRecoveryBanner')).toBeHidden();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+  });
+
+  test('Chronicle pages the outline, maintains tail structure, and restores only a safe suffix', async ({ page }) => {
+    const storyRes = await apiPost(page, '/api/stories', { title: 'Chronicle Proof', characters: [] });
+    const story = (await storyRes.json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page one.\n\n***\n\nA scene turns.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page two.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Chronicle page three.' });
+
+    await page.goto(`/#/chronicle/${story.id}`);
+    await expect(page.locator('#chronicleSection')).toHaveClass(/active/);
+    await expect(page.locator('#chronicleStatus')).toContainText('3 narrative pages');
+    await expect(page.locator('#chronicleOutline')).toContainText('Active tail');
+    await expect(page.locator('#chronicleOutline .chronicle-page')).toHaveCount(3);
+
+    await page.locator('#chronicleAddVolume').click();
+    await page.locator('.dialog-manager input').fill('Volume II');
+    await page.locator('.dialog-manager button', { hasText: 'Begin volume' }).click();
+    await expect(page.locator('#chronicleOutline')).toContainText('Volume II - 1 chapter, 0 pages');
+    await page.locator('#chronicleOutline button', { hasText: 'Remove empty volume' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Remove empty volume' }).click();
+    await expect(page.locator('#chronicleOutline')).not.toContainText('Volume II');
+
+    await page.fill('#chroniclePageJump', '2');
+    await page.locator('#chroniclePageJumpBtn').click();
+    await page.locator('.chronicle-page__open', { hasText: 'Open page 2' }).click();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await page.locator('#prevPageBtn').click();
+    await page.locator('#deleteAfterBtn').click();
+    await page.locator('.dialog-manager button', { hasText: 'Return and remove 2 later pages' }).click();
+
+    await page.locator('#chronicleBtn').click();
+    await expect(page.locator('#chronicleRecoveries')).toContainText('Safe to restore');
+    await page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Restore 2 pages' }).click();
+    await expect(page.locator('#chronicleStatus')).toContainText('3 narrative pages');
+    await expect(page.locator('#chronicleRecoveries button', { hasText: 'Restore recovery' })).toBeDisabled();
+  });
+
+  test('Codex keeps story foundations frozen and imports only selected Library fields', async ({ page }) => {
+    const world = (await (await apiPost(page, '/api/worlds', {
+      name: 'Frozen Coast', genre: 'Gothic', setting: 'Glass shore', description: 'The original coast.',
+    })).json()).world;
+    const character = (await (await apiPost(page, '/api/characters', {
+      name: 'Mara', world_id: world.id, description: 'A patient cartographer.', personality: 'Patient',
+    })).json()).character;
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Codex Proof', world_id: world.id,
+      characters: [{ id: character.id, role: 'mc', relation: null, state: null }],
+    })).json()).story;
+
+    await apiPut(page, `/api/worlds/${world.id}`, {
+      name: 'Changed Coast', genre: 'Gothic', setting: 'Basalt shore', description: 'The changed coast.',
+    });
+    await page.goto(`/#/codex/${story.id}`);
+    await expect(page.locator('#codexSection')).toHaveClass(/active/);
+    await expect(page.locator('#codexFoundations')).toContainText('Frozen Coast');
+    await expect(page.locator('#codexTemplateUpdates')).toContainText('Frozen Coast” → “Changed Coast');
+
+    const changes = page.locator('.codex-template__change');
+    await changes.filter({ hasText: 'Name:' }).locator('input').check();
+    await page.locator('.codex-template__form button', { hasText: 'Import selected fields' }).click();
+    await expect(page.locator('.success-message').last()).toContainText('1 selected foundation field');
+    await expect(page.locator('#codexFoundations')).toContainText('Changed Coast');
+    await expect(page.locator('#codexFoundations')).toContainText('Glass shore');
+    await expect(page.locator('#codexFoundations')).not.toContainText('Basalt shore');
+  });
+
+  test('Gallery uploads, moves, and unplaces local art without provider or narrative work', async ({ page }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Gallery Proof', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gallery page one.' });
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gallery page two.' });
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/\/(scene-image|image-prompt)|\/api\/ai\//.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.goto(`/#/gallery/${story.id}`);
+    await expect(page.locator('#gallerySection')).toHaveClass(/active/);
+    await expect(page.locator('#galleryPaintBtn')).toBeVisible();
+    await expect(page.locator('#galleryUploadBtn')).toBeVisible();
+    await page.locator('#galleryUploadInput').setInputFiles({
+      name: 'local-owner-art.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    });
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('input[type="text"]').fill('Local owner art');
+    await dialog.locator('select').selectOption({ label: 'Before first page' });
+    await dialog.locator('button', { hasText: 'Upload image' }).click();
+
+    const card = page.locator('.gallery-card', { hasText: 'Local owner art' });
+    await expect(card).toBeVisible({ timeout: 8000 });
+    await expect(card).toContainText('Source: uploaded locally');
+    await expect(card).toContainText('needs alt text');
+    expect(providerRequests).toEqual([]);
+
+    await card.locator('.gallery-placement select').first().selectOption({ label: 'After page 2' });
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'PATCH'),
+      card.locator('button', { hasText: 'Move' }).click(),
+    ]);
+    await expect(page.locator('.success-message').first()).toContainText('Narrative page order');
+    await Promise.all([
+      page.waitForResponse((response) => response.url().includes('/placements/') && response.request().method() === 'DELETE'),
+      card.locator('button', { hasText: 'Unplace' }).click(),
+    ]);
+    await expect(page.locator('.success-message').first()).toContainText('Gallery-only storage');
+
+    const pages = (await (await page.request.get(`/api/stories/${story.id}/pages`)).json()).pages;
+    const art = await (await page.request.get(`/api/stories/${story.id}/assets`)).json();
+    expect(pages.map((item) => [item.page_number, item.content])).toEqual([
+      [1, 'Gallery page one.'], [2, 'Gallery page two.'],
+    ]);
+    expect(art.assets).toHaveLength(1);
+    expect(art.placements).toEqual([]);
+    expect(providerRequests).toEqual([]);
+  });
+
+  test('Gate separates backup and builds EPUB plus PDF from one reviewed snapshot', async ({ page }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Gate Proof', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Gate page one.\n\n***\n\nGate page two.' });
+    const providerRequests = [];
+    page.on('request', (request) => {
+      if (/provider|models|completion|generate|scene-image|image-prompt/.test(request.url())) providerRequests.push(request.url());
+    });
+
+    await page.goto(`/#/gate/${story.id}`);
+    await expect(page.locator('#gateSection')).toHaveClass(/active/);
+    await expect(page.locator('.gate-card--backup')).toContainText('Full fidelity');
+    await expect(page.locator('.gate-card--publication')).toContainText('Reading copy');
+    await expect(page.locator('#gateCreateShareBtn')).toBeDisabled();
+    await page.fill('#gatePublicationAuthor', 'E2E Author');
+    await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
+
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('One immutable book');
+    await expect(dialog).toContainText('Excluded: directions, continuity');
+    await dialog.locator('button', { hasText: 'Build 2 formats' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(page.locator('#gateJobStatus')).toContainText('2 publication files ready', { timeout: 15000 });
+    const downloads = page.locator('#gateJobDownloads a');
+    await expect(downloads).toHaveCount(2);
+    await expect(downloads.nth(0)).toContainText('EPUB');
+    await expect(downloads.nth(1)).toContainText('PDF');
+    const epub = await page.request.get(await downloads.nth(0).getAttribute('href'));
+    const pdf = await page.request.get(await downloads.nth(1).getAttribute('href'));
+    expect(epub.status()).toBe(200);
+    expect(pdf.status()).toBe(200);
+    expect((await epub.body()).subarray(0, 2).toString()).toBe('PK');
+    expect((await pdf.body()).subarray(0, 8).toString()).toBe('%PDF-1.7');
+    expect(providerRequests).toEqual([]);
+  });
+
+  test('shared reading copy stays frozen, isolated, and revocable', async ({ page, request }) => {
+    const story = (await (await apiPost(page, '/api/stories', {
+      title: 'Shared Lantern', characters: [],
+    })).json()).story;
+    await apiPost(page, `/api/stories/${story.id}/pages`, {
+      content: 'The frozen public page.', user_input: 'PRIVATE-SHARE-CANARY',
+    });
+    const csrf = await page.evaluate(async () => (await (await fetch('/api/auth/status')).json()).csrf_token);
+
+    await page.goto(`/#/gate/${story.id}`);
+    await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
+    const dialog = page.locator('.dialog-manager');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('button', { hasText: 'Back' }).click();
+    await expect(page.locator('#gateCreateShareBtn')).toBeEnabled();
+    await page.locator('#gateCreateShareBtn').click();
+    const shareInput = page.locator('#gateShareUrl');
+    await expect(shareInput).not.toHaveValue('');
+    await expect(page.locator('#gateShareReveal')).toBeVisible();
+    const shareUrl = await shareInput.inputValue();
+    expect(shareUrl).toMatch(/^http:\/\/localhost:3100\/share\/#{1}[A-Za-z0-9_-]{43}$/);
+
+    await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'A later private live page.' });
+    const publicRequests = [];
+    page.on('request', (outgoing) => publicRequests.push(outgoing.url()));
+    await page.goto(shareUrl);
+    await expect(page.locator('#shareDocument')).toBeVisible();
+    await expect(page.locator('#shareDocument')).toContainText('The frozen public page.');
+    await expect(page.locator('#shareDocument')).not.toContainText('A later private live page.');
+    await expect(page.locator('body')).not.toContainText('PRIVATE-SHARE-CANARY');
+    expect(publicRequests.some((url) => /provider|models|completion|generate/.test(url))).toBe(false);
+    expect(publicRequests.some((url) => url.includes('/api/public-share'))).toBe(true);
+    expect(await request.get('/api/stories').then((response) => response.status())).toBe(401);
+
+    const shareId = await page.request.get(`/api/publication-shares?story_id=${story.id}`)
+      .then(async (response) => (await response.json()).shares[0].id);
+    const revoked = await page.request.post(`/api/publication-shares/${shareId}/revoke`, {
+      data: {}, headers: { 'X-ScribeTribe-CSRF': csrf },
+    });
+    expect(revoked.status()).toBe(200);
+    await page.reload();
+    await expect(page.locator('#shareStatus')).toContainText('expired or been revoked');
+    await expect(page.locator('#shareDocument')).toBeHidden();
   });
 
   test('long world descriptions clamp on the card; full text remains in the DOM', async ({ page }) => {

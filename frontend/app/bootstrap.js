@@ -17,6 +17,7 @@ import { entityImageBlock, cardActions, createCatalogPoll } from './components/e
 import { createWorlds } from './features/worlds.js';
 import { createCharacters } from './features/characters.js';
 import { createHome } from './features/home.js';
+import { createManuscriptStart } from './features/manuscript-start.js';
 import { createLibrary } from './features/library/index.js';
 import { createStories } from './features/library/stories.js';
 import { createStoryEditor } from './features/library/story-editor.js';
@@ -29,6 +30,10 @@ import { createAudiobook } from './features/write/audiobook.js';
 import { createSettings } from './features/settings.js';
 import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
+import { createChronicle } from './features/chronicle.js';
+import { createCodex } from './features/codex.js';
+import { createGallery } from './features/gallery.js';
+import { createGate } from './features/gate.js';
 import { createAuthAdapter } from './features/auth/adapter.js';
 import { createAuthGate } from './features/auth/gate.js';
 
@@ -63,6 +68,7 @@ export function initApp() {
   features.worlds = createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.characters = createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.home = createHome({ state, notify, router: null, features });
+  features.manuscriptStart = createManuscriptStart({ api, state, notify, features, dialogs });
   features.library = createLibrary({ router: null, features });
   features.stories = createStories({ api, state, notify, features, dialogs, entityCard });
   features.storyEditor = createStoryEditor({ api, state, notify, features, dialogs });
@@ -73,6 +79,10 @@ export function initApp() {
   features.imagery = createImagery({ api, state, notify, shell, features, dialogs });
   features.audiobook = createAudiobook({ api, state, notify, shell, features, dialogs });
   features.aiDrafts = createAiDrafts({ api, state, notify, features, dialogs });
+  features.chronicle = createChronicle({ api, state, notify, features, dialogs, router: null });
+  features.codex = createCodex({ api, state, notify, features, dialogs, router: null });
+  features.gallery = createGallery({ api, state, notify, features, dialogs, shell, router: null });
+  features.gate = createGate({ api, state, notify, features, dialogs, router: null });
 
   // -- router -------------------------------------------------------------------
   // Each boot marks itself live; a superseded boot (a fresh loadScript in
@@ -81,9 +91,14 @@ export function initApp() {
   window.__stLiveBoot = bootToken;
   let lastRoute = null;
   let routeTransitionToken = 0; // stale async gate results must not render
+  const WORKSPACE_DESTINATIONS = new Set(['desk', 'chronicle', 'codex', 'gallery', 'gate']);
   const SECTION_FOR = {
     home: 'home',
-    write: 'write',
+    desk: 'write',
+    chronicle: 'chronicle',
+    codex: 'codex',
+    gallery: 'gallery',
+    gate: 'gate',
     'library-stories': 'library',
     'library-bookshelf': 'library',
     worlds: 'worlds',
@@ -91,12 +106,16 @@ export function initApp() {
     settings: 'settings',
   };
 
+  function syncManuscriptShell() {
+    shell.syncManuscriptShell(state.data.stories, state.data.currentStory);
+  }
+
   // What a permitted route actually paints. Extracted so the gate result is
   // the ONLY entry to rendering.
   function renderRoute(route, previous) {
     // Leaving the writing desk stops its media; stale streams must not
     // narrate into another room.
-    if (previous && previous.name === 'write' && route.name !== 'write') {
+    if (previous && previous.name === 'desk' && route.name !== 'desk') {
       features.narration.stopNarration();
     }
     // A true top-level surface change establishes a predictable top
@@ -105,7 +124,8 @@ export function initApp() {
     const section = SECTION_FOR[route.name] || 'home';
     const previousSection = previous ? SECTION_FOR[previous.name] || 'home' : null;
     if (previousSection !== section) window.scrollTo(0, 0);
-    shell.showSection(section);
+    shell.showSection(section, { destination: WORKSPACE_DESTINATIONS.has(route.name) ? route.name : null });
+    syncManuscriptShell();
     if (route.name === 'home') features.home.enter();
     if (route.name === 'library-stories' || route.name === 'library-bookshelf') {
       features.library.enter(route);
@@ -117,7 +137,17 @@ export function initApp() {
     }
     if (route.name === 'worlds') features.worlds.loadWorlds();
     if (route.name === 'characters') features.characters.loadCharacters();
-    if (route.name === 'write') features.write.enterFromRoute(route.params);
+    if (route.name === 'chronicle') {
+      features.chronicle.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'codex') {
+      features.codex.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'gallery') {
+      features.gallery.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'gate') {
+      features.gate.enter(route.params).then(syncManuscriptShell);
+    } else if (WORKSPACE_DESTINATIONS.has(route.name)) {
+      features.write.enterFromRoute(route.params).then(syncManuscriptShell);
+    }
   }
 
   const router = createRouter({
@@ -149,14 +179,42 @@ export function initApp() {
   features.home.router = router;
   features.library.router = router;
   features.write.router = router;
+  features.chronicle.setRouter(router);
+  features.codex.setRouter(router);
+  features.gallery.setRouter(router);
+  features.gate.setRouter(router);
+  features.settings.open = () => router.navigate('settings');
 
   // -- shell wiring ------------------------------------------------------------
   document.getElementById('homeBtn').addEventListener('click', () => router.navigate('home'));
-  document.getElementById('writeBtn').addEventListener('click', () => router.navigate('write'));
   document.getElementById('libraryBtn').addEventListener('click', () => router.navigate('library-stories'));
   document.getElementById('worldsBtn').addEventListener('click', () => router.navigate('worlds'));
   document.getElementById('charactersBtn').addEventListener('click', () => router.navigate('characters'));
   document.getElementById('settingsBtn').addEventListener('click', () => router.navigate('settings'));
+  function navigateWorkspace(destination) {
+    const storyId = state.data.currentStory?.id || document.getElementById('shellManuscriptSelect')?.value || null;
+    if (destination !== 'desk' && !storyId) {
+      notify.showErrorRaw('Choose a manuscript before opening that workspace. Your Library remains unchanged.');
+      document.getElementById('shellManuscriptSelect')?.focus();
+      return;
+    }
+    router.navigate(destination, storyId ? { storyId } : {});
+  }
+  for (const [id, destination] of [
+    ['writeBtn', 'desk'],
+    ['chronicleBtn', 'chronicle'],
+    ['codexBtn', 'codex'],
+    ['galleryBtn', 'gallery'],
+    ['gateBtn', 'gate'],
+  ]) {
+    document.getElementById(id)?.addEventListener('click', () => navigateWorkspace(destination));
+  }
+  document.getElementById('shellManuscriptSelect')?.addEventListener('change', (event) => {
+    if (event.target.value) features.write.openStory(event.target.value);
+  });
+  for (const button of document.querySelectorAll('.workspace-back-to-desk')) {
+    button.addEventListener('click', () => navigateWorkspace('desk'));
+  }
 
   // -- feature init (order preserves the old escape/priority stack) -------------
   features.write.init(); // burn modal + reading wiring
@@ -171,6 +229,11 @@ export function initApp() {
   features.generation.init();
   features.settings.init(); // registers the applySettings re-render hooks...
   features.transfer.init();
+  features.manuscriptStart.init();
+  features.chronicle.init();
+  features.codex.init();
+  features.gallery.init();
+  features.gate.init();
   features.home.init();
   features.library.init();
 
@@ -215,9 +278,14 @@ export function initApp() {
     catalogPoll.stop();
     shell.stopDiskBanner();
     features.generation.resetForStoryChange();
+    features.chronicle.reset();
+    features.codex.reset();
+    features.gallery.reset();
+    features.gate.reset();
     dialogs.close(true);
     forceCloseAllModals();
     state.clearPrivateData();
+    syncManuscriptShell();
     for (const id of [
       'worldsList', 'charactersList', 'storiesList', 'bookshelfList',
       'homeRecentList', 'storyContent', 'storyAssetsBody', 'storyCastList',
@@ -270,7 +338,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts } = features;
+  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery, gate } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -283,6 +351,8 @@ function buildFacade(ctx) {
     loadCharacters: characters.loadCharacters,
     loadStories: stories.loadStories,
     loadStoryPages: write.loadStoryPages,
+    refreshStoryAssets: write.refreshStoryAssets,
+    uploadArt: write.uploadArt,
     renderWorlds: worlds.renderWorlds,
     renderCharacters: characters.renderCharacters,
     renderStories: stories.renderStories,
@@ -307,6 +377,28 @@ function buildFacade(ctx) {
     openBurnModal: write.openBurnModal,
     closeBurnModal: write.closeBurnModal,
     burnAfterCurrentPage: write.burnAfterCurrentPage,
+    openPageEditor: write.openPageEditor,
+    savePageEdit: write.savePageEdit,
+    reloadLatestPage: write.reloadLatestPage,
+    undoReturn: write.undoReturn,
+    loadChronicle: chronicle.load,
+    enterChronicle: chronicle.enter,
+    renderChronicle: chronicle.render,
+    enterGate: gate.enter,
+    reviewPublication: gate.reviewPublication,
+    renderPublicationJob: gate.renderJob,
+    revealChroniclePage: chronicle.revealPage,
+    restoreChronicleRecovery: chronicle.restoreRecovery,
+    loadCodex: codex.load,
+    enterCodex: codex.enter,
+    renderCodex: codex.render,
+    selectCodexTab: codex.selectTab,
+    repairCodexMemory: codex.repairMemory,
+    loadGallery: gallery.load,
+    enterGallery: gallery.enter,
+    renderGallery: gallery.render,
+    openGalleryUpload: gallery.openUpload,
+    openGalleryPaint: gallery.openPaint,
     setWritingEnabled: write.setWritingEnabled,
     openAiDraft: aiDrafts.openAiDraft,
     closeAiDraft: aiDrafts.closeAiDraft,
@@ -327,7 +419,10 @@ function buildFacade(ctx) {
     // Scene image prompt + zoomable viewer
     generateImagePrompt: imagery.generateImagePrompt,
     generateSceneImage: imagery.generateSceneImage,
+    resetImageSanitationForContext: imagery.resetForContextChange,
+    resetImageSanitationForReferences: imagery.resetForReferenceChange,
     __sceneModerationState: imagery.__sceneModerationState,
+    __selectedAssetReferences: imagery.__selectedAssetReferences,
     openSceneViewer: imagery.openSceneViewer,
     closeSceneViewer: imagery.closeSceneViewer,
     saveSceneViewer: imagery.saveSceneViewer,

@@ -10,10 +10,23 @@ const {
   CHARACTER_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
+  VOLUME_FIELDS,
+  CHAPTER_FIELDS,
+  HIERARCHY_PAGE_FIELDS,
+  REVISION_FIELDS,
   SNAPSHOT_FIELDS,
   MEMORY_FIELDS,
+  CONTINUITY_DELTA_FIELDS,
+  TEMPLATE_SNAPSHOT_FIELDS,
+  CORRECTION_FIELDS,
   PREVIEW_FIELDS,
+  WRITING_OPERATION_FIELDS,
+  PREPARED_PAGE_FIELDS,
   AUDIOBOOK_FIELDS,
+  ART_ASSET_FIELDS,
+  ASSET_PLACEMENT_FIELDS,
+  PUBLICATION_SNAPSHOT_FIELDS,
+  ARCHIVE_EXTENSION,
   semanticHash,
   sanitizeSettings,
   validId,
@@ -70,6 +83,7 @@ function searchTextForMemory(row) {
     ...(delta.goal_updates || []).map((entry) => entry.text),
     ...(delta.thread_updates || []).map((entry) => entry.text),
     ...(delta.world_fact_updates || []).map((entry) => entry.text),
+    ...(delta.arc_updates || []).map((entry) => entry.text),
   ].filter((value) => typeof value === 'string' && value.trim()).join('\n');
 }
 
@@ -101,8 +115,10 @@ function createTransferService({
   db,
   planner,
   imageStore,
+  artStore,
   audioDir,
   audiobooks,
+  writingTransactions,
   transferDir,
   limits = {},
 }) {
@@ -233,6 +249,13 @@ function createTransferService({
         const story = byKey.get(`story:${asset.story_id}`);
         const page = story?.bundle.pages.find((entry) => entry.id === asset.owner_id);
         if (!page || page.image_media_type !== asset.media_type) throw httpError('Archive plate is not attached to a matching story page');
+      } else if (asset.owner_kind === 'asset') {
+        const story = byKey.get(`story:${asset.story_id}`);
+        const art = story?.bundle.art_assets?.find((entry) => entry.id === asset.owner_id);
+        if (!art || asset.kind !== 'image' || art.media_type !== asset.media_type ||
+            art.sha256 !== asset.sha256 || art.size_bytes !== asset.size_bytes) {
+          throw httpError('Archive art media is not attached to a matching story asset');
+        }
       } else {
         const entity = byKey.get(`${asset.owner_kind}:${asset.owner_id}`);
         if (!entity || entity.bundle.record.image_media_type !== asset.media_type) {
@@ -243,6 +266,11 @@ function createTransferService({
     for (const entity of imported.entities.filter((item) => item.kind === 'story')) {
       if (entity.bundle.audiobook && !mediaOwners.has(`audio:story:${entity.id}`)) {
         throw httpError('Archive audiobook metadata has no audio file');
+      }
+      for (const art of entity.bundle.art_assets || []) {
+        if (!mediaOwners.has(`image:asset:${art.id}`)) {
+          throw httpError('Archive art metadata has no normalized media file');
+        }
       }
     }
   }
@@ -267,6 +295,15 @@ function createTransferService({
             item.kind === 'image' && item.owner_kind === 'page' && item.story_id === entity.id && item.page_number === page.page_number);
           descriptors.push([`page:${page.page_number}`, asset ? (local ? await hashFile(asset.path) : asset.sha256) : null]);
         }
+        const artAssets = local
+          ? db.prepare("SELECT id FROM assets WHERE story_id = ? AND status = 'ready' ORDER BY created_at, id").all(id)
+          : (entity.bundle.art_assets || []);
+        for (const [index, art] of artAssets.entries()) {
+          const asset = local ? artStore.fileInfo(id, art.id) : imported.assets.find((item) =>
+            item.kind === 'image' && item.owner_kind === 'asset' && item.owner_id === art.id &&
+            item.story_id === entity.id);
+          descriptors.push([`art:${index + 1}`, asset ? (local ? await hashFile(asset.path) : asset.sha256) : null]);
+        }
       }
     }
     if (kind === 'story' && options.include_audio) {
@@ -290,7 +327,10 @@ function createTransferService({
       const key = `${kind}:${id}`;
       if (!hashes.has(key)) {
         const bundle = planner.localBundle(kind, id, options);
-        hashes.set(key, semanticHash(kind, bundle));
+        hashes.set(key, semanticHash(kind, bundle, {
+          includeHierarchy: imported.manifest.database_schema.version >= 2,
+          includeArtStore: imported.manifest.database_schema.version >= 7,
+        }));
       }
       return hashes.get(key);
     }
@@ -447,7 +487,11 @@ function createTransferService({
       actions.set(collision.key, { ...collision, action: selected });
     }
 
-    const maps = { world: new Map(), character: new Map(), story: new Map(), page: new Map() };
+    const maps = {
+      world: new Map(), character: new Map(), story: new Map(),
+      volume: new Map(), chapter: new Map(), page: new Map(), revision: new Map(),
+      asset: new Map(), placement: new Map(), assetStorage: new Map(),
+    };
     const reservedNames = { world: new Set(), character: new Set(), story: new Set() };
     const copiedNames = new Map();
     for (const kind of ['world', 'character', 'story']) {
@@ -464,13 +508,55 @@ function createTransferService({
     }
     for (const entity of session.imported.entities.filter((item) => item.kind === 'story')) {
       const action = actions.get(`story:${entity.id}`);
+      for (const volume of entity.bundle.hierarchy?.volumes || []) {
+        let id = volume.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM volumes WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
+        maps.volume.set(volume.id, id);
+      }
+      for (const chapter of entity.bundle.hierarchy?.chapters || []) {
+        let id = chapter.id;
+        const existing = mode === 'replace_all' ? null : db.prepare(`
+          SELECT v.story_id FROM chapters c JOIN volumes v ON v.id = c.volume_id WHERE c.id = ?
+        `).get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
+        maps.chapter.set(chapter.id, id);
+      }
       for (const page of entity.bundle.pages) {
         let id = page.id;
-        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
-        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) {
+        const compatibilityOwner = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
+        const hierarchyOwner = mode === 'replace_all' ? null : db.prepare(`
+          SELECT v.story_id FROM pages p
+          JOIN chapters c ON c.id = p.chapter_id
+          JOIN volumes v ON v.id = c.volume_id
+          WHERE p.id = ?
+        `).get(id);
+        if (action.action === 'copy' ||
+            (compatibilityOwner && compatibilityOwner.story_id !== entity.id) ||
+            (hierarchyOwner && hierarchyOwner.story_id !== entity.id)) {
           id = randomUUID();
         }
         maps.page.set(page.id, id);
+      }
+      for (const revision of entity.bundle.revisions || []) {
+        let id = revision.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT page_id FROM page_revisions WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.page_id !== revision.page_id)) id = randomUUID();
+        maps.revision.set(revision.id, id);
+      }
+      const targetStoryId = maps.story.get(entity.id);
+      for (const asset of entity.bundle.art_assets || []) {
+        let id = asset.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM assets WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== targetStoryId)) id = randomUUID();
+        maps.asset.set(asset.id, id);
+        maps.assetStorage.set(asset.id, `${randomUUID()}.webp`);
+      }
+      for (const placement of entity.bundle.asset_placements || []) {
+        let id = placement.id;
+        const existing = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM asset_placements WHERE id = ?').get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== targetStoryId)) id = randomUUID();
+        maps.placement.set(placement.id, id);
       }
     }
     return { mode, actions, maps, copiedNames };
@@ -480,6 +566,10 @@ function createTransferService({
     if (asset.kind === 'audio') {
       const storyId = maps.story.get(asset.story_id || asset.owner_id);
       return storyId ? path.join(audioDir, `${storyId}.mp3`) : null;
+    }
+    if (asset.owner_kind === 'asset') {
+      const storageKey = maps.assetStorage.get(asset.owner_id);
+      return storageKey ? artStore.importTarget(storageKey) : null;
     }
     const mappedId = asset.owner_kind === 'page'
       ? maps.page.get(asset.owner_id)
@@ -501,6 +591,7 @@ function createTransferService({
         paths.push(...imageStore.pathsFor('story', entity.id));
         const oldPages = db.prepare('SELECT id FROM story_pages WHERE story_id = ?').all(entity.id);
         for (const page of oldPages) paths.push(...imageStore.pathsFor('page', page.id));
+        paths.push(...artStore.pathsForStory(entity.id));
         paths.push(path.join(audioDir, `${entity.id}.mp3`), path.join(audioDir, `${entity.id}.mp3.tmp`));
       }
     }
@@ -515,7 +606,7 @@ function createTransferService({
     const operations = [];
     try {
       for (const asset of session.imported.assets) {
-        const ownerKey = asset.owner_kind === 'page'
+        const ownerKey = ['page', 'asset'].includes(asset.owner_kind)
           ? `story:${asset.story_id}`
           : `${asset.owner_kind}:${asset.owner_id}`;
         const action = resolved.actions.get(ownerKey);
@@ -630,6 +721,121 @@ function createTransferService({
         insertOrUpdate(db, 'story_pages', page, PAGE_FIELDS);
         importedPages.push(page);
       }
+      if (entity.bundle.hierarchy) {
+        for (const volumeSource of entity.bundle.hierarchy.volumes) {
+          insertOrUpdate(db, 'volumes', {
+            ...volumeSource,
+            id: maps.volume.get(volumeSource.id),
+            story_id: storyId,
+          }, VOLUME_FIELDS);
+        }
+        for (const chapterSource of entity.bundle.hierarchy.chapters) {
+          insertOrUpdate(db, 'chapters', {
+            ...chapterSource,
+            id: maps.chapter.get(chapterSource.id),
+            volume_id: maps.volume.get(chapterSource.volume_id),
+          }, CHAPTER_FIELDS);
+        }
+        for (const pageSource of entity.bundle.hierarchy.pages) {
+          insertOrUpdate(db, 'pages', {
+            ...pageSource,
+            id: maps.page.get(pageSource.id),
+            chapter_id: maps.chapter.get(pageSource.chapter_id),
+            canonical_revision_id: null,
+            display_revision_id: null,
+          }, HIERARCHY_PAGE_FIELDS);
+        }
+      } else {
+        // Schema-1 archives came from the kernel scaffold before hierarchy
+        // behavior existed. They carry no structural choices to preserve, so
+        // importing them into schema 2 creates the accepted default manuscript.
+        const volumeId = randomUUID();
+        const chapterId = randomUUID();
+        db.prepare('INSERT INTO volumes (id, story_id, ordinal, title) VALUES (?, ?, 1, ?)')
+          .run(volumeId, storyId, 'Volume I');
+        db.prepare('INSERT INTO chapters (id, volume_id, ordinal, title) VALUES (?, ?, 1, ?)')
+          .run(chapterId, volumeId, 'Chapter I');
+        const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
+        importedPages.forEach((page, index) => insertPage.run(page.id, chapterId, index + 1));
+      }
+      if (entity.bundle.revisions?.length && entity.bundle.hierarchy) {
+        const pending = new Map(entity.bundle.revisions.map((revision) => [revision.id, revision]));
+        while (pending.size) {
+          let progressed = false;
+          for (const [sourceId, revisionSource] of [...pending]) {
+            if (revisionSource.parent_revision_id && pending.has(revisionSource.parent_revision_id)) continue;
+            const revision = {
+              ...revisionSource,
+              id: maps.revision.get(sourceId),
+              page_id: maps.page.get(revisionSource.page_id),
+              parent_revision_id: revisionSource.parent_revision_id
+                ? maps.revision.get(revisionSource.parent_revision_id)
+                : null,
+            };
+            insertOrUpdate(db, 'page_revisions', revision, REVISION_FIELDS);
+            pending.delete(sourceId);
+            progressed = true;
+          }
+          if (!progressed) throw httpError('Imported page revision ancestry is cyclic');
+        }
+        for (const pageSource of entity.bundle.hierarchy.pages) {
+          db.prepare(`
+            UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?
+          `).run(
+            maps.revision.get(pageSource.canonical_revision_id),
+            maps.revision.get(pageSource.display_revision_id),
+            maps.page.get(pageSource.id)
+          );
+        }
+      } else {
+        // Schema-1/2 archives predate immutable revisions. Their compatibility
+        // prose is unambiguous, so it becomes one imported canonical/display
+        // revision per page without inventing history.
+        const placementFor = db.prepare('SELECT id FROM pages WHERE id = ?');
+        const insertRevision = db.prepare(`
+          INSERT INTO page_revisions
+            (id, page_id, parent_revision_id, kind, content, direction, source,
+             model, prompt_tokens, completion_tokens, cost_usd, created_at)
+          VALUES (?, ?, NULL, 'canonical', ?, ?, 'import', ?, ?, ?, ?, ?)
+        `);
+        const setPointers = db.prepare(`
+          UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?
+        `);
+        for (const page of importedPages) {
+          if (!placementFor.get(page.id)) continue;
+          const revisionId = randomUUID();
+          insertRevision.run(
+            revisionId, page.id, page.content, page.user_input, page.model,
+            page.prompt_tokens, page.completion_tokens, page.cost_usd || 0,
+            page.created_at
+          );
+          setPointers.run(revisionId, revisionId, page.id);
+        }
+      }
+      for (const assetSource of entity.bundle.art_assets || []) {
+        const asset = {
+          ...assetSource,
+          id: maps.asset.get(assetSource.id),
+          story_id: storyId,
+          storage_key: maps.assetStorage.get(assetSource.id),
+          provider_reference_allowed: 0,
+        };
+        insertOrUpdate(db, 'assets', asset, [
+          ...ART_ASSET_FIELDS, 'storage_key', 'provider_reference_allowed',
+        ]);
+      }
+      for (const placementSource of entity.bundle.asset_placements || []) {
+        const placement = {
+          ...placementSource,
+          id: maps.placement.get(placementSource.id),
+          story_id: storyId,
+          asset_id: maps.asset.get(placementSource.asset_id),
+          after_page_id: placementSource.after_page_id
+            ? maps.page.get(placementSource.after_page_id)
+            : null,
+        };
+        insertOrUpdate(db, 'asset_placements', placement, ASSET_PLACEMENT_FIELDS);
+      }
       for (const snapshotSource of entity.bundle.snapshots) {
         const snapshot = {
           ...snapshotSource,
@@ -637,6 +843,18 @@ function createTransferService({
           character_id: characterMap.get(snapshotSource.character_id),
         };
         insertOrReplace(db, 'story_character_snapshots', snapshot, SNAPSHOT_FIELDS);
+      }
+      for (const templateSource of entity.bundle.template_snapshots || []) {
+        const sourceId = templateSource.template_kind === 'world'
+          ? maps.world.get(templateSource.source_template_id)
+          : maps.character.get(templateSource.source_template_id);
+        const snapshot = {
+          ...templateSource,
+          id: randomUUID(),
+          story_id: storyId,
+          source_template_id: sourceId,
+        };
+        insertOrReplace(db, 'template_snapshots', snapshot, TEMPLATE_SNAPSHOT_FIELDS);
       }
       for (const memorySource of entity.bundle.memory) {
         const memory = {
@@ -658,6 +876,173 @@ function createTransferService({
               .run(memory.page_id, storyId, content);
           } catch { /* LIKE search remains correct */ }
         }
+      }
+      const importedDeltas = entity.bundle.continuity_deltas || [];
+      if (importedDeltas.length) {
+        for (const deltaSource of importedDeltas) {
+          const delta = {
+            ...deltaSource,
+            revision_id: maps.revision.get(deltaSource.revision_id),
+            story_id: storyId,
+            delta_json: deltaSource.delta_json
+              ? JSON.stringify(mapObjectIds(parseJson(deltaSource.delta_json, {}), characterMap))
+              : null,
+          };
+          insertOrUpdate(db, 'continuity_deltas', delta, CONTINUITY_DELTA_FIELDS, 'revision_id');
+          if (delta.status === 'ready') {
+            const content = searchTextForMemory(delta);
+            db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
+              .run(delta.revision_id, storyId, content);
+            try {
+              db.prepare('DELETE FROM continuity_search_fts WHERE revision_id = ?').run(delta.revision_id);
+              db.prepare('INSERT INTO continuity_search_fts (revision_id, story_id, content) VALUES (?, ?, ?)')
+                .run(delta.revision_id, storyId, content);
+            } catch { /* LIKE search remains correct */ }
+          }
+        }
+      } else {
+        // Pre-schema-5 archives carry current ready continuity by page. Bind
+        // those rows to the imported canonical revisions without inventing
+        // any additional extraction.
+        for (const memorySource of entity.bundle.memory) {
+          const pageId = maps.page.get(memorySource.page_id);
+          const revisionId = db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(pageId)?.canonical_revision_id;
+          if (!revisionId) continue;
+          const delta = {
+            revision_id: revisionId,
+            story_id: storyId,
+            status: memorySource.status,
+            schema_version: memorySource.schema_version || 1,
+            delta_json: memorySource.delta_json
+              ? JSON.stringify(mapObjectIds(parseJson(memorySource.delta_json, {}), characterMap))
+              : null,
+            provider_result_json: null,
+            spend_usd: memorySource.cost_usd || 0,
+            error_code: memorySource.status === 'failed' ? 'IMPORTED_EXTRACTION_FAILED' : null,
+            content_hash: memorySource.content_hash,
+            summary: memorySource.summary,
+            model: memorySource.model,
+            prompt_tokens: memorySource.prompt_tokens,
+            completion_tokens: memorySource.completion_tokens,
+            error: memorySource.error,
+            created_at: memorySource.created_at,
+            updated_at: memorySource.updated_at,
+          };
+          insertOrUpdate(db, 'continuity_deltas', delta, CONTINUITY_DELTA_FIELDS, 'revision_id');
+          if (delta.status === 'ready') {
+            const content = searchTextForMemory(delta);
+            db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
+              .run(revisionId, storyId, content);
+          }
+        }
+      }
+      const combinedMap = new Map([
+        ...maps.world, ...maps.character, ...maps.story, ...maps.volume,
+        ...maps.chapter, ...maps.page, ...maps.revision, ...maps.asset, ...maps.placement,
+      ]);
+      for (const correctionSource of entity.bundle.corrections || []) {
+        const subjectId = correctionSource.subject_id ? (combinedMap.get(correctionSource.subject_id) || correctionSource.subject_id) : null;
+        const correction = {
+          ...correctionSource,
+          id: randomUUID(),
+          story_id: storyId,
+          subject_id: subjectId,
+          correction_json: JSON.stringify(mapObjectIds(parseJson(correctionSource.correction_json, {}), combinedMap)),
+        };
+        insertOrReplace(db, 'continuity_corrections', correction, CORRECTION_FIELDS);
+      }
+      const operationSources = entity.bundle.writing_operations || [];
+      const operationMap = new Map(operationSources.map((operation) => [operation.id, randomUUID()]));
+      const preparedSource = entity.bundle.prepared_page || null;
+      const preparedId = preparedSource ? randomUUID() : null;
+      const workingMap = new Map([
+        ...combinedMap,
+        ...operationMap,
+        ...(preparedSource ? [[preparedSource.id, preparedId]] : []),
+      ]);
+      const importedContext = preparedSource
+        ? mapObjectIds(parseJson(preparedSource.context_json, {}), workingMap)
+        : null;
+      const freshPreparedContext = importedContext && writingTransactions
+        ? writingTransactions.contextSnapshot(storyId, importedContext.generation || {})
+        : null;
+      const importedAt = new Date().toISOString();
+      const writingOperationDbFields = [...WRITING_OPERATION_FIELDS, 'writer_session_id', 'lease_token'];
+      for (const operationSource of operationSources) {
+        const interrupted = ['requested', 'running'].includes(operationSource.status);
+        const isPreparedOperation = Boolean(preparedSource && operationSource.id === preparedSource.operation_id);
+        const operation = {
+          ...operationSource,
+          id: operationMap.get(operationSource.id),
+          story_id: storyId,
+          writer_session_id: `archive-import:${randomUUID()}`,
+          lease_token: null,
+          expected_tail_page_id: operationSource.expected_tail_page_id
+            ? maps.page.get(operationSource.expected_tail_page_id)
+            : null,
+          expected_tail_revision_id: operationSource.expected_tail_revision_id
+            ? maps.revision.get(operationSource.expected_tail_revision_id)
+            : null,
+          context_fingerprint: isPreparedOperation && freshPreparedContext
+            ? freshPreparedContext.fingerprint
+            : operationSource.context_fingerprint,
+          request_json: JSON.stringify(mapObjectIds(parseJson(operationSource.request_json, {}), workingMap)),
+          provider_result_json: operationSource.provider_result_json
+            ? JSON.stringify(mapObjectIds(parseJson(operationSource.provider_result_json, {}), workingMap))
+            : null,
+          result_json: operationSource.result_json
+            ? JSON.stringify(mapObjectIds(parseJson(operationSource.result_json, {}), workingMap))
+            : null,
+          status: interrupted ? 'failed' : operationSource.status,
+          error_code: interrupted ? 'RESTART_INTERRUPTED' : operationSource.error_code,
+          error_message: interrupted
+            ? 'The archived provider operation was interrupted before import.'
+            : operationSource.error_message,
+          updated_at: interrupted ? importedAt : operationSource.updated_at,
+          finished_at: interrupted ? importedAt : operationSource.finished_at,
+        };
+        insertOrUpdate(db, 'writing_operations', operation, writingOperationDbFields);
+      }
+      if (preparedSource) {
+        const prepared = {
+          ...preparedSource,
+          story_id: storyId,
+          id: preparedId,
+          operation_id: operationMap.get(preparedSource.operation_id),
+          expected_tail_page_id: preparedSource.expected_tail_page_id
+            ? maps.page.get(preparedSource.expected_tail_page_id)
+            : null,
+          expected_tail_revision_id: preparedSource.expected_tail_revision_id
+            ? maps.revision.get(preparedSource.expected_tail_revision_id)
+            : null,
+          context_fingerprint: freshPreparedContext
+            ? freshPreparedContext.fingerprint
+            : preparedSource.context_fingerprint,
+          context_json: freshPreparedContext
+            ? freshPreparedContext.json
+            : JSON.stringify(importedContext),
+          provider_result_json: JSON.stringify(mapObjectIds(
+            parseJson(preparedSource.provider_result_json, {}), workingMap
+          )),
+        };
+        insertOrUpdate(db, 'prepared_pages', prepared, PREPARED_PAGE_FIELDS, 'story_id');
+        // The operation response carries the public opaque identity. Rebuild
+        // it after assigning the imported identity so idempotent replay agrees
+        // with GET /preview and exact promotion.
+        const publicPrepared = writingTransactions
+          ? writingTransactions.publicPrepared(prepared)
+          : { id: prepared.id, preview_id: prepared.id, preview_key: prepared.id,
+              expected_page: prepared.expected_page, operation_id: prepared.operation_id,
+              created_at: prepared.created_at };
+        db.prepare('UPDATE writing_operations SET result_json = ? WHERE id = ?')
+          .run(JSON.stringify({ preview: publicPrepared }), prepared.operation_id);
+      }
+      for (const publicationSource of entity.bundle.publication_snapshots || []) {
+        insertOrReplace(db, 'publication_snapshots', {
+          ...publicationSource,
+          id: randomUUID(),
+          story_id: storyId,
+        }, PUBLICATION_SNAPSHOT_FIELDS);
       }
       if (entity.bundle.preview) {
         insertOrUpdate(db, 'story_previews', { ...entity.bundle.preview, story_id: storyId }, PREVIEW_FIELDS, 'story_id');
@@ -692,7 +1077,7 @@ function createTransferService({
     });
     if (!diskHasRoom(plan.estimatedBytes)) throw httpError('Not enough disk space to create the required safety backup', 507);
     const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filename = `safety-before-import-${stamp}.scribetribe.zip`;
+    const filename = `safety-before-import-${stamp}${ARCHIVE_EXTENSION}`;
     await writeArchiveFile(plan, path.join(backupsDir, filename));
     return { filename, download_url: `/api/transfers/safety-backups/${encodeURIComponent(filename)}` };
   }
@@ -759,7 +1144,7 @@ function createTransferService({
   }
 
   function safetyBackupPath(filename) {
-    if (typeof filename !== 'string' || path.basename(filename) !== filename || !filename.endsWith('.scribetribe.zip')) {
+    if (typeof filename !== 'string' || path.basename(filename) !== filename || !filename.endsWith(ARCHIVE_EXTENSION)) {
       throw httpError('Safety backup not found', 404);
     }
     const target = path.join(backupsDir, filename);

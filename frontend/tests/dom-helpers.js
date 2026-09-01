@@ -32,14 +32,21 @@ function buildDom() {
   document.body.className = '';
   document.body.innerHTML = `
     <div id="authRoot" hidden></div>
-    <nav class="main-nav">
-      <button id="homeBtn" class="nav-btn active">Home</button>
-      <button id="writeBtn" class="nav-btn">Write</button>
-      <button id="libraryBtn" class="nav-btn">Library</button>
-      <button id="worldsBtn" class="nav-btn">Worlds</button>
-      <button id="charactersBtn" class="nav-btn">Characters</button>
+    <select id="shellManuscriptSelect" aria-label="Choose a manuscript" disabled><option value="">No manuscripts yet</option></select>
+    <nav class="main-nav" aria-label="Global">
+      <button id="homeBtn" class="nav-btn active">Library</button>
+      <button id="libraryBtn" class="nav-btn">Manuscripts</button>
+      <button id="worldsBtn" class="nav-btn">World templates</button>
+      <button id="charactersBtn" class="nav-btn">Character templates</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
       <button id="lockBtn" class="nav-btn">Lock</button>
+    </nav>
+    <nav id="workspaceNav" class="workspace-nav" aria-label="Manuscript workspace">
+      <button id="writeBtn" class="workspace-nav__btn">Desk</button>
+      <button id="chronicleBtn" class="workspace-nav__btn" disabled>Chronicle</button>
+      <button id="codexBtn" class="workspace-nav__btn" disabled>Codex</button>
+      <button id="galleryBtn" class="workspace-nav__btn" disabled>Gallery</button>
+      <button id="gateBtn" class="workspace-nav__btn" disabled>Gate</button>
     </nav>
     <div id="diskBanner" class="disk-banner" role="alert" hidden>
       <p id="diskBannerText"></p>
@@ -49,8 +56,44 @@ function buildDom() {
         <div class="hero__actions">
           <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
           <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
+          <button id="heroImportBtn" class="btn btn-secondary" type="button">Import prose</button>
           <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
         </div>
+        <section id="manuscriptStartSheet" hidden>
+          <button id="manuscriptStartClose" type="button">Keep draft &amp; close</button>
+          <form id="manuscriptStartForm">
+            <input id="manuscriptStartName" type="text">
+            <button id="startPathManual" data-start-path="manual" type="button" role="radio">Manual</button>
+            <button id="startPathSeed" data-start-path="seed" type="button" role="radio">Seed</button>
+            <button id="startPathImport" data-start-path="import" type="button" role="radio">Import</button>
+            <div data-start-panel="manual"><textarea id="startManualOpening"></textarea></div>
+            <div data-start-panel="seed" hidden><textarea id="startSeedPremise"></textarea><textarea id="startSeedDirection"></textarea></div>
+            <div data-start-panel="import" hidden>
+              <input id="startImportFile" type="file">
+              <textarea id="startImportProse"></textarea>
+              <select id="startImportMode"><option value="headings">Headings</option><option value="single">Single</option></select>
+            </div>
+            <div id="manuscriptStartHintWrap"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
+            <details id="startFoundations">
+              <select id="startWorld"><option value="">No world</option></select>
+              <fieldset id="startCastFieldset"><div id="startCastList"></div></fieldset>
+              <input id="startNarrativeVoice" type="text">
+              <input id="startPointOfView" type="text">
+              <input id="startTense" type="text">
+              <textarea id="startConstraints"></textarea>
+              <button id="startDraftFoundationsBtn" type="button">Draft Foundations</button>
+              <div id="startFoundationDraft" hidden></div>
+              <div id="startProviderSetup" hidden>
+                <input id="startProviderKey" type="password">
+                <button id="startProviderSave" type="button">Use for session</button>
+              </div>
+            </details>
+            <select id="manuscriptStartTone"><option value="fade-to-black">Tasteful</option><option value="romantic">Romantic</option></select>
+            <p id="manuscriptStartStatus"></p>
+            <button id="manuscriptStartCancel" type="button">Keep draft &amp; close</button>
+            <button id="manuscriptStartSubmit" type="submit">Create manuscript</button>
+          </form>
+        </section>
         <div id="homeRecent" class="home-recent" hidden>
           <h2>Recent manuscripts</h2>
           <div id="homeRecentList" class="items-grid"></div>
@@ -134,9 +177,14 @@ function buildDom() {
         <button id="readAloudBtn" type="button">Read aloud</button>
         <button id="narrationAutoBtn" type="button" aria-pressed="false">Auto-read</button>
         <button id="imagePromptBtn" type="button">Paint scene</button>
+        <button id="uploadArtBtn" type="button">Upload art</button>
+        <input id="uploadArtInput" type="file">
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
-        <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Delete everything after this page</button></div>
+        <div id="deskPageState" hidden><button id="deskPageEditBtn" type="button">Edit active page</button><p id="deskPageSaveState" role="status"></p></div>
+        <section id="deskPageEditor" hidden><h3 id="deskPageEditorTitle"></h3><p id="deskPageEditorNotice"></p><textarea id="deskPageEditorText"></textarea><button id="deskPageSaveNow" type="button">Save now</button><button id="deskPageReloadLatest" type="button" hidden>Load latest page</button><button id="deskPageEditorClose" type="button">Close editor</button></section>
+        <div id="pastPageBar" class="past-page-bar" hidden><p></p><button id="deleteAfterBtn" type="button">Return story to this page</button></div>
+        <div id="deskRecoveryBanner" hidden><p id="deskRecoveryText"></p><button id="deskRecoveryUndo"></button></div>
         <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
           <p id="audiobookBannerText" class="audiobook-banner__text"></p>
           <div id="audiobookProgress" class="progress-track" hidden><div id="audiobookProgressFill" class="progress-fill"></div></div>
@@ -149,6 +197,42 @@ function buildDom() {
         <button id="exportBtn">Export .epub</button>
         <button id="audiobookBtn" type="button">Audiobook</button>
         <button id="deletePageBtn">Delete Page</button>
+      </section>
+      <section id="chronicleSection" class="content-section">
+        <span data-workspace-story></span><p id="chronicleStatus"></p><div id="chronicleSummary"></div>
+        <input id="chroniclePageJump" type="number"><button id="chroniclePageJumpBtn">Find page</button>
+        <button id="chronicleAddChapter">Begin chapter</button><button id="chronicleAddVolume">Begin volume</button>
+        <button class="workspace-back-to-desk">Return to Desk</button>
+        <div id="chronicleOutline" role="tree"></div><div id="chronicleRecoveries"></div>
+      </section>
+      <section id="codexSection" class="content-section">
+        <span data-workspace-story></span><p id="codexStatus"></p>
+        <button id="codexFoundationsTab" role="tab" aria-selected="true">Foundations</button>
+        <button id="codexCanonTab" role="tab" aria-selected="false">Remembered canon</button>
+        <button id="codexCorrectionsTab" role="tab" aria-selected="false">Author corrections</button>
+        <button class="workspace-back-to-desk">Return to Desk</button>
+        <section id="codexFoundationsPanel"><div id="codexFoundations"></div><div id="codexTemplateUpdates"></div></section>
+        <section id="codexCanonPanel" hidden><div id="codexCoverage"></div><input id="codexSearch"><div id="codexCanon"></div></section>
+        <section id="codexCorrectionsPanel" hidden><div id="codexCorrectionActions"></div><div id="codexCorrections"></div><div id="codexIssues"></div><div id="codexImpactSummary"></div></section>
+      </section>
+      <section id="gallerySection" class="content-section"><span data-workspace-story></span><p id="galleryStatus"></p>
+        <button id="galleryPaintBtn" class="btn btn-primary">Paint with AI</button><button id="galleryUploadBtn" class="btn btn-primary">Upload an image</button>
+        <input id="galleryUploadInput" type="file"><button class="workspace-back-to-desk">Return to Desk</button>
+        <div id="galleryReferenceSummary"></div><div id="galleryGrid"></div>
+      </section>
+      <section id="gateSection" class="content-section"><span data-workspace-story></span>
+        <button id="gateBackupBtn">Review project backup</button>
+        <form id="gatePublicationForm"><input id="gatePublicationTitle"><input id="gatePublicationAuthor"><input id="gatePublicationLanguage" value="en">
+          <textarea id="gateFrontMatter"></textarea><textarea id="gateBackMatter"></textarea>
+          <div id="gateFormatList"><input type="checkbox" name="publication-format" value="epub" checked><input type="checkbox" name="publication-format" value="pdf" checked></div>
+          <div id="gateArtList"></div><button id="gateReviewPublicationBtn" type="submit">Review publication</button>
+        </form>
+        <select id="gateShareExpiry"><option value="604800" selected>7 days</option><option value="">Never</option></select>
+        <button id="gateCreateShareBtn" disabled>Share reviewed snapshot</button><p id="gateShareHint"></p>
+        <div id="gateShareReveal" hidden><input id="gateShareUrl"><button id="gateCopyShareBtn">Copy link</button></div>
+        <div id="gateShareList"></div>
+        <section id="gateJob" hidden><p id="gateJobStatus"></p><progress id="gateJobProgress"></progress><div id="gateJobDownloads"></div><button id="gateCancelJobBtn">Cancel</button><button id="gateRetryJobBtn" hidden>Retry</button></section>
+        <button class="workspace-back-to-desk">Return to Desk</button>
       </section>
       <section id="settingsSection" class="content-section">
         <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
@@ -199,6 +283,11 @@ function buildDom() {
         <p id="imagePromptHint" class="burn-modal__body"></p>
         <textarea id="imagePromptText" rows="10"></textarea>
         <select id="imageQualitySelect"><option value="low_1k">1K · low</option><option value="medium_2k">2K · medium</option></select>
+        <p id="imageRefusalNotice" class="image-refusal-notice" role="status" aria-live="polite" hidden></p>
+        <div id="imageReferenceDropOption" hidden>
+          <label><input id="imagePromptDropReferences" type="checkbox">Retry without identity references</label>
+          <p>Originals stay unchanged.</p>
+        </div>
         <p id="sceneImageCost" class="scene-image-cost" hidden></p>
         <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
         <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
@@ -217,7 +306,8 @@ function buildDom() {
     </div>
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
       <img id="sceneViewerImg" alt="The painted scene">
-      <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Add as page</button>
+      <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn">Place after page</button>
+      <button id="sceneViewerGalleryBtn" type="button" class="ghost-btn">Save to Gallery</button>
       <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
       <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
     </div>
@@ -294,7 +384,7 @@ function buildDom() {
 let loadCounter = 0;
 const PAID_CONSENT_KEY = 'st-paid-consent-v1';
 
-// opts.hash: boot the app at that hash (deep-link); default is a clean '#/home'.
+// opts.hash: boot the app at that hash (deep-link); default is a clean '#/library'.
 async function loadScript(opts = {}) {
   if (!opts.preservePaidConsent) window.localStorage.removeItem(PAID_CONSENT_KEY);
   buildDom();

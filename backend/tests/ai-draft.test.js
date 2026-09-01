@@ -166,6 +166,37 @@ describe('POST /api/ai/character', () => {
     expect(res.body.error).toContain('world_id');
   });
 });
+
+describe('POST /api/ai/foundations', () => {
+  it('returns bounded field-level proposals without writing a story', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAiJson({
+      premise: 'An archivist discovers that every corrected record changes one living memory.',
+      narrative_voice: 'Intimate, lucid, and quietly uncanny.',
+      point_of_view: 'Close third person through the archivist.',
+      tense: 'Past tense.',
+      constraints: 'No chosen-one reveal; every supernatural rule has a visible cost.',
+    });
+
+    const res = await request(app)
+      .post('/api/ai/foundations')
+      .send({ premise: 'An archivist changes memories', point_of_view: 'Close third' })
+      .expect(200);
+
+    expect(res.body.foundations.point_of_view).toContain('Close third');
+    expect(db.prepare('SELECT COUNT(*) AS count FROM stories').get().count).toBe(0);
+    const prompt = axios.post.mock.calls[0][1].messages[1].content;
+    expect(prompt).toContain('premise: An archivist changes memories');
+    expect(prompt).toContain('accept');
+    expect(prompt).toContain('strict JSON');
+  });
+
+  it('rejects non-text foundation seeds before any provider call', async () => {
+    const res = await request(app).post('/api/ai/foundations').send({ premise: { bad: true } }).expect(400);
+    expect(res.body.error).toContain('Foundation seed fields');
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+});
 describe('Draft JSON repair', () => {
   it('retries once with a corrective system note when the first answer is not JSON', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';

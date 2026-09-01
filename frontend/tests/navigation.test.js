@@ -7,21 +7,22 @@ function flush() {
 }
 
 describe('UI navigation (hash routes)', () => {
+  let fw;
+
   beforeEach(async () => {
     mockFetch(); // loads on init return empty objects - fine for nav
-    await loadScript();
+    fw = await loadScript();
   });
 
-  it('starts on Home with the hash set', async () => {
-    expect(window.location.hash).toBe('#/home');
+  it('starts at the Library threshold with the hash set', async () => {
+    expect(window.location.hash).toBe('#/library');
     expect(document.getElementById('homeSection').classList.contains('active')).toBe(true);
     expect(document.getElementById('homeBtn').classList.contains('active')).toBe(true);
     expect(document.getElementById('homeBtn').getAttribute('aria-current')).toBe('page');
   });
 
-  it('switches destinations exclusively when nav buttons are clicked', async () => {
+  it('switches global Library destinations exclusively when nav buttons are clicked', async () => {
     const destinations = [
-      ['write', 'writeSection'],
       ['library', 'librarySection'],
       ['worlds', 'worldsSection'],
       ['characters', 'charactersSection'],
@@ -37,6 +38,42 @@ describe('UI navigation (hash routes)', () => {
       }
     }
     expect(window.location.hash).toBe('#/characters');
+  });
+
+  it('keeps the five manuscript destinations stable and gates story-only rooms', async () => {
+    const workspace = ['Desk', 'Chronicle', 'Codex', 'Gallery', 'Gate'];
+    expect([...document.querySelectorAll('#workspaceNav .workspace-nav__btn')].map((button) => button.textContent.trim())).toEqual(workspace);
+    expect(document.getElementById('writeBtn').disabled).toBe(false);
+    for (const id of ['chronicleBtn', 'codexBtn', 'galleryBtn', 'gateBtn']) {
+      expect(document.getElementById(id).disabled).toBe(true);
+    }
+
+    document.getElementById('writeBtn').click();
+    await flush();
+    expect(window.location.hash).toBe('#/desk');
+    expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
+    expect(document.getElementById('writeBtn').getAttribute('aria-current')).toBe('page');
+  });
+
+  it('opens each manuscript room on the selected story without changing its vocabulary', async () => {
+    const story = { id: 's1', title: 'The Glass Archive', page_count: 1 };
+    fw.state().stories.push(story);
+    fw.__setStoryState({ currentStory: story, storyPages: [{ page_number: 1, content: 'Once.', user_input: null }], currentPage: 1 });
+
+    expect(document.getElementById('shellManuscriptSelect').value).toBe('s1');
+    for (const [id, route, section] of [
+      ['chronicleBtn', '#/chronicle/s1', 'chronicleSection'],
+      ['codexBtn', '#/codex/s1', 'codexSection'],
+      ['galleryBtn', '#/gallery/s1', 'gallerySection'],
+      ['gateBtn', '#/gate/s1', 'gateSection'],
+    ]) {
+      document.getElementById(id).click();
+      await flush();
+      expect(window.location.hash).toBe(route);
+      expect(document.getElementById(section).classList.contains('active')).toBe(true);
+      expect(document.getElementById(id).getAttribute('aria-current')).toBe('page');
+      expect(document.querySelector(`#${section} [data-workspace-story]`).textContent).toBe(story.title);
+    }
   });
 
   it('Library tabs follow the route and restore on tab clicks', async () => {
@@ -61,8 +98,8 @@ describe('UI navigation (hash routes)', () => {
     expect(document.getElementById('settingsSection').classList.contains('active')).toBe(true);
   });
 
-  it('a cold Write deep link paints the truthful disabled desk immediately', async () => {
-    await loadScript({ hash: '#/write' });
+  it('a cold Desk deep link paints the truthful disabled desk immediately', async () => {
+    await loadScript({ hash: '#/desk' });
     await flush();
     expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
     expect(document.getElementById('pageIndicator').textContent).toBe('No story selected');
@@ -70,11 +107,11 @@ describe('UI navigation (hash routes)', () => {
     expect(document.getElementById('exportBtn').disabled).toBe(true);
   });
 
-  it('an invalid hash recovers to Home with a message', async () => {
+  it('an invalid hash recovers to the Library with a message', async () => {
     window.location.hash = '#/nonsense';
     await flush();
     await flush();
-    expect(window.location.hash).toBe('#/home');
+    expect(window.location.hash).toBe('#/library');
     expect(document.getElementById('homeSection').classList.contains('active')).toBe(true);
   });
 
@@ -82,7 +119,7 @@ describe('UI navigation (hash routes)', () => {
     mockFetch([
       { match: '/api/stories', response: jsonResponse(200, { stories: [] }) },
     ]);
-    window.location.hash = '#/write/does-not-exist';
+    window.location.hash = '#/desk/does-not-exist';
     await flush();
     await flush();
     await flush();
@@ -115,7 +152,7 @@ describe('Generation loading state', () => {
     // No story is selected: the desk stays honestly disabled - the writing
     // controls only wake with a tale.
     expect(document.getElementById('generateBtn').disabled).toBe(true);
-    expect(document.getElementById('generateBtn').textContent).toBe('Write next page');
+    expect(document.getElementById('generateBtn').textContent).toBe('Prepare next page');
   });
 });
 
@@ -178,7 +215,7 @@ describe('Page display and navigation', () => {
     expect(document.getElementById('retryBtn').disabled).toBe(false); // on last page now
     expect(document.getElementById('nextPageBtn').disabled).toBe(true);
     // The hash follows the reader
-    expect(window.location.hash).toBe('#/write/s1/page/2');
+    expect(window.location.hash).toBe('#/desk/s1/page/2');
   });
 });
 

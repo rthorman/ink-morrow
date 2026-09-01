@@ -85,6 +85,7 @@ describe('Model picker', () => {
 
     await fw.loadModels();
     fw.setSetting('model', 'z-ai/glm-5.1');
+    document.getElementById('userInput').value = 'Continue with this model.';
 
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
@@ -109,6 +110,7 @@ describe('Model picker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
     );
+    document.getElementById('userInput').value = 'Continue with the default model.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;
@@ -165,6 +167,7 @@ describe('Cost ticker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 2, content: 'New.', user_input: null, cost_usd: 0.0025 } })
     );
+    document.getElementById('userInput').value = 'Continue the story.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;
@@ -208,6 +211,7 @@ describe('Cost ticker', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 2, content: 'New.', user_input: null, cost_usd: 0.0025 } })
     );
+    document.getElementById('userInput').value = 'Continue the story.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;
@@ -235,6 +239,7 @@ describe('Words per page setting', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Words.', user_input: null, cost_usd: null } })
     );
+    document.getElementById('userInput').value = 'Continue at this length.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;
@@ -373,6 +378,7 @@ describe('Reasoning level selector', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(201, { page: { page_number: 1, content: 'Quick.', user_input: null, cost_usd: null } })
     );
+    document.getElementById('userInput').value = 'Continue without reasoning.';
     const gen = fw.generateNextPage();
     expect(await paidReview('confirm')).toBe(true);
     await gen;

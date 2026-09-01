@@ -101,8 +101,8 @@
 }
 
 .story-content {
-  background: var(--st-ink-900);
-  border: 1px solid var(--st-border);
+  background: var(--surface-manuscript);
+  border: 1px solid rgb(90 70 53 / 0.45);
   border-radius: var(--st-radius-sm);
   padding: clamp(20px, 3vw, 34px);
   min-height: 300px;
@@ -118,8 +118,80 @@
   font-family: var(--st-prose-family, var(--st-font-reading));
   font-size: var(--st-prose-size, 1.12rem);
   line-height: 1.75;
-  color: var(--st-vellum-100);
+  color: var(--st-vellum-900);
 }
+
+.story-content .placeholder {
+  color: var(--st-vellum-700);
+  background: rgb(90 70 53 / 0.06);
+  border-color: rgb(90 70 53 / 0.35);
+}
+
+.desk-page-state {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  margin: -8px 0 20px;
+}
+
+.desk-page-state[hidden],
+.desk-page-editor[hidden],
+.desk-recovery[hidden] {
+  display: none;
+}
+
+.desk-save-state {
+  margin: 0;
+  color: var(--st-text-muted);
+  font-family: var(--st-font-mono);
+  font-size: 0.82rem;
+}
+
+.desk-save-state[data-state='saving'] { color: var(--state-queued); }
+.desk-save-state[data-state='saved'] { color: var(--st-success-600); }
+.desk-save-state[data-state='offline'],
+.desk-save-state[data-state='error'] { color: var(--st-danger-500); }
+.desk-save-state[data-state='conflict'] { color: var(--state-prepared); }
+
+.desk-page-editor {
+  margin: -8px 0 20px;
+  padding: clamp(16px, 2.5vw, 24px);
+  background: var(--st-surface-2);
+  border: 1px solid var(--st-border-bright);
+  border-radius: var(--st-radius-md);
+}
+
+.desk-page-editor__head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+}
+
+.desk-page-editor__head h3 { margin-top: 0; }
+
+#deskPageEditorText {
+  min-height: min(48vh, 520px);
+  font-family: var(--st-prose-family, var(--st-font-reading));
+  line-height: 1.7;
+  background: var(--surface-manuscript);
+  color: var(--st-vellum-900);
+}
+
+.desk-recovery {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--st-space-3);
+  margin: -6px 0 20px;
+  padding: 12px 16px;
+  background: rgb(45 100 74 / 0.18);
+  border: 1px solid var(--st-success-600);
+  border-radius: var(--st-radius-sm);
+}
+
+.desk-recovery p { margin: 0; }
 
 .page-direction {
   max-width: var(--st-prose-max);
@@ -127,11 +199,23 @@
   font-family: var(--st-font-mono);
   font-size: 0.8rem;
   font-style: italic;
+  color: var(--st-violet-600);
+}
+
+/* Noncanonical art is displayed around its stable prose anchor. */
+.placed-art {
+  width: 100%;
+  margin: 8px auto 22px auto;
+  text-align: center;
+}
+
+.placed-art figcaption {
+  margin-top: -8px;
+  font-family: var(--st-font-ui);
+  font-size: 0.82rem;
   color: var(--st-violet-300);
 }
 
-/* A bound painting: the page IS the picture. Book-plate framing, centered
-   like the prose column, never wider than the reading measure. */
 .scene-plate {
   display: block;
   width: auto;
@@ -150,6 +234,7 @@
   border: 1px solid var(--st-border);
   border-radius: var(--st-radius-md);
   padding: clamp(14px, 2vw, 22px);
+  scroll-margin-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .writing-interface textarea {
@@ -278,12 +363,10 @@
   pointer-events: none;
 }
 
-/* With the scriptorium background on, the art shows through behind the prose
-   itself (not just the page edges). The ink veil stays dark enough that the
-   vellum text keeps AA contrast. */
+/* Brand art may live around the Desk, never behind running manuscript text. */
 #writeSection.scriptorium-bg .story-content {
-  background: rgb(16 10 22 / 0.6);
-  border-color: var(--st-border-bright);
+  background: var(--surface-manuscript);
+  border-color: rgb(224 197 132 / 0.62);
 }
 
 @media (min-width: 1200px) {
@@ -457,6 +540,23 @@
   padding: 0.35rem 0;
 }
 
+.desk-tool-sheet {
+  flex: 0 1 auto;
+  color: var(--st-vellum-200);
+}
+
+.desk-tool-sheet > summary {
+  min-height: var(--st-touch-min);
+  padding: 0.55rem 0.75rem;
+  font-family: var(--st-font-ui);
+  color: var(--st-gold-300);
+  cursor: pointer;
+}
+
+.desk-tool-sheet[open] > summary {
+  margin-bottom: 0.2rem;
+}
+
 .desk-group--management {
   margin-top: 0.8rem;
   padding-top: 0.7rem;
@@ -474,6 +574,8 @@
 
 .story-context > select {
   flex: 1 1 280px;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .story-create-at-desk {
@@ -507,4 +609,18 @@
   color: var(--state-prepared);
   border-left: 3px solid var(--state-prepared);
   padding-left: 0.6rem;
+}
+
+@media (max-width: 1023px) and (orientation: portrait) {
+  .writing-interface:not(.read-only) {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    background: var(--st-surface-1);
+    box-shadow: none;
+  }
+
+  .story-content {
+    margin-bottom: 28px;
+  }
 }

@@ -27,11 +27,12 @@
   --st-vellum-50: #fbf5e9;
   --st-vellum-100: #f2e7d2;
   --st-vellum-200: #dfceae;
+  --st-vellum-700: #5a4635;
   --st-vellum-900: #2c211b;
 
   --st-ash-400: #a99fb1;
   --st-ash-600: #726879;
-  --st-danger-500: #d64b58;
+  --st-danger-500: #df5865;
   --st-success-500: #64b98a;
   --st-success-700: #2f5c44;
   --st-success-600: #3d7a58;
@@ -43,7 +44,7 @@
   --st-text: var(--st-vellum-100);
   --st-text-muted: var(--st-ash-400);
   --st-primary: var(--st-oxblood-500);
-  --st-accent: var(--st-violet-500);
+  --st-accent: var(--st-violet-300);
   --st-focus: var(--st-witchlight-400);
   --st-border: rgb(199 163 91 / 0.35);
   --st-border-bright: rgb(224 197 132 / 0.55);
@@ -59,6 +60,14 @@
   --st-touch-min: 44px;
   --st-content-max: 1440px;
   --st-prose-max: 68ch;
+
+  --st-space-1: 0.25rem;
+  --st-space-2: 0.5rem;
+  --st-space-3: 0.75rem;
+  --st-space-4: 1rem;
+  --st-space-6: 1.5rem;
+  --st-space-8: 2rem;
+  --st-space-12: 3rem;
 
   --st-shadow-raised:
     0 1px 0 rgb(255 255 255 / 0.04) inset,

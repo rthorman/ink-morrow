@@ -18,7 +18,7 @@ export function createHome({ state, notify, features }) {
       recentWrap.hidden = true;
       continueBtn.hidden = true;
       startBtn.hidden = false;
-      startBtn.textContent = 'Create your first story';
+      startBtn.textContent = 'Begin a manuscript';
       return;
     }
 
@@ -28,7 +28,7 @@ export function createHome({ state, notify, features }) {
     continueBtn.textContent = `Continue “${latest.title}”`;
     continueBtn.dataset.storyId = latest.id;
     startBtn.hidden = false;
-    startBtn.textContent = 'Create a story';
+    startBtn.textContent = 'Begin a manuscript';
 
     recentWrap.hidden = false;
     recentList.textContent = '';
@@ -84,12 +84,11 @@ export function createHome({ state, notify, features }) {
       });
     }
     const startBtn = document.getElementById('heroStartBtn');
-    if (startBtn) startBtn.addEventListener('click', () => {
-      features.storyEditor.openCreator();
-      router.navigate('write');
-    });
+    if (startBtn) startBtn.addEventListener('click', () => features.manuscriptStart.open('manual'));
+    const importBtn = document.getElementById('heroImportBtn');
+    if (importBtn) importBtn.addEventListener('click', () => features.manuscriptStart.open('import'));
     const writeBtn = document.getElementById('heroWriteBtn');
-    if (writeBtn) writeBtn.addEventListener('click', () => router.navigate('write'));
+    if (writeBtn) writeBtn.addEventListener('click', () => router.navigate('desk'));
   }
 
   return {

@@ -173,7 +173,9 @@ Use open-source fonts through the project's existing font pipeline. Prefer self-
 
 - pornography, lingerie, cleavage-focused framing or bedroom poses;
 - childlike, teenage or chibi character proportions;
-- maid outfits, school uniforms, collars/leashes or “pet” framing;
+- maid outfits, school uniforms, leashes or coercive “pet” framing. Moth's
+  approved narrow plum velvet collar and small bell are a specific archivist
+  character detail, not a reusable costume convention;
 - generic AI-SaaS gradients, cyberpunk neon or green code rain;
 - copied anime characters or studio/franchise imitation;
 - excessive skulls, gore or cheap Halloween motifs;

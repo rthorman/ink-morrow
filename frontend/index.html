@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
     <meta name="color-scheme" content="dark">
     <meta name="description" content="ScribeTribe — a gothic interactive-fiction writing environment where stories grow claws.">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'self'">
     <title>ScribeTribe — Interactive tales, scribed by candlelight</title>
     <link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
     <link rel="stylesheet" href="styles/fonts.css">
@@ -17,6 +17,10 @@
     <link rel="stylesheet" href="styles/features/catalogs.css">
     <link rel="stylesheet" href="styles/features/library.css">
     <link rel="stylesheet" href="styles/features/write.css">
+    <link rel="stylesheet" href="styles/features/chronicle.css">
+    <link rel="stylesheet" href="styles/features/codex.css">
+    <link rel="stylesheet" href="styles/features/gallery.css">
+    <link rel="stylesheet" href="styles/features/gate.css">
     <link rel="stylesheet" href="styles/features/settings.css">
     <link rel="stylesheet" href="styles/features/auth.css">
 </head>
@@ -28,38 +32,46 @@
     <div class="container">
         <header class="main-header">
             <div class="cat-scribe" aria-hidden="true">
-                <svg viewBox="0 0 256 256" width="56" height="56" xmlns="http://www.w3.org/2000/svg">
-                    <path fill="#100A16" stroke="#C7A35B" stroke-width="10" stroke-linejoin="round" d="M42 109 63 33l51 52h28l51-52 21 76-16 89H58z"/>
-                    <path fill="#6E1834" stroke="#E0C584" stroke-width="7" stroke-linejoin="round" d="M35 151c37-10 66-5 93 18 27-23 56-28 93-18l-13 60c-32-7-58-1-80 17-22-18-48-24-80-17z"/>
-                    <path fill="#C7A35B" d="m128 73 28 49-28 64-28-64z"/>
-                    <path fill="#100A16" d="m128 91 7 30-7 42-7-42z"/>
-                    <circle cx="128" cy="122" r="5" fill="#69D9CB"/>
-                </svg>
+                <img src="brand/scribetribe-mark.svg" alt="" width="52" height="52">
             </div>
             <div class="wordmark">
                 <h1>ScribeTribe</h1>
-                <p class="subtitle">Interactive tales, scribed by candlelight</p>
+                <p class="subtitle">Where stories grow claws.</p>
+            </div>
+            <div class="shell-manuscript">
+                <label for="shellManuscriptSelect">Manuscript</label>
+                <select id="shellManuscriptSelect" disabled>
+                    <option value="">No manuscripts yet</option>
+                </select>
             </div>
             <p id="scribeStatus" class="scribe-status" aria-live="polite">The scribe waits, quill at the ready…</p>
         </header>
 
-        <nav class="main-nav" aria-label="Primary">
-            <button id="homeBtn" class="nav-btn active" type="button">Home</button>
-            <button id="writeBtn" class="nav-btn" type="button">Write</button>
-            <button id="libraryBtn" class="nav-btn" type="button">Library</button>
-            <button id="worldsBtn" class="nav-btn" type="button">Worlds</button>
-            <button id="charactersBtn" class="nav-btn" type="button">Characters</button>
-            <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button">Settings</button>
-            <button id="lockBtn" class="nav-btn nav-btn--lock" type="button">Lock</button>
+        <nav class="main-nav" aria-label="Global">
+            <button id="homeBtn" class="nav-btn active" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#library"></use></svg><span>Library</span></button>
+            <button id="libraryBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#manuscripts"></use></svg><span>Manuscripts</span></button>
+            <button id="worldsBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#worlds"></use></svg><span>World templates</span></button>
+            <button id="charactersBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#characters"></use></svg><span>Character templates</span></button>
+            <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#settings"></use></svg><span>Settings</span></button>
+            <button id="lockBtn" class="nav-btn nav-btn--lock" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#lock"></use></svg><span>Lock</span></button>
         </nav>
 
         <div id="diskBanner" class="disk-banner" role="alert" hidden>
             <p id="diskBannerText"></p>
         </div>
 
-        <main class="main-content" id="mainContent">
-            <!-- Home Section (manuscript hall) -->
-            <section id="homeSection" class="content-section active" aria-label="Home">
+        <div class="workspace-frame">
+        <nav id="workspaceNav" class="workspace-nav" aria-label="Manuscript workspace">
+            <button id="writeBtn" class="workspace-nav__btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#desk"></use></svg><span>Desk</span></button>
+            <button id="chronicleBtn" class="workspace-nav__btn" type="button" disabled><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#chronicle"></use></svg><span>Chronicle</span></button>
+            <button id="codexBtn" class="workspace-nav__btn" type="button" disabled><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#codex"></use></svg><span>Codex</span></button>
+            <button id="galleryBtn" class="workspace-nav__btn" type="button" disabled><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#gallery"></use></svg><span>Gallery</span></button>
+            <button id="gateBtn" class="workspace-nav__btn" type="button" disabled><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#gate"></use></svg><span>Gate</span></button>
+        </nav>
+
+        <main class="main-content" id="mainContent" tabindex="-1">
+            <!-- Library threshold (manuscript hall) -->
+            <section id="homeSection" class="content-section active" aria-label="Library">
                 <div class="hero">
                     <picture class="hero__picture" aria-hidden="true">
                         <source
@@ -90,16 +102,106 @@
                         >
                     </picture>
                     <div class="hero__copy">
-                        <p class="hero__kicker">The manuscript hall</p>
+                        <p class="hero__kicker">The Library</p>
                         <h2 class="hero__line">Where stories grow claws.</h2>
-                        <p class="hero__support">Build worlds, cast your characters, and let the scribes write with you.</p>
+                        <p class="hero__support">Return to a manuscript, begin another, or tend the templates that wait behind every story.</p>
                         <div class="hero__actions">
                             <button id="heroContinueBtn" class="btn btn-primary" type="button" hidden>Continue</button>
-                            <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Create a story</button>
-                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the writing desk</button>
+                            <button id="heroStartBtn" class="btn btn-primary" type="button" hidden>Begin a manuscript</button>
+                            <button id="heroImportBtn" class="btn btn-secondary" type="button">Import prose</button>
+                            <button id="heroWriteBtn" class="btn btn-secondary" type="button">Open the Desk</button>
                         </div>
                     </div>
                 </div>
+
+                <section id="manuscriptStartSheet" class="manuscript-start" aria-labelledby="manuscriptStartTitle" hidden>
+                    <div class="manuscript-start__head">
+                        <div>
+                            <p class="hero__kicker">One-sheet start</p>
+                            <h2 id="manuscriptStartTitle">Begin a manuscript</h2>
+                        </div>
+                        <button id="manuscriptStartClose" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
+                    </div>
+                    <p class="manuscript-start__intro">Choose one starting path. Volume I and Chapter I are created automatically; title, world, cast, and deeper foundations remain optional.</p>
+                    <form id="manuscriptStartForm">
+                        <label for="manuscriptStartName">Manuscript name <span class="field-optional">optional</span></label>
+                        <input id="manuscriptStartName" type="text" maxlength="300" placeholder="Untitled manuscript">
+
+                        <div class="start-paths" role="radiogroup" aria-label="How to begin">
+                            <button id="startPathManual" class="start-path active" type="button" role="radio" aria-checked="true" data-start-path="manual">Write the opening</button>
+                            <button id="startPathSeed" class="start-path" type="button" role="radio" aria-checked="false" data-start-path="seed">Give the Scribe a seed</button>
+                            <button id="startPathImport" class="start-path" type="button" role="radio" aria-checked="false" data-start-path="import">Import existing prose</button>
+                        </div>
+
+                        <div id="startManualPanel" class="start-path-panel" data-start-panel="manual">
+                            <label for="startManualOpening">Opening page</label>
+                            <textarea id="startManualOpening" rows="10" maxlength="50000" placeholder="Write or paste the opening. This is saved locally as Page 1 with no provider call."></textarea>
+                        </div>
+                        <div id="startSeedPanel" class="start-path-panel" data-start-panel="seed" hidden>
+                            <label for="startSeedPremise">Premise</label>
+                            <textarea id="startSeedPremise" rows="5" maxlength="5000" placeholder="What wants to happen, and why does it matter?"></textarea>
+                            <label for="startSeedDirection">Optional opening direction</label>
+                            <textarea id="startSeedDirection" rows="3" maxlength="5000" placeholder="A first scene, image, pressure, or voice to begin from."></textarea>
+                        </div>
+                        <div id="startImportPanel" class="start-path-panel" data-start-panel="import" hidden>
+                            <label for="startImportFile">Plain text or Markdown file <span class="field-optional">optional</span></label>
+                            <input id="startImportFile" type="file" accept="text/plain,text/markdown,.txt,.md">
+                            <label for="startImportProse">Imported prose</label>
+                            <textarea id="startImportProse" rows="12" maxlength="500000" placeholder="Paste prose here. Nothing is sent to a provider."></textarea>
+                            <label for="startImportMode">Structure</label>
+                            <select id="startImportMode">
+                                <option value="headings">Map Markdown headings to chapters</option>
+                                <option value="single">Keep everything in Chapter I</option>
+                            </select>
+                        </div>
+
+                        <div id="manuscriptStartHintWrap" class="context-hint" role="note">
+                            <p id="manuscriptStartHint"></p>
+                            <button id="manuscriptStartHintDismiss" class="btn btn-secondary" type="button">Dismiss hint</button>
+                        </div>
+
+                        <details id="startFoundations" class="start-foundations">
+                            <summary>Foundations <span>optional intent and local template copies</span></summary>
+                            <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the story.</p>
+                            <label for="startWorld">World template</label>
+                            <select id="startWorld"><option value="">No world</option></select>
+                            <fieldset id="startCastFieldset" class="start-cast">
+                                <legend>Character templates</legend>
+                                <div id="startCastList"><p class="placeholder">No character templates yet.</p></div>
+                            </fieldset>
+                            <label for="startNarrativeVoice">Narrative voice</label>
+                            <input id="startNarrativeVoice" type="text" maxlength="1000" placeholder="e.g. intimate, lucid, dryly observant">
+                            <label for="startPointOfView">Point of view</label>
+                            <input id="startPointOfView" type="text" maxlength="500" placeholder="e.g. close third through Mara">
+                            <label for="startTense">Tense</label>
+                            <input id="startTense" type="text" maxlength="500" placeholder="e.g. past tense">
+                            <label for="startConstraints">Constraints</label>
+                            <textarea id="startConstraints" rows="4" maxlength="5000" placeholder="Promises, boundaries, motifs, or things this story must avoid."></textarea>
+                            <button id="startDraftFoundationsBtn" class="btn btn-secondary" type="button">Suggest blank foundations with AI&hellip;</button>
+                            <p class="setting-hint">A cost and data review appears before any provider call. Suggestions remain drafts until you accept each field.</p>
+                            <div id="startFoundationDraft" class="foundation-draft" aria-live="polite" hidden></div>
+                            <div id="startProviderSetup" class="provider-setup" hidden>
+                                <h3>Connect the Scribe for this session</h3>
+                                <p>Your manual and import work is already available without this. This key stays in server memory for the current process and is never saved in the browser.</p>
+                                <label for="startProviderKey">OpenRouter API key</label>
+                                <input id="startProviderKey" type="password" autocomplete="off" maxlength="8192">
+                                <button id="startProviderSave" class="btn btn-primary" type="button">Use for this session</button>
+                            </div>
+                        </details>
+
+                        <label for="manuscriptStartTone">Maturity level</label>
+                        <select id="manuscriptStartTone">
+                            <option value="fade-to-black">Tasteful &mdash; intimate moments fade to black</option>
+                            <option value="romantic">Romantic &mdash; sensual, not graphic</option>
+                            <option value="explicit">Explicit &mdash; adult prose (18+)</option>
+                        </select>
+                        <p id="manuscriptStartStatus" class="manuscript-start__status" role="status" aria-live="polite"></p>
+                        <div class="form-actions">
+                            <button id="manuscriptStartCancel" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
+                            <button id="manuscriptStartSubmit" class="btn btn-primary" type="submit">Create manuscript</button>
+                        </div>
+                    </form>
+                </section>
 
                 <div id="homeRecent" class="home-recent" hidden>
                     <h2>Recent manuscripts</h2>
@@ -121,8 +223,8 @@
                             <strong>Stories</strong>
                             <span>required only for writing; can start as an ensemble</span>
                         </a>
-                        <a href="#/write" class="home-path__step">
-                            <strong>Write</strong>
+                        <a href="#/desk" class="home-path__step">
+                            <strong>Desk</strong>
                             <span>the desk where pages happen</span>
                         </a>
                     </div>
@@ -205,7 +307,7 @@
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
                     <div class="catalog-head library-story-head">
                         <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
-                        <a class="btn btn-primary" href="#/write">Create at the writing desk</a>
+                        <a class="btn btn-primary" href="#/desk">Begin at the Desk</a>
                     </div>
                     <div id="storiesList" class="items-grid stories-grid"></div>
                 </div>
@@ -215,9 +317,9 @@
                 </div>
             </section>
 
-            <!-- Write Section -->
-            <section id="writeSection" class="content-section" aria-label="Write">
-                <h2 class="sr-only">Writing desk</h2>
+            <!-- Desk Section -->
+            <section id="writeSection" class="content-section" aria-label="Desk">
+                <h2 class="sr-only">Desk &mdash; write the active manuscript</h2>
                 <div class="write-container">
                     <div class="story-context" aria-label="Story context">
                         <label class="sr-only" for="currentStory">Select or create a story</label>
@@ -289,21 +391,52 @@
                                 <span id="pageIndicator" class="page-indicator">Page 1 of 1</span>
                                 <button id="nextPageBtn" class="btn btn-secondary" type="button">Next →</button>
                             </div>
-                            <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
-                                <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
-                                <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
-                                <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
-                                <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
-                            </div>
+                            <details id="deskToolSheet" class="desk-tool-sheet" open>
+                                <summary>Reading &amp; media tools</summary>
+                                <div class="desk-group desk-group--media" role="group" aria-label="Reading and media">
+                                    <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
+                                    <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
+                                    <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
+                                    <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
+                                    <button id="uploadArtBtn" class="narrate-btn" type="button" title="Upload a local image and place it after the current prose page">Upload art</button>
+                                    <input id="uploadArtInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+                                </div>
+                            </details>
                         </div>
 
                         <div id="storyContent" class="story-content">
                             <p class="placeholder">Select a story to begin reading and writing…</p>
                         </div>
 
+                        <div id="deskPageState" class="desk-page-state" hidden>
+                            <button id="deskPageEditBtn" class="btn btn-secondary" type="button">Edit active page</button>
+                            <p id="deskPageSaveState" class="desk-save-state" role="status" aria-live="polite"></p>
+                        </div>
+                        <section id="deskPageEditor" class="desk-page-editor" aria-labelledby="deskPageEditorTitle" hidden>
+                            <div class="desk-page-editor__head">
+                                <div>
+                                    <p class="hero__kicker">Manuscript page</p>
+                                    <h3 id="deskPageEditorTitle">Edit active page</h3>
+                                </div>
+                                <button id="deskPageEditorClose" class="btn btn-secondary" type="button">Close editor</button>
+                            </div>
+                            <p id="deskPageEditorNotice" class="setting-hint"></p>
+                            <label for="deskPageEditorText">Page prose</label>
+                            <textarea id="deskPageEditorText" rows="16" maxlength="500000"></textarea>
+                            <div class="form-actions">
+                                <button id="deskPageSaveNow" class="btn btn-primary" type="button">Save now</button>
+                                <button id="deskPageReloadLatest" class="btn btn-secondary" type="button" hidden>Load latest page</button>
+                            </div>
+                        </section>
+
                         <div id="pastPageBar" class="past-page-bar" hidden>
                             <p>You are reading an earlier page. Old pages cannot be changed.</p>
-                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Delete everything after this page</button>
+                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Return story to this page</button>
+                        </div>
+
+                        <div id="deskRecoveryBanner" class="desk-recovery" role="status" aria-live="polite" hidden>
+                            <p id="deskRecoveryText"></p>
+                            <button id="deskRecoveryUndo" class="btn btn-secondary" type="button">Undo return</button>
                         </div>
 
                         <div id="audiobookBanner" class="audiobook-banner" role="status" hidden>
@@ -333,6 +466,164 @@
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section id="chronicleSection" class="content-section chronicle" aria-labelledby="chronicleTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="chronicleTitle">Chronicle <span>&mdash; where the work stands</span></h2>
+                <p id="chronicleStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its structure and recovery history.</p>
+                <div id="chronicleSummary" class="chronicle-summary" aria-label="Manuscript status"></div>
+                <div class="chronicle-toolbar" role="group" aria-label="Chronicle controls">
+                    <label for="chroniclePageJump">Go to narrative page</label>
+                    <input id="chroniclePageJump" type="number" min="1" inputmode="numeric">
+                    <button id="chroniclePageJumpBtn" class="btn btn-secondary" type="button">Find page</button>
+                    <button id="chronicleAddChapter" class="btn btn-secondary" type="button">Begin chapter</button>
+                    <button id="chronicleAddVolume" class="btn btn-secondary" type="button">Begin volume</button>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <section class="chronicle-panel" aria-labelledby="chronicleOutlineTitle">
+                    <div class="chronicle-panel__head">
+                        <h3 id="chronicleOutlineTitle">Publication outline</h3>
+                        <p>Volumes contain chapters; chapters contain narrative pages. Scene breaks remain inside prose previews.</p>
+                    </div>
+                    <div id="chronicleOutline" class="chronicle-outline" role="tree" aria-label="Manuscript hierarchy"></div>
+                </section>
+                <section class="chronicle-panel" aria-labelledby="chronicleRecoveryTitle">
+                    <div class="chronicle-panel__head">
+                        <h3 id="chronicleRecoveryTitle">Recovery copies</h3>
+                        <p>Safe copies can rejoin the active tail. Changed manuscripts offer export instead of a silent merge.</p>
+                    </div>
+                    <div id="chronicleRecoveries" class="chronicle-recoveries"></div>
+                </section>
+            </section>
+
+            <section id="codexSection" class="content-section codex" aria-labelledby="codexTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="codexTitle">Codex <span>&mdash; what the story remembers</span></h2>
+                <p id="codexStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its foundations and remembered canon.</p>
+                <div class="codex-toolbar">
+                    <div class="codex-tabs" role="tablist" aria-label="Codex views">
+                        <button id="codexFoundationsTab" class="codex-tab" role="tab" aria-selected="true" aria-controls="codexFoundationsPanel" type="button">Foundations</button>
+                        <button id="codexCanonTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCanonPanel" type="button">Remembered canon</button>
+                        <button id="codexCorrectionsTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCorrectionsPanel" type="button">Author corrections</button>
+                    </div>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <section id="codexFoundationsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexFoundationsTab">
+                    <div id="codexFoundations"></div>
+                    <div id="codexTemplateUpdates"></div>
+                </section>
+                <section id="codexCanonPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCanonTab" hidden>
+                    <div id="codexCoverage"></div>
+                    <div class="codex-filter">
+                        <label for="codexSearch">Filter remembered canon</label>
+                        <input id="codexSearch" type="search" placeholder="Character, fact, goal, thread, arc, or event">
+                    </div>
+                    <div id="codexCanon"></div>
+                </section>
+                <section id="codexCorrectionsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCorrectionsTab" hidden>
+                    <div id="codexCorrectionActions"></div>
+                    <div id="codexCorrections"></div>
+                    <div id="codexIssues"></div>
+                    <div id="codexImpactSummary" aria-live="polite"></div>
+                </section>
+            </section>
+
+            <section id="gallerySection" class="content-section gallery" aria-labelledby="galleryTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="galleryTitle">Gallery <span>&mdash; images around the manuscript</span></h2>
+                <p id="galleryStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its art.</p>
+                <div class="gallery-toolbar">
+                    <button id="galleryPaintBtn" class="btn btn-primary" type="button">Paint with AI</button>
+                    <button id="galleryUploadBtn" class="btn btn-primary" type="button">Upload an image</button>
+                    <input id="galleryUploadInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/avif" hidden>
+                    <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
+                </div>
+                <p class="gallery-boundary">Uploads stay local unless you separately permit and select one as a provider reference. Images and placements never become manuscript pages or continuity evidence.</p>
+                <div id="galleryReferenceSummary" class="gallery-reference-summary" aria-live="polite"></div>
+                <div id="galleryGrid" class="gallery-grid"></div>
+            </section>
+
+            <section id="gateSection" class="content-section gate" aria-labelledby="gateTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="gateTitle">Gate <span>&mdash; how the work leaves</span></h2>
+                <p class="gate-intro">Backups preserve the private project. Publication files contain only the reviewed reading copy. They are different kinds of leaving.</p>
+                <div class="gate-paths">
+                    <article class="gate-card gate-card--backup">
+                        <p class="gate-card__eyebrow">Full fidelity</p>
+                        <h3>Back up the project</h3>
+                        <p>Build a <code>.scribetribe</code> archive with explicit choices for working history, paintings, audio, and device settings. Credentials are never included.</p>
+                        <button id="gateBackupBtn" class="btn btn-secondary" type="button">Review project backup</button>
+                    </article>
+                    <article class="gate-card gate-card--publication">
+                        <p class="gate-card__eyebrow">Reading copy</p>
+                        <h3>Prepare for publication</h3>
+                        <form id="gatePublicationForm" class="gate-publication-form">
+                            <div class="gate-fields gate-fields--metadata">
+                                <label>Book title <input id="gatePublicationTitle" maxlength="300" required></label>
+                                <label>Author <input id="gatePublicationAuthor" maxlength="300"></label>
+                                <label>Language <input id="gatePublicationLanguage" value="en" maxlength="40" required></label>
+                            </div>
+                            <label>Front matter <span class="field-optional">optional</span><textarea id="gateFrontMatter" rows="3" maxlength="1000000" placeholder="Dedication, preface, or other opening matter"></textarea></label>
+                            <label>Back matter <span class="field-optional">optional</span><textarea id="gateBackMatter" rows="3" maxlength="1000000" placeholder="Afterword, acknowledgments, or author note"></textarea></label>
+                            <fieldset class="gate-formats">
+                                <legend>Publication formats</legend>
+                                <div id="gateFormatList" class="gate-format-list">
+                                    <label><input type="checkbox" name="publication-format" value="epub" checked> EPUB 3.3</label>
+                                    <label><input type="checkbox" name="publication-format" value="pdf" checked> PDF</label>
+                                    <label><input type="checkbox" name="publication-format" value="docx"> DOCX</label>
+                                    <label><input type="checkbox" name="publication-format" value="odt"> ODT</label>
+                                    <label><input type="checkbox" name="publication-format" value="rtf"> RTF</label>
+                                    <label><input type="checkbox" name="publication-format" value="html"> HTML</label>
+                                    <label><input type="checkbox" name="publication-format" value="md"> Markdown</label>
+                                    <label><input type="checkbox" name="publication-format" value="txt"> Plain text</label>
+                                    <label><input type="checkbox" name="publication-format" value="json"> JSON</label>
+                                </div>
+                            </fieldset>
+                            <fieldset class="gate-art">
+                                <legend>Placed art to publish</legend>
+                                <p class="setting-hint">Only checked, already placed art enters the immutable book. Missing alt text is warned, not guessed.</p>
+                                <div id="gateArtList" class="gate-art-list"></div>
+                            </fieldset>
+                            <div class="gate-exclusions">
+                                <h4>Always excluded from publication</h4>
+                                <p>Directions, continuity, prepared prose, recovery suffixes, prompts, provider traces, costs, credentials, sessions, and private working history.</p>
+                            </div>
+                            <button id="gateReviewPublicationBtn" class="btn btn-primary" type="submit">Review publication</button>
+                        </form>
+                    </article>
+                    <article class="gate-card gate-card--share">
+                        <p class="gate-card__eyebrow">Read only</p>
+                        <h3>Share a reading copy</h3>
+                        <p>Create a high-entropy link to the latest snapshot reviewed above. Later manuscript edits never change it.</p>
+                        <label for="gateShareExpiry">Link expiry</label>
+                        <select id="gateShareExpiry">
+                            <option value="86400">24 hours</option>
+                            <option value="604800" selected>7 days</option>
+                            <option value="2592000">30 days</option>
+                            <option value="">No automatic expiry</option>
+                        </select>
+                        <button id="gateCreateShareBtn" class="btn btn-secondary" type="button" disabled>Share reviewed snapshot</button>
+                        <p id="gateShareHint" class="setting-hint" role="status" aria-live="polite">Review a publication snapshot first.</p>
+                        <div id="gateShareReveal" class="gate-share-reveal" hidden>
+                            <label for="gateShareUrl">Copy this link now — the capability cannot be recovered later</label>
+                            <input id="gateShareUrl" readonly>
+                            <button id="gateCopyShareBtn" class="btn btn-secondary" type="button">Copy link</button>
+                        </div>
+                        <div id="gateShareList" class="gate-share-list" aria-label="Reading-copy links"></div>
+                    </article>
+                </div>
+                <section id="gateJob" class="gate-job" aria-labelledby="gateJobTitle" hidden>
+                    <h3 id="gateJobTitle">Publication job</h3>
+                    <p id="gateJobStatus" role="status" aria-live="polite"></p>
+                    <progress id="gateJobProgress" max="1" value="0"></progress>
+                    <div id="gateJobDownloads" class="gate-job__downloads"></div>
+                    <div class="gate-job__actions">
+                        <button id="gateCancelJobBtn" class="btn btn-secondary" type="button">Cancel</button>
+                        <button id="gateRetryJobBtn" class="btn btn-secondary" type="button" hidden>Retry</button>
+                    </div>
+                </section>
+                <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
             </section>
 
             <!-- Settings Section -->
@@ -406,7 +697,7 @@
                     <div class="data-transfer-actions">
                         <button id="dataExportBtn" type="button" class="btn btn-primary">Export or back up…</button>
                         <button id="dataImportBtn" type="button" class="btn btn-secondary">Import or restore…</button>
-                        <input id="dataImportFile" class="sr-only" type="file" accept=".scribetribe.zip,.zip,application/zip">
+                        <input id="dataImportFile" class="sr-only" type="file" accept=".scribetribe,.zip,application/zip">
                     </div>
                     <p id="dataTransferStatus" class="data-transfer-status" role="status" aria-live="polite"></p>
                     <p class="setting-hint">Audio is always optional. Your login and browser sessions never enter an archive; portable archives are not encrypted.</p>
@@ -448,8 +739,9 @@
                 </details>
             </section>
         </main>
+        </div>
 
-        <footer class="main-footer">            <img class="ornament" src="brand/ornament-divider.svg" alt="" width="320" height="32" decoding="async">
+        <footer class="main-footer">            <img class="ornament" src="brand/ornament-divider.svg" alt="" width="320" height="36" decoding="async">
             <p>Ink remembers.</p>
         </footer>
     </div>
@@ -467,6 +759,14 @@
                 <option value="medium_2k">2K · medium — finest, ≈$0.08</option>
             </select>
             <textarea id="imagePromptText" rows="10" autocomplete="off" spellcheck="false"></textarea>
+            <p id="imageRefusalNotice" class="image-refusal-notice" role="status" aria-live="polite" hidden></p>
+            <div id="imageReferenceDropOption" class="image-reference-drop" hidden>
+                <label for="imagePromptDropReferences">
+                    <input id="imagePromptDropReferences" type="checkbox">
+                    Retry without identity references
+                </label>
+                <p>The existing portraits and story assets stay unchanged; this only omits them from the next provider request.</p>
+            </div>
             <p id="sceneImageCost" class="scene-image-cost" hidden></p>
             <div class="burn-modal__actions">
                 <button id="imagePromptGenerateBtn" type="button" class="btn btn-primary">Generate image</button>
@@ -478,7 +778,8 @@
     <div id="sceneImageViewerModal" class="scene-viewer" hidden>
         <img id="sceneViewerImg" alt="The painted scene" draggable="false">
         <div class="scene-viewer__actions">
-            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Bind this painting into the story as a page after the one it illustrates">Add as page</button>
+            <button id="sceneViewerAddPageBtn" type="button" class="ghost-btn" title="Place this painting after the prose page it illustrates">Place after page</button>
+            <button id="sceneViewerGalleryBtn" type="button" class="ghost-btn" title="Keep this painting without placing it in the manuscript">Save to Gallery</button>
             <button id="sceneViewerSaveBtn" type="button" class="ghost-btn">Save</button>
             <button id="sceneViewerCloseBtn" type="button" class="ghost-btn">Close</button>
         </div>

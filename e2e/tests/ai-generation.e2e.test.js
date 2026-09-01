@@ -141,7 +141,7 @@ test.describe('AI generation flows (mocked)', () => {
     expect(await page.evaluate(() => localStorage.getItem('st-paid-consent-v1'))).toBe('1');
 
     await page.fill('#userInput', 'Open the second door');
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
     await page.locator('#generateBtn').click();
     await expect(review).toBeHidden();
     await expect(page.locator('#storyContent')).toContainText('without another interruption', { timeout: 5000 });
@@ -178,7 +178,7 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('.error-message').first()).toContainText('no ink', { timeout: 5000 });
     // Buttons recover
     await expect(page.locator('#generateBtn')).toBeEnabled();
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
   });
 
   test('AI requests carry world, characters, tone and direction', async ({ page }) => {
@@ -279,7 +279,17 @@ test.describe('Reading old pages and burning the rest', () => {
     });
     await page.route('**/api/stories/*/pages?after=1', async (route) => {
       expect(route.request().method()).toBe('DELETE');
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ deleted: 1, remaining: 1 }) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          deleted: 1,
+          remaining: 1,
+          removed_range: { first: 2, last: 2 },
+          recovery: { id: 'recovery-p2', expires_at: '2030-01-01T00:00:00.000Z' },
+          undo: { token: 'undo-p2', expires_at: '2030-01-01T00:01:00.000Z' },
+        }),
+      });
     });
     await page.route('**/api/stories/*/pages', async (route) => {
       await route.fulfill({
@@ -294,32 +304,35 @@ test.describe('Reading old pages and burning the rest', () => {
     await createStoryViaUi(page, 'Burn Test');
 
     // Generate the second page, then step back to page 1
+    await page.fill('#userInput', 'Continue to the second page');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
-    // Old page: writing is locked, the burn offer is visible
+    // Earlier page: the composer is locked while copyedit and return remain visible.
     await expect(page.locator('#userInput')).toBeDisabled();
     await expect(page.locator('#pastPageBar')).toBeVisible();
 
-    // Burn dialog: warning text, Cancel keeps everything
+    // Return dialog: exact consequence text, Cancel keeps everything.
     await page.locator('#deleteAfterBtn').click();
     await expect(page.locator('.dialog-manager')).toBeVisible();
-    await expect(page.locator('.dialog-manager__title')).toContainText('Delete 1 later page?');
-    await expect(page.locator('.dialog-manager__body')).toContainText('permanently');
+    await expect(page.locator('.dialog-manager__title')).toContainText('Return story to page 1?');
+    await expect(page.locator('.dialog-manager__body')).toContainText('1 page');
+    await expect(page.locator('.dialog-manager__body')).toContainText('recovery copy');
     await page.locator('.dialog-manager button', { hasText: 'Cancel' }).click();
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
-    // Confirming the destructive dialog truncates
+    // Confirming returns the active chain and exposes recovery.
     await page.locator('#deleteAfterBtn').click();
-    await page.locator('.dialog-manager button', { hasText: 'Delete 1 page' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Return and remove 1 later page' }).click();
 
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
     await expect(page.locator('#userInput')).toBeEnabled(); // page 1 is the last page again
+    await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
   });
 });
 
@@ -383,15 +396,18 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
 test.describe('Speculative next-page preparation', () => {
   test('an empty-direction Generate commits the prepared page instantly', async ({ page }) => {
     let generateCalls = 0;
-    let previewCalls = 0;
+    let previewPostCalls = 0;
     let commitCalls = 0;
+    let successorPage = null;
     await page.route('**/api/stories/*/pages/generate', async (route) => {
       generateCalls += 1;
+      successorPage = 2;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
           page: { id: 'p1', page_number: 1, content: 'The opening page settled like dust.', user_input: null, cost_usd: 0.001 },
+          successor_pending: true,
         }),
       });
     });
@@ -400,18 +416,26 @@ test.describe('Speculative next-page preparation', () => {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
-          body: JSON.stringify({ preview: null }),
+          body: JSON.stringify({
+            preview: successorPage ? {
+              expected_page: successorPage,
+              preview_id: `prepared-${successorPage}`,
+              preview_key: `prepared-${successorPage}`,
+              model: 'mock',
+              cost_usd: 0.001,
+            } : null,
+          }),
         });
         return;
       }
-      previewCalls += 1;
+      previewPostCalls += 1;
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           preview: {
-            expected_page: previewCalls + 1,
-            preview_key: `prepared-${previewCalls + 1}`,
+            expected_page: 99,
+            preview_key: 'unexpected-client-preparation',
             model: 'mock',
             cost_usd: 0.001,
           },
@@ -420,11 +444,13 @@ test.describe('Speculative next-page preparation', () => {
     });
     await page.route('**/api/stories/*/pages/commit-preview', async (route) => {
       commitCalls += 1;
+      successorPage = 3;
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
         body: JSON.stringify({
           page: { id: 'p2', page_number: 2, content: 'The prepared continuation, ready before you asked.', user_input: null, cost_usd: 0.001 },
+          successor_pending: true,
         }),
       });
     });
@@ -433,6 +459,7 @@ test.describe('Speculative next-page preparation', () => {
 
     // First page via the normal flow (the review also disclosed the follow-up
     // preparation, so the scribe may prepare on her own afterwards)
+    await page.fill('#userInput', 'Begin the story');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
@@ -442,7 +469,7 @@ test.describe('Speculative next-page preparation', () => {
 
     // Typing a direction turns it back into Generate
     await page.fill('#userInput', 'a sudden storm');
-    await expect(page.locator('#generateBtn')).toHaveText('Write next page');
+    await expect(page.locator('#generateBtn')).toHaveText('Generate as directed');
     await page.fill('#userInput', '');
 
     // Empty direction -> review the continuity/successor work, then commit instantly
@@ -453,7 +480,11 @@ test.describe('Speculative next-page preparation', () => {
     // The scribe immediately prepares exactly one next page. The green press
     // never fell through to a duplicate live generation.
     await expect(page.locator('#generateBtn')).toHaveText('Use prepared page', { timeout: 5000 });
-    expect({ generateCalls, commitCalls, previewCalls }).toEqual({ generateCalls: 1, commitCalls: 1, previewCalls: 2 });
+    expect({ generateCalls, commitCalls, previewPostCalls }).toEqual({
+      generateCalls: 1,
+      commitCalls: 1,
+      previewPostCalls: 0,
+    });
   });
 });
 
@@ -519,6 +550,7 @@ test.describe('Narration (read aloud)', () => {
 
     // Unconfigured: the control explains instead of failing silently
     await createStoryViaUi(page, 'Narration Test');
+    await page.fill('#userInput', 'Open the story');
     await page.locator('#generateBtn').click();
     await confirmPaidReview(page, /Write it/); // the write review precedes the paid call
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
@@ -675,8 +707,83 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#imagePromptModal')).toBeHidden();
   });
 
-  test('Add as page binds the painting after the illustrated page and closes both modals', async ({ page }) => {
-    // Only the paint itself is mocked; the binding POST, the plate GET and the
+  test('Grok refusal shows sanitation and waits for an explicit reference-free retry', async ({ page }) => {
+    const requestBodies = [];
+    await page.route('**/api/stories/*/pages/*/image-prompt', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ prompt: 'An initial scene prompt with identity references.' }),
+      });
+    });
+    await page.route('**/api/stories/*/pages/*/scene-image', async (route) => {
+      requestBodies.push(JSON.parse(route.request().postData()));
+      const attempt = requestBodies.length;
+      if (attempt <= 2) {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            refused: true,
+            adapter: 'grok',
+            reason: 'reference composition refused',
+            sanitized_prompt: `Sanitized editable prompt ${attempt}.`,
+            sanitation_cost_usd: 0.0015,
+            sanitation_model: 'z-ai/glm-5.1',
+            sanitation_billed_attempts: 1,
+            references_sent: 2,
+            can_drop_references: true,
+          }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          image: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+          media_type: 'image/png',
+          cost_usd: 0.04,
+          references: [],
+          asset_references: [],
+        }),
+      });
+    });
+
+    const story = await createStoryViaUi(page, 'Grok Refusal Test');
+    await apiPost(page, `/api/stories/${story.id}/pages`, {
+      content: 'The hall stood dark and cold.', user_input: null,
+    });
+    await page.selectOption('#currentStory', story.id);
+    await page.locator('#imagePromptBtn').click();
+    await confirmPaidReview(page, /Condense it/);
+    await expect(page.locator('#imagePromptModal')).toBeVisible();
+
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#imagePromptText')).toHaveValue('Sanitized editable prompt 1.');
+    await expect(page.locator('#imageRefusalNotice')).toContainText('Nothing was painted');
+    await expect(page.locator('#imageRefusalNotice')).toContainText('$0.0015');
+    expect(requestBodies).toHaveLength(1);
+
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#imageReferenceDropOption')).toBeVisible();
+    await expect(page.locator('#imagePromptDropReferences')).not.toBeChecked();
+    expect(requestBodies).toHaveLength(2);
+    expect(requestBodies[1].drop_references).toBeUndefined();
+
+    await page.locator('#imagePromptDropReferences').check();
+    await page.locator('#imagePromptGenerateBtn').click();
+    await confirmPaidReview(page, /Paint it/);
+    await expect(page.locator('#sceneImageViewerModal')).toBeVisible({ timeout: 5000 });
+    expect(requestBodies).toHaveLength(3);
+    expect(requestBodies[2].drop_references).toBe(true);
+    await expect(page.locator('#imageReferenceDropOption')).toBeHidden();
+  });
+
+  test('Place after page keeps the painting outside prose and closes both modals', async ({ page }) => {
+    // Only the paint itself is mocked; the binding POST, asset GET and the
     // export below all hit the real server against its in-memory database.
     const PNG_1PX =
       'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -701,7 +808,8 @@ test.describe('Scene image prompt', () => {
     await page.selectOption('#currentStory', story.id);
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
-    // Illustrate the FIRST page: the plate must land between the two prose pages
+    // Illustrate the first page: the art is displayed with it, but does not
+    // become a third narrative page.
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
     await page.locator('#imagePromptBtn').click();
@@ -714,7 +822,7 @@ test.describe('Scene image prompt', () => {
     await page.locator('#sceneViewerAddPageBtn').click();
     await expect(page.locator('#sceneImageViewerModal')).toBeHidden({ timeout: 5000 });
     await expect(page.locator('#imagePromptModal')).toBeHidden();
-    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 3');
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
     // The plate renders from the real image route, not a placeholder
     const plate = page.locator('.scene-plate');
@@ -724,21 +832,21 @@ test.describe('Scene image prompt', () => {
       .toBe(true);
     await expect(plate).toHaveAttribute('alt', 'A candlelit gothic hall, frost on black stone.');
 
-    // The old second page shifted to page 3; text tools sleep on the plate
+    // Prose numbering and prose-only tools are unchanged.
     await page.locator('#nextPageBtn').click();
-    await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
     await expect(page.locator('#storyContent')).toContainText('Second prose page.');
     await page.locator('#prevPageBtn').click();
-    await expect(page.locator('#readAloudBtn')).toBeDisabled();
-    await expect(page.locator('#imagePromptBtn')).toBeDisabled();
+    await expect(page.locator('#readAloudBtn')).toBeEnabled();
+    await expect(page.locator('#imagePromptBtn')).toBeEnabled();
 
     // The exported EPUB carries the plate inside the book
     const exportRes = await page.request.get(`/api/stories/${story.id}/export`);
     expect(exportRes.ok()).toBe(true);
     const book = await exportRes.body();
     const asText = book.toString('utf8');
-    expect(asText).toContain('<item id="img2" href="images/page-2.png" media-type="image/png"/>');
-    expect(asText).toContain('<img src="images/page-2.png"');
-    expect(asText).toContain('Second prose page.'); // the renumbered page survived
+    expect(asText).toContain('<item id="img1_1" href="images/page-1-art-1.webp" media-type="image/webp"/>');
+    expect(asText).toContain('<img src="images/page-1-art-1.webp"');
+    expect(asText).toContain('Second prose page.');
   });
 });

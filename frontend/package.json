@@ -1,6 +1,6 @@
 {
   "name": "scribe-tribe-frontend",
-  "version": "3.2.2",
+  "version": "4.0.0-beta.1",
   "description": "Frontend for ScribeTribe (served by the backend)",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
@@ -17,7 +17,7 @@
     "gothic"
   ],
   "author": "ScribeTribe",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "jest": {
     "testEnvironment": "jsdom",
     "setupFiles": [

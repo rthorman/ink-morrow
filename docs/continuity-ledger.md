@@ -1,82 +1,126 @@
-# Continuity ledger
+# Continuity ledger v2
 
-ScribeTribe 3.1 treats a committed text page as the transaction boundary of a story. Prose is the source of truth; continuity is a small, derived record linked to that page. This design makes long stories more coherent without requiring a local model, embeddings, a vector service, or repeated whole-manuscript prompts.
+ScribeTribe 4.0 treats immutable canonical page revisions as the evidence
+boundary for continuity. Prose remains the primary record. Deltas, search
+rows, projections, checkpoints, and issues are derived local data that can be
+rebuilt without rewriting prose or asking an AI to replay the manuscript.
 
-## Data layers
+## Layers and precedence
 
 | Layer | Purpose | Mutation rule |
 |---|---|---|
-| Character catalogue | Reusable authoring template and portrait | User edits affect future casting, not existing story identity |
-| Cast snapshot | Name and prose sheet frozen when a character first joins a story | Insert once per story/character; never rewritten by catalogue edits |
-| Manual cast override | Author-set personality, appearance, or relationship exception | Edited only in the story Cast interface; wins over derived state |
-| Page delta | Events and state changes caused by one committed page | Created by the continuity clerk; deleted with its page |
-| Continuity correction | Author correction to folded state or status | Explicitly saved in Library; wins over page deltas |
+| Library template | Reusable world or character material | Library edits never silently change an existing story |
+| Story template snapshot | The world/cast reference accepted for this story | Created on assignment; later fields import only after explicit review |
+| Canonical revision | Immutable prose that can establish story truth | Only the active tail can advance this pointer |
+| Display revision | Exported/read prose, including historical copyedits | A copyedit advances display only and does not replace continuity |
+| Revision delta | Archivist output for one canonical revision | One row per canonical revision, with direct quotations as evidence |
+| Author correction | Author-owned authoritative state | Separate from extraction; wins without changing evidence or prose |
+| Continuity issue | Deterministic warning about later possible conflict | Derived from a correction; contains no automatic edit |
 
-World rows remain live canonical references by design. The ledger records world facts established inside the story, but it does not silently rewrite the reusable world row.
+The active projection folds only deltas whose revisions are the current
+canonical pointers. Historical replaced-tail deltas remain inspectable in
+working history but cannot affect current state.
 
-## Commit semantics
+## Versioned Archivist schema
 
-- A speculative preview has no page row and therefore no continuity delta.
-- Committing a preview inserts the prose page and returns it to the reader before extracting its delta. The server starts extraction in the background; the browser's explicit sync request joins that same per-page job so cost accounting never creates a duplicate provider call.
-- A normal write inserts valid prose before extraction. Extraction failure leaves the page valid and marks its memory `failed` for later repair.
-- Regeneration writes the replacement against a projection that excludes the old last page. The old prose and delta remain intact during the provider call. Only successful replacement prose updates the row and invalidates the old delta; replacement extraction follows.
-- Deleting a page cascades its memory row and search record. Surviving page IDs remain stable while page numbers close the gap. Folding the survivors immediately reverts the deleted facts.
-- Truncation applies the same cascade to every removed suffix page.
-
-There is no AI rollback call. Replay is a deterministic local fold ordered by current page number.
-
-## Extracted delta
-
-The clerk receives state through page `N-1`, the direction that led to page `N` as non-authoritative context, and committed prose for page `N`. It emits strict JSON containing:
+Schema version 2 is a strict JSON object. Unknown keys, missing keys, wrong
+types, invalid enum values, characters outside the story snapshot, and durable
+items without evidence are rejected. It contains:
 
 - a factual summary;
-- durable events with involved character IDs, type, and importance;
-- character location, condition, knowledge gained/lost, possessions gained/lost, and meaningful appearance/personality/relationship changes;
-- goal changes (`pending`, `active`, `fulfilled`, `abandoned`);
-- story-thread changes (`open`, `resolved`);
-- established or superseded world facts.
+- events with stable IDs, involved character IDs, importance and type;
+- character location, condition, knowledge, possessions, appearance,
+  personality, and relationship changes;
+- goal, thread, and world-fact updates;
+- arc movement (`advance`, `setback`, `turning_point`, or `resolution`); and
+- one to five short direct page quotations for every durable item.
 
-The server validates and bounds every field, ignores unknown character IDs, and derives stable IDs for new goals, threads, and facts. JSON Schema is requested when the provider supports it; a provider-level schema rejection falls back to strict plain JSON. Malformed successful output receives one corrective attempt, after which the page stays valid and memory becomes retryable.
+The server requests provider JSON Schema support and also validates the parsed
+reply locally. A schema-invalid successful reply gets one corrective attempt.
+If that fails, the canonical page remains valid and its delta becomes
+`failed`, with its provider spend retained.
 
-The optional `CONTINUITY_MODEL` environment variable selects a dedicated extraction model. Without it, the page's authoring model is reused.
+Schema-1 rows from 3.2 archives remain readable and migrate to canonical
+revision provenance. New extraction writes schema 2.
 
-## Author prompt
+## Canon and mutation semantics
 
-Page generation receives:
+- Prepared prose is speculative and has no page revision or continuity row.
+- Commit returns canonical prose before optional Archivist work finishes.
+- A client sync joins the same in-flight revision job; it cannot buy a second
+  extraction for that revision.
+- Historical copyediting changes only the display pointer. Its established
+  canonical delta stays active.
+- A substantive tail edit creates a new canonical revision. The former delta
+  remains historical and the new revision reports pending until extracted.
+- Regeneration writes against the projection before the replaced tail and
+  changes canon only after successful prose generation.
+- Deletion and truncation cascade removed revision deltas. The surviving
+  projection rolls back locally and deterministically.
+- Corrections never mutate extracted evidence, templates, or prose.
 
-1. tone and explicit reference-sheet handling rules;
-2. the live world and frozen cast snapshot;
-3. current folded character state;
-4. active and resolved goals/threads, established facts, and bounded durable events;
-5. up to five recent pages verbatim;
-6. up to six older FTS-relevant memory records;
-7. the user's current direction.
+There is no AI rollback or whole-novel replay.
 
-World, lore, character, and background fields are labelled as data rather than instructions. Plans, desires, vows, and future-tense intentions remain motivations; they are neither proof that an event occurred nor commands to make it recur. Resolved goals are explicitly historical.
+## Deterministic projection and retrieval
 
-## Existing stories and repair
+Ready current-revision deltas fold in manuscript order. The fold operation is
+pure: the same ordered deltas produce the same projection hash. Sparse
+checkpoints are stored every 50 pages plus the active head. Each checkpoint
+keeps compact current state and at most 200 inspection events/summaries, while
+separate counters preserve full coverage totals. Checkpoints are disposable
+and can be rebuilt from deltas.
 
-Upgrading creates no paid work. Existing and manually added pages report `pending` coverage until the author chooses **Build missing** in Library → Stories → story assets. Build and rebuild process one page at a time in chronological order, persisting each result before continuing. They are safe to interrupt between pages.
+Normal prompt construction reads the current checkpoint, recent displayed
+prose, compact active state, unresolved threads, and at most six older FTS
+matches. It does not scan or resend the manuscript. FTS5 is preferred; a
+bounded indexed table with `LIKE` is the local fallback.
 
-**Rebuild from manuscript** deletes only derived memory/search rows. Pages, cast snapshots, author corrections, and previously spent extraction costs remain. Every new extraction is paid work and passes through the remembered paid-consent review with a numeric estimate and retry ceiling.
+An explicit rebuild performs no provider call. Missing or failed revision
+deltas still require deliberate sequential repair because extraction is paid
+work.
 
-## Performance profile
+## Corrections and impact analysis
 
-- One compact remote extraction per newly committed text page; none for image pages or previews.
-- SQLite rows contain small JSON deltas, not duplicate manuscript text.
-- Current state is a local fold over ready deltas; UI history is capped at the latest 200 summaries/events.
-- Prompt history is bounded independently of manuscript length.
-- FTS5 is used when bundled with SQLite; ordinary indexed storage plus `LIKE` retrieval is the automatic fallback.
-- Repair is sequential, avoiding parallel provider load and memory spikes on low-end devices.
-- No polling is added for continuity. A prepared commit performs one explicit join to the already-started per-page extraction.
+A correction identifies its scope, subject, field, authoritative value,
+optional reason, and cited page revisions. It is applied after the extracted
+fold. Impact analysis deterministically searches later display revisions and
+deltas for the affected subject and prior state, producing open issues with
+matched terms and revision provenance. It never invents an edit. Authors may
+acknowledge or resolve each issue separately.
+
+## Template review
+
+World and cast templates are frozen as story-local snapshots. The review API
+compares each current Library row with the latest story snapshot. Import must
+name at least one accepted field, and only those fields are copied into a new
+snapshot. Unselected fields retain their story-local values.
+
+## Portable archives
+
+Story archives carry revision ancestry, story-local world/character
+snapshots, revision deltas, and corrections. Copy import remaps page,
+revision, world, and character references. Search rows, FTS indexes,
+checkpoints, and impact issues are derived and rebuilt locally. Credentials
+and secret-vault material remain excluded.
 
 ## API
 
 | Method | Route | Result |
 |---|---|---|
-| `GET` | `/api/stories/:id/continuity` | Coverage, snapshots/current state, goals, threads, facts, recent history, corrections |
-| `POST` | `/api/stories/:id/continuity/pages/:pageId/sync` | Extract or repair one committed text page |
-| `DELETE` | `/api/stories/:id/continuity` | Clear derived memory and search rows only |
-| `PUT` | `/api/stories/:id/continuity/overrides` | Replace sanitized author corrections |
+| `GET` | `/api/stories/:id/continuity` | Coverage, snapshots, projection, evidence, corrections, issues, and bounded history |
+| `POST` | `/api/stories/:id/continuity/pages/:pageId/sync` | Extract or repair the current canonical revision |
+| `POST` | `/api/stories/:id/continuity/rebuild` | Rebuild deterministic local checkpoints; no AI call |
+| `DELETE` | `/api/stories/:id/continuity` | Clear derived deltas, search, and checkpoints only |
+| `GET` | `/api/stories/:id/continuity/templates` | Review later Library changes field by field |
+| `POST` | `/api/stories/:id/continuity/templates/:kind/:sourceId/import` | Import explicitly selected template fields |
+| `POST` | `/api/stories/:id/continuity/corrections` | Add an authoritative correction and analyze impact |
+| `PATCH` | `/api/stories/:id/continuity/issues/:issueId` | Acknowledge or resolve a derived issue |
+| `POST` | `/api/stories/:id/continuity/issues/summary` | Optional paid plain-language summary of selected warnings; changes nothing |
+| `PUT` | `/api/stories/:id/continuity/overrides` | Compatibility route for the earlier compact correction form |
 
-`story_pages.continuity_model`, token counts, and `continuity_cost_usd` preserve extraction accounting. Story totals include authoring and continuity cost.
+`story_pages.continuity_*` remains the current-page cost projection for
+existing clients. Authoritative v2 spend and provenance live with the
+revision delta.
+
+The author-facing inspection and correction behavior is specified in
+`docs/codex.md`.
