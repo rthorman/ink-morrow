@@ -62,7 +62,7 @@ describe('Explicit-tone acknowledgement (contextual, not a global gate)', () => 
   it('asks once on first explicit selection, then never again', async () => {
     mockFetch();
     await loadScript();
-    const tone = document.getElementById('storyTone');
+    const tone = document.getElementById('manuscriptStartTone');
 
     tone.value = 'explicit';
     tone.dispatchEvent(new Event('change', { bubbles: true }));
@@ -97,7 +97,7 @@ describe('Explicit-tone acknowledgement (contextual, not a global gate)', () => 
   it('tasteful and romantic tones are never gated', async () => {
     mockFetch();
     await loadScript();
-    const tone = document.getElementById('storyTone');
+    const tone = document.getElementById('manuscriptStartTone');
     for (const value of ['fade-to-black', 'romantic']) {
       tone.value = value;
       tone.dispatchEvent(new Event('change', { bubbles: true }));

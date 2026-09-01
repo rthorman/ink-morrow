@@ -76,7 +76,19 @@ function buildDom() {
             <div id="manuscriptStartHintWrap"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
             <details id="startFoundations">
               <select id="startWorld"><option value="">No world</option></select>
-              <fieldset id="startCastFieldset"><div id="startCastList"></div></fieldset>
+              <div class="character-selection">
+                <button type="button" id="castModeCentered" role="radio" aria-checked="false">Centered</button>
+                <button type="button" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
+                <p id="castModeHint"></p>
+                <div id="castLeadRow" hidden><select id="mcSelect"></select></div>
+                <select id="castCharSelect"></select>
+                <select id="castTierSelect"><option value="supporting">Supporting</option><option value="background">Background</option></select>
+                <label id="castRelationLabel"></label>
+                <input type="text" id="castRelation">
+                <button id="castAddBtn" type="button">Add to cast</button>
+                <div id="castList" class="cast-list"></div>
+                <div id="storyReview"></div>
+              </div>
               <input id="startNarrativeVoice" type="text">
               <input id="startPointOfView" type="text">
               <input id="startTense" type="text">
@@ -88,10 +100,11 @@ function buildDom() {
                 <button id="startProviderSave" type="button">Use for session</button>
               </div>
             </details>
-            <select id="manuscriptStartTone"><option value="fade-to-black">Tasteful</option><option value="romantic">Romantic</option></select>
+            <select id="manuscriptStartTone"><option value="fade-to-black">Tasteful</option><option value="romantic">Romantic</option><option value="explicit">Explicit</option></select>
             <p id="manuscriptStartStatus"></p>
             <button id="manuscriptStartCancel" type="button">Keep draft &amp; close</button>
             <button id="manuscriptStartSubmit" type="submit">Create manuscript</button>
+            <button id="manuscriptStartWithCover" type="submit">Create &amp; paint cover</button>
           </form>
         </section>
         <div id="homeRecent" class="home-recent" hidden>
@@ -132,6 +145,7 @@ function buildDom() {
           <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
         </div>
         <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
+        <button id="libraryBeginBtn" type="button">Begin a manuscript</button>
         <div id="storiesList" class="items-grid"></div>
         </div>
         <div id="bookshelfPanel" role="tabpanel" aria-labelledby="libraryBookshelfTab" hidden>
@@ -139,36 +153,7 @@ function buildDom() {
         </div>
       </section>
       <section id="writeSection" class="content-section">
-        <button id="storyNewBtn" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
-        <div id="storyCreateWrap" hidden>
-          <form id="storyForm">
-            <input type="text" id="storyTitle" required>
-            <select id="storyWorld"><option value="">No world</option></select>
-            <select id="storyTone">
-              <option value="fade-to-black">Tasteful</option>
-              <option value="romantic">Romantic</option>
-              <option value="explicit">Explicit</option>
-            </select>
-            <div class="character-selection">
-              <button type="button" id="castModeCentered" role="radio" aria-checked="false">Centered</button>
-              <button type="button" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
-              <p id="castModeHint"></p>
-              <div id="castLeadRow" hidden><select id="mcSelect"></select></div>
-              <select id="castCharSelect"></select>
-              <select id="castTierSelect">
-                <option value="supporting">Supporting</option>
-                <option value="background">Background</option>
-              </select>
-              <label id="castRelationLabel"></label>
-              <input type="text" id="castRelation">
-              <button id="castAddBtn" type="button">Add to cast</button>
-              <div id="castList" class="cast-list"></div>
-              <div id="storyReview"></div>
-            </div>
-            <button id="storyWithCoverBtn" type="submit">Create &amp; paint cover</button>
-            <button id="storyNoImageBtn" type="submit">Create without cover</button>
-          </form>
-        </div>
+        <button id="storyNewBtn" type="button">New story</button>
         <select id="currentStory"><option value="">Select or Create a Story</option></select>
         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
         <div id="costTicker" class="cost-ticker" hidden></div>

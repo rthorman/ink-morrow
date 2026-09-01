@@ -190,7 +190,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   function openStory(storyId) {
     // Route-driven: the hash change lands in enterFromRoute, which loads the
     // tale. Direct fallback keeps old entry points working pre-router.
-    features.storyEditor.closeCreator();
     if (router) router.navigate('desk', { storyId });
     else enterFromRoute({ storyId });
   }
@@ -203,12 +202,6 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       // desk immediately instead of leaving the markup's fake Page 1 of 1 and
       // enabled controls visible until some later interaction.
       displayCurrentPage();
-      // Home can reveal the creator just before the hash transition. Now that
-      // Write is actually visible, complete the hand-off by placing focus at
-      // the first field (focusing it while its section was hidden is ignored).
-      if (!document.getElementById('storyCreateWrap')?.hidden) {
-        document.getElementById('storyTitle')?.focus();
-      }
       return;
     }
     // Already open (a page turn wrote the hash): trust the reader's state.

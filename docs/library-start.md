@@ -2,7 +2,9 @@
 
 PR 10 makes Library the ordinary threshold for beginning or importing a
 manuscript. The start sheet is deliberately small: name, one of three starting
-paths, optional template copies, optional Foundations, and maturity level.
+paths, optional world and tiered cast copies, optional Foundations, and
+maturity level. It is the only creation form: Library, the empty catalogue,
+Home, and **New story** at the Desk all open this same sheet.
 Volume I and Chapter I are created by the existing story service for every
 successful path.
 
@@ -22,6 +24,14 @@ Closing or cancelling the sheet stores its fields in session storage and never
 creates a story. A successful start removes that draft. World and cast choices
 copy templates into the manuscript's existing snapshot boundary, so later
 template edits do not rewrite story-local state.
+
+Cast shape is explicit. **Centered on a lead** assigns one `mc` role and allows
+additional Supporting and Background members with starting relations.
+**Ensemble** requires no lead and may begin empty. Switching a centered draft
+to Ensemble keeps the former lead as Supporting rather than silently removing
+them. The complete roster, relations, and in-progress add row survive closing
+and reopening the sheet. Creation may remain entirely local or, through a
+separate reviewed paid action, request one cover painting.
 
 ## Optional AI boundary
 

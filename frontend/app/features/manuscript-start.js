@@ -1,9 +1,13 @@
 // Library one-sheet manuscript start. Manual and imported prose stay local;
 // AI is optional, reviewed, and configured only when the author asks for it.
 
+import { approxCostText } from '../core/cost.js';
+import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
+
 const START_DRAFT_KEY = 'st-manuscript-start-draft-v1';
 const DISMISSED_HINTS_KEY = 'st-manuscript-start-hints-v1';
 const FOUNDATION_ESTIMATE = 0.02;
+const COVER_ESTIMATE = IMAGE_COST_ESTIMATE.story;
 const PATH_HINT = {
   manual: 'Your opening becomes Page 1 locally. No provider, model, or API key is needed.',
   seed: 'The seed waits in the Desk direction. Nothing is sent until you review and press the paid Generate action.',
@@ -26,10 +30,6 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
 
   const el = (id) => document.getElementById(id);
 
-  function selectedCastIds() {
-    return [...document.querySelectorAll('#startCastList input[type="checkbox"]:checked')].map((input) => input.value);
-  }
-
   function draftValue() {
     return {
       path,
@@ -40,7 +40,9 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       prose: el('startImportProse')?.value || '',
       importMode: el('startImportMode')?.value || 'headings',
       worldId: el('startWorld')?.value || '',
-      castIds: selectedCastIds(),
+      castMode: features.storyEditor?.castMode?.() || 'ensemble',
+      cast: features.storyEditor?.storyCast?.() || [],
+      castDraft: features.storyEditor?.creationCastDraft?.() || null,
       narrativeVoice: el('startNarrativeVoice')?.value || '',
       pointOfView: el('startPointOfView')?.value || '',
       tense: el('startTense')?.value || '',
@@ -101,27 +103,10 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       if ([...world.options].some((option) => option.value === wanted)) world.value = wanted;
     }
 
-    const list = el('startCastList');
-    if (!list) return;
-    const wanted = new Set(keep.castIds || selectedCastIds());
-    list.textContent = '';
-    if (!(state.data.characters || []).length) {
-      const empty = document.createElement('p');
-      empty.className = 'placeholder';
-      empty.textContent = 'No character templates yet.';
-      list.appendChild(empty);
-      return;
-    }
-    for (const character of state.data.characters) {
-      const label = document.createElement('label');
-      const input = document.createElement('input');
-      input.type = 'checkbox';
-      input.value = character.id;
-      input.checked = wanted.has(character.id);
-      input.addEventListener('change', saveDraft);
-      const worldName = state.data.worlds.find((item) => item.id === character.world_id)?.name;
-      label.append(input, document.createTextNode(character.name + (worldName ? ` — ${worldName}` : '')));
-      list.appendChild(label);
+    if (Array.isArray(keep.cast)) {
+      features.storyEditor?.restoreCreationCast?.(keep.castMode, keep.cast, keep.castDraft);
+    } else {
+      features.storyEditor?.renderCastBuilder?.();
     }
   }
 
@@ -260,27 +245,54 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     if (creating) return;
     creating = true;
     const submit = el('manuscriptStartSubmit');
+    const coverSubmit = el('manuscriptStartWithCover');
+    const withCover = event.submitter?.id === 'manuscriptStartWithCover';
     const status = el('manuscriptStartStatus');
+    if (withCover) {
+      reviewing = true;
+      const yes = await dialogs.confirmPaid({
+        title: 'Create this manuscript and paint its cover?',
+        review: {
+          action: 'Create the manuscript, then paint a vertical cover in the background.',
+          object: `manuscript "${el('manuscriptStartName').value.trim() || '(untitled)'}"`,
+          quantity: 'one 1K cover painting',
+          sends: 'the title, maturity level, world description, cast appearance details, and available reference paintings',
+          estimate: COVER_ESTIMATE,
+          note: 'Create manuscript binds the same story without sending an image request.',
+        },
+        confirmLabel: `Create & paint (${approxCostText(COVER_ESTIMATE)})`,
+      });
+      reviewing = false;
+      if (!yes) {
+        creating = false;
+        return;
+      }
+    }
     if (submit) submit.disabled = true;
+    if (coverSubmit) coverSubmit.disabled = true;
     if (status) status.textContent = 'Binding Volume I and Chapter I…';
     let story = null;
     const completedPath = path;
     try {
       const response = await apiCall('/stories', 'POST', {
+        generate_image: withCover,
         title: el('manuscriptStartName').value.trim() || untitledName(),
         world_id: el('startWorld').value || null,
         tone: el('manuscriptStartTone').value,
-        characters: selectedCastIds().map((id) => ({ id, role: 'supporting', relation: null, state: null })),
+        characters: (features.storyEditor?.storyCast?.() || []).map((entry) => ({ ...entry, state: null })),
       });
       story = response.story;
       await addOpening(story, foundationText());
       try { sessionStorage.removeItem(START_DRAFT_KEY); } catch { /* memory-only browser */ }
       el('manuscriptStartForm').reset();
+      features.storyEditor?.resetCreationCast?.();
       if (el('manuscriptStartSheet')) el('manuscriptStartSheet').hidden = true;
       path = 'manual';
       await features.stories.loadStories();
       features.write.openStory(story.id);
-      showSuccess(completedPath === 'import' ? 'Prose imported into the manuscript.' : 'Manuscript created.');
+      showSuccess(completedPath === 'import'
+        ? 'Prose imported into the manuscript.'
+        : withCover ? 'Manuscript created — the cover is being painted.' : 'Manuscript created.');
     } catch (error) {
       if (status) status.textContent = story
         ? `The manuscript exists, but its opening could not be finished: ${error.message}`
@@ -290,6 +302,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     } finally {
       creating = false;
       if (submit) submit.disabled = false;
+      if (coverSubmit) coverSubmit.disabled = false;
     }
   }
 
@@ -466,7 +479,8 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     el('manuscriptStartForm').addEventListener('change', (event) => {
       if (event.target.id !== 'startProviderKey') saveDraft();
     });
+    el('libraryBeginBtn')?.addEventListener('click', () => open('manual'));
   }
 
-  return { open, close, setPath, renderTemplates, create, draftFoundations, init };
+  return { open, close, setPath, renderTemplates, create, draftFoundations, saveDraft, init };
 }

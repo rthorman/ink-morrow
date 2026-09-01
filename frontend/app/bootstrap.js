@@ -297,14 +297,14 @@ export function initApp() {
     const direction = document.getElementById('userInput');
     if (direction) direction.value = '';
     for (const formId of [
-      'worldForm', 'characterForm', 'storyForm', 'characterEditorForm',
+      'worldForm', 'characterForm', 'manuscriptStartForm', 'characterEditorForm',
       'worldEditorForm', 'passwordChangeForm',
     ]) {
       document.getElementById(formId)?.reset();
     }
     const privateSelects = {
       currentStory: 'Select or Create a Story',
-      storyWorld: 'No world',
+      startWorld: 'No world',
       characterWorld: 'No world',
       mcSelect: '— Choose a lead —',
       castCharSelect: '— Choose a character —',
@@ -361,10 +361,10 @@ function buildFacade(ctx) {
     addCastMember: storyEditor.addCastMember,
     chooseMainCharacter: storyEditor.chooseMainCharacter,
     storyCast: storyEditor.storyCast,
+    castMode: storyEditor.castMode,
     updateStorySelect: write.updateStorySelect,
     handleWorldSubmit: worlds.handleWorldSubmit,
     handleCharacterSubmit: characters.handleCharacterSubmit,
-    handleStorySubmit: storyEditor.handleStorySubmit,
     handleStorySelection: write.handleStorySelection,
     displayCurrentPage: write.displayCurrentPage,
     navigatePage: write.navigatePage,

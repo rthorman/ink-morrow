@@ -7,6 +7,7 @@ describe('Worlds components', () => {
   let fw;
 
   beforeEach(async () => {
+    window.sessionStorage.clear();
     mockFetch([
       {
         match: '/api/worlds',
@@ -67,6 +68,7 @@ describe('Characters and casting', () => {
   let fw;
 
   beforeEach(async () => {
+    window.sessionStorage.clear();
     mockFetch([
       {
         match: (url, options) => url.includes('/api/worlds') && (!options || options.method === 'GET'),
@@ -91,7 +93,7 @@ describe('Characters and casting', () => {
   });
 
   it('offers uncast characters in the pickers, world-mates first', async () => {
-    document.getElementById('storyWorld').value = 'w1';
+    document.getElementById('startWorld').value = 'w1';
     fw.renderCastBuilder();
     const mcOptions = [...document.getElementById('mcSelect').options].map((o) => o.textContent);
     expect(mcOptions).toEqual(['— Choose who the story follows —', 'Realm Knight', 'Outsider (other world)', 'Drifter']);
@@ -117,6 +119,19 @@ describe('Characters and casting', () => {
     document.querySelector('#castList .cast-list__remove').click();
     expect(fw.storyCast()).toEqual([]);
     expect([...document.getElementById('mcSelect').options].map((o) => o.value)).toContain('c1');
+  });
+
+  it('switches from a centered lead to an ensemble without dropping that character', async () => {
+    document.getElementById('castModeCentered').click();
+    document.getElementById('mcSelect').value = 'c1';
+    fw.chooseMainCharacter();
+
+    document.getElementById('castModeEnsemble').click();
+
+    expect(fw.castMode()).toBe('ensemble');
+    expect(fw.storyCast()).toEqual([{ id: 'c1', role: 'supporting', relation: null }]);
+    expect(document.getElementById('castLeadRow').hidden).toBe(true);
+    expect(document.getElementById('castModeEnsemble').getAttribute('aria-checked')).toBe('true');
   });
 
   it('adds supporting and background members through the real button with visible roles', async () => {
@@ -182,8 +197,9 @@ describe('Characters and casting', () => {
     const fetchMock = global.fetch;
     fetchMock.mockResolvedValueOnce(jsonResponse(201, { story: { id: 's1', title: 'Tale', page_count: 0 } }));
 
-    document.getElementById('storyTitle').value = 'Tale';
-    document.getElementById('storyTone').value = 'explicit';
+    document.getElementById('manuscriptStartName').value = 'Tale';
+    document.getElementById('manuscriptStartTone').value = 'explicit';
+    document.getElementById('startManualOpening').value = 'The tale begins.';
     document.getElementById('mcSelect').value = 'c1';
     fw.chooseMainCharacter();
     document.getElementById('castCharSelect').value = 'c3';
@@ -192,7 +208,7 @@ describe('Characters and casting', () => {
     document.getElementById('castAddBtn').click();
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
-    document.getElementById('storyForm').dispatchEvent(event);
+    document.getElementById('manuscriptStartForm').dispatchEvent(event);
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     const [url, options] = fetchMock.mock.calls.find((c) => c[1] && c[1].method === 'POST');
@@ -218,10 +234,11 @@ describe('Characters and casting', () => {
       if (String(url).endsWith('/stories')) return Promise.resolve(jsonResponse(200, { stories: [{ id: 's9', title: 'Tale', page_count: 0 }] }));
       return Promise.resolve(jsonResponse(200, {}));
     });
-    document.getElementById('storyTitle').value = 'Tale';
+    document.getElementById('manuscriptStartName').value = 'Tale';
+    document.getElementById('startManualOpening').value = 'The tale begins.';
 
     const event = new Event('submit', { bubbles: true, cancelable: true });
-    document.getElementById('storyForm').dispatchEvent(event);
+    document.getElementById('manuscriptStartForm').dispatchEvent(event);
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -245,11 +262,12 @@ describe('Characters and casting', () => {
       if (String(url).endsWith('/api/storage')) return Promise.resolve(jsonResponse(200, { stories: [] }));
       return Promise.resolve(jsonResponse(200, {}));
     });
-    document.getElementById('storyTitle').value = 'Veiled';
-    document.getElementById('storyTone').value = 'romantic';
+    document.getElementById('manuscriptStartName').value = 'Veiled';
+    document.getElementById('manuscriptStartTone').value = 'romantic';
+    document.getElementById('startManualOpening').value = 'A veiled beginning.';
     const event = new Event('submit', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'submitter', { value: document.getElementById('storyWithCoverBtn') });
-    document.getElementById('storyForm').dispatchEvent(event);
+    Object.defineProperty(event, 'submitter', { value: document.getElementById('manuscriptStartWithCover') });
+    document.getElementById('manuscriptStartForm').dispatchEvent(event);
     expect(await paidReview('confirm')).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
 

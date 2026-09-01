@@ -117,19 +117,28 @@ test.describe('ScribeTribe UI', () => {
     const drifterCard = page.locator('#charactersList .item-card', { hasText: 'The Drifter' });
     // Regeneration lives in the More menu with its approximate cost
     await drifterCard.locator('.card-more summary').click();
-    await expect(drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' })).toBeVisible();
-    await drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' }).click();
+    const regenerateItem = drifterCard.locator('.card-more__item', { hasText: 'Regenerate image' });
+    await expect(regenerateItem).toBeVisible();
+    const menuEscapesCardClip = await drifterCard.evaluate((card) => {
+      const menu = card.querySelector('.card-more__menu');
+      const cardBox = card.getBoundingClientRect();
+      const menuBox = menu.getBoundingClientRect();
+      return menuBox.bottom > cardBox.bottom && getComputedStyle(card).overflow === 'visible';
+    });
+    expect(menuEscapesCardClip).toBe(true);
+    await regenerateItem.click();
     await confirmPaidReview(page, /Repaint it/); // the repaint uses the same remembered consent gate
     await expect(drifterCard.locator('.card-image--pending, .card-image--failed')).toBeVisible({ timeout: 8000 });
 
     // Story with tone + tiered cast: Seraphina is the Main Character, Drifter supports with a relation
     await page.locator('#writeBtn').click();
-    // Parallel workers share the in-memory server: another test may already
-    // have created stories, which folds the form - reveal it on demand.
-    if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
-    await page.fill('#storyTitle', 'The Shadow and the Flame');
-    await selectByLabel(page, '#storyWorld', 'E2E Realm');
-    await page.selectOption('#storyTone', 'romantic');
+    await page.locator('#storyNewBtn').click();
+    await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
+    await page.fill('#manuscriptStartName', 'The Shadow and the Flame');
+    await page.fill('#startManualOpening', 'The shadow met the flame at midnight.');
+    await page.locator('#startFoundations summary').click();
+    await selectByLabel(page, '#startWorld', 'E2E Realm');
+    await page.selectOption('#manuscriptStartTone', 'romantic');
     await page.locator('#castModeCentered').click(); // explicit centered choice reveals the lead picker
     await selectByLabel(page, '#mcSelect', 'Lady Seraphina');
     await selectByLabel(page, '#castCharSelect', 'The Drifter');
@@ -141,7 +150,8 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#charactersBtn').click();
     await expect(page.locator('#charactersSection')).toHaveClass(/active/);
     await page.locator('#writeBtn').click();
-    await expect(page.locator('#storyCreateWrap')).toBeVisible();
+    await page.locator('#storyNewBtn').click();
+    await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
     await expect(page.locator('#castCharSelect')).toHaveValue(/.+/);
     await expect(page.locator('#castTierSelect')).toHaveValue('supporting');
     await expect(page.locator('#castRelation')).toHaveValue('a debt of silence between them');
@@ -158,7 +168,7 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#castAddBtn').click();
     const backgroundRow = page.locator('#castList .cast-list__row', { hasText: 'The Witness' });
     await expect(backgroundRow.locator('.cast-list__role')).toHaveText('Background');
-    await page.locator('#storyNoImageBtn').click();
+    await page.locator('#manuscriptStartSubmit').click();
 
     // Creating a story jumps to the write section with the story selected
     await expect(page.locator('#writeSection')).toHaveClass(/active/);
@@ -504,7 +514,7 @@ test.describe('ScribeTribe UI', () => {
     const card = page.locator('#storiesList .item-card', { hasText: 'A Tale That Exists' }).first();
     await expect(card).toBeVisible({ timeout: 5000 });
     await expect(card).toContainText('0 KB media on disk');
-    await expect(page.locator('#storyCreateWrap')).toBeHidden();
+    await expect(page.locator('#storyCreateWrap')).toHaveCount(0);
 
     await card.click();
     await expect(page.locator('#storyAssetsModal')).toBeVisible();

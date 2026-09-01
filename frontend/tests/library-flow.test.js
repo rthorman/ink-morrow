@@ -1,7 +1,6 @@
 'use strict';
 
-// 3.0.5 separation: Library manages stories/assets; the complete creation
-// form (including maturity) lives at the writing desk.
+// 4.0: every entry point opens the same complete Library manuscript start.
 
 import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
@@ -13,7 +12,7 @@ function storiesResponse(...stories) {
   });
 }
 
-describe('Library management and Write story creation', () => {
+describe('Library management and canonical manuscript creation', () => {
   let fw, fetchMock;
 
   beforeEach(async () => {
@@ -22,49 +21,43 @@ describe('Library management and Write story creation', () => {
     fw = await loadScript();
   });
 
-  it('shows existing stories in Library while creation remains at Write', async () => {
+  it('shows existing stories and routes the Desk New story control to the canonical sheet', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse({ id: 's1', title: 'Existing Tale', page_count: 1 })));
     await fw.loadStories();
-    const wrap = document.getElementById('storyCreateWrap');
     const btn = document.getElementById('storyNewBtn');
-    expect(wrap.closest('#writeSection')).toBeTruthy();
-    expect(wrap.hidden).toBe(true);
-    expect(btn.getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('storyCreateWrap')).toBeNull();
     expect(document.getElementById('storiesList').textContent).toContain('Existing Tale');
 
-    // The Write control reveals the form and focuses its first field.
     btn.click();
-    expect(wrap.hidden).toBe(false);
-    expect(btn.getAttribute('aria-expanded')).toBe('true');
-    expect(document.activeElement).toBe(document.getElementById('storyTitle'));
-
-    // Library re-rendering never closes a draft at the writing desk.
-    fw.renderStories?.();
-    await new Promise((r) => setTimeout(r, 0));
-    expect(wrap.hidden).toBe(false);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
+    expect(document.activeElement).toBe(document.getElementById('startManualOpening'));
   });
 
   it('an empty manuscript catalogue returns to the Library one-sheet without duplicating the Desk form', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
     await fw.loadStories();
-    expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
-    expect(document.getElementById('storyNewBtn').getAttribute('aria-expanded')).toBe('false');
+    expect(document.getElementById('storyCreateWrap')).toBeNull();
     expect(document.getElementById('storiesList').textContent).toContain('No manuscripts are bound');
     document.querySelector('#storiesList button').click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(window.location.hash).toBe('#/library');
     expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
-    expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
+    expect(document.getElementById('storyCreateWrap')).toBeNull();
   });
 
-  it('opens the complete form automatically at Write for a first story', async () => {
+  it('redirects a bare first-story Desk visit to the complete canonical sheet', async () => {
     window.history.replaceState(null, '', window.location.href.split('#')[0] + '#/desk');
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
     await fw.loadStories();
-    expect(document.getElementById('storyCreateWrap').hidden).toBe(false);
-    expect(document.getElementById('storyTone').options).toHaveLength(3);
-    expect(document.getElementById('storyTone').value).toBe('fade-to-black');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
+    expect(document.getElementById('manuscriptStartTone').options).toHaveLength(3);
+    expect(document.getElementById('manuscriptStartTone').value).toBe('fade-to-black');
+    expect(document.getElementById('castModeCentered')).toBeTruthy();
+    expect(document.getElementById('castModeEnsemble')).toBeTruthy();
   });
 });
 

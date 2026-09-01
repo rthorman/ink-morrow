@@ -219,10 +219,13 @@ test.describe('AI generation flows (mocked)', () => {
     await expect(page.locator('#charactersList .item-card', { hasText: 'Sir Context' })).toBeVisible({ timeout: 5000 });
 
     await page.locator('#writeBtn').click();
-    if (await page.locator('#storyCreateWrap').isHidden()) await page.locator('#storyNewBtn').click();
-    await page.fill('#storyTitle', 'Context Story');
-    await selectByLabel(page, '#storyWorld', 'Context Realm');
-    await page.selectOption('#storyTone', 'explicit');
+    await page.locator('#storyNewBtn').click();
+    await expect(page.locator('#manuscriptStartSheet')).toBeVisible();
+    await page.fill('#manuscriptStartName', 'Context Story');
+    await page.fill('#startManualOpening', 'Sir Context opens the tome.');
+    await page.locator('#startFoundations summary').click();
+    await selectByLabel(page, '#startWorld', 'Context Realm');
+    await page.selectOption('#manuscriptStartTone', 'explicit');
     // First explicit selection asks once; acknowledge it
     const toneAck = page.locator('.dialog-manager button', { hasText: 'I am 18 or older' });
     if (await toneAck.isVisible({ timeout: 1500 }).catch(() => false)) await toneAck.click();
@@ -231,7 +234,7 @@ test.describe('AI generation flows (mocked)', () => {
     const leadRow = page.locator('#castList .cast-list__row--mc');
     await expect(leadRow.locator('.cast-list__name')).toHaveText('Sir Context');
     await expect(leadRow.locator('.cast-list__role')).toHaveText('Lead');
-    await page.locator('#storyNoImageBtn').click();
+    await page.locator('#manuscriptStartSubmit').click();
 
     await page.fill('#userInput', 'Sir Context opens the tome');
     await page.locator('#generateBtn').click();
