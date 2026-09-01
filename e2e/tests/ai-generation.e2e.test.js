@@ -301,26 +301,28 @@ test.describe('Reading old pages and burning the rest', () => {
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
-    // Old page: writing is locked, the burn offer is visible
+    // Earlier page: the composer is locked while copyedit and return remain visible.
     await expect(page.locator('#userInput')).toBeDisabled();
     await expect(page.locator('#pastPageBar')).toBeVisible();
 
-    // Burn dialog: warning text, Cancel keeps everything
+    // Return dialog: exact consequence text, Cancel keeps everything.
     await page.locator('#deleteAfterBtn').click();
     await expect(page.locator('.dialog-manager')).toBeVisible();
-    await expect(page.locator('.dialog-manager__title')).toContainText('Delete 1 later page?');
-    await expect(page.locator('.dialog-manager__body')).toContainText('permanently');
+    await expect(page.locator('.dialog-manager__title')).toContainText('Return story to page 1?');
+    await expect(page.locator('.dialog-manager__body')).toContainText('1 page');
+    await expect(page.locator('.dialog-manager__body')).toContainText('recovery copy');
     await page.locator('.dialog-manager button', { hasText: 'Cancel' }).click();
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
-    // Confirming the destructive dialog truncates
+    // Confirming returns the active chain and exposes recovery.
     await page.locator('#deleteAfterBtn').click();
-    await page.locator('.dialog-manager button', { hasText: 'Delete 1 page' }).click();
+    await page.locator('.dialog-manager button', { hasText: 'Return story to page 1' }).click();
 
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1', { timeout: 5000 });
     await expect(page.locator('#userInput')).toBeEnabled(); // page 1 is the last page again
+    await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
   });
 });
 

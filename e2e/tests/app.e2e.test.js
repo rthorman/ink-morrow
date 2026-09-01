@@ -565,7 +565,8 @@ test.describe('ScribeTribe UI', () => {
     await page.locator('#deskPageEditorClose').click();
     await page.locator('#deleteAfterBtn').click();
     const dialog = page.locator('.dialog-manager');
-    await expect(dialog).toContainText('Pages 2â€“3');
+    await expect(dialog).toContainText('Pages 2');
+    await expect(dialog).toContainText('2 pages');
     await dialog.locator('button', { hasText: 'Return story to page 1' }).click();
     await expect(page.locator('#deskRecoveryBanner')).toBeVisible();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
