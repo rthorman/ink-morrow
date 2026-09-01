@@ -729,4 +729,3 @@ describe('Place generated art after prose', () => {
     expect(document.getElementById('userInput').disabled).toBe(false); // the tale continues
   });
 });
-
