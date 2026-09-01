@@ -34,9 +34,9 @@ export default defineConfig({
   // Run node directly (not `npm start`): the npm wrapper shields the server
   // process from Playwright's webServer teardown on Termux.
   webServer: {
-    // Env vars are ALSO inlined in the command so isolation never depends
-    // on how a given Playwright version merges the `env` object.
-    command: 'DB_PATH=":memory:" PORT="3100" NODE_ENV="e2e" AUTH_SETUP_CODE="E2E-SETUP-CODE" OPENROUTER_API_KEY="e2e-dummy-key" node server.js',
+    // Keep the command portable across Windows and POSIX shells. Playwright
+    // passes the isolated test configuration through the explicit env below.
+    command: 'node server.js',
     cwd: '../backend',
     port: 3100,
     // Never reuse a server on the port: the user's dev server runs on 3000

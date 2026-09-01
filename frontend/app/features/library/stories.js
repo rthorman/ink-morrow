@@ -45,8 +45,8 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
       renderStories();
       features.write.updateStorySelect();
       features.home?.renderHome();
-      if (state.data.stories.length === 0 && /^#\/(?:desk|write)(?:\/|$)/.test(window.location.hash)) {
-        features.storyEditor.openCreator();
+      if (state.data.stories.length === 0 && /^#\/(?:desk|write)\/?$/.test(window.location.hash)) {
+        features.manuscriptStart.open('manual');
       }
       scheduleCoverPoll();
     } catch (error) {

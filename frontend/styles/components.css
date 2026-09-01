@@ -235,6 +235,13 @@ select optgroup {
   box-shadow: 0 14px 30px rgb(0 0 0 / 0.45);
 }
 
+/* Menus extend beyond the card edge. Lift the active card and release its
+   decorative clip so every action remains visible and selectable. */
+.item-card:has(.card-more[open]) {
+  overflow: visible;
+  z-index: 45;
+}
+
 .item-card:hover::before,
 .item-card:focus-within::before {
   opacity: 1;

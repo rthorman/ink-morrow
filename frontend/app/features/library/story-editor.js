@@ -1,6 +1,5 @@
-// Story editor: the Write-desk creation/cast builder plus the mid-story cast
-// editor opened from Library. It edits roles, relations, and in-story state
-// copies exactly as the tale has them (never the base sheets).
+// Story cast tools: the canonical manuscript-start cast builder plus the
+// mid-story editor opened from Library. Both edit story-local copies only.
 
 const CAST_EDIT_FIELDS = [
   { key: 'personality', label: 'In-story personality' },
@@ -9,11 +8,6 @@ const CAST_EDIT_FIELDS = [
 ];
 
 import { wireModal } from '../../core/dialogs.js';
-import { approxCostText } from '../../core/cost.js';
-import { IMAGE_COST_ESTIMATE } from '../../components/entity-card.js';
-
-const STORY_COVER_ESTIMATE = IMAGE_COST_ESTIMATE.story;
-
 export function createStoryEditor({ api, state, notify, features, dialogs }) {
   const { apiCall } = api;
   const { showError, showSuccess, scribeErrorMessage } = notify;
@@ -22,7 +16,6 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   // or an ensemble - then members one at a time with starting connections.
   let storyCast = []; // [{id, role, relation}]
   let castMode = 'ensemble'; // 'centered' | 'ensemble'
-  let coverReviewing = false;
 
   // Mid-story editor state.
   let castEdit = null; // { storyId, title, worldId, entries: [{id, role, relation, state}] }
@@ -46,10 +39,11 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       lead.role = 'supporting';
     }
     renderCastBuilder();
+    features.manuscriptStart?.saveDraft?.();
   }
 
   function castOrderedCharacters() {
-    const storyWorld = document.getElementById('storyWorld')?.value || '';
+    const storyWorld = document.getElementById('startWorld')?.value || '';
     return [
       ...state.data.characters.filter((c) => c.world_id === storyWorld),
       ...state.data.characters.filter((c) => c.world_id !== storyWorld),
@@ -68,7 +62,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       option.textContent = placeholder;
       select.appendChild(option);
     }
-    const storyWorld = document.getElementById('storyWorld')?.value || '';
+    const storyWorld = document.getElementById('startWorld')?.value || '';
     options.forEach((character) => {
       const option = document.createElement('option');
       option.value = character.id;
@@ -186,6 +180,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         relation.placeholder = lead ? `tie to ${lead}…` : 'starting connection or story note…';
         relation.addEventListener('input', () => {
           entry.relation = relation.value.trim() || null;
+          features.manuscriptStart?.saveDraft?.();
         });
         row.appendChild(relation);
       }
@@ -198,6 +193,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       remove.addEventListener('click', () => {
         storyCast = storyCast.filter((e) => e.id !== entry.id);
         renderCastBuilder();
+        features.manuscriptStart?.saveDraft?.();
       });
       row.appendChild(remove);
       list.appendChild(row);
@@ -210,7 +206,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   function renderStoryReview() {
     const review = document.getElementById('storyReview');
     if (!review) return;
-    const worldSelect = document.getElementById('storyWorld');
+    const worldSelect = document.getElementById('startWorld');
     const world = worldSelect ? state.data.worlds.find((w) => w.id === worldSelect.value) : null;
     const lead = leadName();
     const parts = [
@@ -230,6 +226,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     const relation = relationInput && relationInput.value.trim() ? relationInput.value.trim() : null;
     storyCast.push({ id: charSelect.value, role, relation });
     renderCastBuilder({ resetAddDraft: true });
+    features.manuscriptStart?.saveDraft?.();
   }
 
   function chooseMainCharacter() {
@@ -237,54 +234,42 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     if (!mcSelect || !mcSelect.value) return;
     storyCast = [{ id: mcSelect.value, role: 'mc', relation: null }, ...storyCast.filter((e) => e.role !== 'mc' && e.id !== mcSelect.value)];
     renderCastBuilder();
+    features.manuscriptStart?.saveDraft?.();
   }
 
-  async function handleStorySubmit(event) {
-    event.preventDefault();
-    const form = event.target;
-    const withCover = event.submitter?.id === 'storyWithCoverBtn';
-    if (withCover) {
-      if (coverReviewing) return;
-      coverReviewing = true;
-      const yes = await dialogs.confirmPaid({
-        title: 'Create this story and paint its cover?',
-        review: {
-          action: 'Create the story, then paint a vertical cover in the background.',
-          object: `story "${document.getElementById('storyTitle').value.trim() || '(untitled)'}"`,
-          quantity: 'one 1K cover painting',
-          sends: 'the title, maturity level, world description, cast appearance details, and available reference paintings',
-          estimate: STORY_COVER_ESTIMATE,
-          note: '"Create without cover" binds the same story without sending an image request.',
-        },
-        confirmLabel: `Create & paint (${approxCostText(STORY_COVER_ESTIMATE)})`,
-      });
-      coverReviewing = false;
-      if (!yes) return;
+  function creationCastDraft() {
+    return {
+      id: document.getElementById('castCharSelect')?.value || '',
+      role: document.getElementById('castTierSelect')?.value || 'supporting',
+      relation: document.getElementById('castRelation')?.value || '',
+    };
+  }
+
+  function restoreCreationCast(mode = 'ensemble', entries = [], addDraft = null) {
+    castMode = mode === 'centered' ? 'centered' : 'ensemble';
+    storyCast = (Array.isArray(entries) ? entries : [])
+      .filter((entry) => entry && entry.id)
+      .map((entry) => ({
+        id: entry.id,
+        role: ['mc', 'supporting', 'background'].includes(entry.role) ? entry.role : 'supporting',
+        relation: entry.relation || null,
+      }));
+    if (castMode === 'ensemble') {
+      storyCast.forEach((entry) => { if (entry.role === 'mc') entry.role = 'supporting'; });
     }
-    // A Main Character is optional: with one, the scribe keeps the tale
-    // centered on them; without one, she writes an ensemble that follows
-    // wherever the writer's directions point.
-    const cast = storyCast.map((entry) => ({ ...entry, state: null }));
-    try {
-      const data = await apiCall('/stories', 'POST', {
-        generate_image: withCover,
-        title: document.getElementById('storyTitle').value,
-        world_id: document.getElementById('storyWorld').value || null,
-        tone: document.getElementById('storyTone').value,
-        characters: cast,
-      });
-      form.reset();
-      storyCast = [];
-      renderCastBuilder({ resetAddDraft: true });
-      document.getElementById('storyTone').value = 'fade-to-black';
-      // The tale exists now; fold the creation desk before opening it.
-      closeCreator();
-      await features.stories.loadStories();
-      features.write.openStory(data.story.id);
-      showSuccess(withCover ? 'Story created — the cover is being painted.' : 'Story created.');
-    } catch (error) {
-      showError(error.message);
+    renderCastBuilder({ resetAddDraft: true });
+    if (addDraft) {
+      const charSelect = document.getElementById('castCharSelect');
+      const tierSelect = document.getElementById('castTierSelect');
+      const relationInput = document.getElementById('castRelation');
+      if (charSelect && [...charSelect.options].some((option) => option.value === addDraft.id)) charSelect.value = addDraft.id;
+      if (tierSelect && ['supporting', 'background'].includes(addDraft.role)) tierSelect.value = addDraft.role;
+      if (relationInput) relationInput.value = addDraft.relation || '';
     }
+  }
+
+  function resetCreationCast() {
+    restoreCreationCast('ensemble', []);
   }
 
   // -- mid-story cast editor (roster/details) ----------------------------------
@@ -704,25 +689,12 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
   }
 
   function init() {
-    document.getElementById('storyForm').addEventListener('submit', handleStorySubmit);
-    // Story creation lives at the writing desk. Keep its disclosure behavior
-    // with the editor rather than making Library own a control on another route.
     const newStoryBtn = document.getElementById('storyNewBtn');
-    if (newStoryBtn) {
-      newStoryBtn.addEventListener('click', () => {
-        const wrap = document.getElementById('storyCreateWrap');
-        const opening = wrap.hidden;
-        wrap.hidden = !opening;
-        newStoryBtn.setAttribute('aria-expanded', String(opening));
-        if (opening) document.getElementById('storyTitle').focus();
-        else wrap.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-      });
-    }
-    document.getElementById('storyWorld').addEventListener('change', () => {
+    if (newStoryBtn) newStoryBtn.addEventListener('click', () => features.manuscriptStart.open('manual'));
+    document.getElementById('startWorld')?.addEventListener('change', () => {
       renderCastBuilder();
       renderStoryReview();
     });
-    document.getElementById('storyTitle').addEventListener('input', renderStoryReview);
     const mcSelect = document.getElementById('mcSelect');
     if (mcSelect) mcSelect.addEventListener('change', () => { if (mcSelect.value) chooseMainCharacter(); });
     const castAddBtn = document.getElementById('castAddBtn');
@@ -734,7 +706,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
 
     // Contextual explicit-tone acknowledgement: the FIRST time this browser
     // selects the explicit tone, one honest explanation - no global gate.
-    const toneSelect = document.getElementById('storyTone');
+    const toneSelect = document.getElementById('manuscriptStartTone');
     if (toneSelect) {
       toneSelect.addEventListener('change', () => {
         if (toneSelect.value !== 'explicit') return;
@@ -787,27 +759,10 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     if (add) add.addEventListener('click', addCastEditorMember);
   }
 
-  function openCreator() {
-    const wrap = document.getElementById('storyCreateWrap');
-    const button = document.getElementById('storyNewBtn');
-    if (!wrap) return;
-    wrap.hidden = false;
-    if (button) button.setAttribute('aria-expanded', 'true');
-    document.getElementById('storyTitle')?.focus();
-  }
-
-  function closeCreator() {
-    const wrap = document.getElementById('storyCreateWrap');
-    const button = document.getElementById('storyNewBtn');
-    if (wrap) wrap.hidden = true;
-    if (button) button.setAttribute('aria-expanded', 'false');
-  }
-
   return {
     renderCastBuilder,
     addCastMember,
     chooseMainCharacter,
-    handleStorySubmit,
     openStoryCastEditor,
     closeStoryCastEditor,
     requestCloseStoryCastEditor,
@@ -815,12 +770,14 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     addCastEditorMember,
     saveStoryCastEditor,
     storyCast: () => storyCast.map((e) => ({ ...e })),
+    castMode: () => castMode,
+    creationCastDraft,
+    restoreCreationCast,
+    resetCreationCast,
     __castEditState: () =>
       castEdit
         ? { ...castEdit, entries: castEdit.entries.map((e) => ({ ...e, state: e.state ? { ...e.state } : null })) }
         : null,
     init,
-    openCreator,
-    closeCreator,
   };
 }

@@ -165,10 +165,35 @@
                             <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the story.</p>
                             <label for="startWorld">World template</label>
                             <select id="startWorld"><option value="">No world</option></select>
-                            <fieldset id="startCastFieldset" class="start-cast">
-                                <legend>Character templates</legend>
-                                <div id="startCastList"><p class="placeholder">No character templates yet.</p></div>
-                            </fieldset>
+                            <div class="character-selection">
+                                <fieldset class="cast-mode">
+                                    <legend>Cast shape</legend>
+                                    <img class="cast-mode__art" src="brand/cinder-cast.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async">
+                                    <div class="seg" role="radiogroup" aria-label="Cast shape">
+                                        <button type="button" class="seg-btn" id="castModeCentered" role="radio" aria-checked="false">Centered on a lead</button>
+                                        <button type="button" class="seg-btn" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
+                                    </div>
+                                    <p class="setting-hint" id="castModeHint">No lead character. Direction and scene determine focus — no throne at this table.</p>
+                                </fieldset>
+                                <div class="cast-mc" id="castLeadRow" hidden>
+                                    <label for="mcSelect">Lead</label>
+                                    <select id="mcSelect"><option value="">— Choose who the story follows —</option></select>
+                                </div>
+                                <div class="cast-add">
+                                    <label for="castCharSelect">Add cast member</label>
+                                    <select id="castCharSelect"></select>
+                                    <label for="castTierSelect">Role</label>
+                                    <select id="castTierSelect">
+                                        <option value="supporting">Supporting</option>
+                                        <option value="background">Background</option>
+                                    </select>
+                                    <label for="castRelation" id="castRelationLabel">Starting connection or story note</label>
+                                    <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
+                                    <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
+                                </div>
+                                <div id="castList" class="cast-list" aria-label="Story cast"></div>
+                                <div id="storyReview" class="story-review" aria-live="polite"></div>
+                            </div>
                             <label for="startNarrativeVoice">Narrative voice</label>
                             <input id="startNarrativeVoice" type="text" maxlength="1000" placeholder="e.g. intimate, lucid, dryly observant">
                             <label for="startPointOfView">Point of view</label>
@@ -199,6 +224,7 @@
                         <div class="form-actions">
                             <button id="manuscriptStartCancel" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
                             <button id="manuscriptStartSubmit" class="btn btn-primary" type="submit">Create manuscript</button>
+                            <button id="manuscriptStartWithCover" class="btn btn-secondary" type="submit">Create &amp; paint cover (≈$0.06)</button>
                         </div>
                     </form>
                 </section>
@@ -307,7 +333,7 @@
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
                     <div class="catalog-head library-story-head">
                         <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
-                        <a class="btn btn-primary" href="#/desk">Begin at the Desk</a>
+                        <button id="libraryBeginBtn" class="btn btn-primary" type="button">Begin a manuscript</button>
                     </div>
                     <div id="storiesList" class="items-grid stories-grid"></div>
                 </div>
@@ -326,62 +352,9 @@
                         <select id="currentStory">
                             <option value="">Select a story</option>
                         </select>
-                        <button id="storyNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="storyCreateWrap">New story</button>
+                        <button id="storyNewBtn" class="btn btn-primary" type="button">New story</button>
                         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
                         <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
-                    </div>
-
-                    <div id="storyCreateWrap" class="create-form story-create-at-desk" hidden>
-                        <h3>Create New Story</h3>
-                        <p class="setting-hint">Bind the manuscript before writing its first page. The cast is copied into this tale so it can evolve independently.</p>
-                        <form id="storyForm">
-                            <label for="storyTitle">Title</label>
-                            <input type="text" id="storyTitle" placeholder="Give the manuscript a name" maxlength="300" required>
-                            <label for="storyWorld">World</label>
-                            <select id="storyWorld">
-                                <option value="">No world</option>
-                            </select>
-                            <label for="storyTone">Maturity level</label>
-                            <select id="storyTone">
-                                <option value="fade-to-black">Tasteful — intimate moments fade to black</option>
-                                <option value="romantic">Romantic — sensual, not graphic</option>
-                                <option value="explicit">Explicit — adult prose (18+)</option>
-                            </select>
-                            <p class="setting-hint">This guides every generated page. Cover artwork remains non-explicit at every level so image providers can render it.</p>
-                            <div class="character-selection">
-                                <fieldset class="cast-mode">
-                                    <legend>Cast shape</legend>
-                                    <img class="cast-mode__art" src="brand/cinder-cast.webp" alt="" width="1536" height="1024" loading="lazy" decoding="async">
-                                    <div class="seg" role="radiogroup" aria-label="Cast shape">
-                                        <button type="button" class="seg-btn" id="castModeCentered" role="radio" aria-checked="false">Centered on a lead</button>
-                                        <button type="button" class="seg-btn" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
-                                    </div>
-                                    <p class="setting-hint" id="castModeHint">No lead character. Direction and scene determine focus — no throne at this table.</p>
-                                </fieldset>
-                                <div class="cast-mc" id="castLeadRow" hidden>
-                                    <label for="mcSelect">Lead</label>
-                                    <select id="mcSelect"><option value="">— Choose who the story follows —</option></select>
-                                </div>
-                                <div class="cast-add">
-                                    <label for="castCharSelect">Add cast member</label>
-                                    <select id="castCharSelect"></select>
-                                    <label for="castTierSelect">Role</label>
-                                    <select id="castTierSelect">
-                                        <option value="supporting">Supporting</option>
-                                        <option value="background">Background</option>
-                                    </select>
-                                    <label for="castRelation" id="castRelationLabel">Starting connection or story note</label>
-                                    <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
-                                    <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
-                                </div>
-                                <div id="castList" class="cast-list" aria-label="Story cast"></div>
-                                <div id="storyReview" class="story-review" aria-live="polite"></div>
-                            </div>
-                            <div class="form-actions">
-                                <button id="storyWithCoverBtn" type="submit" class="btn btn-primary">Create &amp; paint cover (≈$0.06)</button>
-                                <button id="storyNoImageBtn" type="submit" class="btn btn-secondary">Create without cover</button>
-                            </div>
-                        </form>
                     </div>
 
                     <div class="story-reader">
