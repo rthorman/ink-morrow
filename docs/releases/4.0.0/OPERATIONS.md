@@ -140,4 +140,3 @@ changes rather than attempting to mutate an existing publication.
 - Configure proxy/application logging to omit request bodies and
   `Authorization`, `Cookie`, and `Set-Cookie` headers. Scrub share tokens,
   filenames, story text, provider errors, and local paths before sharing logs.
-
