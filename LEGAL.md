@@ -13,7 +13,7 @@ The ScribeTribe 4.0 release line is free and open-source software distributed
 under the [GNU Affero General Public License, version 3 only](LICENSE), using
 the SPDX expression `AGPL-3.0-only`. It is designed for the user to install
 and operate on their own hardware. Versions through 3.2.2 remain under the
-MIT License in the historical `main` line; see
+MIT License in preserved historical commits and tags; see
 [LICENSE-NOTICE.md](LICENSE-NOTICE.md).
 
 There is no ScribeTribe company or hosted ScribeTribe service behind this
@@ -36,7 +36,9 @@ or fitness guarantee unless a separate signed agreement expressly says so.
 
 The user supplies and controls any AI-provider account, endpoint, credential,
 model, quota, and spending limit. Requests made through ScribeTribe are sent
-from the user's installation to the provider the user configured.
+from the user's installation to the provider the user configured. OpenRouter
+is the only AI supplier tested with ScribeTribe 4.0; another nominally
+compatible endpoint may fail or lack capabilities ScribeTribe expects.
 
 The user's relationship is directly with that provider and is governed by the
 provider's current terms, privacy policy, content rules, availability, billing,
@@ -191,3 +193,4 @@ Reference materials for qualified review:
 - [GNU — Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.html)
 - [SPDX — AGPL-3.0-only](https://spdx.org/licenses/AGPL-3.0-only.html)
 - [Uniform Commercial Code § 2-316, exclusion or modification of warranties](https://www.law.cornell.edu/ucc/2/2-316)
+
