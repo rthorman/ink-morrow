@@ -64,4 +64,3 @@ submit.
 
 By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Code
 is accepted under the repository's [AGPL-3.0-only license](LICENSE).
-
