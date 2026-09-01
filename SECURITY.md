@@ -133,4 +133,3 @@ Please avoid posting exploitable details in a public issue. Use the repository's
 
 The operational and data boundaries are also summarized in
 [LEGAL.md](LEGAL.md) and [PRIVACY.md](PRIVACY.md).
-
