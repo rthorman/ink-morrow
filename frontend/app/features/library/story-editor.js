@@ -783,4 +783,3 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     init,
   };
 }
-
