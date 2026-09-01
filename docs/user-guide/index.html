@@ -101,9 +101,10 @@
     .steps li:last-child { border-bottom: 0; }
     .steps li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: .5mm; width: 7mm; height: 7mm; border-radius: 50%; display: grid; place-items: center; background: var(--wine); color: var(--pale-gold); font: 7.5pt Plex, monospace; }
     .flow { display: grid; grid-template-columns: repeat(5, 1fr); align-items: stretch; gap: 2mm; margin: 3mm 0; }
+    .flow.six { grid-template-columns: repeat(6, 1fr); }
     .flow .node { position: relative; display: grid; place-items: center; min-height: 14mm; padding: 2mm; text-align: center; border: .3mm solid var(--gold); border-radius: 2mm; background: rgba(255,255,255,.32); color: var(--wine); font-weight: 650; }
     .flow .node:not(:last-child)::after { content: "›"; position: absolute; right: -2.8mm; color: var(--wine); font: 16pt Cormorant, serif; z-index: 2; }
-    .workspace-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2.5mm; margin-top: 3mm; }
+    .workspace-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.5mm; margin-top: 3mm; }
     .workspace { padding: 2.5mm 3mm; border-left: 1mm solid var(--wine); background: rgba(110,24,52,.055); }
     .workspace b { display: block; color: var(--wine); font: 13pt Cormorant, serif; }
     .workspace span { color: var(--muted); font-size: 8pt; }
@@ -142,11 +143,27 @@
     .section-art::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(19,11,23,.75), transparent 65%); }
     .section-art h2 { position: absolute; z-index: 2; left: 18mm; bottom: 5mm; color: var(--pale-gold); text-shadow: 0 1mm 2mm #000; }
 
-    .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 8mm; margin-top: 4mm; }
+    .toc { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm 8mm; margin-top: 3mm; }
     .toc-item { display: grid; grid-template-columns: 8mm 1fr 8mm; align-items: baseline; padding-bottom: 1.5mm; border-bottom: .2mm dotted rgba(110,24,52,.38); }
     .toc-item .n { color: var(--gold); font: 8pt Plex, monospace; }
     .toc-item b { color: var(--wine); }
     .toc-item .p { text-align: right; color: var(--muted); font: 7pt Plex, monospace; }
+    .tribe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3.5mm; margin: 4mm 0; }
+    .tribe-card { overflow: hidden; border: .3mm solid rgba(110,24,52,.25); border-radius: 2.5mm; background: rgba(255,255,255,.34); }
+    .tribe-card img { display: block; width: 100%; height: 56mm; object-fit: cover; border-bottom: .35mm solid var(--gold); }
+    .tribe-card:nth-child(1) img { object-position: 69% center; }
+    .tribe-card:nth-child(2) img { object-position: 54% center; }
+    .tribe-card:nth-child(3) img { object-position: 66% center; }
+    .tribe-card__body { padding: 3mm; }
+    .tribe-card h3 { margin: 0 0 .8mm; }
+    .tribe-card .role { color: var(--rose); font: 6.4pt Plex, monospace; letter-spacing: .12em; text-transform: uppercase; }
+    .tribe-card p { font-size: 7.7pt; }
+    .lore-creed { margin-top: 4mm; padding: 5mm 12mm; text-align: center; border-top: .35mm solid var(--gold); border-bottom: .35mm solid var(--gold); color: var(--wine); font: 15pt/1.28 Cormorant, Georgia, serif; }
+    .page--tight { font-size: 8.8pt; line-height: 1.37; }
+    .page--tight h3 { margin: 2.5mm 0 1mm; }
+    .page--tight p { margin-bottom: 1.8mm; }
+    .page--tight li { margin-bottom: .8mm; }
+    .page--tight .callout { margin: 2mm 0; padding: 2.5mm 3mm; }
   </style>
 </head>
 <body>
@@ -168,13 +185,13 @@
     <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Start here</span></div><div class="running-rule"></div>
     <div class="kicker">Before the first page</div>
     <h2 id="start-title">Know the shape of the Scriptorium</h2>
-    <p class="dek">ScribeTribe is a self-hosted, single-owner writing environment. You can write manually, invite AI assistance deliberately, preserve story history, manage continuity, add art, and prepare a reading copy without handing control of the manuscript to the software.</p>
+    <p class="dek">ScribeTribe is a self-hosted, single-owner environment for <strong>human-led, AI-collaborative writing</strong>. You supply intent, taste, direction, revision, and the final word on canon; the Scribe accelerates drafting, continuity work, illustration, and narration without taking ownership of the manuscript.</p>
     <div class="callout warning">
       <span class="label">4.0 clean break</span>
       Start with a <strong>new, empty <code>DATA_DIR</code></strong>. Never point 4.0 at a 3.x database. Keep ScribeTribe 3.2.2 and its data intact for historical work; there is no in-place migration.
     </div>
-    <div class="flow" aria-label="The main author journey">
-      <div class="node">Library</div><div class="node">Desk</div><div class="node">Chronicle</div><div class="node">Codex</div><div class="node">Gate</div>
+    <div class="flow six" aria-label="The main author journey">
+      <div class="node">Library</div><div class="node">Desk</div><div class="node">Chronicle</div><div class="node">Codex</div><div class="node">Gallery</div><div class="node">Gate</div>
     </div>
     <div class="workspace-grid">
       <div class="workspace"><b>Library</b><span>Choose manuscripts and manage reusable world and character templates.</span></div>
@@ -184,11 +201,12 @@
       <div class="workspace"><b>Gallery</b><span>Upload or generate art, then place it without changing prose or canon.</span></div>
       <div class="workspace"><b>Gate</b><span>Back up the project, publish formats, or share a frozen reading copy.</span></div>
     </div>
-    <h3>What calls an AI provider?</h3>
+    <h3>The collaboration—and its boundary</h3>
     <div class="cols-2">
-      <div class="card"><h4>Stays local</h4><p>Manual writing, reading, organizing, copyediting, image upload, backup, import, and publication export do not require a provider call.</p></div>
-      <div class="card"><h4>Leaves the installation</h4><p>Page generation, prepared successors, continuity extraction, AI painting, narration, and other explicit AI actions send necessary context to your configured provider.</p></div>
+      <div class="card"><h4>The author leads</h4><p>Set the premise and constraints, direct each page, judge the prose, revise it, correct remembered facts, select art, and decide what leaves the installation.</p></div>
+      <div class="card"><h4>The AI accelerates</h4><p>Generate and prepare pages, extract continuity, suggest foundations, paint, and narrate. These actions send necessary context to your configured provider.</p></div>
     </div>
+    <p class="small">You can still write, organize, import, back up, and publish without AI. That is a resilience and control feature—not the intended center of the experience.</p>
     <h3>Contents</h3>
     <div class="toc">
       <div class="toc-item"><span class="n">01</span><b>Install & unlock</b><span class="p">3</span></div>
@@ -201,14 +219,15 @@
       <div class="toc-item"><span class="n">09</span><b>Safety & operations</b><span class="p">13–15</span></div>
       <div class="toc-item"><span class="n">05</span><b>The Desk</b><span class="p">7–8</span></div>
       <div class="toc-item"><span class="n">10</span><b>Quick reference</b><span class="p">16</span></div>
+      <div class="toc-item"><span class="n">A</span><b>Lore of the Scriptorium</b><span class="p">17</span></div>
     </div>
     <div class="folio"><span><strong>USER GUIDE</strong> · 4.0 beta</span><span>2</span></div>
   </section>
 
-  <section class="page" aria-labelledby="install-title">
+  <section class="page page--tight" aria-labelledby="install-title">
     <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Install & unlock</span></div><div class="running-rule"></div>
     <div class="kicker">01 · First run</div><h2 id="install-title">Open a sealed local Scriptorium</h2>
-    <p class="lead dropcap">ScribeTribe runs on your own machine and binds to <code>127.0.0.1</code> by default. Node.js 22.5 or newer is required.</p>
+    <p class="lead dropcap">ScribeTribe runs on your own machine rather than in a maintainer-operated cloud. By default, only a browser on that same machine can reach it. Node.js 22.5 or newer is required.</p>
     <h3>Quick installation</h3>
     <pre>git clone https://github.com/rthorman/scribe-tribe.git
 cd scribe-tribe
@@ -221,7 +240,7 @@ $EDITOR backend/.env
         <h3>Before starting 4.0</h3>
         <ol class="steps">
           <li>Create a new empty data directory. If the checkout already has 3.x data, set <code>DATA_DIR=../database-v4</code> in <code>backend/.env</code>.</li>
-          <li>Optionally set a provider key. Manual work does not need one.</li>
+          <li>Configure a provider key for the core collaborative workflow. Local writing and project care remain available without one.</li>
           <li>Start the server and keep the terminal available for status and recovery.</li>
         </ol>
       </div>
@@ -234,7 +253,8 @@ $EDITOR backend/.env
         </ol>
       </div>
     </div>
-    <div class="callout good"><span class="label">Safe default</span>Keep <code>HOST=127.0.0.1</code>. For durable access from another device, use an HTTPS reverse proxy to the loopback server. Direct LAN HTTP exposes passwords and manuscripts in transit.</div>
+    <div class="callout good"><span class="label">What the network words mean</span><code>localhost</code> and <code>127.0.0.1</code> mean “this computer only.” A <strong>LAN</strong> is your home or office network. <strong>HTTP</strong> sends traffic without transport encryption; <strong>HTTPS</strong> encrypts the trip between browser and server, so a password or manuscript is not readable to other equipment along the route.</div>
+    <p>If another device needs durable access, keep ScribeTribe on <code>127.0.0.1</code> and put an <strong>HTTPS reverse proxy</strong> in front of it. In plain language, that is a small front-door service which receives the encrypted connection and passes it to ScribeTribe locally. If that setup is unfamiliar, ask someone who administers networks rather than exposing ScribeTribe directly over HTTP.</p>
     <h3>Daily lock and recovery</h3>
     <ul>
       <li><strong>Lock</strong> revokes the current browser session.</li>
@@ -257,14 +277,14 @@ $EDITOR backend/.env
       <figcaption>Desktop Library. The gothic frame orients you; actions remain literal and the manuscript surface stays quiet.</figcaption>
     </figure>
     <div class="legend">
-      <div><span class="badge">1</span><strong>Manuscript selector</strong> — switch the active story.</div>
+      <div><span class="badge">1</span><strong>Manuscript selector</strong> — switch the active manuscript.</div>
       <div><span class="badge">2</span><strong>Global destinations</strong> — Library, manuscripts, templates, Settings, Lock.</div>
-      <div><span class="badge">3</span><strong>Story workspace</strong> — Desk, Chronicle, Codex, Gallery, Gate.</div>
+      <div><span class="badge">3</span><strong>Manuscript workspace</strong> — Desk, Chronicle, Codex, Gallery, Gate.</div>
       <div><span class="badge">4</span><strong>Start actions</strong> — continue, begin, import, or open the Desk.</div>
     </div>
     <h3>Navigation stays named</h3>
     <p>Desktop and landscape tablet use a labelled navigation rail. Portrait tablet and compact layouts use the same five labels in a bottom bar. Nothing important depends on hover or a hidden gesture.</p>
-    <div class="callout"><span class="label">A useful distinction</span><strong>Global</strong> templates can be reused. <strong>Story-local</strong> snapshots belong to one manuscript. The Codex explains the latter; Library templates never silently rewrite an existing story.</div>
+    <div class="callout"><span class="label">A useful distinction</span><strong>Global</strong> templates can be reused. <strong>Manuscript-local</strong> snapshots belong to one manuscript. The Codex explains the latter; Library templates never silently rewrite an existing manuscript.</div>
     <div class="folio"><span><strong>02</strong> · Library & navigation</span><span>4</span></div>
   </section>
 
@@ -273,8 +293,8 @@ $EDITOR backend/.env
     <div class="kicker">03 · One sheet, three paths</div><h2 id="begin-title">Begin with prose, a seed, or an import</h2>
     <p class="dek">Choose <strong>Begin a manuscript</strong> or <strong>Import prose</strong> from the Library. The start sheet asks only for information needed by the path you choose.</p>
     <div class="cols-3">
-      <div class="card"><h3>Write the opening</h3><p>Enter or paste the first page. A title is optional. This is the fastest fully manual path and does not require provider setup.</p></div>
-      <div class="card"><h3>Give the Scribe a seed</h3><p>Provide a premise and optional direction. Review provider and cost information before generation.</p></div>
+      <div class="card"><h3>Write the opening</h3><p>Enter or paste the first page, then let the Scribe continue under your direction. This is a useful way to establish your voice before collaboration begins.</p></div>
+      <div class="card"><h3>Give the Scribe a seed</h3><p>Provide a premise and optional direction, then review and shape the generated opening. This is the fastest route into the collaborative loop.</p></div>
       <div class="card"><h3>Import existing prose</h3><p>Map recognized headings to structure, or begin as a single chapter. Review the result before continuing.</p></div>
     </div>
     <h3>The short start flow</h3>
@@ -288,8 +308,8 @@ $EDITOR backend/.env
     <h3>Foundations are guidance, not a gate</h3>
     <p>AI suggestions in Foundations are drafts. Accept them field by field. You can begin writing without completing every setting, and you can return later.</p>
     <div class="cols-2">
-      <div class="callout good"><span class="label">Manual first</span>Writing, importing, organizing, copyediting, uploading art, and exporting remain available without a provider.</div>
-      <div class="callout"><span class="label">Cost-bearing action</span>Provider setup appears when you first invoke AI. Read the provider, model, data, and cost review before accepting.</div>
+      <div class="callout good"><span class="label">Human led</span>The Scribe proposes; you direct, accept, rewrite, reject, and correct. Its continuity record is inspectable evidence, not authority over your prose.</div>
+      <div class="callout"><span class="label">AI accelerated</span>Provider setup appears when collaboration first needs it. Read the provider, model, data, and cost review before accepting.</div>
     </div>
     <div class="folio"><span><strong>03</strong> · Begin a manuscript</span><span>5</span></div>
   </section>
@@ -309,9 +329,9 @@ $EDITOR backend/.env
         <ul><li>Identity, appearance, personality, background, and home world.</li><li>Optional reference portrait.</li><li>Reusable in centered or ensemble casts.</li></ul>
       </div>
     </div>
-    <h3>What happens when you cast a story?</h3>
-    <div class="flow"><div class="node">Library template</div><div class="node">Choose for story</div><div class="node">Frozen snapshot</div><div class="node">Pages add memory</div><div class="node">Author corrects</div></div>
-    <p>A manuscript receives a story-local snapshot. Later Library edits do not silently change that snapshot. When a template has changed, Codex can show a field-level difference and lets you accept only the fields you want.</p>
+    <h3>What happens when you cast a manuscript?</h3>
+    <div class="flow"><div class="node">Library template</div><div class="node">Choose for manuscript</div><div class="node">Frozen snapshot</div><div class="node">Pages add memory</div><div class="node">Author corrects</div></div>
+    <p>A manuscript receives a local snapshot. Later Library edits do not silently change that snapshot. When a template has changed, Codex can show a field-level difference and lets you accept only the fields you want.</p>
     <div class="callout"><span class="label">Canon rule</span>Reusable sheets are reference material. Committed pages, remembered canon, and explicit author corrections define the running story.</div>
     <div class="folio"><span><strong>04</strong> · Templates</span><span>6</span></div>
   </section>
@@ -321,13 +341,13 @@ $EDITOR backend/.env
     <div class="kicker">05 · The writing loop</div><h2 id="desk-title">The manuscript stays at the center</h2>
     <figure>
       <div class="screenshot">
-        <img src="../screenshots/write-desktop.png" alt="Desktop Desk with story selector, navigation rail, page controls, reading and media tools, and manuscript page">
+        <img src="../screenshots/write-desktop.png" alt="Desktop Desk with the global manuscript selector, navigation rail, page controls, reading tools, Gallery link, and manuscript page">
         <span class="overlay" style="left:3%;top:42%">1</span><span class="overlay" style="left:55%;top:4%">2</span><span class="overlay" style="left:29%;top:35%">3</span><span class="overlay" style="left:77%;top:43%">4</span><span class="overlay" style="left:52%;top:68%">5</span>
       </div>
       <figcaption>The Desk on desktop. Controls frame the prose; artwork never sits behind the manuscript.</figcaption>
     </figure>
     <div class="legend">
-      <div><span class="badge">1</span>Five stable story destinations.</div><div><span class="badge">2</span>Active manuscript and measured session/story cost.</div>
+      <div><span class="badge">1</span>Five stable manuscript destinations.</div><div><span class="badge">2</span>Active manuscript and measured session/manuscript cost.</div>
       <div><span class="badge">3</span>Previous/next page controls.</div><div><span class="badge">4</span>Read-aloud and media tools.</div>
       <div><span class="badge">5</span>Editable, quiet manuscript surface.</div>
     </div>
@@ -341,7 +361,7 @@ $EDITOR backend/.env
     <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Direction & prepared pages</span></div><div class="running-rule"></div>
     <div class="kicker">05 · The writing loop</div><h2 id="direction-title">The direction changes the action</h2>
     <div class="cols-2" style="grid-template-columns: 74mm 1fr; align-items:start">
-      <figure style="margin:0"><div class="screenshot"><img class="portrait-shot" src="../screenshots/write-tablet-portrait.png" alt="Portrait-tablet Desk showing manuscript, direction field, primary action, and bottom navigation"></div><figcaption>Portrait tablet keeps the direction composer reachable and the bottom navigation stable.</figcaption></figure>
+      <figure style="margin:0"><div class="screenshot"><img class="portrait-shot" src="../screenshots/write-tablet-portrait.png" alt="Portrait-tablet Desk showing the manuscript, reading tools, and named bottom navigation"></div><figcaption>Portrait tablet keeps the five destinations named and the manuscript comfortably readable.</figcaption></figure>
       <div>
         <h3>When direction is empty</h3>
         <p>If a prepared page waits, <strong>Next Page</strong> commits that exact prose. It does not call the provider for a different version.</p>
@@ -353,7 +373,7 @@ $EDITOR backend/.env
         <p>No page is added. Your direction stays visible, and <strong>Try again</strong> names the recovery path.</p>
         <div class="callout warning"><span class="label">Cost reality</span>A normal AI-assisted page may involve prose, continuity extraction, and preparation of the next page. Estimates are not invoices. Set a hard spending limit on a dedicated provider key.</div>
         <h3>Other Desk actions</h3>
-        <ul><li><strong>Edit active page</strong> changes current prose.</li><li><strong>Rewrite last page</strong> requests a new version.</li><li><strong>Read aloud / Auto-read</strong> invokes the selected narrator.</li><li><strong>Paint scene / Upload art</strong> opens the image path.</li></ul>
+        <ul><li><strong>Edit active page</strong> changes current prose.</li><li><strong>Rewrite last page</strong> requests a new version.</li><li><strong>Read aloud / Auto-read</strong> invokes the selected narrator.</li><li><strong>Open Gallery</strong> takes you to the single place for uploads, AI painting, metadata, and placement.</li></ul>
       </div>
     </div>
     <div class="folio"><span><strong>05</strong> · Direction & prepared pages</span><span>8</span></div>
@@ -367,7 +387,7 @@ $EDITOR backend/.env
       <thead><tr><th>Action</th><th>What changes</th><th>What does not</th><th>Use when</th></tr></thead>
       <tbody>
         <tr><td><strong>Copyedit this page</strong></td><td>Visible and exported wording.</td><td>Remembered Codex state is not recalculated.</td><td>Fix spelling, phrasing, and presentation without branching canon.</td></tr>
-        <tr><td><strong>Return story to this page</strong></td><td>Removes all later canonical pages and prepared work.</td><td>The removed suffix is retained for bounded recovery.</td><td>You want the story to continue from an earlier point.</td></tr>
+        <tr><td><strong>Return manuscript to this page</strong></td><td>Removes all later canonical pages and prepared work.</td><td>The removed suffix is retained for bounded recovery.</td><td>You want the narrative to continue from an earlier point.</td></tr>
       </tbody>
     </table>
     <div class="callout warning"><span class="label">Read the exact range</span>The return confirmation names the volumes, chapters, pages, narrative count, prepared work, and recovery period. The action reads <strong>Return and remove N later pages</strong>.</div>
@@ -390,12 +410,12 @@ $EDITOR backend/.env
     <div class="kicker">07 · Structure and truth</div><h2 id="codex-title">Chronicle says where; Codex says what</h2>
     <div class="cols-2">
       <div class="card"><h3>Chronicle</h3><p>Use it to move through volumes, chapters, pages, historical states, and recovery records.</p><p class="small mono">Question: Where am I in the work?</p></div>
-      <div class="card"><h3>Codex</h3><p>Use it to inspect story-local foundations, page-provenanced remembered canon, arcs, threads, and corrections.</p><p class="small mono">Question: What is true now?</p></div>
+      <div class="card"><h3>Codex</h3><p>Use it to inspect manuscript-local foundations, page-provenanced remembered canon, arcs, threads, and corrections.</p><p class="small mono">Question: What is true now?</p></div>
     </div>
     <h3>The three Codex layers</h3>
     <ol class="steps"><li><strong>Foundations</strong> — author intent and the manuscript’s local world/cast snapshots.</li><li><strong>Remembered canon</strong> — facts, events, conditions, goals, threads, and arc movement linked to source pages.</li><li><strong>Author corrections</strong> — explicit authoritative overrides with visible impact state.</li></ol>
     <h3>Correct a remembered fact</h3>
-    <ol class="steps"><li>Select a fact or field and inspect its current value and page evidence.</li><li>Enter the corrected value.</li><li>Review detected later conflicts.</li><li>Choose to apply the correction, mark the prose intentional, return the story, or cancel.</li><li>Keep the resulting correction record inspectable.</li></ol>
+    <ol class="steps"><li>Select a fact or field and inspect its current value and page evidence.</li><li>Enter the corrected value.</li><li>Review detected later conflicts.</li><li>Choose to apply the correction, mark the prose intentional, return the manuscript, or cancel.</li><li>Keep the resulting correction record inspectable.</li></ol>
     <div class="callout"><span class="label">AI does not get the last word</span>AI may summarize possible impacts, but it never applies a correction. Existing prose is never automatically rewritten.</div>
     <h3>Coverage and repair</h3>
     <p>If a page lacks a continuity record, the Codex identifies it. Building or rebuilding memory is explicit, proceeds page by page, and receives a cost review. It never triggers a surprise whole-story replay.</p>
@@ -435,6 +455,16 @@ $EDITOR backend/.env
         <tr><td>Temporary browser reading</td><td>Public reading share</td><td>The copy is frozen. Create a new snapshot after material manuscript changes.</td></tr>
       </tbody>
     </table>
+    <h3>Choose a file by what happens next</h3>
+    <table class="decision-table">
+      <tbody>
+        <tr><td><strong><code>.scribetribe</code></strong></td><td>A restorable ScribeTribe project backup, not an ebook. Keep it private and use Gate to restore it.</td></tr>
+        <tr><td><strong>EPUB</strong></td><td>A reflowing ebook: the reader can change type size and the pages adapt. Best for ebook readers and reading apps.</td></tr>
+        <tr><td><strong>PDF</strong></td><td>A fixed-page document. Best when exact page appearance, printing, or simple review matters.</td></tr>
+        <tr><td><strong>DOCX / ODT / RTF</strong></td><td>Editable word-processing files. Choose the format your editor or publisher actually uses.</td></tr>
+        <tr><td><strong>HTML / Markdown / text / JSON</strong></td><td>Open or technical formats for websites, simple text tools, or data workflows; they are rarely the friendliest reading copy.</td></tr>
+      </tbody>
+    </table>
     <h3>Share safely</h3>
     <ol class="steps"><li>Review the included revision, art, and expiry.</li><li>Create the share only behind a correctly configured HTTPS reverse proxy.</li><li>Copy the returned link once and send it through an appropriate private channel.</li><li>Revoke it in Gate as soon as it is no longer needed.</li></ol>
     <div class="callout warning"><span class="label">Capability link</span>Anyone with the link can read the frozen snapshot until expiry or revocation. Never place the capability in query strings, analytics, referrers, proxy logs, or public screenshots.</div>
@@ -458,20 +488,22 @@ $EDITOR backend/.env
     <div class="folio"><span><strong>09</strong> · Backup & restore</span><span>13</span></div>
   </section>
 
-  <section class="page" aria-labelledby="provider-title">
+  <section class="page page--tight" aria-labelledby="provider-title">
     <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Provider, cost & privacy</span></div><div class="running-rule"></div>
-    <div class="kicker">09 · Know the boundary</div><h2 id="provider-title">AI is optional; provider consequences are not</h2>
-    <p class="lead">ScribeTribe has no maintainer cloud, analytics, advertising, tracking pixels, or crash telemetry. The operator controls the installation and chooses any provider connection.</p>
+    <div class="kicker">09 · Know the boundary</div><h2 id="provider-title">The partnership is the point; control stays human</h2>
+    <p class="lead">ScribeTribe is built for an author and AI to work in a deliberate loop. It has no maintainer cloud, analytics, advertising, tracking pixels, or crash telemetry; the operator controls the installation and chooses the provider connection.</p>
+    <div class="callout warning"><span class="label">Provider compatibility is not promised</span><strong>OpenRouter is the only AI supplier ever tested with ScribeTribe.</strong> Another supplier may not expose compatible models, may not support image generation, narration, reasoning controls, or model discovery, and may not work at all. An “OpenAI-compatible” label is not enough to guarantee the complete ScribeTribe workflow.</div>
     <h3>Credential choices</h3>
     <ul><li><strong>Environment:</strong> a key in the operator-managed backend environment.</li><li><strong>Session memory:</strong> available only for the current process session.</li><li><strong>Encrypted vault:</strong> saved locally and unlocked after restart. APIs never return the secret.</li></ul>
-    <div class="callout warning"><span class="label">Spend limit first</span>Create a dedicated provider key and set a hard upstream spending limit before using AI. ScribeTribe’s live estimates and session/story totals are good-faith guidance, not an invoice or guarantee.</div>
+    <div class="callout warning"><span class="label">Spend limit first</span>Create a dedicated provider key and set a hard upstream spending limit before using AI. ScribeTribe’s live estimates and session/manuscript totals are good-faith guidance, not an invoice or guarantee.</div>
     <h3>Typical provider data</h3>
     <div class="cols-2">
       <div><ul><li>Directions and recent prose.</li><li>Relevant remembered canon.</li><li>Selected world, cast, tone, and model settings.</li><li>Text sent for narration.</li></ul></div>
       <div><ul><li>Image prompts and explicitly selected references.</li><li>Prepared successor context.</li><li>Continuity-extraction context.</li><li>Quality and generation settings.</li></ul></div>
     </div>
-    <h3>What merely opening the app does not do</h3>
-    <p>Browsing the Library, reading pages, manual editing, organizing, local image upload, publication export, and portable backup do not require an AI call.</p>
+    <div class="callout"><span class="label">Browser support</span>ScribeTribe is tested only in <strong>Google Chrome</strong>. A current standards-respecting browser such as Edge, Firefox, or Safari should work. Should. If something behaves strangely elsewhere, reproduce it in Chrome before deciding the application itself is broken.</div>
+    <h3>Local control remains available</h3>
+    <p>Browsing the Library, reading pages, manual editing, organizing, local image upload, publication export, and portable backup do not require an AI call. This lets you keep working and care for the project without a provider; the largest creative gains still come from directing, reviewing, and revising AI-assisted work.</p>
     <div class="callout"><span class="label">Local files remain readable</span>The login protects web access, not storage at rest. Anyone who can read the operating-system account or unencrypted disk can read the database and media. Use device encryption and access-controlled backups.</div>
     <h3>When something is exposed</h3>
     <ul><li>Provider key: revoke it at the provider immediately.</li><li>Share capability: revoke the share in Gate.</li><li>Archive: treat it as manuscript disclosure.</li><li>Logs: never publish real prose, prompts, cookies, authorization headers, local paths, or provider responses.</li></ul>
@@ -514,7 +546,7 @@ $EDITOR backend/.env
     <div class="cols-2">
       <div>
         <h3>Before writing</h3><ul class="checklist"><li>4.0 uses a new empty data directory.</li><li>The provider key has a hard spend limit.</li><li>The correct manuscript is selected.</li><li>World and cast snapshots are the intended ones.</li></ul>
-        <h3>During writing</h3><ul class="checklist"><li>Empty direction commits the waiting page.</li><li>Typed direction deliberately requests a replacement.</li><li>Copyedit changes prose, not remembered canon.</li><li>Return story removes later canon with bounded recovery.</li></ul>
+        <h3>During writing</h3><ul class="checklist"><li>Empty direction commits the waiting page.</li><li>Typed direction deliberately requests a replacement.</li><li>Copyedit changes prose, not remembered canon.</li><li>Return manuscript removes later canon with bounded recovery.</li></ul>
         <h3>Before sharing</h3><ul class="checklist"><li>The snapshot revision and included art are correct.</li><li>HTTPS is configured and logs omit capability headers.</li><li>The recipient and expiry are appropriate.</li><li>The link will be revoked when no longer needed.</li></ul>
       </div>
       <div>
@@ -534,9 +566,34 @@ $EDITOR backend/.env
     <div style="margin-top:10mm;text-align:center">
       <img src="../../frontend/brand/scribetribe-mark.svg" alt="ScribeTribe book-and-cat-ear mark" style="width:22mm;height:22mm">
       <h2 style="font-size:27pt;margin-top:3mm">The next page is yours.</h2>
-      <p class="lead" style="max-width:125mm;margin:3mm auto">Keep the manuscript readable, the consequences literal, the provider bounded, and the backups close.</p>
+      <p class="lead" style="max-width:125mm;margin:3mm auto">Lead with intent. Let the Scribe accelerate. Keep canon human, the provider bounded, and the backups close.</p>
     </div>
     <div class="folio"><span><strong>10</strong> · Quick reference</span><span>16</span></div>
+  </section>
+
+  <section class="page" aria-labelledby="lore-title">
+    <div class="running-head"><span class="brand">ScribeTribe 4.0</span><span class="section">Addendum · Lore</span></div><div class="running-rule"></div>
+    <div class="kicker">A · The tribe behind the threshold</div><h2 id="lore-title">The Scriptorium exists to serve the Story</h2>
+    <p class="dek">It stands in the hour between the last candle and dawn: an impossible house of black oak, moonlit glass, chained archives, and doors that open wherever an unfinished tale still calls.</p>
+    <p>Long ago, a nameless empire burned its histories so no future voice could contradict the throne. The fire consumed the royal archive, but not the Stories inside it. They fled into ink, shadow, and the margins of unwritten pages. Around those surviving sparks the Scriptorium grew, and from its living script came the first feline scribes—adult, self-possessed keepers of invention, memory, and illumination. No crown owns them. No model commands them. They answer to the Story, and they lend their craft to the author who leads it.</p>
+    <div class="tribe-grid">
+      <article class="tribe-card">
+        <img src="../../frontend/brand/vesper-threshold.webp" alt="Vesper Quill at the moonlit threshold in a fitted leather bodice and ivory sleeves">
+        <div class="tribe-card__body"><span class="role">Scribe · Warden</span><h3>Vesper Quill</h3><p>Wine-black curls, amber eyes, ivory sleeves, and a fitted leather bodice mark the keeper of the threshold. Vesper hears the first sentence before it is spoken. She opens the door, guards the author’s intent, and waits with her quill poised—but never writes past the human hand that leads her.</p></div>
+      </article>
+      <article class="tribe-card">
+        <img src="../../frontend/brand/cinder-cast.webp" alt="Cinder the Inkbreaker, a sleek copper-haired catgirl in flowing red and gold silks, drawing luminous lines across a manuscript">
+        <div class="tribe-card__body"><span class="role">Illuminator</span><h3>Cinder, the Inkbreaker</h3><p>Sleek and quick, with copper ears, a high dark-red tail of hair, and flowing sheer silks in garnet and gold, Cinder draws light through stubborn ink. She gives worlds a face, casts a silhouette, and turns scenes into illumination—without confusing the image for the truth of the page.</p></div>
+      </article>
+      <article class="tribe-card">
+        <img src="../../frontend/brand/moth-archive.webp" alt="Moth, a silver-haired catgirl archivist in violet-black robes and a narrow velvet collar with a bell">
+        <div class="tribe-card__body"><span class="role">Archivist</span><h3>Moth, Archivist of Forgotten Things</h3><p>Silver-haired and grave in violet-black robes, Moth wears a narrow velvet collar whose small bell sounds when a fact is almost lost. She gathers revisions, broken threads, and discarded paths into her chained archive. She remembers evidence, not destiny, and yields every correction to the author.</p></div>
+      </article>
+    </div>
+    <h3>The covenant of the tribe</h3>
+    <p>The scribes can propose, remember, illuminate, bind, and guard. They cannot decide what a manuscript means, which truth should survive revision, or when a Story is finished. Those judgments belong to the author. Their promise is simpler and older: keep the work legible, keep its consequences visible, and never place the machinery above the tale it was built to serve.</p>
+    <div class="lore-creed">The author leads. The tribe attends. The Scriptorium endures.<br><strong>All are servants of the Story.</strong></div>
+    <div class="folio"><span><strong>ADDENDUM A</strong> · Lore of the Scriptorium</span><span>17</span></div>
   </section>
 </main>
 </body>

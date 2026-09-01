@@ -102,7 +102,7 @@ describe('UI navigation (hash routes)', () => {
     await loadScript({ hash: '#/desk' });
     await flush();
     expect(document.getElementById('writeSection').classList.contains('active')).toBe(true);
-    expect(document.getElementById('pageIndicator').textContent).toBe('No story selected');
+    expect(document.getElementById('pageIndicator').textContent).toBe('No manuscript selected');
     expect(document.getElementById('generateBtn').disabled).toBe(true);
     expect(document.getElementById('exportBtn').disabled).toBe(true);
   });
@@ -164,18 +164,18 @@ describe('Page display and navigation', () => {
     fw = await loadScript();
   });
 
-  it('shows a truthful empty desk when no story is selected', async () => {
+  it('shows a truthful empty desk when no manuscript is selected', async () => {
     const fetchMock = global.fetch;
     fetchMock.mockClear();
     fw.resetStoryReader();
     const content = document.getElementById('storyContent');
     expect(content.querySelector('.placeholder')).toBeTruthy();
     // No fake "Page 1 of 1": the indicator says it plainly
-    expect(document.getElementById('pageIndicator').textContent).toBe('No story selected');
-    // Every story-dependent control sleeps: direction, write, navigation, media, management
+    expect(document.getElementById('pageIndicator').textContent).toBe('No manuscript selected');
+    // Every manuscript-dependent control sleeps: direction, write, navigation, media, management
     for (const id of [
       'prevPageBtn', 'nextPageBtn', 'retryBtn', 'userInput', 'generateBtn',
-      'deletePageBtn', 'exportBtn', 'audiobookBtn', 'readAloudBtn', 'narrationAutoBtn', 'imagePromptBtn',
+      'deletePageBtn', 'exportBtn', 'audiobookBtn', 'readAloudBtn', 'narrationAutoBtn', 'deskGalleryBtn',
     ]) {
       expect(document.getElementById(id).disabled).toBe(true);
     }

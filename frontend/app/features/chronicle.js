@@ -3,6 +3,8 @@
 // downloads the manuscript's full prose. Chapters render one small page
 // window at a time even for the 3,000-page release fixture.
 
+import { chooseWorkspaceStory } from '../core/story-context.js';
+
 const PAGE_WINDOW = 80;
 
 function node(tag, className = '', text = '') {
@@ -43,25 +45,6 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   function setStatus(text) {
     const status = document.getElementById('chronicleStatus');
     if (status) status.textContent = text;
-  }
-
-  async function chooseStory(storyId) {
-    let story = state.data.currentStory?.id === storyId
-      ? state.data.currentStory
-      : state.data.stories.find((entry) => entry.id === storyId);
-    if (!story) {
-      await features.stories.loadStories();
-      story = state.data.stories.find((entry) => entry.id === storyId);
-    }
-    if (!story) return null;
-    if (state.data.currentStory?.id !== story.id) {
-      features.write.resetStoryReader();
-      state.data.currentStory = story;
-      const select = document.getElementById('currentStory');
-      if (select) select.value = story.id;
-      state.resetStoryCost();
-    }
-    return story;
   }
 
   function summaryItem(value, label) {
@@ -378,7 +361,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       const result = await apiCall(`/stories/${activeStoryId}/recoveries/${recovery.id}/restore`, 'POST');
       await features.stories.loadStories();
       await load(activeStoryId);
-      showSuccess(`${result.restored} ${result.restored === 1 ? 'page was' : 'pages were'} restored to the active story.`);
+      showSuccess(`${result.restored} ${result.restored === 1 ? 'page was' : 'pages were'} restored to the active manuscript.`);
     } catch (error) {
       await load(activeStoryId);
       showError(error.message);
@@ -449,9 +432,9 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
 
   async function enter(params = {}) {
     if (!params.storyId) return;
-    const story = await chooseStory(params.storyId);
+    const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
     if (!story) {
-      showError('That story could not be found - it may have been deleted from another window.');
+      showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
     }

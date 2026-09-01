@@ -4,6 +4,7 @@
 
 import { formatUsd } from '../core/dom.js';
 import { approxCostText, estimateContinuityCost, ROUGH_TEXT_CALL_ESTIMATE } from '../core/cost.js';
+import { chooseWorkspaceStory } from '../core/story-context.js';
 
 function el(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -31,6 +32,16 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   let templates = [];
   let loadToken = 0;
   let facts = [];
+
+  function hasLead() {
+    return Boolean(continuity?.characters?.some((character) => character.role === 'mc'));
+  }
+
+  function continuityLabel(field) {
+    if (field === 'relationship_to_mc') return hasLead() ? 'Relationship to lead' : 'Connection or manuscript note';
+    if (field === 'relation') return hasLead() ? 'Starting relationship to lead' : 'Starting connection or manuscript note';
+    return labelOf(field);
+  }
 
   function setStatus(text) {
     const status = document.getElementById('codexStatus');
@@ -88,8 +99,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     const target = document.getElementById('codexFoundations');
     if (!target) return;
     target.textContent = '';
-    target.appendChild(el('h3', '', 'Story-local foundations'));
-    target.appendChild(el('p', 'setting-hint', 'These snapshots stay with this manuscript. Later Library edits do not enter the story unless you accept individual fields below.'));
+    target.appendChild(el('h3', '', 'Manuscript-local foundations'));
+    target.appendChild(el('p', 'setting-hint', 'These snapshots stay with this manuscript. Later Library edits do not enter it unless you accept individual fields below.'));
     const grid = el('div', 'codex-grid');
     const world = continuity?.world;
     if (world) {
@@ -99,7 +110,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     }
     for (const character of continuity?.characters || []) {
       for (const field of ['role', 'relation', 'description', 'personality', 'appearance', 'background']) {
-        if (character[field]) grid.appendChild(factCard({ kind: 'Character foundation', title: `${character.name} · ${labelOf(field)}`, value: character[field], provenance: null }));
+        if (character[field]) grid.appendChild(factCard({ kind: 'Character foundation', title: `${character.name} · ${continuityLabel(field)}`, value: character[field], provenance: null }));
       }
     }
     if (!grid.children.length) grid.appendChild(el('p', 'codex-empty', 'This manuscript has no world or cast foundations yet.'));
@@ -181,8 +192,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
         if (value === null || value === undefined || value === '' || (Array.isArray(value) && !value.length)) continue;
         const provenance = character.evidence?.[field];
         rememberFact(sections[0][1], {
-          kind: 'Character state', title: `${character.name} · ${labelOf(field)}`, value, provenance,
-          correction: !Array.isArray(value) ? { scope: 'character', subject_id: character.id, field, value, title: `${character.name} · ${labelOf(field)}`, provenance } : null,
+          kind: 'Character state', title: `${character.name} · ${continuityLabel(field)}`, value, provenance,
+          correction: !Array.isArray(value) ? { scope: 'character', subject_id: character.id, field, value, title: `${character.name} · ${continuityLabel(field)}`, provenance } : null,
         });
       }
       for (const [otherId, relationship] of Object.entries(current.relationships || {})) {
@@ -370,7 +381,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     correctionTarget.appendChild(el('h3', '', 'Author corrections'));
     for (const correction of continuity?.corrections || []) {
       correctionTarget.appendChild(factCard({
-        kind: `Correction · ${correction.scope}`, title: labelOf(correction.field), value: correction.value,
+        kind: `Correction · ${correction.scope}`, title: continuityLabel(correction.field), value: correction.value,
         provenance: { correction: { evidence: correction.evidence || [] } },
       }));
     }
@@ -465,24 +476,9 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     renderCorrections();
   }
 
-  async function chooseStory(storyId) {
-    let story = state.data.currentStory?.id === storyId ? state.data.currentStory : state.data.stories.find((item) => item.id === storyId);
-    if (!story) {
-      await features.stories.loadStories();
-      story = state.data.stories.find((item) => item.id === storyId);
-    }
-    if (!story) return null;
-    if (state.data.currentStory?.id !== story.id) {
-      features.write.resetStoryReader();
-      state.data.currentStory = story;
-      state.resetStoryCost();
-    }
-    return story;
-  }
-
   async function load(storyId) {
     const token = ++loadToken;
-    setStatus('Opening story-local foundations and bounded continuity records…');
+    setStatus('Opening manuscript-local foundations and bounded continuity records…');
     try {
       const [memory, review] = await Promise.all([
         apiCall(`/stories/${storyId}/continuity`),
@@ -505,9 +501,9 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
 
   async function enter(params = {}) {
     if (!params.storyId) return;
-    const story = await chooseStory(params.storyId);
+    const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
     if (!story) {
-      showError('That story could not be found - it may have been deleted from another window.');
+      showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
     }

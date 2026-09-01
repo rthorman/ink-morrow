@@ -178,6 +178,7 @@ export function initApp() {
   });
   features.home.router = router;
   features.library.router = router;
+  features.bookshelf.router = router;
   features.write.router = router;
   features.chronicle.setRouter(router);
   features.codex.setRouter(router);
@@ -303,7 +304,6 @@ export function initApp() {
       document.getElementById(formId)?.reset();
     }
     const privateSelects = {
-      currentStory: 'Select or Create a Story',
       startWorld: 'No world',
       characterWorld: 'No world',
       mcSelect: '— Choose a lead —',
@@ -352,7 +352,6 @@ function buildFacade(ctx) {
     loadStories: stories.loadStories,
     loadStoryPages: write.loadStoryPages,
     refreshStoryAssets: write.refreshStoryAssets,
-    uploadArt: write.uploadArt,
     renderWorlds: worlds.renderWorlds,
     renderCharacters: characters.renderCharacters,
     renderStories: stories.renderStories,
@@ -365,7 +364,6 @@ function buildFacade(ctx) {
     updateStorySelect: write.updateStorySelect,
     handleWorldSubmit: worlds.handleWorldSubmit,
     handleCharacterSubmit: characters.handleCharacterSubmit,
-    handleStorySelection: write.handleStorySelection,
     displayCurrentPage: write.displayCurrentPage,
     navigatePage: write.navigatePage,
     setGenerating: generation.setGenerating,

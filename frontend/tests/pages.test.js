@@ -67,7 +67,7 @@ describe('Burn everything after this page', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const dialog = document.querySelector('.dialog-manager');
     expect(dialog.hidden).toBe(false);
-    expect(dialog.querySelector('.dialog-manager__title').textContent).toContain('Return story to page 1?');
+    expect(dialog.querySelector('.dialog-manager__title').textContent).toContain('Return manuscript to page 1?');
     expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('Pages 2–3');
     expect(dialog.querySelector('.dialog-manager__body').textContent).toContain('recovery copy');
 

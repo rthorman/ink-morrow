@@ -162,7 +162,7 @@
 
                         <details id="startFoundations" class="start-foundations">
                             <summary>Foundations <span>optional intent and local template copies</span></summary>
-                            <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the story.</p>
+                            <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the manuscript.</p>
                             <label for="startWorld">World template</label>
                             <select id="startWorld"><option value="">No world</option></select>
                             <div class="character-selection">
@@ -177,7 +177,7 @@
                                 </fieldset>
                                 <div class="cast-mc" id="castLeadRow" hidden>
                                     <label for="mcSelect">Lead</label>
-                                    <select id="mcSelect"><option value="">— Choose who the story follows —</option></select>
+                                    <select id="mcSelect"><option value="">— Choose who the manuscript follows —</option></select>
                                 </div>
                                 <div class="cast-add">
                                     <label for="castCharSelect">Add cast member</label>
@@ -187,11 +187,11 @@
                                         <option value="supporting">Supporting</option>
                                         <option value="background">Background</option>
                                     </select>
-                                    <label for="castRelation" id="castRelationLabel">Starting connection or story note</label>
+                                    <label for="castRelation" id="castRelationLabel">Starting connection or manuscript note</label>
                                     <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
                                     <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
                                 </div>
-                                <div id="castList" class="cast-list" aria-label="Story cast"></div>
+                                <div id="castList" class="cast-list" aria-label="Manuscript cast"></div>
                                 <div id="storyReview" class="story-review" aria-live="polite"></div>
                             </div>
                             <label for="startNarrativeVoice">Narrative voice</label>
@@ -201,7 +201,7 @@
                             <label for="startTense">Tense</label>
                             <input id="startTense" type="text" maxlength="500" placeholder="e.g. past tense">
                             <label for="startConstraints">Constraints</label>
-                            <textarea id="startConstraints" rows="4" maxlength="5000" placeholder="Promises, boundaries, motifs, or things this story must avoid."></textarea>
+                            <textarea id="startConstraints" rows="4" maxlength="5000" placeholder="Promises, boundaries, motifs, or things this manuscript must avoid."></textarea>
                             <button id="startDraftFoundationsBtn" class="btn btn-secondary" type="button">Suggest blank foundations with AI&hellip;</button>
                             <p class="setting-hint">A cost and data review appears before any provider call. Suggestions remain drafts until you accept each field.</p>
                             <div id="startFoundationDraft" class="foundation-draft" aria-live="polite" hidden></div>
@@ -246,7 +246,7 @@
                             <span>optional — reusable people and portraits</span>
                         </a>
                         <a href="#/library/stories" class="home-path__step">
-                            <strong>Stories</strong>
+                            <strong>Manuscripts</strong>
                             <span>required only for writing; can start as an ensemble</span>
                         </a>
                         <a href="#/desk" class="home-path__step">
@@ -293,7 +293,7 @@
                     <h2>Characters</h2>
                     <button id="characterNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="characterCreateWrap">New character</button>
                 </div>
-                <p class="setting-hint">Stories copy this sheet when cast; later base edits do not rewrite a running story.</p>
+                <p class="setting-hint">Manuscripts copy this sheet when cast; later base edits do not rewrite a running manuscript.</p>
                 <div class="list-container">
                     <div id="charactersList" class="items-grid"></div>
                 </div>
@@ -301,7 +301,7 @@
                     <h3>Create New Character</h3>
                     <form id="characterForm">
                         <label for="characterName">Name</label>
-                        <input type="text" id="characterName" placeholder="Every story needs a name to haunt" maxlength="200" required>
+                        <input type="text" id="characterName" placeholder="Every manuscript needs a name to haunt" maxlength="200" required>
                         <label for="characterDescription">Description</label>
                         <textarea id="characterDescription" placeholder="Who are they when the candles gutter?" rows="3" maxlength="10000"></textarea>
                         <label for="characterPersonality">Personality</label>
@@ -327,12 +327,12 @@
             <section id="librarySection" class="content-section" aria-label="Library">
                 <h2>Library</h2>
                 <div class="library-tabs" role="tablist" aria-label="Library">
-                    <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Stories</button>
+                    <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Manuscripts</button>
                     <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
                 </div>
                 <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
                     <div class="catalog-head library-story-head">
-                        <p class="section-note">Your manuscripts and the large things kept with them. Open a story to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
+                        <p class="section-note">Your manuscripts and the large things kept with them. Open a manuscript to inspect, save, repaint, or clear its cover, audiobook, and painted plates.</p>
                         <button id="libraryBeginBtn" class="btn btn-primary" type="button">Begin a manuscript</button>
                     </div>
                     <div id="storiesList" class="items-grid stories-grid"></div>
@@ -347,14 +347,10 @@
             <section id="writeSection" class="content-section" aria-label="Desk">
                 <h2 class="sr-only">Desk &mdash; write the active manuscript</h2>
                 <div class="write-container">
-                    <div class="story-context" aria-label="Story context">
-                        <label class="sr-only" for="currentStory">Select or create a story</label>
-                        <select id="currentStory">
-                            <option value="">Select a story</option>
-                        </select>
-                        <button id="storyNewBtn" class="btn btn-primary" type="button">New story</button>
+                    <div class="story-context" aria-label="Manuscript context">
+                        <button id="storyNewBtn" class="btn btn-primary" type="button">New manuscript</button>
                         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
-                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Story $0.0000</div>
+                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Manuscript $0.0000</div>
                     </div>
 
                     <div class="story-reader">
@@ -370,15 +366,13 @@
                                     <button id="readAloudBtn" class="narrate-btn" type="button">Read aloud</button>
                                     <button id="narrationAutoBtn" class="narrate-btn" type="button" aria-pressed="false" title="Auto-read: keep reading pages aloud one after the other until stopped">Auto-read</button>
                                     <button id="narrationStopBtn" class="narrate-btn" type="button" hidden>Stop</button>
-                                    <button id="imagePromptBtn" class="narrate-btn" type="button" title="Condense this scene into a prompt for an image-generation AI">Paint scene</button>
-                                    <button id="uploadArtBtn" class="narrate-btn" type="button" title="Upload a local image and place it after the current prose page">Upload art</button>
-                                    <input id="uploadArtInput" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/avif" hidden>
+                                    <button id="deskGalleryBtn" class="narrate-btn" type="button" title="Open the manuscript’s single collection for uploaded and AI-generated art">Open Gallery</button>
                                 </div>
                             </details>
                         </div>
 
                         <div id="storyContent" class="story-content">
-                            <p class="placeholder">Select a story to begin reading and writing…</p>
+                            <p class="placeholder">Choose a manuscript above to begin reading and writing…</p>
                         </div>
 
                         <div id="deskPageState" class="desk-page-state" hidden>
@@ -404,7 +398,7 @@
 
                         <div id="pastPageBar" class="past-page-bar" hidden>
                             <p>You are reading an earlier page. Old pages cannot be changed.</p>
-                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Return story to this page</button>
+                            <button id="deleteAfterBtn" class="btn btn-danger" type="button">Return manuscript to this page</button>
                         </div>
 
                         <div id="deskRecoveryBanner" class="desk-recovery" role="status" aria-live="polite" hidden>
@@ -431,9 +425,9 @@
                                 <button id="generateBtn" class="btn btn-primary" type="button">Write next page</button>
                                 <button id="retryBtn" class="btn btn-secondary" type="button" title="Rewrite the current (last) page with the same direction (billed again)">Rewrite last page</button>
                             </div>
-                            <div class="desk-group desk-group--management" role="group" aria-label="Story management">
+                            <div class="desk-group desk-group--management" role="group" aria-label="Manuscript management">
                                 <button id="exportBtn" class="btn btn-secondary" type="button">Export EPUB</button>
-                                <button id="audiobookBtn" class="btn btn-secondary" type="button" title="Generate a whole-story audiobook with the narrator chosen in Settings">Audiobook</button>
+                                <button id="audiobookBtn" class="btn btn-secondary" type="button" title="Generate a whole-manuscript audiobook with the narrator chosen in Settings">Audiobook</button>
                                 <button id="deletePageBtn" class="btn btn-danger" type="button" title="Delete the page you are viewing">Delete page</button>
                             </div>
                         </div>
@@ -472,7 +466,7 @@
 
             <section id="codexSection" class="content-section codex" aria-labelledby="codexTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
-                <h2 id="codexTitle">Codex <span>&mdash; what the story remembers</span></h2>
+                <h2 id="codexTitle">Codex <span>&mdash; what the manuscript remembers</span></h2>
                 <p id="codexStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its foundations and remembered canon.</p>
                 <div class="codex-toolbar">
                     <div class="codex-tabs" role="tablist" aria-label="Codex views">
@@ -639,8 +633,8 @@
 
                 <details class="create-form settings-group" open>
                     <summary><h3>Reading appearance</h3><span id="readingSummary" class="settings-group__summary">Literata · 18px</span></summary>
-                    <div id="fontList" class="font-list" aria-label="Story typeface"></div>
-                    <label for="fontSizeSelect">Story text size</label>
+                    <div id="fontList" class="font-list" aria-label="Manuscript typeface"></div>
+                    <label for="fontSizeSelect">Manuscript text size</label>
                     <select id="fontSizeSelect">
                         <option value="16">Small (16px)</option>
                         <option value="18">Medium (18px)</option>
@@ -657,7 +651,7 @@
                     <summary><h3>Costs &amp; storage</h3><span class="settings-group__summary">One approval, then quiet cost tracking</span></summary>
                     <label class="toggle-row" for="costTickerToggle">
                         <input type="checkbox" id="costTickerToggle" checked>
-                        <span>Session &amp; story cost ticker on the writing page</span>
+                        <span>Session &amp; manuscript cost ticker on the writing page</span>
                     </label>
                     <p class="setting-hint">After you approve one paid action, this device remembers your consent until its site data is cleared.</p>
                     <p class="setting-hint">Costs are approximate until the provider reports the authoritative number; the ticker is a running meter, not a guarantee.</p>
@@ -738,7 +732,7 @@
                     <input id="imagePromptDropReferences" type="checkbox">
                     Retry without identity references
                 </label>
-                <p>The existing portraits and story assets stay unchanged; this only omits them from the next provider request.</p>
+                <p>The existing portraits and manuscript assets stay unchanged; this only omits them from the next provider request.</p>
             </div>
             <p id="sceneImageCost" class="scene-image-cost" hidden></p>
             <div class="burn-modal__actions">
@@ -775,7 +769,7 @@
             <div class="story-assets__head">
                 <div>
                     <p class="hero__kicker">The kept things</p>
-                    <h2 id="storyAssetsTitle">Story assets</h2>
+                    <h2 id="storyAssetsTitle">Manuscript assets</h2>
                 </div>
                 <p id="storyAssetsTotal" class="story-assets__total"></p>
             </div>
@@ -799,7 +793,7 @@
                 <select id="charEditWorld">
                     <option value="">No world (free-roaming character)</option>
                 </select>
-                <p class="setting-hint">Moving a character changes their catalogue home, not existing story casts. Saving alone never repaints the portrait.</p>
+                <p class="setting-hint">Moving a character changes their catalogue home, not existing manuscript casts. Saving alone never repaints the portrait.</p>
                 <label for="charEditDescription">Description</label>
                 <textarea id="charEditDescription" rows="3" maxlength="10000"></textarea>
                 <label for="charEditPersonality">Personality</label>
@@ -847,7 +841,7 @@
     <div id="storyCastModal" class="burn-modal" hidden>
         <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
             <div class="cast-edit__head">
-                <h2 id="storyCastTitle">Story cast</h2>
+                <h2 id="storyCastTitle">Manuscript cast</h2>
                 <p id="storyCastMode" class="cast-edit__mode"></p>
                 <p id="storyCastStatus" class="cast-edit__status" role="status"></p>
             </div>

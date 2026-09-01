@@ -6,10 +6,10 @@ import fs from 'node:fs';
 const require = createRequire(import.meta.url);
 let chromium;
 try {
-  ({ chromium } = require('playwright'));
+  ({ chromium } = require('@playwright/test'));
 } catch {
   const e2eRequire = createRequire(path.join(path.dirname(fileURLToPath(import.meta.url)), '../../e2e/package.json'));
-  ({ chromium } = e2eRequire('playwright'));
+  ({ chromium } = e2eRequire('@playwright/test'));
 }
 
 const here = path.dirname(fileURLToPath(import.meta.url));

@@ -544,7 +544,7 @@ describe('Three-tier cast (MC / supporting / background)', () => {
 // ---------------------------------------------------------------------------
 
 describe('Mutable per-story character state', () => {
-  it('shows the relation to the MC without asking the author model to mutate state', async () => {
+  it('shows the relation to the named lead without asking the author model to mutate state', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     mockAi('Page one.');
     const world = await createWorld(app, { name: 'Relation Realm' });
@@ -557,9 +557,30 @@ describe('Mutable per-story character state', () => {
 
     await generatePage(story.id, 'go');
     const prompt = axios.post.mock.calls[0][1].messages[1].content;
-    expect(prompt).toContain('Relation to the main character: owes her a life-debt from the war');
+    expect(prompt).toContain('Relation to the lead: owes her a life-debt from the war');
     expect(prompt).not.toContain('<<<CHARACTER_STATE>>>');
     expect(prompt).toContain('plans, wants, vows, and intentions describe motivation');
+  });
+
+  it('treats a zero-lead cast as an ensemble instead of inventing a protagonist', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    mockAi('Page one.');
+    const world = await createWorld(app, { name: 'Ensemble Realm' });
+    const first = await createCharacter(app, world.id, { name: 'First Voice' });
+    const second = await createCharacter(app, world.id, { name: 'Second Voice' });
+    const story = await createStory(app, world.id, [
+      { id: first.id, role: 'supporting', relation: 'knows the northern road', state: null },
+      { id: second.id, role: 'supporting', relation: 'guards the shared secret', state: null },
+    ]);
+
+    await generatePage(story.id, 'bring both viewpoints into the scene');
+    const prompt = axios.post.mock.calls[0][1].messages[1].content;
+    expect(prompt).toContain('ENSEMBLE CAST');
+    expect(prompt).toContain('there is no designated lead');
+    expect(prompt).toContain('share narrative focus');
+    expect(prompt).toContain('Starting connection or story note: knows the northern road');
+    expect(prompt).not.toContain('PROTAGONIST / MAIN CHARACTER');
+    expect(prompt).not.toContain('Relation to the lead');
   });
 
   it('strips legacy state blocks but never trusts them as continuity', async () => {

@@ -38,10 +38,20 @@ async function createStoryViaUi(page, title) {
 
   await openUnlocked(page);
   await page.locator('#writeBtn').click();
-  await page.selectOption('#currentStory', story.id);
-  await expect(page.locator(`#currentStory option[value="${story.id}"]`)).toBeAttached({ timeout: 5000 });
+  await page.selectOption('#shellManuscriptSelect', story.id);
+  await expect(page.locator(`#shellManuscriptSelect option[value="${story.id}"]`)).toBeAttached({ timeout: 5000 });
   await expect(page.locator('#writeSection')).toHaveClass(/active/);
   return story;
+}
+
+async function openGalleryPaint(page, pageNumber = null) {
+  await page.locator('#galleryBtn').click();
+  await expect(page.locator('#gallerySection')).toHaveClass(/active/);
+  await page.locator('#galleryPaintBtn').click();
+  if (pageNumber !== null) {
+    await page.locator('.dialog-manager select').selectOption(String(pageNumber));
+  }
+  await page.locator('.dialog-manager button', { hasText: 'Draft visible prompt' }).click();
 }
 
 test.describe('AI generation flows (mocked)', () => {
@@ -321,7 +331,7 @@ test.describe('Reading old pages and burning the rest', () => {
     // Return dialog: exact consequence text, Cancel keeps everything.
     await page.locator('#deleteAfterBtn').click();
     await expect(page.locator('.dialog-manager')).toBeVisible();
-    await expect(page.locator('.dialog-manager__title')).toContainText('Return story to page 1?');
+    await expect(page.locator('.dialog-manager__title')).toContainText('Return manuscript to page 1?');
     await expect(page.locator('.dialog-manager__body')).toContainText('1 page');
     await expect(page.locator('.dialog-manager__body')).toContainText('recovery copy');
     await page.locator('.dialog-manager button', { hasText: 'Cancel' }).click();
@@ -345,7 +355,7 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page one.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page two.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Renumber page three.' });
-    await page.selectOption('#currentStory', story.id);
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 3 of 3');
 
     // Step to the middle page and delete it through the real endpoint.
@@ -384,7 +394,7 @@ test.describe('Single-page deletion renumbers (real backend)', () => {
     const story = await createStoryViaUi(page, 'Renumber First Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Firstborn page.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Secondborn page.' });
-    await page.selectOption('#currentStory', story.id);
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     await page.locator('#prevPageBtn').click();
@@ -650,10 +660,10 @@ test.describe('Scene image prompt', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, {
       content: 'The hall stood dark and cold.', user_input: null,
     });
-    await page.selectOption('#currentStory', story.id); // reload with the page present
+    await page.reload(); // reload with the page present
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 1');
 
-    await page.locator('#imagePromptBtn').click();
+    await openGalleryPaint(page);
     await confirmPaidReview(page, /Condense it/); // the condensation is paid work
     await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
     await expect(page.locator('#imagePromptText')).toHaveValue(
@@ -757,8 +767,8 @@ test.describe('Scene image prompt', () => {
     await apiPost(page, `/api/stories/${story.id}/pages`, {
       content: 'The hall stood dark and cold.', user_input: null,
     });
-    await page.selectOption('#currentStory', story.id);
-    await page.locator('#imagePromptBtn').click();
+    await page.reload();
+    await openGalleryPaint(page);
     await confirmPaidReview(page, /Condense it/);
     await expect(page.locator('#imagePromptModal')).toBeVisible();
 
@@ -808,14 +818,14 @@ test.describe('Scene image prompt', () => {
     const story = await createStoryViaUi(page, 'Image Page Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page.' });
-    await page.selectOption('#currentStory', story.id);
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     // Illustrate the first page: the art is displayed with it, but does not
     // become a third narrative page.
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
-    await page.locator('#imagePromptBtn').click();
+    await openGalleryPaint(page, 1);
     await confirmPaidReview(page, /Condense it/); // the condensation is paid work
     await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
     await page.locator('#imagePromptGenerateBtn').click();
@@ -825,6 +835,14 @@ test.describe('Scene image prompt', () => {
     await page.locator('#sceneViewerAddPageBtn').click();
     await expect(page.locator('#sceneImageViewerModal')).toBeHidden({ timeout: 5000 });
     await expect(page.locator('#imagePromptModal')).toBeHidden();
+
+    // Painting is a Gallery workflow now. Return to Desk and reload the
+    // persisted manuscript before asserting its reader placement.
+    await page.locator('#writeBtn').click();
+    await expect(page.locator('#writeSection')).toHaveClass(/active/);
+    await page.reload();
+    await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
+    await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
 
     // The plate renders from the real image route, not a placeholder
@@ -841,7 +859,7 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#storyContent')).toContainText('Second prose page.');
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#readAloudBtn')).toBeEnabled();
-    await expect(page.locator('#imagePromptBtn')).toBeEnabled();
+    await expect(page.locator('#galleryPaintBtn')).toBeEnabled();
 
     // The exported EPUB carries the plate inside the book
     const exportRes = await page.request.get(`/api/stories/${story.id}/export`);

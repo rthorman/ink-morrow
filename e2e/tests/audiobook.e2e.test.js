@@ -15,7 +15,7 @@ async function createStoryViaUi(page, title) {
 
   await openUnlocked(page);
   await page.locator('#writeBtn').click();
-  await page.selectOption('#currentStory', story.id);
+  await page.selectOption('#shellManuscriptSelect', story.id);
   await expect(page.locator('#writeSection')).toHaveClass(/active/);
   return story;
 }
@@ -73,7 +73,7 @@ test.describe('Audiobook', () => {
     const story = await createStoryViaUi(page, 'Audiobook Test');
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page of the tale.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page of the tale.' });
-    await page.selectOption('#currentStory', story.id); // reload with pages
+    await page.reload(); // reload with pages
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     // The modal: narrator advertised, honest estimates, plate-free page count
@@ -116,19 +116,20 @@ test.describe('Audiobook', () => {
   test('the Bookshelf lists story art; deleting it keeps prose numbering', async ({ page }) => {
     page.on('dialog', (dialog) => dialog.accept());
 
-    const story = await createStoryViaUi(page, 'Bookshelf Test');
+    const title = `Bookshelf Test ${Date.now()}`;
+    const story = await createStoryViaUi(page, title);
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'First prose page.' });
     await apiPost(page, `/api/stories/${story.id}/pages`, { content: 'Second prose page.' });
     await apiPost(page, `/api/stories/${story.id}/pages/1/image-page`, {
       image: PNG_1PX, media_type: 'image/png', prompt: 'A candlelit hall.',
     });
-    await page.selectOption('#currentStory', story.id);
+    await page.reload();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2');
 
     await page.locator('#libraryBtn').click();
     await page.locator('#libraryBookshelfTab').click();
     await expect(page.locator('#librarySection')).toHaveClass(/active/);
-    const entry = page.locator('.bookshelf-entry', { hasText: 'Bookshelf Test' });
+    const entry = page.locator('.bookshelf-entry', { hasText: title });
     await expect(entry).toBeVisible({ timeout: 5000 });
     await expect(entry).toContainText('No audiobook kept'); // nothing read yet
     await expect(entry.locator('.bookshelf-plate')).toHaveCount(1);
@@ -143,6 +144,6 @@ test.describe('Audiobook', () => {
     await page.locator('.dialog-manager button', { hasText: 'Delete art' }).click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 2 of 2', { timeout: 5000 });
     await expect(entry.locator('.bookshelf-plate')).toHaveCount(0);
-    await expect(entry).toContainText('No story art kept');
+    await expect(entry).toContainText('No manuscript art kept');
   });
 });

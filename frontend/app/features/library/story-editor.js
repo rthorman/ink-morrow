@@ -4,7 +4,9 @@
 const CAST_EDIT_FIELDS = [
   { key: 'personality', label: 'In-story personality' },
   { key: 'appearance', label: 'In-story appearance' },
-  { key: 'relationship_to_mc', label: 'Relationship to the Main Character', mc: false },
+  // Kept under the legacy API field for archive compatibility. In an
+  // ensemble it is a general connection/story note, never a phantom lead.
+  { key: 'relationship_to_mc', label: 'Connection or story note', mc: false },
 ];
 
 import { wireModal } from '../../core/dialogs.js';
@@ -112,7 +114,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     }
     if (relationLabel) {
       const lead = leadName();
-      relationLabel.textContent = lead ? `Tie to ${lead} (starting point; the story may change it)` : 'Starting connection or story note';
+      relationLabel.textContent = lead ? `Tie to ${lead} (starting point; the manuscript may change it)` : 'Starting connection or manuscript note';
     }
 
     const chosenIds = new Set(storyCast.map((entry) => entry.id));
@@ -122,7 +124,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     // Lead picker (centered mode, no lead chosen yet): direct selection.
     const mcOptions = currentLead ? [] : available;
     populateSelectOptions(mcSelect, mcOptions, {
-      placeholder: available.length > 0 ? '— Choose who the story follows —' : '— No characters available —',
+      placeholder: available.length > 0 ? '— Choose who the manuscript follows —' : '— No characters available —',
     });
     mcSelect.disabled = Boolean(currentLead) || available.length === 0;
 
@@ -177,7 +179,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
         relation.value = entry.relation || '';
         const lead = leadName();
         relation.setAttribute('aria-label', lead ? `Tie of ${character ? character.name : entry.id} to ${lead}` : `Starting connection for ${character ? character.name : entry.id}`);
-        relation.placeholder = lead ? `tie to ${lead}…` : 'starting connection or story note…';
+        relation.placeholder = lead ? `tie to ${lead}…` : 'starting connection or manuscript note…';
         relation.addEventListener('input', () => {
           entry.relation = relation.value.trim() || null;
           features.manuscriptStart?.saveDraft?.();
@@ -413,7 +415,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       if (entry.state && Object.keys(entry.state).length > 0) {
         const modified = document.createElement('span');
         modified.className = 'cast-edit-member__modified';
-        modified.textContent = 'changed by the story';
+        modified.textContent = 'changed in this manuscript';
         row.appendChild(modified);
       }
 
@@ -579,7 +581,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     if (entry.role !== 'mc') {
       const relationLabel = document.createElement('label');
       const lead = castEditLeadName();
-      relationLabel.textContent = lead ? `Tie to ${lead} at the start` : 'Starting connection or story note';
+      relationLabel.textContent = lead ? `Tie to ${lead} at the start` : 'Starting connection or manuscript note';
       const relation = document.createElement('input');
       relation.type = 'text';
       relation.maxLength = 2000;
@@ -599,14 +601,14 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     sheet.className = 'cast-edit-member__sheet';
     const sheetNote = document.createElement('p');
     sheetNote.className = 'setting-hint';
-    sheetNote.textContent = 'Manual story overrides. Leave blank to follow the frozen cast copy and page-linked continuity; catalogue text in placeholders is reference only.';
+    sheetNote.textContent = 'Manual manuscript overrides. Leave blank to follow the frozen cast copy and page-linked continuity; catalogue text in placeholders is reference only.';
     sheet.appendChild(sheetNote);
     for (const field of CAST_EDIT_FIELDS) {
       if (field.mc === false && entry.role === 'mc') continue;
       const label = document.createElement('label');
       const lead = castEditLeadName();
       label.textContent = field.mc === false && lead
-        ? `Manual ${field.key.replace('_', ' ')} override (vs. ${lead})`
+        ? `Manual relationship override (with ${lead})`
         : `Manual ${field.label.toLowerCase()} override`;
       const input = document.createElement('textarea');
       input.rows = 2;
@@ -614,7 +616,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
       input.value = entry.state?.[field.key] || '';
       const base = character?.[field.key] ? `base: ${String(character[field.key]).slice(0, 120)}` : 'base sheet is empty here';
       input.placeholder = base;
-      input.setAttribute('aria-label', `${field.label} of ${name} in this story`);
+      input.setAttribute('aria-label', `${field.mc === false && lead ? `Relationship to ${lead}` : field.label} of ${name} in this manuscript`);
       input.addEventListener('input', () => {
         const value = input.value.trim();
         if (!entry.state) entry.state = {};

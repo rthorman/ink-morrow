@@ -87,7 +87,7 @@ export function createSharedState() {
       const v = Number(value) || 0;
       return '$' + (v >= 1 ? v.toFixed(2) : v.toFixed(4));
     };
-    elx.textContent = `Session ${fmt(sessionCost)} · Story ${fmt(storyCostBase + storyCostExtra)}`;
+    elx.textContent = `Session ${fmt(sessionCost)} · Manuscript ${fmt(storyCostBase + storyCostExtra)}`;
   }
 
   function applySettings() {

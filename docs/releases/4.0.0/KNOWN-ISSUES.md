@@ -10,8 +10,12 @@ opens, and release-owner triage recorded in
 
 Known limits are:
 
-- Current Chrome Stable is the only supported browser for this beta. Other
-  browsers may work but are not certified.
+- Current Chrome Stable is the only browser tested for this beta. Other
+  current standards-respecting browsers should work, but are not certified;
+  reproduce browser-specific trouble in Chrome before reporting it.
+- OpenRouter is the only AI supplier tested. A different
+  OpenAI-compatible endpoint may lack compatible model discovery, image
+  generation, narration, or reasoning controls, and may not work at all.
 - `.scribetribe` v2 archives are not encrypted. Store and transmit them using
   access-controlled encrypted systems.
 - ScribeTribe 4.0 does not open 3.x databases or import format-v1 archives.

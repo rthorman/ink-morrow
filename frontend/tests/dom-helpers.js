@@ -141,7 +141,7 @@ function buildDom() {
       </section>
       <section id="librarySection" class="content-section">
         <div class="library-tabs" role="tablist" aria-label="Library">
-          <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Stories</button>
+          <button id="libraryStoriesTab" class="library-tab" role="tab" aria-selected="true" aria-controls="storiesPanel" type="button">Manuscripts</button>
           <button id="libraryBookshelfTab" class="library-tab" role="tab" aria-selected="false" aria-controls="bookshelfPanel" type="button">Bookshelf</button>
         </div>
         <div id="storiesPanel" role="tabpanel" aria-labelledby="libraryStoriesTab">
@@ -153,8 +153,7 @@ function buildDom() {
         </div>
       </section>
       <section id="writeSection" class="content-section">
-        <button id="storyNewBtn" type="button">New story</button>
-        <select id="currentStory"><option value="">Select or Create a Story</option></select>
+        <button id="storyNewBtn" type="button">New manuscript</button>
         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
         <div id="costTicker" class="cost-ticker" hidden></div>
         <button id="prevPageBtn">← Previous</button>        <span id="pageIndicator">Page 1 of 1</span>
@@ -162,8 +161,7 @@ function buildDom() {
         <button id="readAloudBtn" type="button">Read aloud</button>
         <button id="narrationAutoBtn" type="button" aria-pressed="false">Auto-read</button>
         <button id="imagePromptBtn" type="button">Paint scene</button>
-        <button id="uploadArtBtn" type="button">Upload art</button>
-        <input id="uploadArtInput" type="file">
+        <button id="deskGalleryBtn" type="button">Open Gallery</button>
         <button id="narrationStopBtn" type="button" hidden>Stop</button>
         <div id="storyContent" class="story-content"></div>
         <div id="deskPageState" hidden><button id="deskPageEditBtn" type="button">Edit active page</button><p id="deskPageSaveState" role="status"></p></div>
@@ -280,7 +278,7 @@ function buildDom() {
     </div>
     <div id="storyAssetsModal" class="burn-modal" hidden>
       <div class="burn-modal__panel story-assets-panel" role="dialog" aria-modal="true" aria-labelledby="storyAssetsTitle">
-        <h2 id="storyAssetsTitle">Story assets</h2>
+        <h2 id="storyAssetsTitle">Manuscript assets</h2>
         <p id="storyAssetsTotal"></p>
         <div id="storyAssetsBody"></div>
         <button id="storyAssetsWriteBtn" type="button">Open writing desk</button>
@@ -332,7 +330,7 @@ function buildDom() {
     <div id="storyCastModal" class="burn-modal" hidden>
       <div class="burn-modal__panel draft-panel editor-panel cast-panel" role="dialog" aria-modal="true" aria-labelledby="storyCastTitle">
         <div class="cast-edit__head">
-          <h2 id="storyCastTitle">Story cast</h2>
+          <h2 id="storyCastTitle">Manuscript cast</h2>
           <p id="storyCastMode" class="cast-edit__mode"></p>
           <p id="storyCastStatus" class="cast-edit__status" role="status"></p>
         </div>

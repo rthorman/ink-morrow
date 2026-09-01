@@ -1,0 +1,85 @@
+name: Bug report
+description: Report a reproducible ScribeTribe problem without exposing private material.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping repair the Scriptorium. For a security vulnerability, use a private security advisory instead. Redact manuscripts, credentials, cookies, share links, prompts, local paths, and provider responses.
+  - type: input
+    id: version
+    attributes:
+      label: ScribeTribe version or commit
+      description: Find this in the release tag, Git commit, or installed documentation.
+      placeholder: 4.0.0-beta.1 / abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: browser
+    attributes:
+      label: Browser
+      description: Chrome is the only browser tested for 4.0. Please reproduce there when possible.
+      options:
+        - Google Chrome
+        - Microsoft Edge
+        - Firefox
+        - Safari
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Operating system and Node version
+      placeholder: Windows 11; Node 22.14.0
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: AI supplier involved, if any
+      description: OpenRouter is the only supplier tested. Choose Not involved for local-only behavior.
+      options:
+        - Not involved
+        - OpenRouter
+        - Another supplier
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Use a disposable project and fictional placeholder content.
+      placeholder: |
+        1. Open…
+        2. Select…
+        3. Press…
+        4. Observe…
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+      placeholder: I expected… Instead…
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Add screenshots, a correlation reference, or sanitized logs. Never include private content or secrets.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checks
+      options:
+        - label: I used a 4.0 data directory and did not expose valuable 3.x data.
+          required: true
+        - label: I removed manuscripts, credentials, cookies, capabilities, prompts, and other private material.
+          required: true
+        - label: I checked the current known issues.
+          required: true

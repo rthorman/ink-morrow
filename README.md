@@ -1,6 +1,38 @@
-# ScribeTribe
+<p align="center">
+  <img src="frontend/brand/scribetribe-lockup.svg" alt="ScribeTribe - where stories grow claws" width="520">
+</p>
 
-An interactive fiction writing tool with reusable worlds and characters, a gothic web interface, and catgirl scribes. Stories are written **one page at a time** — you give each page a direction, the scribe writes it, then waits for you.
+<h1 align="center">ScribeTribe</h1>
+
+<p align="center"><strong>A self-hosted gothic writing room for long-form fiction.</strong><br>Build reusable worlds and casts, write one page at a time, keep continuity inspectable, illuminate the manuscript, and decide exactly how it leaves.</p>
+
+<p align="center">
+  <img alt="Release: 4.0.0 beta 1" src="https://img.shields.io/badge/release-4.0.0--beta.1-6e1834">
+  <img alt="License: AGPL version 3 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-c7a35b">
+  <img alt="Node.js 22.5 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.5-447a63">
+  <img alt="Browser tested: Chrome" src="https://img.shields.io/badge/browser_tested-Chrome-51305e">
+</p>
+
+<p align="center">
+  <a href="#quick-start">Quick start</a> ·
+  <a href="docs/user-guide/ScribeTribe-4.0-User-Guide.pdf">User guide</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="docs/releases/4.0.0/OPERATIONS.md">Operations</a> ·
+  <a href="SECURITY.md">Security</a> ·
+  <a href="CONTRIBUTING.md">Contributing</a> ·
+  <a href="docs/releases/4.0.0/KNOWN-ISSUES.md">Known limits</a>
+</p>
+
+ScribeTribe is an interactive-fiction authoring tool with reusable worlds and
+characters, a gothic web interface, and catgirl scribes. A manuscript advances
+**one page at a time**: you give the page a direction, the Scribe writes it,
+then waits for you.
+
+Its real advantage is the collaboration: the human author supplies intent,
+taste, constraints, revision, and the final word on canon, while AI accelerates
+drafting, continuity extraction, illustration, and narration. ScribeTribe can
+still be used for manual writing and local project care, but that resilience is
+not the product's center—the directed human/AI loop is.
 
 > [!IMPORTANT]
 > **ScribeTribe 4.0.0-beta.1 is a clean-break beta.** Start it with a new,
@@ -27,6 +59,20 @@ current beta limits in
 
 The task-oriented [ScribeTribe 4.0 User Guide](docs/user-guide/ScribeTribe-4.0-User-Guide.pdf)
 explains the main authoring flows with the approved interface and branding.
+
+> [!NOTE]
+> **How the 4.0 beta was made:** the clean-break refactor from the earlier
+> application was produced exclusively through ChatGPT/Codex under human-led
+> feature planning, direction, review, and acceptance. That work includes the
+> 4.0 implementation, visual-asset generation, and documentation generation.
+> The historical through-3.2.2 line has different development credits; see
+> [CREDITS.md](CREDITS.md) for the complete boundary.
+
+<details>
+<summary><strong>Historical 3.x release context</strong></summary>
+
+The current beta is documented above. These notes explain the preserved 3.x
+first-parent history; the complete record lives in [CHANGELOG.md](CHANGELOG.md).
 
 **v3.2.2** repairs the prepared-page pipeline. Pressing the green button now commits the prose that is already waiting and displays it before continuity extraction finishes; it can never fall through to a second live generation of that page. Exactly one successor is still prepared behind the reader after every successful write, rewrite, or prepared commit, preserving instantaneous direction-free page turns without duplicate spend.
 
@@ -58,6 +104,8 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 **v3.0.0** was the ground-up reorganization itself: a modular backend (feature routers + stores), a native-ES-module frontend with hash routing and a shared dialog system, a Home/Library/Write information architecture, explicit centered/ensemble cast shapes, and honest cost-bearing buttons everywhere — with every API route, data schema, and cost guarantee preserved.
 
+</details>
+
 **ScribeTribe is not an erotic-writing tool.** It's a story engine, and its heart is biased toward fantasy — swords, sorcery, shadows, and strange worlds. Mature content is possible if you choose that tone for a story, but that's a setting you control, not the point of the tool.
 
 > [!WARNING]
@@ -66,6 +114,13 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 > ScribeTribe attempts to predict and meter **every** cost involved: pages, retries, narration, reference portraits, world scenes, and scene paintings all carry live estimates and per-generation accounting in the cost ticker. But it is **impossible to make guarantees** — upstream prices change without notice, providers meter their own way, retries happen, and estimates are estimates.
 >
 > The only real safety is upstream of this app: **create a dedicated OpenRouter API key and set a hard spend limit on it** (OpenRouter lets you cap a key's credit) before you put it in `backend/.env`. Treat anything this app reports as a good-faith tally, not an invoice.
+
+> [!CAUTION]
+> **OpenRouter is the only AI supplier tested with ScribeTribe.** Other
+> OpenAI-compatible endpoints may lack compatible model discovery, image
+> generation, narration, reasoning controls, or may not work at all. Local
+> project operations can continue without a supplier, but the intended creative
+> workflow is human-led, AI-collaborative writing.
 
 ## Screenshots
 
@@ -79,52 +134,59 @@ The exact data layers, commit/regeneration/delete semantics, extraction contract
 
 | Library | Worlds |
 |---|---|
-| ![The Library — Stories and Bookshelf tabs](docs/screenshots/library-desktop.png) | ![The Worlds catalog — collection-first with New world](docs/screenshots/worlds-desktop.png) |
+| ![The Library — Manuscripts and Bookshelf tabs](docs/screenshots/library-desktop.png) | ![The Worlds catalog — collection-first with New world](docs/screenshots/worlds-desktop.png) |
+
+| Codex | Gallery |
+|---|---|
+| ![Codex — manuscript-local foundations and page-provenanced memory](docs/screenshots/codex-desktop.png) | ![Gallery — uploaded and AI-generated art with explicit placement](docs/screenshots/gallery-desktop.png) |
 
 ## Features
 
-- **Page-by-page interactive generation** — every page stops for your direction, or just hit continue
+- **Human-led, AI-collaborative writing** — every page stops for your direction and judgment; the Scribe accelerates the next move while you retain authorship and the final word on canon
 - **Prepared next page** — after every successful write, rewrite, or prepared commit, exactly one successor is quietly prepared and its provider cost enters Session immediately. An empty Write commits the identified prose instantly and starts the following preview behind the reader; a confirmed direction replaces it, while canceling keeps it. Prepared prose has no continuity state until committed
 - **Retry last page** — regenerate with the same direction but fresh ink
 - **Worlds & characters as first-class, reusable entities** — build a cast once, use it across stories; cross-world casting is supported
 - **Explicit cast shapes** — every story declares itself *Centered on a lead* or an *Ensemble* up front, in creation and mid-story editing alike; relation labels follow the named lead (and never mention one that does not exist), the mid-story editor offers direct **Make lead / Switch to ensemble** actions, and an empty cast can add a lead directly — never add-then-promote
 - **Cast editing mid-story** — the Library's story cards open a roster/details editor: the roster lists members with roles and cross-world provenance; the selected member edits role, starting connection, and explicit manual story overrides. Dirty drafts guard every close, role changes never dump focus or discard local edits, and the reusable catalogue sheets stay untouched
-- **Long-form continuity** — casting freezes a story-local character snapshot; each committed page contributes a separately extracted, page-linked delta. Character location, condition, knowledge, possessions, appearance, personality and relationships fold together with goals, threads, world facts and durable events. The Library inspector shows coverage/current state/history, repairs failed or legacy pages sequentially, and permits small author corrections
+- **Long-form continuity** — casting freezes a manuscript-local character snapshot; each committed page contributes a separately extracted, page-linked delta. Character location, condition, knowledge, possessions, appearance, personality and relationships fold together with goals, threads, world facts and durable events. Codex is the single author-facing home for coverage, page evidence, repair, and corrections
 - **AI fleshing-out** — generate worlds and characters from a few seed words, short/medium/long, regenerate for different takes, edit before saving
 - **Reference images** — every world gets a painted establishing scene (no people, no creatures, no action) and every character a reference portrait, generated in the background; existing entries are backfilled on boot, regeneration (with its approximate cost) sits in each card's **More** menu, and creation offers both *Create and paint (≈$…)* and *Create without image*
-- **Story catalogue and covers** — Library → Stories shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted stories get an honest empty-cover state and an explicit paid Paint action; opening the card manages that story's EPUB, cover, audiobook, and story art in one place
+- **Manuscript catalogue and covers** — Library → Manuscripts shows every manuscript with a vertical cover painted from its world and cast, its first prose excerpt, maturity/page context, and the media space it actually uses. Old or deliberately unpainted manuscripts get an honest empty-cover state and an explicit paid Paint action; opening the card manages that manuscript's EPUB, cover, audiobook, and art in one place
 - **Card editors** — click a world or character to edit it: plain fields, no AI assists, plus the editable blurb sent to the image generator. Worlds carry a **lorebook** — canonical facts honored by every future page (kept out of the creation form on purpose)
-- **Canonical worlds, frozen casting** — stories reference the one live world: edit it and future pages follow. Characters are copied once when cast, then page-linked continuity and explicit manual overrides evolve that story-local identity without rewriting the reusable catalogue sheet
-- **Scene illustration and upload** — condense the current page into a tone-honoring image prompt, edit it, then paint it with Grok Imagine through OpenRouter, or upload owner-selected art without an AI call or subject classification. **Place after page** stores either result as noncanonical story art anchored to the stable prose page; page numbering, continuity, and prepared prose remain unchanged. Uploads are streamed through bounded private staging, decoded and normalized to metadata-free WebP, and never cross a provider boundary unless later selected explicitly with per-asset permission
-- **Per-story maturity setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+), selected when the story is created at Write
+- **Canonical worlds, frozen casting** — manuscripts reference the one live world: edit it and future pages follow. Characters are copied once when cast, then page-linked continuity and explicit manual overrides evolve that manuscript-local identity without rewriting the reusable catalogue sheet
+- **Scene illustration and upload** — Gallery is the one owner-facing art workflow: condense a selected page into an editable prompt and paint it through OpenRouter, or upload owner-selected art without an AI call or subject classification. **Place after page** stores either result as noncanonical manuscript art anchored to stable prose; page numbering, continuity, and prepared prose remain unchanged. Uploads are streamed through bounded private staging, decoded and normalized to metadata-free WebP, and never cross a provider boundary unless later selected explicitly with per-asset permission
+- **Per-manuscript maturity setting** — tasteful (fade-to-black), romantic/sensual, or explicit (18+), selected in the one canonical Library creation sheet
 - **Word-target page length** — ask for short or long pages; the token budget scales with it
 - **Thinking narrators** — the selected model—and the server default before any override—exposes its own declared reasoning ladder in Settings, including lower or higher levels when OpenRouter advertises them, with room in the token budget to think
-- **Cost awareness** — live session and per-story cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, including continuity extraction, **not a guarantee** (see the warning above; cap your key). The first paid action reviews the authored page, its continuity record, and any prepared successor. Accepting remembers consent on that device; canceling sends nothing. If catalogue pricing has not loaded, the app shows conservative numeric ballparks rather than withholding an estimate. Merely selecting a story never spends a cent
+- **Cost awareness** — live session and per-manuscript cost ticker, per-model pricing in the settings picker — good-faith metering of every generation, including continuity extraction, **not a guarantee** (see the warning above; cap your key). The first paid action reviews the authored page, its continuity record, and any prepared successor. Accepting remembers consent on that device; canceling sends nothing. If catalogue pricing has not loaded, the app shows conservative numeric ballparks rather than withholding an estimate. Merely selecting a manuscript never spends a cent
 - **Low-storage watch** — a persistent amber banner warns when the device's free space runs low (under 1 GB or 5% of the volume), since plates, portraits and the database all grow on the same disk
 - **Bounded context retrieval** — the AI gets recent pages verbatim, compact folded state, resolved/active goals and threads, and a few FTS-relevant older memories. Raw old pages are not repeatedly resent, so long stories stay within a predictable prompt budget
-- **EPUB export** — download the full story as a valid EPUB e-book, painted plates embedded as book illustrations
+- **EPUB export** — download the complete manuscript as a valid EPUB e-book, painted plates embedded as book illustrations
 - **Revision-aware history and recovery** — the active tail accepts canonical edits, while an earlier page accepts a display-only copyedit that never rewrites remembered canon. Returning a manuscript to an earlier page truncates the suffix atomically, offers bounded immediate undo, and keeps an expiring recovery package; restoration refuses rather than merging across diverged canon. Art anchored to removed pages stays stored but becomes unplaced
 - **Read aloud** — streaming page narration through OpenRouter speech models; playback begins while synthesis is still running, long pages are narrated in sentence-boundary segments, pcm-only narrators (Gemini) are delivered as WAV, Auto keeps turning pages and reading until the tale runs out, and Settings shows each narrator's approximate cost per page alongside honest per-generation cost accounting
 - **Audiobooks** — bind the whole tale into one mp3 with the narrator chosen in Settings: a modal advertises the narrator (or why a WAV-only one can't be used) with honest estimates of listening time, file size and cost; the explicit **Create audiobook (≈$…)** button passes through the same remembered consent gate, then starts the reading. The reading's banner tracks progress page by page and becomes a Download when done. Unchanged pages are remembered, so regenerating after edits re-bills only what changed; pcm-only narrators are refused up front
 - **Gallery** — one manuscript workspace for uploaded and AI-generated art, local preview and metadata, explicit provider-reference selection, provenance, download/delete, and Gallery-only or stable before/after-page placement without changing prose or canon
 - **Publication core** — freeze reviewed display prose, hierarchy, metadata, front/back matter, scene breaks, and selected placed art into one immutable allowlisted document, then render semantically checked DOCX, ODT, RTF, EPUB 3.3, PDF, standalone HTML, Markdown, plain text, or documented JSON without exposing prompts, continuity, recovery, costs, credentials, or working history
 - **Gate publication and sharing** — keep full-fidelity `.scribetribe` backup visibly separate from reading-copy publication, review one normalized structure and selected art, then build formats or create an expiring, revocable reading-copy link to that same immutable snapshot. Raw 256-bit capabilities are returned once and stored only as hashes; the isolated public viewer cannot open private or provider APIs
-- **Bookshelf** — the Library's across-all-stories shelf for bound audiobooks and story art; each Stories card also opens a focused asset manager for that manuscript's publication formats, continuity coverage, cover, audio, and art
+- **Bookshelf** — the Library's across-all-manuscripts shelf for bound audiobooks and art; each Manuscripts card also opens a focused asset manager for that manuscript's EPUB, cover, audio, and art, with a direct route to Codex for continuity
 - **Portable archives and backups** — export a character with their home world, a world with a chosen resident subset, a story with its complete dependency graph and continuity, or the entire installation. Paintings, MP3 audio, and private working history are explicit choices; a pre-download exposure review excludes keys/passwords/consent. Imports verify and stage everything, classify identical/name/identity collisions, offer whole-entity keep/copy/replace choices, atomically remap linked IDs, and create a safety archive before replace-all restores
 - **Single-owner access seal** — first-run terminal code and a 15+ character passphrase protect every private screen and API. Opaque server-side sessions, strict cookies, CSRF/origin/Host checks and throttled unlock attempts fail closed; Lock revokes this session, password changes revoke the rest, and terminal recovery preserves manuscripts
 - **Scriptorium typography** — serif typeface presets and a text-size picker for the reading pane
 - **One server** — Express serves both the API and the frontend (no CORS, no hardcoded hosts)
 - **Quality-guarded generation** — empty, mid-sentence-truncated, or wrong-language model replies never reach the manuscript: bad replies are retried (a language slip gets one explicit "reply in English" nudge), and if the last attempt is still broken the request fails with a clear message and nothing is saved. Pages are held to at least a quarter of the requested length; prompts written in another language on purpose are never second-guessed (the check only fires when your own material is clearly English)
 - **One coherent app shell** — a global Library threshold owns the manuscript catalogue, Bookshelf, templates, and Settings; a selected manuscript keeps the same five labelled destinations at every width: **Desk, Chronicle, Codex, Gallery, Gate**. Canonical Desk routes (`#/desk/:story/page/:n`) survive refresh, back/forward, and deep links, with honest recovery when a manuscript no longer exists
-- **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. An empty writing desk is truthful: "No story selected" instead of a fake page count, every story-dependent control disabled, and the reason in copy
+- **Shared interaction grammar** — one destructive dialog (object, count, consequence, recoverability) and one remembered paid-consent gate across the whole app; its first review puts the estimate on the button. Every dialog — shared or feature modal — traps Tab focus, locks background scroll (counted, released exactly once), restores its opener, and guards dirty drafts through one Escape/backdrop/close policy. The global selector is the only manuscript selector; an empty Desk is truthful and manuscript-dependent controls stay disabled
 - **Full test suite** — backend and frontend Jest suites plus Playwright e2e tests, all running against isolated in-memory databases
 
 ## Requirements
 
 - Node.js **>= 22.5** (uses the built-in `node:sqlite`; safe image normalization uses Sharp's platform package with an explicit WebAssembly fallback for unsupported runtimes)
-- Optional for AI features: an [OpenRouter](https://openrouter.ai) API key or
-  another OpenAI-compatible endpoint. Manual writing, import, editing, backup,
-  and publication do not require a provider
+- Recommended for the intended collaborative workflow: an [OpenRouter](https://openrouter.ai) API key.
+  OpenRouter is the only supplier tested; another OpenAI-compatible endpoint
+  may lack required capabilities or fail entirely. Manual writing and local
+  project care remain possible without a provider
+- Google Chrome is the only browser tested for the beta. Other current,
+  standards-respecting browsers should work, but are not certified
 
 ## Tested on Android / Termux
 
@@ -192,7 +254,7 @@ npm start               # http://localhost:3000
 | Variable | Default | Purpose |
 |---|---|---|
 | `OPENROUTER_API_KEY` | — | Read-only environment credential for the built-in OpenRouter profile. AI actions need this, a process-session credential, or an explicitly saved encrypted-vault credential; manual work does not |
-| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Any OpenAI-compatible endpoint |
+| `OPENROUTER_BASE_URL` | `https://openrouter.ai/api/v1` | Advanced endpoint override. Only OpenRouter has been tested; another nominally compatible service may be incomplete or fail entirely |
 | `OPENROUTER_MODEL` | `z-ai/glm-5.1` | Model used for pages |
 | `PORT` | `3000` | Server port (app + API together) |
 | `HOST` | `127.0.0.1` | Bind address. Non-loopback values are refused unless `ALLOW_INSECURE_LAN=1` |
@@ -214,8 +276,10 @@ npm start               # http://localhost:3000
 
 1. **Worlds** — define settings, genres, lore
 2. **Characters** — personalities, appearances, backgrounds; bound to a world or free-roaming
-3. **Write** — create a story by choosing its world, cast, maturity, and optional painted cover; then give each page a direction (or leave it blank to continue)
-4. **Library** — revisit manuscripts, inspect their disk use, and download, repaint, or delete their stored assets
+3. **Begin** — use the one Library start sheet to choose prose, seed, or import; set world, centered/ensemble cast, maturity, and optional cover
+4. **Desk** — give each page a direction, or leave it blank to continue naturally
+5. **Codex and Gallery** — inspect remembered canon in Codex; upload, paint, and place art in Gallery
+6. **Gate** — create private backups, publication files, or a revocable reading copy
 
 ## Project Structure
 
@@ -380,7 +444,13 @@ You don't need a workstation to build software. You need a story you want to tel
 
 Ok, ok, so I continued into the night. I did. Its fun. And yes, the wife loves the stories.
 
-Credit where due: the code was written in partnership with [OpenCode](https://opencode.ai) running natively on Termux, powered by GLM-5.3 (Z.ai); ScribeTribe's branding concept, art direction, design system, implementation brief, and visual assets were developed collaboratively with [OpenAI Codex in ChatGPT](https://openai.com/codex/) (GPT‑5‑based), and the visual assets were created using OpenAI image-generation tools — see [CREDITS.md](./CREDITS.md).
+Credit where due: the historical line through 3.2.2 was written in partnership
+with [OpenCode](https://opencode.ai) running natively on Termux, powered by
+GLM-5.3 (Z.ai). The 4.0.0-beta clean-break refactor was produced exclusively
+through [ChatGPT/Codex](https://openai.com/codex/) under human-led feature
+planning, direction, review, and acceptance. That 4.0 work includes code,
+visual-asset generation, and documentation generation. See
+[CREDITS.md](./CREDITS.md) for the complete provenance boundary.
 
 ## License
 

@@ -10,6 +10,14 @@
 //   - its environment carries NODE_ENV=e2e (only e2e servers run with it)
 const fs = require('fs');
 
+// The narrow process inspection below is Linux/Termux-specific. On Windows,
+// Playwright owns the server process and port checks still fail closed; skip
+// the orphan sweep instead of making the entire test command unusable.
+if (!fs.existsSync('/proc')) {
+  console.log('[e2e sweep] /proc unavailable; skipped orphan scan');
+  process.exit(0);
+}
+
 let swept = 0;
 for (const pid of fs.readdirSync('/proc').filter((d) => /^\d+$/.test(d))) {
   const n = Number(pid);
