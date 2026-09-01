@@ -437,7 +437,7 @@ pull_requests:
   - id: "15"
     slug: publication-core
     title: Publication document and core format adapters
-    status: planned
+    status: merged
     target: release/4.0.0
     depends_on:
       - "14"

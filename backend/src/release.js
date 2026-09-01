@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'scribetribe-4';
-const DATABASE_SCHEMA_VERSION = 7;
+const DATABASE_SCHEMA_VERSION = 8;
 const SQLITE_APPLICATION_ID = 0x53543430; // ASCII "ST40"
 
 const ARCHIVE_FORMAT = 'scribetribe-project-archive';
@@ -31,6 +31,7 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'chronicle', status: 'available' }),
   Object.freeze({ id: 'codex', status: 'available' }),
   Object.freeze({ id: 'gallery', status: 'available' }),
+  Object.freeze({ id: 'publication-core', status: 'available' }),
   Object.freeze({ id: 'publication', status: 'planned' }),
   Object.freeze({ id: 'snapshot-sharing', status: 'planned' }),
 ]);

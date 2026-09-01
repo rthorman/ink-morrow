@@ -1178,6 +1178,20 @@ const MIGRATIONS = Object.freeze([
       activateArtStore(db);
     },
   }),
+  Object.freeze({
+    version: 8,
+    name: 'immutable publication document',
+    checksumSource: `PR 15 publication snapshots are append-only and retain one allowlisted normalized document.`,
+    up(db) {
+      db.exec(`
+        CREATE TRIGGER publication_snapshots_immutable
+        BEFORE UPDATE ON publication_snapshots
+        BEGIN
+          SELECT RAISE(ABORT, 'publication snapshots are immutable');
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {
