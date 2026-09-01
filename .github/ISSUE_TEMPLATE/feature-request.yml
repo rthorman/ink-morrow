@@ -1,0 +1,50 @@
+name: Feature request
+description: Propose a user problem or authoring improvement for ScribeTribe.
+title: "[Idea]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Start with the author's need. ScribeTribe is built for human-led, AI-collaborative long-form writing; features should keep intent, canon, cost, privacy, and consequences visible.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Author problem
+      description: What is difficult today, for whom, and in which part of the writing flow?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe what a successful experience lets the author accomplish, without prescribing implementation unless it matters.
+    validations:
+      required: true
+  - type: dropdown
+    id: room
+    attributes:
+      label: Scriptorium area
+      options:
+        - Library and manuscript start
+        - Desk and generation
+        - Chronicle and recovery
+        - Codex and continuity
+        - Gallery and art
+        - Gate, backup, publication, or sharing
+        - Settings, security, or operations
+        - Multiple areas
+    validations:
+      required: true
+  - type: textarea
+    id: boundary
+    attributes:
+      label: Cost, privacy, compatibility, or data consequences
+      description: Note provider calls, new stored data, migration needs, export effects, or destructive actions.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What do you do today, and why is it insufficient?
+
