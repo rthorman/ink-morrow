@@ -11,11 +11,29 @@
 
 .codex-toolbar,
 .codex-tabs,
-.codex-issue__actions {
+.codex-issue__actions,
+.codex-manuscript-heading,
+.codex-author-head,
+.codex-author-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--im-space-2);
   align-items: center;
+}
+
+.codex-manuscript-heading,
+.codex-author-head {
+  justify-content: space-between;
+  padding: var(--im-space-3);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
+  background: linear-gradient(120deg, var(--im-surface-2), rgb(74 34 73 / 0.22));
+}
+
+.codex-manuscript-heading h3,
+.codex-author-head h3,
+.codex-author-head p {
+  margin: 0;
 }
 
 .codex-toolbar {
@@ -81,6 +99,17 @@
 .codex-fact__value {
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+
+.codex-author-note {
+  padding-block-start: var(--im-space-2);
+  border-block-start: 1px solid var(--im-border);
+  color: var(--im-text-muted);
+  font-style: italic;
+}
+
+.codex-author-actions {
+  margin-block-start: var(--im-space-3);
 }
 
 .codex-evidence {

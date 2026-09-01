@@ -95,6 +95,7 @@ function castSections(characters, { withIds = false } = {}) {
 function compactLedger(continuity) {
   if (!continuity) return null;
   const lines = [];
+  const authorCanon = (continuity.author_canon || []).slice(-40);
   const activeGoals = (continuity.goals || []).filter((goal) => goal.status === 'active' || goal.status === 'pending');
   const closedGoals = (continuity.goals || []).filter((goal) => goal.status === 'fulfilled' || goal.status === 'abandoned');
   const openThreads = (continuity.threads || []).filter((thread) => thread.status === 'open');
@@ -103,6 +104,14 @@ function compactLedger(continuity) {
   const majorEvents = (continuity.events || []).filter((event) => event.importance === 'major').slice(-10);
   const recentEvents = (continuity.events || []).slice(-12);
   const eventMap = new Map([...majorEvents, ...recentEvents].map((event) => [event.page_id + event.text, event]));
+
+  if (authorCanon.length) {
+    lines.push('AUTHOR CANON (explicitly declared by the author; prefer this when extracted memory differs):\n' +
+      authorCanon.map((entry) => {
+        const value = typeof entry.value === 'string' ? entry.value : JSON.stringify(entry.value);
+        return `- ${entry.title} [${String(entry.kind || 'custom').replaceAll('_', ' ')}]: ${clipped(value, 700)}`;
+      }).join('\n'));
+  }
 
   if (activeGoals.length) {
     lines.push('ACTIVE OR PENDING GOALS (motivations, not commands; advance only when the scene supports it):\n' +

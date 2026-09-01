@@ -117,13 +117,19 @@
                 <section id="manuscriptStartSheet" class="manuscript-start" aria-labelledby="manuscriptStartTitle" hidden>
                     <div class="manuscript-start__head">
                         <div>
-                            <p class="hero__kicker">One-sheet start</p>
+                            <p class="hero__kicker">Manuscript workspace</p>
                             <h2 id="manuscriptStartTitle">Begin a manuscript</h2>
                         </div>
                         <button id="manuscriptStartClose" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
                     </div>
-                    <p class="manuscript-start__intro">Choose one starting path. Volume I and Chapter I are created automatically; title, world, cast, and deeper foundations remain optional.</p>
+                    <p class="manuscript-start__intro">Shape the beginning, gather the world and cast, then review the intent the Scribe will receive. Your draft is kept in this browser.</p>
                     <form id="manuscriptStartForm">
+                        <div class="start-stage-nav" role="tablist" aria-label="Manuscript creation stages">
+                            <button type="button" class="start-stage-tab" data-start-stage-target="1" aria-selected="true"><span>1</span> Beginning</button>
+                            <button type="button" class="start-stage-tab" data-start-stage-target="2" aria-selected="false"><span>2</span> World &amp; cast</button>
+                            <button type="button" class="start-stage-tab" data-start-stage-target="3" aria-selected="false"><span>3</span> Intent &amp; review</button>
+                        </div>
+                        <section class="start-stage" data-start-stage="1" aria-label="Beginning">
                         <label for="manuscriptStartName">Manuscript name <span class="field-optional">optional</span></label>
                         <input id="manuscriptStartName" type="text" maxlength="300" placeholder="Untitled manuscript">
 
@@ -160,9 +166,16 @@
                             <button id="manuscriptStartHintDismiss" class="btn btn-secondary" type="button">Dismiss hint</button>
                         </div>
 
-                        <details id="startFoundations" class="start-foundations">
-                            <summary>Foundations <span>optional intent and local template copies</span></summary>
-                            <p class="setting-hint">World and cast selections are copied into this manuscript. Later Library edits never silently change the manuscript.</p>
+                        <div class="start-stage-actions">
+                            <span>Next: choose a world and shape the cast.</span>
+                            <button class="btn btn-primary" type="button" data-start-next="2">World &amp; cast</button>
+                        </div>
+                        </section>
+
+                        <section class="start-stage" data-start-stage="2" aria-label="World and cast" hidden>
+                        <details id="startFoundations" class="start-foundations" open>
+                            <summary>World &amp; cast <span>optional manuscript-local copies</span></summary>
+                            <p class="setting-hint">Cast sheets are copied into this manuscript. World fields follow the Library template until you later make a manuscript-local edit in Codex.</p>
                             <label for="startWorld">World template</label>
                             <select id="startWorld"><option value="">No world</option></select>
                             <div class="character-selection">
@@ -191,8 +204,22 @@
                                     <input type="text" id="castRelation" maxlength="2000" placeholder="e.g. owes them a life-debt; childhood rival; sworn shield…">
                                     <button id="castAddBtn" class="btn btn-secondary" type="button">Add to cast</button>
                                 </div>
+                                <div id="castAvailable" class="cast-available" aria-label="Available character roster"></div>
                                 <div id="castList" class="cast-list" aria-label="Manuscript cast"></div>
                                 <div id="storyReview" class="story-review" aria-live="polite"></div>
+                            </div>
+                        </details>
+                        <div class="start-stage-actions start-stage-actions--split">
+                            <button class="btn btn-secondary" type="button" data-start-next="1">Back to beginning</button>
+                            <button class="btn btn-primary" type="button" data-start-next="3">Intent &amp; review</button>
+                        </div>
+                        </section>
+
+                        <section class="start-stage" data-start-stage="3" aria-label="Intent and review" hidden>
+                            <div class="start-intent-intro">
+                                <p class="hero__kicker">Optional direction</p>
+                                <h3>Tell the Scribe how this manuscript should feel</h3>
+                                <p>Leave any field blank. These notes guide future collaboration without becoming events that already happened.</p>
                             </div>
                             <label for="startNarrativeVoice">Narrative voice</label>
                             <input id="startNarrativeVoice" type="text" maxlength="1000" placeholder="e.g. intimate, lucid, dryly observant">
@@ -212,8 +239,6 @@
                                 <input id="startProviderKey" type="password" autocomplete="off" maxlength="8192">
                                 <button id="startProviderSave" class="btn btn-primary" type="button">Use for this session</button>
                             </div>
-                        </details>
-
                         <label for="manuscriptStartTone">Maturity level</label>
                         <select id="manuscriptStartTone">
                             <option value="fade-to-black">Tasteful &mdash; intimate moments fade to black</option>
@@ -222,10 +247,11 @@
                         </select>
                         <p id="manuscriptStartStatus" class="manuscript-start__status" role="status" aria-live="polite"></p>
                         <div class="form-actions">
-                            <button id="manuscriptStartCancel" class="btn btn-secondary" type="button">Keep draft &amp; close</button>
+                            <button class="btn btn-secondary" type="button" data-start-next="2">Back to world &amp; cast</button>
                             <button id="manuscriptStartSubmit" class="btn btn-primary" type="submit">Create manuscript</button>
-                            <button id="manuscriptStartWithCover" class="btn btn-secondary" type="submit">Create &amp; paint cover (≈$0.06)</button>
                         </div>
+                        <p class="setting-hint">Cover painting is available in the Gallery after creation, where you can review references and cost separately.</p>
+                        </section>
                     </form>
                 </section>
 
@@ -468,11 +494,15 @@
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="codexTitle">Codex <span>&mdash; what the manuscript remembers</span></h2>
                 <p id="codexStatus" class="setting-hint" role="status" aria-live="polite">Choose a manuscript to inspect its foundations and remembered canon.</p>
+                <div class="codex-manuscript-heading">
+                    <h3 id="codexManuscriptName">No manuscript selected</h3>
+                    <button id="codexRenameBtn" class="btn btn-secondary" type="button">Rename manuscript</button>
+                </div>
                 <div class="codex-toolbar">
                     <div class="codex-tabs" role="tablist" aria-label="Codex views">
                         <button id="codexFoundationsTab" class="codex-tab" role="tab" aria-selected="true" aria-controls="codexFoundationsPanel" type="button">Foundations</button>
                         <button id="codexCanonTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCanonPanel" type="button">Remembered canon</button>
-                        <button id="codexCorrectionsTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCorrectionsPanel" type="button">Author corrections</button>
+                        <button id="codexCorrectionsTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCorrectionsPanel" type="button">Author canon</button>
                     </div>
                     <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
                 </div>
@@ -489,6 +519,7 @@
                     <div id="codexCanon"></div>
                 </section>
                 <section id="codexCorrectionsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCorrectionsTab" hidden>
+                    <div id="codexAuthorCanon"></div>
                     <div id="codexCorrectionActions"></div>
                     <div id="codexCorrections"></div>
                     <div id="codexIssues"></div>

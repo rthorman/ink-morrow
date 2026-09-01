@@ -29,6 +29,8 @@ const {
   CONTINUITY_DELTA_FIELDS,
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
+  AUTHOR_CANON_ENTRY_FIELDS,
+  AUTHOR_CANON_REVISION_FIELDS,
   PREVIEW_FIELDS,
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
@@ -277,7 +279,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   };
   assertKnown(bundle, meta.kind === 'story'
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
-        'memory', 'continuity_deltas', 'corrections', 'writing_operations',
+        'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
+        'author_canon_revisions', 'writing_operations',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
         'publication_snapshots']
     : ['record'], `${meta.kind} bundle`);
@@ -452,12 +455,21 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   const templateSnapshots = bundle.template_snapshots || [];
   const deltas = bundle.continuity_deltas || [];
   const corrections = bundle.corrections || [];
+  const authorCanonEntries = bundle.author_canon_entries || [];
+  const authorCanonRevisions = bundle.author_canon_revisions || [];
   if (databaseSchemaVersion >= 5 &&
       (!Array.isArray(bundle.template_snapshots) || !Array.isArray(bundle.continuity_deltas) || !Array.isArray(bundle.corrections))) {
     throw httpError('Schema-5 story archive is missing continuity-v2 snapshots, deltas, or corrections');
   }
   if (!Array.isArray(templateSnapshots) || !Array.isArray(deltas) || !Array.isArray(corrections)) {
     throw httpError('Story archive contains invalid continuity-v2 collections');
+  }
+  if (databaseSchemaVersion >= 10 &&
+      (!Array.isArray(bundle.author_canon_entries) || !Array.isArray(bundle.author_canon_revisions))) {
+    throw httpError('Schema-10 story archive is missing author canon entries or revisions');
+  }
+  if (!Array.isArray(authorCanonEntries) || !Array.isArray(authorCanonRevisions)) {
+    throw httpError('Story archive contains invalid author canon collections');
   }
   const revisionIds = new Set((bundle.revisions || []).map((revision) => revision.id));
   const templateIds = new Set();
@@ -496,6 +508,51 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     const value = (() => { try { return JSON.parse(correction.correction_json); } catch { return null; } })();
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw httpError('Story archive contains an invalid correction payload');
     correctionIds.add(correction.id);
+  }
+  const authorEntryIds = new Set();
+  const authorKinds = new Set([
+    'world_event', 'world_fact', 'character_fact', 'relationship',
+    'goal', 'thread', 'story_rule', 'custom',
+  ]);
+  for (const entry of authorCanonEntries) {
+    assertKnown(entry, AUTHOR_CANON_ENTRY_FIELDS, 'Author canon entry');
+    if (!entry || !validId(entry.id) || entry.story_id !== meta.id ||
+        !authorKinds.has(entry.kind) || !['active', 'retired'].includes(entry.status) ||
+        authorEntryIds.has(entry.id) ||
+        (entry.subject_id !== null && entry.subject_id !== undefined && !validId(entry.subject_id))) {
+      throw httpError('Story archive contains an invalid author canon entry');
+    }
+    if (['character_fact', 'relationship'].includes(entry.kind) && entry.subject_id && !castIds.has(entry.subject_id)) {
+      throw httpError('Author canon entry references a character outside the cast');
+    }
+    authorEntryIds.add(entry.id);
+  }
+  const authorRevisionIds = new Set();
+  const authorOrdinals = new Map();
+  for (const revision of authorCanonRevisions) {
+    assertKnown(revision, AUTHOR_CANON_REVISION_FIELDS, 'Author canon revision');
+    let validValue = false;
+    try { JSON.parse(revision.value_json); validValue = true; } catch { /* invalid below */ }
+    if (!revision || !validId(revision.id) || !authorEntryIds.has(revision.entry_id) ||
+        authorRevisionIds.has(revision.id) || !Number.isSafeInteger(revision.revision_number) ||
+        revision.revision_number < 1 || typeof revision.title !== 'string' ||
+        !revision.title.trim() || revision.title.length > 300 ||
+        typeof revision.value_json !== 'string' || revision.value_json.length > 20000 ||
+        !validValue || !boundedText(revision.note, 2000)) {
+      throw httpError('Story archive contains an invalid author canon revision');
+    }
+    authorRevisionIds.add(revision.id);
+    if (!authorOrdinals.has(revision.entry_id)) authorOrdinals.set(revision.entry_id, new Set());
+    if (authorOrdinals.get(revision.entry_id).has(revision.revision_number)) {
+      throw httpError('Story archive repeats an author canon revision number');
+    }
+    authorOrdinals.get(revision.entry_id).add(revision.revision_number);
+  }
+  for (const entryId of authorEntryIds) {
+    const ordinals = [...(authorOrdinals.get(entryId) || [])].sort((a, b) => a - b);
+    if (!ordinals.length || ordinals.some((number, index) => number !== index + 1)) {
+      throw httpError('Author canon revision numbers must be contiguous');
+    }
   }
   const writingOperations = bundle.writing_operations || [];
   if (databaseSchemaVersion >= 6 && !Array.isArray(bundle.writing_operations)) {

@@ -19,6 +19,8 @@ const {
   CONTINUITY_DELTA_FIELDS,
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
+  AUTHOR_CANON_ENTRY_FIELDS,
+  AUTHOR_CANON_REVISION_FIELDS,
   PREVIEW_FIELDS,
   WRITING_OPERATION_FIELDS,
   PREPARED_PAGE_FIELDS,
@@ -950,6 +952,28 @@ function createTransferService({
           correction_json: JSON.stringify(mapObjectIds(parseJson(correctionSource.correction_json, {}), combinedMap)),
         };
         insertOrReplace(db, 'continuity_corrections', correction, CORRECTION_FIELDS);
+      }
+      const authorEntryMap = new Map((entity.bundle.author_canon_entries || [])
+        .map((entry) => [entry.id, randomUUID()]));
+      for (const entrySource of entity.bundle.author_canon_entries || []) {
+        const entry = {
+          ...entrySource,
+          id: authorEntryMap.get(entrySource.id),
+          story_id: storyId,
+          subject_id: entrySource.subject_id
+            ? (combinedMap.get(entrySource.subject_id) || entrySource.subject_id)
+            : null,
+        };
+        insertOrReplace(db, 'author_canon_entries', entry, AUTHOR_CANON_ENTRY_FIELDS);
+      }
+      for (const revisionSource of entity.bundle.author_canon_revisions || []) {
+        const revision = {
+          ...revisionSource,
+          id: randomUUID(),
+          entry_id: authorEntryMap.get(revisionSource.entry_id),
+          value_json: JSON.stringify(mapObjectIds(parseJson(revisionSource.value_json, null), combinedMap)),
+        };
+        insertOrReplace(db, 'author_canon_revisions', revision, AUTHOR_CANON_REVISION_FIELDS);
       }
       const operationSources = entity.bundle.writing_operations || [];
       const operationMap = new Map(operationSources.map((operation) => [operation.id, randomUUID()]));

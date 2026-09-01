@@ -25,6 +25,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
   const { apiCall } = api;
   const { showError, showSuccess } = notify;
   let path = 'manual';
+  let stage = 1;
   let creating = false;
   let reviewing = false;
 
@@ -33,6 +34,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
   function draftValue() {
     return {
       path,
+      stage,
       title: el('manuscriptStartName')?.value || '',
       manual: el('startManualOpening')?.value || '',
       premise: el('startSeedPremise')?.value || '',
@@ -85,6 +87,24 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     saveDraft();
   }
 
+  function setStage(next, { focus = false } = {}) {
+    stage = Math.min(3, Math.max(1, Number(next) || 1));
+    for (const panel of document.querySelectorAll('[data-start-stage]')) {
+      panel.hidden = Number(panel.dataset.startStage) !== stage;
+    }
+    for (const button of document.querySelectorAll('[data-start-stage-target]')) {
+      const selected = Number(button.dataset.startStageTarget) === stage;
+      button.setAttribute('aria-selected', String(selected));
+      button.classList.toggle('active', selected);
+    }
+    if (focus) {
+      const target = stage === 1 ? el('manuscriptStartName')
+        : stage === 2 ? el('startWorld') : el('startNarrativeVoice');
+      target?.focus();
+    }
+    saveDraft();
+  }
+
   function renderTemplates(keep = {}) {
     const world = el('startWorld');
     if (world) {
@@ -130,6 +150,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     if (el('startFoundations')) el('startFoundations').open = draft.foundationsOpen === true;
     renderTemplates(draft);
     setPath(draft.path || 'manual');
+    setStage(draft.stage || 1);
   }
 
   function open(next = 'manual') {
@@ -142,7 +163,8 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     if (!sheet) return;
     renderTemplates(savedDraft() || {});
     sheet.hidden = false;
-    setPath(next, { focus: true });
+    setPath(next);
+    setStage(savedDraft()?.stage || 1, { focus: true });
     sheet.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   }
 
@@ -288,6 +310,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       features.storyEditor?.resetCreationCast?.();
       if (el('manuscriptStartSheet')) el('manuscriptStartSheet').hidden = true;
       path = 'manual';
+      stage = 1;
       await features.stories.loadStories();
       features.write.openStory(story.id);
       showSuccess(completedPath === 'import'
@@ -462,7 +485,10 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     }
     el('manuscriptStartForm').addEventListener('submit', create);
     el('manuscriptStartClose').addEventListener('click', close);
-    el('manuscriptStartCancel').addEventListener('click', close);
+    el('manuscriptStartCancel')?.addEventListener('click', close);
+    for (const button of document.querySelectorAll('[data-start-stage-target], [data-start-next]')) {
+      button.addEventListener('click', () => setStage(button.dataset.startStageTarget || button.dataset.startNext, { focus: true }));
+    }
     el('manuscriptStartHintDismiss').addEventListener('click', () => {
       let dismissed = [];
       try { dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_HINTS_KEY) || '[]'); } catch { dismissed = []; }
@@ -482,5 +508,5 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     el('libraryBeginBtn')?.addEventListener('click', () => open('manual'));
   }
 
-  return { open, close, setPath, renderTemplates, create, draftFoundations, saveDraft, init };
+  return { open, close, setPath, setStage, renderTemplates, create, draftFoundations, saveDraft, init };
 }

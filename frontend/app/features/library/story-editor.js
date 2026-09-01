@@ -121,6 +121,66 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     const available = castOrderedCharacters().filter((c) => !chosenIds.has(c.id));
     const currentLead = leadEntry();
 
+    const availableRoster = document.getElementById('castAvailable');
+    if (availableRoster) {
+      availableRoster.textContent = '';
+      if (available.length) availableRoster.appendChild(Object.assign(document.createElement('p'), {
+        className: 'cast-available__intro',
+        textContent: 'Add directly from the roster. Choose each person’s role before binding them to this manuscript.',
+      }));
+      for (const character of available) {
+        const card = document.createElement('article');
+        card.className = 'cast-available__card';
+        const heading = document.createElement('h4');
+        heading.textContent = character.name;
+        const description = document.createElement('p');
+        description.textContent = character.description || 'No character summary yet.';
+        const roleLabel = document.createElement('label');
+        roleLabel.textContent = 'Role';
+        const role = document.createElement('select');
+        if (!currentLead && effectiveMode === 'centered') {
+          const leadOption = document.createElement('option');
+          leadOption.value = 'mc';
+          leadOption.textContent = 'Lead';
+          role.appendChild(leadOption);
+        }
+        for (const [value, label] of [['supporting', 'Supporting'], ['background', 'Background']]) {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = label;
+          role.appendChild(option);
+        }
+        roleLabel.appendChild(role);
+        const relationLabelCard = document.createElement('label');
+        relationLabelCard.textContent = currentLead ? `Tie to ${leadName()}` : 'Starting connection or note';
+        const relation = document.createElement('input');
+        relation.type = 'text';
+        relation.maxLength = 2000;
+        relation.placeholder = currentLead ? `tie to ${leadName()}…` : 'rival, confidante, witness…';
+        relationLabelCard.appendChild(relation);
+        const add = document.createElement('button');
+        add.type = 'button';
+        add.className = 'btn btn-secondary';
+        add.textContent = 'Add to manuscript';
+        add.addEventListener('click', () => {
+          const selectedRole = role.value === 'mc' && !leadEntry() ? 'mc' : role.value;
+          if (selectedRole === 'mc') castMode = 'centered';
+          storyCast.push({
+            id: character.id,
+            role: ['mc', 'supporting', 'background'].includes(selectedRole) ? selectedRole : 'supporting',
+            relation: selectedRole === 'mc' ? null : relation.value.trim() || null,
+          });
+          renderCastBuilder({ resetAddDraft: true });
+          features.manuscriptStart?.saveDraft?.();
+        });
+        card.append(heading, description, roleLabel, relationLabelCard, add);
+        availableRoster.appendChild(card);
+      }
+      if (!available.length) availableRoster.appendChild(Object.assign(document.createElement('p'), {
+        className: 'placeholder', textContent: 'Every available character is already in this manuscript.',
+      }));
+    }
+
     // Lead picker (centered mode, no lead chosen yet): direct selection.
     const mcOptions = currentLead ? [] : available;
     populateSelectOptions(mcSelect, mcOptions, {

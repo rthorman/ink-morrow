@@ -45,6 +45,7 @@ function exposureList(exposure) {
     ['Stories', exposure.stories],
     ['Pages', exposure.pages],
     ['Continuity rows', exposure.continuity_rows],
+    ['Author canon entries', exposure.author_canon_entries],
     ['Images', exposure.images],
     ['Audio files', exposure.audio_files],
   ];

@@ -68,6 +68,59 @@ function createContinuityRouter({ stories, store, continuity }) {
     }
   });
 
+  router.put('/api/stories/:id/continuity/templates/:kind/:sourceId', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const snapshot = store.updateTemplateFields(
+        story, req.params.kind, req.params.sourceId, req.body?.values
+      );
+      stories.invalidatePreview(story.id);
+      res.json({ snapshot, continuity: continuity.view(stories.getStory(story.id)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/api/stories/:id/continuity/author-canon', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const entry = store.createAuthorCanon(story, req.body);
+      stories.invalidatePreview(story.id);
+      res.status(201).json({ entry, continuity: continuity.view(stories.getStory(story.id)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.put('/api/stories/:id/continuity/author-canon/:entryId', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      const entry = store.reviseAuthorCanon(story, req.params.entryId, req.body);
+      if (!entry) return notFound(res, 'Author canon entry not found');
+      stories.invalidatePreview(story.id);
+      res.json({ entry, continuity: continuity.view(stories.getStory(story.id)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.delete('/api/stories/:id/continuity/author-canon/:entryId', (req, res, next) => {
+    try {
+      const story = stories.getStory(req.params.id);
+      if (!story) return notFound(res, 'Story not found');
+      if (!store.retireAuthorCanon(story.id, req.params.entryId)) {
+        return notFound(res, 'Author canon entry not found');
+      }
+      stories.invalidatePreview(story.id);
+      res.json({ continuity: continuity.view(stories.getStory(story.id)) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   router.post('/api/stories/:id/continuity/corrections', (req, res, next) => {
     try {
       const story = stories.getStory(req.params.id);

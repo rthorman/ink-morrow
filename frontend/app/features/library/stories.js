@@ -98,6 +98,44 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     }
   }
 
+  function renameStory(story) {
+    const body = document.createElement('div');
+    body.className = 'codex-correction-form';
+    const label = document.createElement('label');
+    label.textContent = 'Manuscript name';
+    const input = document.createElement('input');
+    input.maxLength = 300;
+    input.value = story.title;
+    label.appendChild(input);
+    body.appendChild(label);
+    dialogs.openDialog({
+      title: 'Rename manuscript',
+      body,
+      dirty: () => input.value.trim() !== story.title,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        {
+          label: 'Rename', className: 'btn-primary', onClick: async (close) => {
+            const title = input.value.trim();
+            if (!title) {
+              input.setCustomValidity('Enter a manuscript name.');
+              input.reportValidity();
+              return;
+            }
+            close(true);
+            try {
+              await apiCall(`/stories/${story.id}`, 'PUT', { title });
+              await loadStories();
+              showSuccess(`Manuscript renamed to “${title}”.`);
+            } catch (error) {
+              showError(error.message);
+            }
+          },
+        },
+      ],
+    });
+  }
+
   function renderStories() {
     const container = document.getElementById('storiesList');
     if (!container) return;
@@ -157,6 +195,15 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
         onExport: () => features.transfer.openExport({ scope: 'story', id: story.id }),
         onDelete: () => deleteStory(story),
       });
+      const rename = document.createElement('button');
+      rename.type = 'button';
+      rename.className = 'card-more__item';
+      rename.textContent = 'Rename manuscript…';
+      rename.addEventListener('click', () => {
+        actions.querySelector('.card-more')?.removeAttribute('open');
+        renameStory(story);
+      });
+      actions.querySelector('.card-more__menu')?.prepend(rename);
       const cast = document.createElement('button');
       cast.type = 'button';
       cast.className = 'btn btn-secondary card-cast';

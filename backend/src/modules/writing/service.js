@@ -39,7 +39,6 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
   }
 
   function loadContext(story, { excludeLast = false, userInput = '' } = {}) {
-    const world = story.world_id ? catalog.getWorld(story.world_id) : null;
     const allPages = stories.storyPages(story.id);
     const excluded = excludeLast && allPages.length ? [allPages[allPages.length - 1].id] : [];
     if (excludeLast) allPages.pop();
@@ -50,6 +49,11 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
       throughPageNumber: excludeLast && allPages.length ? allPages[allPages.length - 1].page_number : null,
       recentPageIds: included.map((page) => page.id),
     });
+    const liveWorld = story.world_id ? catalog.getWorld(story.world_id) : null;
+    const world = liveWorld ? { ...liveWorld } : memory.world;
+    if (world && memory.world) {
+      for (const field of memory.world.author_fields || []) world[field] = memory.world[field];
+    }
     return {
       world,
       characters: memory.characters,

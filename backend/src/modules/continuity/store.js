@@ -14,6 +14,10 @@ const THREAD_STATUSES = new Set(['open', 'resolved']);
 const FACT_STATUSES = new Set(['established', 'superseded']);
 const ARC_MOVEMENTS = new Set(['advance', 'setback', 'turning_point', 'resolution']);
 const CORRECTION_SCOPES = new Set(['story', 'world', 'character', 'goal', 'thread']);
+const AUTHOR_CANON_KINDS = new Set([
+  'world_event', 'world_fact', 'character_fact', 'relationship',
+  'goal', 'thread', 'story_rule', 'custom',
+]);
 const TEMPLATE_FIELDS = Object.freeze({
   world: Object.freeze(['name', 'description', 'genre', 'setting', 'lore']),
   character: Object.freeze(['name', 'description', 'personality', 'appearance', 'background']),
@@ -37,6 +41,10 @@ function parseJson(value, fallback) {
   } catch {
     return fallback;
   }
+}
+
+function parseJsonValue(value) {
+  try { return JSON.parse(value); } catch { return value; }
 }
 
 function text(value, max = 2000) {
@@ -469,11 +477,13 @@ function createContinuityStore(db) {
       const row = latestTemplate(story.id, 'character', entry.id);
       if (!row) return null;
       const snapshot = parseJson(row.snapshot_json, {});
+      const authorFields = Array.isArray(snapshot.__author_fields) ? snapshot.__author_fields : [];
+      delete snapshot.__author_fields;
       return {
         story_id: story.id, character_id: entry.id, ...snapshot,
         source_updated_at: row.source_revision, created_at: row.created_at,
         snapshot_id: row.id, role: entry.role, relation: entry.relation,
-        manual_state: entry.state || null,
+        manual_state: entry.state || null, author_fields: authorFields,
       };
     }).filter(Boolean);
   }
@@ -482,10 +492,21 @@ function createContinuityStore(db) {
     ensureSnapshots(story);
     if (!story.world_id) return null;
     const row = latestTemplate(story.id, 'world', story.world_id);
-    return row ? {
+    if (!row) return null;
+    const snapshot = parseJson(row.snapshot_json, {});
+    const authorFields = Array.isArray(snapshot.__author_fields) ? snapshot.__author_fields : [];
+    delete snapshot.__author_fields;
+    const live = db.prepare('SELECT * FROM worlds WHERE id = ?').get(row.source_template_id);
+    const effective = { ...snapshot };
+    if (live) {
+      for (const field of TEMPLATE_FIELDS.world) {
+        if (!authorFields.includes(field)) effective[field] = live[field] ?? null;
+      }
+    }
+    return {
       id: row.source_template_id, snapshot_id: row.id, source_revision: row.source_revision,
-      ...parseJson(row.snapshot_json, {}),
-    } : null;
+      ...effective, author_fields: authorFields,
+    };
   }
 
   const READY_ROWS_SQL = `
@@ -620,6 +641,125 @@ function createContinuityStore(db) {
       .all(storyId).map((row) => ({ ...row, correction: parseJson(row.correction_json, {}) }));
   }
 
+  function authorCanonRows(storyId, { includeRetired = false } = {}) {
+    return db.prepare(`
+      SELECT entry.*, revision.id AS revision_id, revision.revision_number,
+             revision.title, revision.value_json, revision.note,
+             revision.created_at AS revision_created_at
+        FROM author_canon_entries entry
+        JOIN author_canon_revisions revision ON revision.entry_id = entry.id
+       WHERE entry.story_id = ?
+         AND (? = 1 OR entry.status = 'active')
+         AND revision.revision_number = (
+           SELECT MAX(latest.revision_number)
+             FROM author_canon_revisions latest WHERE latest.entry_id = entry.id
+         )
+       ORDER BY entry.created_at, entry.id
+    `).all(storyId, includeRetired ? 1 : 0).map((row) => ({
+      ...row,
+      value: parseJsonValue(row.value_json),
+    }));
+  }
+
+  function validateAuthorCanon(story, input, { partial = false } = {}) {
+    assertObject(input, 'author_canon');
+    const allowed = ['kind', 'subject_id', 'title', 'value', 'note'];
+    const unknown = Object.keys(input).filter((key) => !allowed.includes(key));
+    if (unknown.length) schemaFailure('author_canon', `has unknown fields: ${unknown.join(', ')}`);
+    const kind = input.kind === undefined && partial ? undefined : input.kind;
+    if (kind !== undefined && !AUTHOR_CANON_KINDS.has(kind)) schemaFailure('author_canon.kind', 'is invalid');
+    const subjectId = input.subject_id === undefined && partial
+      ? undefined
+      : input.subject_id === null || input.subject_id === undefined
+        ? null : strictString(input.subject_id, 'author_canon.subject_id', { max: 100 });
+    const effectiveKind = kind;
+    if (['character_fact', 'relationship'].includes(effectiveKind) && !subjectId) {
+      schemaFailure('author_canon.subject_id', 'is required for this kind');
+    }
+    if (subjectId && ['character_fact', 'relationship'].includes(effectiveKind) &&
+        !parseCastJson(story.characters).some((entry) => entry.id === subjectId)) {
+      schemaFailure('author_canon.subject_id', 'must name a character in this manuscript cast');
+    }
+    const title = input.title === undefined && partial
+      ? undefined : strictString(input.title, 'author_canon.title', { max: 300 });
+    let value;
+    if (input.value !== undefined || !partial) {
+      const serialized = JSON.stringify(input.value);
+      if (input.value === undefined || serialized === undefined || serialized.length > 20000) {
+        schemaFailure('author_canon.value', 'must be a bounded JSON value');
+      }
+      value = input.value;
+    }
+    const note = input.note === undefined && partial
+      ? undefined
+      : input.note === null || input.note === undefined
+        ? null : strictString(input.note, 'author_canon.note', { max: 2000 });
+    return { kind, subject_id: subjectId, title, value, note };
+  }
+
+  function createAuthorCanon(story, input) {
+    const clean = validateAuthorCanon(story, input);
+    const entryId = randomUUID();
+    const revisionId = randomUUID();
+    db.exec('BEGIN');
+    try {
+      db.prepare(`
+        INSERT INTO author_canon_entries (id, story_id, kind, subject_id)
+        VALUES (?, ?, ?, ?)
+      `).run(entryId, story.id, clean.kind, clean.subject_id);
+      db.prepare(`
+        INSERT INTO author_canon_revisions
+          (id, entry_id, revision_number, title, value_json, note)
+        VALUES (?, ?, 1, ?, ?, ?)
+      `).run(revisionId, entryId, clean.title, JSON.stringify(clean.value), clean.note);
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    return authorCanonRows(story.id).find((row) => row.id === entryId);
+  }
+
+  function reviseAuthorCanon(story, entryId, input) {
+    const current = authorCanonRows(story.id, { includeRetired: true }).find((row) => row.id === entryId);
+    if (!current || current.status !== 'active') return null;
+    const clean = validateAuthorCanon(story, input, { partial: true });
+    const kind = clean.kind ?? current.kind;
+    const subjectId = clean.subject_id === undefined ? current.subject_id : clean.subject_id;
+    if (['character_fact', 'relationship'].includes(kind) && !subjectId) {
+      schemaFailure('author_canon.subject_id', 'is required for this kind');
+    }
+    if (subjectId && ['character_fact', 'relationship'].includes(kind) &&
+        !parseCastJson(story.characters).some((entry) => entry.id === subjectId)) {
+      schemaFailure('author_canon.subject_id', 'must name a character in this manuscript cast');
+    }
+    const title = clean.title ?? current.title;
+    const value = clean.value === undefined ? current.value : clean.value;
+    const note = clean.note === undefined ? current.note : clean.note;
+    const revisionId = randomUUID();
+    db.exec('BEGIN');
+    try {
+      db.prepare(`
+        UPDATE author_canon_entries
+           SET kind = ?, subject_id = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? AND story_id = ? AND status = 'active'
+      `).run(kind, subjectId, entryId, story.id);
+      db.prepare(`
+        INSERT INTO author_canon_revisions
+          (id, entry_id, revision_number, title, value_json, note)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `).run(revisionId, entryId, Number(current.revision_number) + 1, title, JSON.stringify(value), note);
+      db.exec('COMMIT');
+    } catch (error) { db.exec('ROLLBACK'); throw error; }
+    return authorCanonRows(story.id).find((row) => row.id === entryId);
+  }
+
+  function retireAuthorCanon(storyId, entryId) {
+    const result = db.prepare(`
+      UPDATE author_canon_entries
+         SET status = 'retired', updated_at = CURRENT_TIMESTAMP
+       WHERE id = ? AND story_id = ? AND status = 'active'
+    `).run(entryId, storyId);
+    return result.changes > 0;
+  }
+
   function composeProjection(story, ledger) {
     const characters = snapshots(story).map((snapshot) => {
       const state = ledger.character_states[snapshot.character_id] || {
@@ -693,6 +833,7 @@ function createContinuityStore(db) {
       },
       overrides,
       corrections: corrections.map(({ correction_json, correction, ...row }) => ({ ...row, ...correction })),
+      author_canon: authorCanonRows(story.id).map(({ value_json, ...row }) => row),
     };
   }
 
@@ -1115,6 +1256,12 @@ function createContinuityStore(db) {
     if (!source || !prior) schemaFailure('source_template_id', 'does not exist');
     const next = parseJson(prior.snapshot_json, {});
     for (const field of selected) next[field] = source[field] ?? null;
+    if (kind === 'world') {
+      next.__author_fields = [...new Set([
+        ...(Array.isArray(next.__author_fields) ? next.__author_fields : []),
+        ...selected,
+      ])].filter((field) => TEMPLATE_FIELDS.world.includes(field));
+    }
     const row = insertTemplateSnapshot(story.id, kind, sourceId, source.updated_at, next);
     if (kind === 'character') {
       const assignments = selected.map((field) => `${field} = ?`).join(', ');
@@ -1122,6 +1269,42 @@ function createContinuityStore(db) {
         .run(...selected.map((field) => source[field] ?? null), source.updated_at, story.id, sourceId);
     }
     return { ...row, snapshot: next, imported_fields: selected };
+  }
+
+  function updateTemplateFields(story, kind, sourceId, values) {
+    if (!TEMPLATE_FIELDS[kind]) schemaFailure('template_kind', 'must be world or character');
+    assertObject(values, 'values');
+    const selected = Object.keys(values);
+    if (!selected.length) schemaFailure('values', 'must include at least one field');
+    if (selected.some((field) => !TEMPLATE_FIELDS[kind].includes(field))) {
+      schemaFailure('values', 'contains a field that cannot be edited');
+    }
+    if (kind === 'world' && story.world_id !== sourceId) schemaFailure('source_template_id', 'is not this story world');
+    if (kind === 'character' && !parseCastJson(story.characters).some((entry) => entry.id === sourceId)) {
+      schemaFailure('source_template_id', 'is not in this story cast');
+    }
+    ensureSnapshots(story);
+    const prior = latestTemplate(story.id, kind, sourceId);
+    if (!prior) schemaFailure('source_template_id', 'does not exist');
+    const next = parseJson(prior.snapshot_json, {});
+    for (const field of selected) {
+      const raw = values[field];
+      if (raw !== null && typeof raw !== 'string') schemaFailure(`values.${field}`, 'must be text or null');
+      const clean = raw === null ? null : raw.trim().slice(0, field === 'name' ? 300 : 20000);
+      if (field === 'name' && !clean) schemaFailure('values.name', 'must be non-empty text');
+      next[field] = clean || null;
+    }
+    next.__author_fields = [...new Set([
+      ...(Array.isArray(next.__author_fields) ? next.__author_fields : []),
+      ...selected,
+    ])].filter((field) => TEMPLATE_FIELDS[kind].includes(field));
+    const row = insertTemplateSnapshot(story.id, kind, sourceId, `author:${new Date().toISOString()}`, next);
+    if (kind === 'character') {
+      const assignments = selected.map((field) => `${field} = ?`).join(', ');
+      db.prepare(`UPDATE story_character_snapshots SET ${assignments}, source_updated_at = ? WHERE story_id = ? AND character_id = ?`)
+        .run(...selected.map((field) => next[field]), row.source_revision, story.id, sourceId);
+    }
+    return { ...row, snapshot: next, edited_fields: selected };
   }
 
   function rebuild(storyId) {
@@ -1164,10 +1347,11 @@ function createContinuityStore(db) {
 
   return {
     contentHash, sanitizeDelta, ensureSnapshots, snapshots, worldSnapshot,
-    templateReview, importTemplateFields, memoryRows, project, coverage,
+    templateReview, importTemplateFields, updateTemplateFields, memoryRows, project, coverage,
     coverageSummary, continuityView, pageForExtraction, beginPage, finishPage,
     failPage, getPageMemory, getDeltaByRevision, clear, saveOverrides,
-    createCorrection, setIssueStatus, issueRows, rebuild, searchRelevant,
+    createCorrection, setIssueStatus, issueRows, authorCanonRows,
+    createAuthorCanon, reviseAuthorCanon, retireAuthorCanon, rebuild, searchRelevant,
   };
 }
 
