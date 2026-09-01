@@ -44,13 +44,18 @@ describe('Library management and Write story creation', () => {
     expect(wrap.hidden).toBe(false);
   });
 
-  it('an empty Library points to Write without duplicating the creation form', async () => {
+  it('an empty manuscript catalogue returns to the Library one-sheet without duplicating the Desk form', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(storiesResponse()));
     await fw.loadStories();
     expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
     expect(document.getElementById('storyNewBtn').getAttribute('aria-expanded')).toBe('false');
     expect(document.getElementById('storiesList').textContent).toContain('No manuscripts are bound');
-    expect(document.querySelector('#storiesList a').getAttribute('href')).toBe('#/desk');
+    document.querySelector('#storiesList button').click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(window.location.hash).toBe('#/library');
+    expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
+    expect(document.getElementById('storyCreateWrap').hidden).toBe(true);
   });
 
   it('opens the complete form automatically at Write for a first story', async () => {

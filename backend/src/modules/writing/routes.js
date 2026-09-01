@@ -158,6 +158,36 @@ function createWritingRouter({ catalog, stories, writing, transactions, ai }) {
     }
   });
 
+  router.post('/api/ai/foundations', async (req, res, next) => {
+    try {
+      const seeds = {
+        premise: optionalText(req.body.premise, { max: 5000 }),
+        narrative_voice: optionalText(req.body.narrative_voice, { max: 1000 }),
+        point_of_view: optionalText(req.body.point_of_view, { max: 500 }),
+        tense: optionalText(req.body.tense, { max: 500 }),
+        constraints: optionalText(req.body.constraints, { max: 5000 }),
+      };
+      if (Object.values(seeds).includes(undefined)) return badRequest(res, 'Foundation seed fields must be text');
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const result = await writing.draftFoundations({ ...req.body, ...seeds }, modelOverride);
+      const pick = (key) => asString(result.foundations[key]) || result.seeds[key] || '';
+      res.json({
+        foundations: {
+          premise: pick('premise'),
+          narrative_voice: pick('narrative_voice'),
+          point_of_view: pick('point_of_view'),
+          tense: pick('tense'),
+          constraints: pick('constraints'),
+        },
+        model: result.model,
+        cost_usd: result.cost_usd,
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
   // -- generation ---------------------------------------------------------------
 
   router.post('/api/stories/:id/pages/generate', async (req, res, next) => {

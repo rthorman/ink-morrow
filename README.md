@@ -15,6 +15,10 @@ PR 04's provider profiles, AI roles, and encrypted secret vault, PR 05's
 revision-provenanced continuity ledger, PR 06's transactional writing state
 machine, PR 07's noncanonical art store and safe upload boundary, PR 08's
 provider-isolated Grok sanitation flow, and PR 09's adaptive Scriptorium shell.
+PR 10 adds the Library manuscript-start sheet: authors can write an opening,
+carry a seed to the Desk, or import existing prose into the default hierarchy
+without configuring an AI provider. Optional Foundations suggestions are
+reviewed and accepted one field at a time.
 The shell adds a global Library threshold, manuscript switching, and the stable
 Desk, Chronicle, Codex, Gallery, and Gate workspace across bottom and rail
 layouts. Its
@@ -34,6 +38,8 @@ The shell keeps manuscript prose on a quiet vellum surface, hides every private
 destination behind the existing authentication gate, and treats the old Home
 and Write hashes as aliases rather than duplicate destinations; see
 [docs/adaptive-shell.md](docs/adaptive-shell.md).
+The start flow, draft persistence, import mapping, and provider boundary are
+specified in [docs/library-start.md](docs/library-start.md).
 The 4.0 line is an independent Git history licensed `AGPL-3.0-only`; the
 historical `main` line through 3.2.2 remains MIT-licensed and unchanged.
 

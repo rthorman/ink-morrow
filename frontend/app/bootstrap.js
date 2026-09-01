@@ -17,6 +17,7 @@ import { entityImageBlock, cardActions, createCatalogPoll } from './components/e
 import { createWorlds } from './features/worlds.js';
 import { createCharacters } from './features/characters.js';
 import { createHome } from './features/home.js';
+import { createManuscriptStart } from './features/manuscript-start.js';
 import { createLibrary } from './features/library/index.js';
 import { createStories } from './features/library/stories.js';
 import { createStoryEditor } from './features/library/story-editor.js';
@@ -63,6 +64,7 @@ export function initApp() {
   features.worlds = createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.characters = createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.home = createHome({ state, notify, router: null, features });
+  features.manuscriptStart = createManuscriptStart({ api, state, notify, features, dialogs });
   features.library = createLibrary({ router: null, features });
   features.stories = createStories({ api, state, notify, features, dialogs, entityCard });
   features.storyEditor = createStoryEditor({ api, state, notify, features, dialogs });
@@ -207,6 +209,7 @@ export function initApp() {
   features.generation.init();
   features.settings.init(); // registers the applySettings re-render hooks...
   features.transfer.init();
+  features.manuscriptStart.init();
   features.home.init();
   features.library.init();
 
