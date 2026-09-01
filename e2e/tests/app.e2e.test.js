@@ -33,7 +33,10 @@ test.describe('ScribeTribe UI', () => {
     await expect(page).toHaveTitle(/ScribeTribe/);
     await expect(page.locator('.main-header h1')).toHaveText('ScribeTribe');
     await expect(page.locator('.cat-scribe img')).toBeVisible();
-    await expect(page.locator('#scribeStatus')).toBeVisible();
+    const scribeStatus = page.locator('#scribeStatus');
+    await expect(scribeStatus).toContainText('The scribe');
+    if (page.viewportSize().width <= 520) await expect(scribeStatus).toBeHidden();
+    else await expect(scribeStatus).toBeVisible();
 
     // Cycle every destination (Library covers the Stories surface)
     for (const [btn, section] of [
