@@ -706,4 +706,3 @@ export function createGeneration({ api, state, notify, features, dialogs }) {
     init,
   };
 }
-
