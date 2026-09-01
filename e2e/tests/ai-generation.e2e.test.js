@@ -44,10 +44,13 @@ async function createStoryViaUi(page, title) {
   return story;
 }
 
-async function openGalleryPaint(page) {
+async function openGalleryPaint(page, pageNumber = null) {
   await page.locator('#galleryBtn').click();
   await expect(page.locator('#gallerySection')).toHaveClass(/active/);
   await page.locator('#galleryPaintBtn').click();
+  if (pageNumber !== null) {
+    await page.locator('.dialog-manager select').selectOption(String(pageNumber));
+  }
   await page.locator('.dialog-manager button', { hasText: 'Draft visible prompt' }).click();
 }
 
@@ -822,7 +825,7 @@ test.describe('Scene image prompt', () => {
     // become a third narrative page.
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#pageIndicator')).toHaveText('Page 1 of 2');
-    await openGalleryPaint(page);
+    await openGalleryPaint(page, 1);
     await confirmPaidReview(page, /Condense it/); // the condensation is paid work
     await expect(page.locator('#imagePromptModal')).toBeVisible({ timeout: 5000 });
     await page.locator('#imagePromptGenerateBtn').click();
