@@ -1,6 +1,6 @@
 // Scene imagery: condense the current page into a tone-honoring image prompt,
 // paint it with cast identity references (announce-and-wait on moderation
-// refusals, reference-dropping after a second refusal), and the zoomable/
+// refusals, an explicit reference-free retry after repeat refusal), and the zoomable/
 // pannable viewer whose painting can be placed without becoming story prose.
 
 import { SCENE_RENDER_VARIANTS } from '../../core/state.js';
@@ -14,10 +14,15 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   const { settings, data } = state;
   const IMAGE_PROMPT_BUTTON_LABEL = 'Scene image';
 
-  // Moderation escalation state: refused once -> rewrite + repaint; refused
-  // twice in a row -> the cast portraits are probably what offends; drop them.
+  // Provider-interoperability state. Nothing here classifies story content:
+  // it only records consecutive Grok outcomes for the current story/reference
+  // context and offers a deliberate reference-free retry when useful.
   let sceneRefusals = 0;
   let dropSceneReferences = false;
+  let referenceDropOffered = false;
+  let moderationStoryId = null;
+  let moderationReferenceFingerprint = null;
+  let lastSanitizedPrompt = null;
   let imageryReviewing = false; // a paid-consent check is running: no second submission
   let imagePromptModal = null; // wired lifecycle controllers
   let sceneViewerModal = null;
@@ -31,6 +36,47 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
   let viewerScale = 1;
   let viewerX = 0;
   let viewerY = 0;
+
+  function resetSanitationState(storyId = data.currentStory?.id || null) {
+    sceneRefusals = 0;
+    dropSceneReferences = false;
+    referenceDropOffered = false;
+    moderationStoryId = storyId;
+    moderationReferenceFingerprint = null;
+    lastSanitizedPrompt = null;
+    const checkbox = document.getElementById('imagePromptDropReferences');
+    if (checkbox) checkbox.checked = false;
+    const option = document.getElementById('imageReferenceDropOption');
+    if (option) option.hidden = true;
+    const notice = document.getElementById('imageRefusalNotice');
+    if (notice) {
+      notice.hidden = true;
+      notice.textContent = '';
+    }
+  }
+
+  function selectedReferenceMode() {
+    const checkbox = document.getElementById('imagePromptDropReferences');
+    dropSceneReferences = Boolean(referenceDropOffered && checkbox?.checked);
+    return dropSceneReferences;
+  }
+
+  function announceRefusal(res, sanitationCost, offerReferenceDrop) {
+    const notice = document.getElementById('imageRefusalNotice');
+    const reason = res.reason || 'no provider reason was supplied';
+    const billed = typeof sanitationCost === 'number'
+      ? ` The sanitation call cost ${formatUsd(sanitationCost)}.`
+      : '';
+    const next = offerReferenceDrop
+      ? ' References were attached to both refused requests. You may explicitly retry without them below.'
+      : ' Review the editable replacement prompt, then press Paint scene again to make a new request.';
+    if (notice) {
+      notice.textContent = `Grok refused the image request (${reason}). Nothing was painted.${billed}${next}`;
+      notice.hidden = false;
+    }
+    const option = document.getElementById('imageReferenceDropOption');
+    if (option) option.hidden = !offerReferenceDrop;
+  }
 
   function applySceneViewerTransform() {
     const img = document.getElementById('sceneViewerImg');
@@ -141,7 +187,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     applySceneViewerTransform();
   }
 
-  function readyCastReferences() {
+  function readyCastReferenceRows() {
     const { currentStory } = data;
     if (!currentStory) return [];
     const cast = (currentStory.characters || [])
@@ -154,9 +200,19 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     for (const entry of cast) {
       if (refs.length >= 3) break;
       const character = state.data.characters.find((c) => c.id === entry.id);
-      if (character && character.image_status === 'ready') refs.push(character.name);
+      if (character && character.image_status === 'ready') refs.push(character);
     }
     return refs;
+  }
+
+  function readyCastReferences() {
+    return readyCastReferenceRows().map((character) => character.name);
+  }
+
+  function referenceFingerprint() {
+    return readyCastReferenceRows()
+      .map((character) => `${character.id}@${character.image_updated_at || ''}`)
+      .join('|');
   }
 
   function updatePaintButtonPrice() {
@@ -172,6 +228,14 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       showError('Select a page to illustrate first.');
       return;
     }
+    const currentReferenceFingerprint = referenceFingerprint();
+    if (
+      moderationStoryId !== currentStory.id ||
+      (moderationReferenceFingerprint !== null && moderationReferenceFingerprint !== currentReferenceFingerprint)
+    ) {
+      resetSanitationState(currentStory.id);
+    }
+    moderationReferenceFingerprint = currentReferenceFingerprint;
     const box = document.getElementById('imagePromptText');
     const btn = document.getElementById('imagePromptGenerateBtn');
     const costEl = document.getElementById('sceneImageCost');
@@ -181,8 +245,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       showError('The prompt box is empty — condense the scene first.');
       return;
     }
-    // The paid paint commitment: resolution, identity references, and the
-    // possible moderation rewrite are all disclosed before the press costs.
+    // The paid paint commitment discloses resolution, identity references,
+    // and the possibility of a Grok sanitation call before the press costs.
     const variant = SCENE_RENDER_VARIANTS.has(settings.sceneRenderQuality) ? settings.sceneRenderQuality : 'low_1k';
     const paintEstimate = variant === 'medium_2k' ? 0.08 : 0.04;
     const rewriteEstimate = estimatePageCost({
@@ -195,6 +259,7 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       ? Math.max(paintEstimate, rewriteEstimate * 3)
       : null;
     const refs = readyCastReferences();
+    const dropReferences = selectedReferenceMode();
     if (imageryReviewing) return;
     imageryReviewing = true;
     const yes = await dialogs.confirmPaid({
@@ -203,8 +268,8 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         action: `Paint page ${currentPage} of "${currentStory.title}" from the prompt in the box.`,
         object: `page ${currentPage} of "${currentStory.title}"`,
         quantity: variant === 'medium_2k' ? 'one 2K painting (≈$0.08)' : 'one 1K painting (≈$0.04)',
-        sends: dropSceneReferences
-          ? 'the prompt text only (cast portraits are dropped after repeat refusals)'
+        sends: dropReferences
+          ? 'the prompt text only (you explicitly chose to omit identity references)'
           : refs.length > 0
             ? `the prompt text and ${refs.length} cast portrait${refs.length === 1 ? '' : 's'} (${refs.join(', ')}) as identity reference${refs.length === 1 ? '' : 's'}`
             : 'the prompt text only (no cast portraits are ready)',
@@ -226,26 +291,35 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
         render: variant,
         ...(settings.model ? { model: settings.model } : {}),
         ...(features.settings.reasoningApplies() ? { reasoning_effort: features.settings.activeReasoningEffort() } : {}),
-        ...(dropSceneReferences ? { drop_references: true } : {}),
+        ...(dropReferences ? { drop_references: true } : {}),
       });
       // The moderator refused. Do NOT repaint: announce, put the rewritten
       // prompt in the box, and wait for the user to press Generate again.
       if (res.refused) {
         sceneRefusals++;
         box.value = res.sanitized_prompt || prompt;
-        if (typeof res.rewrite_cost_usd === 'number' && res.rewrite_cost_usd > 0) {
-          state.addCost(res.rewrite_cost_usd); // the rewrite LLM billed either way
+        lastSanitizedPrompt = box.value.trim();
+        const sanitationCost = typeof res.sanitation_cost_usd === 'number'
+          ? res.sanitation_cost_usd
+          : res.rewrite_cost_usd;
+        if (typeof sanitationCost === 'number' && sanitationCost > 0) {
+          state.addCost(sanitationCost); // the sanitation model billed either way
         }
-        if (sceneRefusals >= 2) {
-          dropSceneReferences = true;
-          showSuccess('Refused again — the scribe suspects the cast portraits. The next painting drops them. Review the rewritten prompt and press Generate image.');
+        const usedReferences = Number(res.references_sent) > 0;
+        if (sceneRefusals >= 2 && res.can_drop_references === true && usedReferences) {
+          referenceDropOffered = true;
+          dropSceneReferences = false;
+          const checkbox = document.getElementById('imagePromptDropReferences');
+          if (checkbox) checkbox.checked = false;
+          announceRefusal(res, sanitationCost, true);
+          showSuccess('Grok refused again while references were attached. Review the rewritten prompt or explicitly choose a reference-free retry.');
         } else {
-          showSuccess('The image model refused this draft (' + (res.reason || 'no reason given') + '). The scribe rewrote it — review the prompt box and press Generate image again.');
+          announceRefusal(res, sanitationCost, referenceDropOffered);
+          showSuccess('Grok refused this draft. The sanitized prompt and exact sanitation cost are shown in the dialog; no image retry occurred.');
         }
         return;
       }
-      sceneRefusals = 0;
-      dropSceneReferences = false;
+      resetSanitationState(currentStory.id);
       openSceneViewer(`data:${res.media_type};base64,${res.image}`, res.media_type, { prompt, costUsd: res.cost_usd });
       if (costEl && typeof res.cost_usd === 'number') {
         const refs = Array.isArray(res.references) ? res.references.length : 0;
@@ -313,17 +387,14 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
       });
       box.value = res.prompt || '';
       state.addCost(res.cost_usd); // condensation is paid work for this story
-      sceneRefusals = 0; // a fresh condense resets the moderation escalation
-      dropSceneReferences = false;
+      resetSanitationState(currentStory.id); // a fresh condense establishes a new provider context
       const costEl = document.getElementById('sceneImageCost');
       if (costEl) {
         // Before the paid press: which identity references ride along.
         const refs = readyCastReferences();
-        costEl.textContent = dropSceneReferences
-          ? 'Identity references are dropped (after repeat refusals).'
-          : refs.length > 0
-            ? `Identity references: ${refs.join(', ')}`
-            : 'No cast portraits are ready - the scene paints without identity references.';
+        costEl.textContent = refs.length > 0
+          ? `Identity references: ${refs.join(', ')}`
+          : 'No cast portraits are ready - the scene paints without identity references.';
         costEl.hidden = false;
       }
       updatePaintButtonPrice();
@@ -407,6 +478,14 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     });
     const generateBtn = document.getElementById('imagePromptGenerateBtn');
     if (generateBtn) generateBtn.addEventListener('click', generateSceneImage);
+    const dropReferences = document.getElementById('imagePromptDropReferences');
+    if (dropReferences) dropReferences.addEventListener('change', selectedReferenceMode);
+    const promptBox = document.getElementById('imagePromptText');
+    if (promptBox) promptBox.addEventListener('input', () => {
+      if (lastSanitizedPrompt !== null && promptBox.value.trim() !== lastSanitizedPrompt) {
+        resetSanitationState(data.currentStory?.id || null);
+      }
+    });
     // The prompt popup: no dirty guard - its box keeps its text either way.
     imagePromptModal = wireModal('imagePromptModal', { focusId: 'imagePromptText' });
     const cancel = document.getElementById('imagePromptCancelBtn');
@@ -420,7 +499,14 @@ export function createImagery({ api, state, notify, shell, features, dialogs }) 
     closeSceneViewer,
     saveSceneViewer,
     addSceneAsPage,
-    __sceneModerationState: () => ({ refusals: sceneRefusals, dropReferences: dropSceneReferences }),
+    resetForContextChange: resetSanitationState,
+    resetForReferenceChange: () => resetSanitationState(data.currentStory?.id || null),
+    __sceneModerationState: () => ({
+      refusals: sceneRefusals,
+      dropReferences: dropSceneReferences,
+      referenceDropOffered,
+      storyId: moderationStoryId,
+    }),
     __sceneViewerState: () => ({ scale: viewerScale, x: viewerX, y: viewerY, dataUrl: sceneViewerDataUrl }),
     init,
   };

@@ -118,7 +118,7 @@ function createApp(
     clock,
   });
   const ai = createAiClient({ providers });
-  const { generateImage } = createImageClient({ providers });
+  const { generateImage, describeImageProvider } = createImageClient({ providers });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
   // provider mocks remain deterministic. Dedicated continuity tests opt in.
   const autoContinuityEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_CONTINUITY_EXTRACTION === '1';
@@ -157,6 +157,7 @@ function createApp(
     continuity,
     chatCompletion: ai.chatCompletion,
     generateImage,
+    describeImageProvider,
     imageStore,
     artStore,
   });

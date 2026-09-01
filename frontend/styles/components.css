@@ -451,6 +451,35 @@ select optgroup {
   color: var(--st-gold-300);
 }
 
+.image-refusal-notice {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--st-gold-500) 58%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--st-gold-500) 9%, transparent);
+  color: var(--st-vellum-50);
+  line-height: 1.5;
+}
+
+.image-reference-drop {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--st-gold-500);
+}
+
+.image-reference-drop label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 650;
+}
+
+.image-reference-drop p {
+  margin: 6px 0 0 24px;
+  color: var(--st-vellum-200);
+  font-size: 0.86rem;
+}
+
 
 /* ------------------------------------------------------------------ */
 /* Shared dialog manager (destructive + paid-review dialogs)           */

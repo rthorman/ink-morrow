@@ -201,6 +201,11 @@ function buildDom() {
         <p id="imagePromptHint" class="burn-modal__body"></p>
         <textarea id="imagePromptText" rows="10"></textarea>
         <select id="imageQualitySelect"><option value="low_1k">1K · low</option><option value="medium_2k">2K · medium</option></select>
+        <p id="imageRefusalNotice" class="image-refusal-notice" role="status" aria-live="polite" hidden></p>
+        <div id="imageReferenceDropOption" hidden>
+          <label><input id="imagePromptDropReferences" type="checkbox">Retry without identity references</label>
+          <p>Originals stay unchanged.</p>
+        </div>
         <p id="sceneImageCost" class="scene-image-cost" hidden></p>
         <button id="imagePromptGenerateBtn" type="button" class="btn">Generate image</button>
         <button id="imagePromptCancelBtn" type="button" class="btn btn-secondary">Cancel</button>

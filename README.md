@@ -13,7 +13,8 @@ The `release/4.0.0` integration line now includes PR 01's clean kernel, PR 02's
 manuscript hierarchy, PR 03's immutable revisions and truncation recovery,
 PR 04's provider profiles, AI roles, and encrypted secret vault, PR 05's
 revision-provenanced continuity ledger, PR 06's transactional writing state
-machine, and PR 07's noncanonical art store and safe upload boundary. Its
+machine, PR 07's noncanonical art store and safe upload boundary, and PR 08's
+provider-isolated Grok sanitation flow. Its
 databases identify themselves as `scribetribe-4` schema 7, use transactional migrations
 and an operation journal, create Volume I and Chapter I with every story,
 preserve separate canonical/display prose, and refuse 3.x files before
@@ -299,7 +300,7 @@ Except for authentication status/setup/login, every `/api` route requires an unl
 | DELETE | `/api/stories/:id/continuity` | Clear derived memory only (pages, snapshots, corrections and spent-cost ledger remain) |
 | PUT | `/api/stories/:id/continuity/overrides` | Save explicit character/goal/thread corrections |
 | POST | `/api/stories/:id/pages/:n/image-prompt` | Condense the page into a tone-honoring image-generation prompt |
-| POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast portraits as identity references; render=low_1k\|medium_2k; drop_references=true omits them). A moderation refusal returns `{refused, reason, sanitized_prompt}` instead of repainting — the client announces and waits for a fresh press |
+| POST | `/api/stories/:id/pages/:n/scene-image` | Paint the scene (cast/story art references; render=low_1k\|medium_2k; explicit drop_references=true omits them). A Grok refusal returns the reason, editable sanitized prompt, exact sanitation cost, and reference count without repainting; other providers keep their own error contract |
 | POST | `/api/stories/:id/pages/:n/image-page` | Compatibility route: normalize a painted scene into an AI-generated asset placed after stable prose page N; prose numbering is unchanged |
 | GET | `/api/stories/:id/assets` | List a story's noncanonical art assets and ordered placements |
 | POST | `/api/stories/:id/assets/upload` | Stream a multipart `image` upload into the safe art store; optional fields include `title`, `alt_text`, `after_page_id`, `ordinal`, and `provider_reference_allowed` |

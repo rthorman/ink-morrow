@@ -70,6 +70,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       return;
     }
     features.generation.resetForStoryChange();
+    features.imagery?.resetForContextChange(story.id);
     document.getElementById('currentStory').value = story.id;
     state.data.currentStory = story;
     await loadStoryPages();
@@ -101,6 +102,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       return;
     }
     features.generation.resetForStoryChange();
+    features.imagery?.resetForContextChange(story?.id || null);
     state.data.currentStory = story;
     await loadStoryPages();
   }
@@ -445,6 +447,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   function resetStoryReader() {
     storyLoadToken++;
     features.generation.resetForStoryChange();
+    features.imagery?.resetForContextChange(null);
     state.data.storyPages = [];
     state.data.storyAssets = { assets: [], placements: [] };
     state.data.currentPage = 1;
@@ -529,6 +532,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
     __setStoryState(patch) {
       if ('currentStory' in patch) {
         features.generation.resetForStoryChange();
+        features.imagery?.resetForContextChange(patch.currentStory?.id || null);
         state.data.currentStory = patch.currentStory;
         state.resetStoryCost();
       }

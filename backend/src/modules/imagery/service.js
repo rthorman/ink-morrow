@@ -6,13 +6,23 @@
 
 const { buildImagePrompt, CONTEXT_WINDOW } = require('../../prompt');
 const { optionalText, asString, modelOverrideOf, parseReasoningEffort } = require('../../core/validation');
+const { adapterById } = require('./provider-adapters');
 
 const RENDER_VARIANTS = {
   low_1k: { quality: 'low', resolution: '1K' },
   medium_2k: { quality: 'medium', resolution: '2K' },
 };
 
-function createImageryService({ catalog, stories, continuity, chatCompletion, generateImage, imageStore, artStore = null }) {
+function createImageryService({
+  catalog,
+  stories,
+  continuity,
+  chatCompletion,
+  generateImage,
+  describeImageProvider = () => ({ adapter: 'generic', renderable_prompt_instruction: null }),
+  imageStore,
+  artStore = null,
+}) {
   function castCharacters(story, throughPageNumber = null) {
     return continuity.contextForPrompt(story, { throughPageNumber }).characters.map((character) => {
       // Portrait readiness is operational catalogue metadata, not character
@@ -43,7 +53,16 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
     const result = await chatCompletion(
       [
         { role: 'system', content: 'You are a precise, disciplined art director.' },
-        { role: 'user', content: buildImagePrompt({ story, world, characters, pages }) },
+        {
+          role: 'user',
+          content: buildImagePrompt({
+            story,
+            world,
+            characters,
+            pages,
+            providerInstruction: describeImageProvider().renderable_prompt_instruction,
+          }),
+        },
       ],
       { model: modelOverride || undefined, reasoningEffort, maxTokens: 800, quality: { minWords: 30 } }
     );
@@ -55,9 +74,8 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
     };
   }
 
-  // Render the scene. On a provider moderation refusal (400), rewrite the
-  // prompt aggressively safe and ANNOUNCE it back - the user reviews the
-  // textbox and presses Generate again themselves.
+  // Render the scene. Only the selected provider adapter may classify a
+  // failure as a refusal and produce an announce-and-wait sanitation prompt.
   async function renderScene({ story, page, body }) {
     const prompt = optionalText(body.prompt, { max: 4000 });
     if (!prompt) return { error: '"prompt" is required (use the condensed scene prompt)' };
@@ -67,6 +85,9 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
     const variant = body.render === undefined ? 'low_1k' : asString(body.render);
     if (!RENDER_VARIANTS[variant]) {
       return { error: '"render" must be one of: low_1k, medium_2k' };
+    }
+    if (body.drop_references !== undefined && typeof body.drop_references !== 'boolean') {
+      return { error: '"drop_references" must be a boolean' };
     }
 
     // Identity references: MC first, then supporting cast, then background.
@@ -92,8 +113,8 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
       : artStore?.resolveReferences(story.id, body.reference_asset_ids) || [];
     for (const reference of assetReferences) inputReferences.push(reference.input);
 
-    // The client may drop the identity references after repeated refusals:
-    // portraits painted from forced-nudity sheets offend moderation too.
+    // Reference-free generation is a deliberate request. A refusal response
+    // may offer it, but neither server nor client silently enables it.
     const dropReferences = body.drop_references === true;
     if (dropReferences) inputReferences.length = 0;
 
@@ -107,36 +128,38 @@ function createImageryService({ catalog, stories, continuity, chatCompletion, ge
     try {
       result = await generateImage({ prompt, ...paintOptions });
     } catch (error) {
-      if (error.statusCode !== 400) throw error;
-      const reason = (error.message.match(/refused this request: (.*)$/) || [null, '(no reason given)'])[1];
+      const provider = error.imageProvider;
+      const adapter = adapterById(provider?.adapter);
+      if (!provider?.refusal || adapter.id === 'generic' || typeof adapter.sanitationMessages !== 'function') throw error;
+      const reason = provider.reason || 'No provider reason was supplied.';
       const rewrite = await chatCompletion(
-        [
-          {
-            role: 'system',
-            content:
-              'You are a strict image-moderation compliance rewriter. You take refused image prompts and return ' +
-              'ONLY a fully SAFE version that will pass automatic moderation.',
-          },
-          {
-            role: 'user',
-            content:
-              `An image generator refused this prompt, saying: "${reason}".\n\n` +
-              'Rewrite it so it will DEFINITELY pass strict content moderation:\n' +
-              '- Fully clothed or draped figures. ZERO nudity, zero explicit anatomy, zero sexual content or activity.\n' +
-              '- ZERO graphic violence: no wounds, blood, gore - stylized aftermath at most.\n' +
-              '- Keep the place, mood, composition and each character\'s recognisable identity, described safely.\n' +
-              '- When in doubt, remove more; a bland but passable prompt beats a vivid but refused one.\n' +
-              'Output ONLY the rewritten prompt, nothing else.\n\n' +
-              `REFUSED PROMPT:\n${prompt}`,
-          },
-        ],
+        adapter.sanitationMessages({ prompt, reason }),
         { model: modelOverride || undefined, reasoningEffort, maxTokens: 800, quality: { minWords: 20 } }
       );
+      const sanitizedPrompt = adapter.sanitizedPrompt(rewrite.content);
+      const sanitationCost = typeof rewrite.cost_usd === 'number' && Number.isFinite(rewrite.cost_usd)
+        ? rewrite.cost_usd
+        : null;
+      if (!sanitizedPrompt) {
+        const invalid = new Error(`${adapter.displayName} sanitation returned no usable prompt.`);
+        invalid.statusCode = 502;
+        invalid.code = 'INVALID_SANITATION_OUTPUT';
+        invalid.costUsd = sanitationCost;
+        invalid.billedAttempts = rewrite.billed_attempts;
+        throw invalid;
+      }
       return {
         refused: true,
+        adapter: adapter.id,
         reason,
-        sanitized_prompt: rewrite.content.trim(),
-        rewrite_cost_usd: rewrite.cost_usd || 0,
+        sanitized_prompt: sanitizedPrompt,
+        sanitation_cost_usd: sanitationCost,
+        sanitation_model: rewrite.model || null,
+        sanitation_billed_attempts: rewrite.billed_attempts || 1,
+        // Compatibility while the 3.x client name ages out.
+        rewrite_cost_usd: sanitationCost,
+        references_sent: inputReferences.length,
+        can_drop_references: inputReferences.length > 0,
       };
     }
     return {
