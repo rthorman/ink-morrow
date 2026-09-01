@@ -193,4 +193,3 @@ Reference materials for qualified review:
 - [GNU — Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.html)
 - [SPDX — AGPL-3.0-only](https://spdx.org/licenses/AGPL-3.0-only.html)
 - [Uniform Commercial Code § 2-316, exclusion or modification of warranties](https://www.law.cornell.edu/ucc/2/2-316)
-
