@@ -279,7 +279,17 @@ test.describe('Reading old pages and burning the rest', () => {
     });
     await page.route('**/api/stories/*/pages?after=1', async (route) => {
       expect(route.request().method()).toBe('DELETE');
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ deleted: 1, remaining: 1 }) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          deleted: 1,
+          remaining: 1,
+          removed_range: { first: 2, last: 2 },
+          recovery: { id: 'recovery-p2', expires_at: '2030-01-01T00:00:00.000Z' },
+          undo: { token: 'undo-p2', expires_at: '2030-01-01T00:01:00.000Z' },
+        }),
+      });
     });
     await page.route('**/api/stories/*/pages', async (route) => {
       await route.fulfill({
