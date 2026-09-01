@@ -1,11 +1,16 @@
 // Captures current screenshots for the README from a fresh in-memory server
 // with a small seeded tale. This is a documentation helper, not a test.
-const { chromium } = require('playwright-core');
+const { chromium } = require('@playwright/test');
 const { spawn } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
-const CHROMIUM_PATH = '/data/data/com.termux/files/usr/bin/chromium-browser';
+const CHROMIUM_PATH = [
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
+  '/data/data/com.termux/files/usr/bin/chromium-browser',
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+].find((candidate) => candidate && fs.existsSync(candidate));
 const SETUP_CODE = 'SCREENSHOT-SETUP-CODE';
 const PASSWORD = 'The screenshot scriptorium phrase';
 const PORT = 3211;
@@ -33,6 +38,28 @@ async function apiJson(page, requestPath, method, body) {
   }, { requestPath, method, body });
 }
 
+async function apiUpload(page, requestPath, { bytes, filename, mediaType, title, altText, afterPageId }) {
+  return page.evaluate(async ({ requestPath: target, bytes: encoded, filename: name, mediaType: type, title: assetTitle, altText: alt, afterPageId: anchor }) => {
+    const statusResponse = await fetch('/api/auth/status', { cache: 'no-store' });
+    const status = await statusResponse.json();
+    if (!statusResponse.ok || !status.csrf_token) throw new Error('Screenshot session is not unlocked');
+    const raw = atob(encoded);
+    const data = Uint8Array.from(raw, (character) => character.charCodeAt(0));
+    const form = new FormData();
+    form.append('image', new File([data], name, { type }));
+    form.append('title', assetTitle);
+    form.append('alt_text', alt);
+    form.append('after_page_id', anchor);
+    form.append('provider_reference_allowed', 'false');
+    const response = await fetch(target, {
+      method: 'POST', credentials: 'same-origin', headers: { 'X-ScribeTribe-CSRF': status.csrf_token }, body: form,
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `Screenshot upload failed (${response.status})`);
+    return result;
+  }, { requestPath, bytes, filename, mediaType, title, altText, afterPageId });
+}
+
 async function main() {
   const server = spawn('node', ['../backend/server.js'], {
     env: {
@@ -57,7 +84,7 @@ async function main() {
     }
     if (!up) throw new Error('server did not boot');
 
-    const launchOptions = fs.existsSync(CHROMIUM_PATH) ? { executablePath: CHROMIUM_PATH } : {};
+    const launchOptions = CHROMIUM_PATH ? { executablePath: CHROMIUM_PATH } : {};
     browser = await chromium.launch(launchOptions);
     const context = await browser.newContext();
     await context.addInitScript(() => {
@@ -97,8 +124,16 @@ async function main() {
       tone: 'fade-to-black',
       characters: [{ id: hero.id, role: 'mc', relation: null, state: null }],
     })).story;
-    await apiJson(setupPage, `/api/stories/${story.id}/pages`, 'POST', {
+    const seededPage = (await apiJson(setupPage, `/api/stories/${story.id}/pages`, 'POST', {
       content: 'The rain had been falling on the Ashen Marches for nine years, and Vess had kept her lantern lit for every one of them. Tonight the water rose again, patient as a creditor, and the bridge groaned under the weight of another tide.',
+    })).page;
+    await apiUpload(setupPage, `/api/stories/${story.id}/assets/upload`, {
+      bytes: fs.readFileSync(path.join('..', 'frontend', 'brand', 'cinder-cast.webp')).toString('base64'),
+      filename: 'ashen-marches.webp',
+      mediaType: 'image/webp',
+      title: 'Lantern at the Last Bridge',
+      altText: 'A cat-eared illuminator working beside a glowing manuscript in a gothic archive.',
+      afterPageId: seededPage.id,
     });
     await setupPage.close();
 
@@ -111,6 +146,8 @@ async function main() {
       { name: 'write-tablet-portrait', url: `${BASE}/#/desk/${story.id}`, viewport: { width: 768, height: 1366 } },
       { name: 'library-desktop', url: `${BASE}/#/library/stories`, viewport: { width: 1440, height: 900 } },
       { name: 'worlds-desktop', url: `${BASE}/#/worlds`, viewport: { width: 1440, height: 900 } },
+      { name: 'codex-desktop', url: `${BASE}/#/codex/${story.id}`, viewport: { width: 1440, height: 900 } },
+      { name: 'gallery-desktop', url: `${BASE}/#/gallery/${story.id}`, viewport: { width: 1440, height: 900 } },
     ];
     for (const shot of shots) {
       const page = await context.newPage();
@@ -129,3 +166,4 @@ async function main() {
 }
 
 main().catch((error) => { console.error(error); process.exit(1); });
+
