@@ -120,6 +120,7 @@ describe('PR 04 provider profiles and role assignments', () => {
     let first;
     let second;
     let invalid;
+    let empty;
     try {
       first = providerFixture({ dbPath, providerOptions: { env: { OPENROUTER_API_KEY: CANARY } } });
       first.db.prepare("UPDATE provider_role_assignments SET model_id = 'ui/previous-archivist' WHERE role = 'archivist'").run();
@@ -152,10 +153,19 @@ describe('PR 04 provider profiles and role assignments', () => {
       });
       expect(invalid.app.locals.providers.list().roles.find((role) => role.role === 'archivist').model_id)
         .toBe('google/gemini-2.5-flash-lite');
+
+      empty = providerFixture({
+        providerOptions: { env: { OPENROUTER_API_KEY: CANARY, CONTINUITY_MODEL: '' } },
+      });
+      await expect(empty.app.locals.validateStartup()).rejects.toMatchObject({
+        code: 'INVALID_CONTINUITY_MODEL',
+        message: expect.stringContaining('set but empty'),
+      });
     } finally {
       first?.close();
       second?.close();
       invalid?.close();
+      empty?.close();
       fs.rmSync(root, { recursive: true, force: true });
     }
   });

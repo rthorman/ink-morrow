@@ -50,6 +50,23 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function messageText(content) {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map((part) => {
+    if (typeof part === 'string') return part;
+    if (part?.type === 'text' && typeof part.text === 'string') return part.text;
+    if (typeof part?.content === 'string') return part.content;
+    return '';
+  }).join('');
+}
+
+function hasVisibleReasoning(message) {
+  const value = message?.reasoning ?? message?.reasoning_content;
+  if (typeof value === 'string') return Boolean(value.trim());
+  return Array.isArray(value) && value.length > 0;
+}
+
 /**
  * Fetch the public OpenRouter model catalog (id, name, context length,
  * USD pricing per 1M tokens). Cached for MODELS_CACHE_TTL_MS.
@@ -364,6 +381,8 @@ async function chatCompletionWithConfig(
   let languageNudgeSent = false;
   let lastError = null;
   let lastQualityProblem = null;
+  let lastFinishReason = null;
+  let lastReasoningOnly = false;
   // A locally rejected response was still a successful provider completion
   // and can therefore be billable. Keep the full spend across quality
   // retries instead of returning only the final, accepted attempt.
@@ -414,7 +433,10 @@ async function chatCompletionWithConfig(
           timeout: cfg.timeout,
         }
       );
-      const content = response.data?.choices?.[0]?.message?.content;
+      const choice = response.data?.choices?.[0] || {};
+      const message = choice.message || {};
+      const content = messageText(message.content);
+      const finishReason = choice.finish_reason || choice.native_finish_reason || null;
       const rawUsage = response.data?.usage;
       const usage = rawUsage
         ? {
@@ -432,8 +454,10 @@ async function chatCompletionWithConfig(
       if (typeof cost_usd === 'number' && Number.isFinite(cost_usd)) totalCostUsd += cost_usd;
       else allCostsKnown = false;
 
-      const problem = !content || !content.trim()
-        ? 'empty'
+      const problem = ['length', 'max_tokens'].includes(finishReason)
+        ? 'truncated'
+        : !content || !content.trim()
+          ? 'empty'
         : quality
           ? checkReply(content, quality, languageReference)
           : null;
@@ -455,6 +479,8 @@ async function chatCompletionWithConfig(
               : 'The reply arrived in the wrong language'
         );
         qErr.qualityProblem = problem;
+        qErr.finishReason = finishReason;
+        qErr.reasoningOnly = problem === 'empty' && hasVisibleReasoning(message);
         qErr.retryable = true;
         throw qErr;
       }
@@ -464,10 +490,13 @@ async function chatCompletionWithConfig(
         usage: accruedUsage(),
         cost_usd: accruedCost(),
         billed_attempts: billedAttempts,
+        finish_reason: finishReason,
       };
     } catch (error) {
       lastError = error;
       lastQualityProblem = error.qualityProblem || null;
+      lastFinishReason = error.finishReason || null;
+      lastReasoningOnly = error.reasoningOnly === true;
       const status = error.response?.status;
       const retryable = !status || RETRYABLE.has(status) || error.retryable === true;
       // Some consumers advertise an exact paid retry ceiling. They may still
@@ -482,12 +511,18 @@ async function chatCompletionWithConfig(
   if (lastQualityProblem) {
     const err = new Error(
       lastQualityProblem === 'empty'
-        ? 'The scribe returned nothing but silence. Try again.'
+        ? lastReasoningOnly
+          ? 'The model returned internal reasoning but no final answer. Nothing was saved - try again.'
+          : `The model returned nothing but silence: no final answer${lastFinishReason ? ` (finish reason: ${lastFinishReason})` : ''}. Nothing was saved - try again.`
         : lastQualityProblem === 'truncated'
-          ? 'The scribe\u2019s reply arrived cut off mid-sentence (the model hit its limits). Nothing was saved \u2014 try again, or lower the words-per-page setting.'
+          ? `The model's reply was cut off or incomplete${lastFinishReason ? ` (finish reason: ${lastFinishReason})` : ''}. Nothing was saved - try again, or lower the words-per-page setting.`
           : 'The scribe kept answering in a different language. Nothing was saved \u2014 try again.'
     );
     err.statusCode = 502;
+    err.code = lastQualityProblem === 'empty'
+      ? 'AI_EMPTY_RESPONSE'
+      : lastQualityProblem === 'truncated' ? 'AI_TRUNCATED_RESPONSE' : 'AI_LANGUAGE_MISMATCH';
+    err.finishReason = lastFinishReason;
     throw attachSpend(err);
   }
 

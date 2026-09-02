@@ -10,7 +10,7 @@ const {
   validateContinuityDeltaV2,
   ContinuitySchemaError,
 } = require('../src/modules/continuity/store');
-const { verifyEvidenceQuotes } = require('../src/modules/continuity/service');
+const { parseJson, verifyEvidenceQuotes } = require('../src/modules/continuity/service');
 const { resetModelCache } = require('../src/ai');
 
 let app, db, close;
@@ -31,6 +31,69 @@ function v2Delta(overrides = {}) {
     arc_updates: [],
     ...overrides,
   };
+}
+
+function wireDelta(pageContent, value = v2Delta()) {
+  const quote = pageContent.slice(0, 500);
+  const character_changes = [];
+  for (const update of value.character_updates || []) {
+    for (const field of ['location', 'condition', 'personality', 'appearance']) {
+      if (update[field]) character_changes.push({
+        character_id: update.character_id, field, value: update[field],
+        related_character_id: null, evidence_quote: quote,
+      });
+    }
+    for (const [source, field] of [
+      ['knowledge_gained', 'knowledge_gain'], ['knowledge_lost', 'knowledge_loss'],
+      ['possessions_gained', 'possession_gain'], ['possessions_lost', 'possession_loss'],
+    ]) {
+      for (const item of update[source] || []) character_changes.push({
+        character_id: update.character_id, field, value: item,
+        related_character_id: null, evidence_quote: quote,
+      });
+    }
+    for (const relationship of update.relationships || []) character_changes.push({
+      character_id: update.character_id, field: 'relationship', value: relationship.summary,
+      related_character_id: relationship.character_id, evidence_quote: quote,
+    });
+  }
+  const story_changes = [
+    ...(value.goal_updates || []).map((item) => ({
+      kind: 'goal', id: item.id ?? null, character_id: item.character_id ?? null,
+      text: item.text ?? null, state: item.status, evidence_quote: quote,
+    })),
+    ...(value.thread_updates || []).map((item) => ({
+      kind: 'thread', id: item.id ?? null, character_id: null,
+      text: item.text ?? null, state: item.status, evidence_quote: quote,
+    })),
+    ...(value.world_fact_updates || []).map((item) => ({
+      kind: 'world_fact', id: item.id ?? null, character_id: null,
+      text: item.text ?? null, state: item.status, evidence_quote: quote,
+    })),
+    ...(value.arc_updates || []).map((item) => ({
+      kind: 'arc', id: item.id ?? null, character_id: item.character_id ?? null,
+      text: item.text, state: item.movement, evidence_quote: quote,
+    })),
+  ];
+  const events = (value.events || []).map((item) => ({
+    text: item.text, character_ids: item.character_ids || [],
+    importance: item.importance || 'minor', type: item.type || 'action', evidence_quote: quote,
+  }));
+  if (!events.length && !character_changes.length && !story_changes.length) {
+    events.push({
+      text: value.summary, character_ids: [], importance: 'minor',
+      type: 'transition', evidence_quote: quote,
+    });
+  }
+  let summary = value.summary;
+  const pageWords = new Set(pageContent.toLowerCase().match(/[a-z0-9]{4,}/g) || []);
+  if (!(summary.toLowerCase().match(/[a-z0-9]{4,}/g) || []).some((word) => pageWords.has(word))) {
+    summary = `${summary} ${pageContent}`;
+  }
+  return JSON.stringify({
+    schema_version: 2, summary, summary_evidence: [quote],
+    events, character_changes, story_changes,
+  });
 }
 
 function at(characterId, location, quote) {
@@ -61,7 +124,13 @@ function at(characterId, location, quote) {
 }
 
 async function sync(storyId, pageId, delta) {
-  axios.post.mockResolvedValueOnce(reply(JSON.stringify(delta)));
+  const pageContent = db.prepare(`
+    SELECT revision.content
+      FROM pages page
+      JOIN page_revisions revision ON revision.id = page.canonical_revision_id
+     WHERE page.id = ?
+  `).get(pageId).content;
+  axios.post.mockResolvedValueOnce(reply(wireDelta(pageContent, delta)));
   return request(app).post(`/api/stories/${storyId}/continuity/pages/${pageId}/sync`).send({}).expect(200);
 }
 
@@ -84,6 +153,13 @@ afterAll(() => {
 });
 
 describe('continuity ledger v2', () => {
+  it('accepts a complete object or one JSON fence, never prose-wrapped or array output', () => {
+    expect(parseJson('{"schema_version":2}')).toEqual({ schema_version: 2 });
+    expect(parseJson('```json\n{"schema_version":2}\n```')).toEqual({ schema_version: 2 });
+    expect(parseJson('Here it is: {"schema_version":2}')).toBeNull();
+    expect(parseJson('[{"schema_version":2}]')).toBeNull();
+  });
+
   it('strictly rejects unknown and malformed v2 model fields', () => {
     expect(validateContinuityDeltaV2(v2Delta(), [])).toEqual(v2Delta());
     expect(() => validateContinuityDeltaV2({ ...v2Delta(), surprise: true }, []))
@@ -100,9 +176,12 @@ describe('continuity ledger v2', () => {
 
   it('retries a schema-invalid v2 response once instead of silently dropping fields', async () => {
     const story = await createStory(app);
-    const page = await addPage(app, story.id, 'The strict ledger begins.');
-    axios.post.mockResolvedValueOnce(reply(JSON.stringify({ ...v2Delta(), unknown: 'unsafe' })))
-      .mockResolvedValueOnce(reply(JSON.stringify(v2Delta())));
+    const pageText = 'The strict ledger begins.';
+    const page = await addPage(app, story.id, pageText);
+    const invalid = JSON.parse(wireDelta(pageText));
+    invalid.unknown = 'unsafe';
+    axios.post.mockResolvedValueOnce(reply(JSON.stringify(invalid)))
+      .mockResolvedValueOnce(reply(wireDelta(pageText)));
 
     const result = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
@@ -111,6 +190,30 @@ describe('continuity ledger v2', () => {
 
     expect(result.body.memory).toMatchObject({ status: 'ready', schema_version: 2 });
     expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(axios.post.mock.calls[1][1].messages.at(-1).content).toMatch(/unknown unknown/i);
+  });
+
+  it('rejects a syntactically valid but empty memory and gives the repair its exact defect', async () => {
+    const story = await createStory(app);
+    const pageText = 'The bronze bell cracks at dawn.';
+    const page = await addPage(app, story.id, pageText);
+    axios.post.mockResolvedValueOnce(reply(JSON.stringify({
+      schema_version: 2,
+      summary: 'The bronze bell cracks at dawn.',
+      summary_evidence: [pageText],
+      events: [],
+      character_changes: [],
+      story_changes: [],
+    }))).mockResolvedValueOnce(reply(wireDelta(pageText)));
+
+    const result = await request(app)
+      .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
+      .send({})
+      .expect(200);
+
+    expect(result.body.memory.status).toBe('ready');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(axios.post.mock.calls[1][1].messages.at(-1).content).toMatch(/no page observation/i);
   });
 
   it('binds deltas to canonical revisions, preserves copyedits, replaces the tail delta, and truncates suffix effects', async () => {

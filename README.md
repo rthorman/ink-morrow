@@ -292,7 +292,7 @@ npm start               # http://localhost:3000
 | `IMAGE_TIMEOUT_MS` | `180000` | Per-request image generation timeout
 | `CONTEXT_WINDOW` | `5` | Recent pages sent verbatim to the AI |
 | `PAGE_CONTEXT_CHARS` | `12000` | Maximum characters copied from each recent page into a prompt |
-| `CONTINUITY_MODEL` | `google/gemini-2.5-flash-lite` | Dedicated structured-output Archivist for compact page memory. When explicitly set, it overrides the saved Archivist role and must exist in OpenRouter's live catalogue or the server refuses to start |
+| `CONTINUITY_MODEL` | `google/gemini-2.5-flash-lite` | Dedicated structured-output Archivist for compact page memory. When explicitly set, it overrides the saved Archivist role and must exist in OpenRouter's live catalogue or the server refuses to start. Existing `.env` files are never rewritten during setup; add the setting explicitly if it is absent |
 
 ## How It Works
 
