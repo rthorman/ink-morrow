@@ -55,7 +55,7 @@ for (const spec of SPECS) {
       };
     });
     expect(home.rowDisplay).toBe('grid'); // D3 regression: base scope, not trapped
-    expect(home.stepCount).toBe(4); // non-vacuous: the cards exist
+    expect(home.stepCount).toBe(5); // non-vacuous: world, character, Tribe, manuscript, and writing cards exist
     expect(home.overlap).toBe(false);
     expect(home.underlined).toBe(false); // deliberate cards, not a link paragraph
 
