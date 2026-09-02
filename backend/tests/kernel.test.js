@@ -104,6 +104,10 @@ describe('Ink Morrow 4.0 kernel', () => {
     ]) {
       expect(tables.has(table)).toBe(true);
     }
+    expect(tables.has('story_pages')).toBe(false);
+    expect(tables.has('story_memory_pages')).toBe(false);
+    expect(db.prepare("SELECT type FROM sqlite_master WHERE name = 'manuscript_pages'").get())
+      .toEqual({ type: 'view' });
     expect(db.prepare('SELECT COUNT(*) AS count FROM schema_migrations').get().count).toBe(MIGRATIONS.length);
     db.close();
 
@@ -255,6 +259,54 @@ describe('Ink Morrow 4.0 kernel', () => {
     db.close();
   });
 
+  it('upgrades schema 12 in place without emptying prose or Chronicle memory', () => {
+    const dbPath = path.join(root, 'schema-12.db');
+    let db = createDb(dbPath, { migrations: MIGRATIONS.slice(0, 12), reconcileOperations: false });
+    db.prepare("INSERT INTO stories (id, title) VALUES ('story-12', 'Kept manuscript')").run();
+    db.prepare("INSERT INTO volumes (id, story_id, ordinal, title) VALUES ('volume-12', 'story-12', 1, 'Volume I')").run();
+    db.prepare("INSERT INTO chapters (id, volume_id, ordinal, title) VALUES ('chapter-12', 'volume-12', 1, 'Chapter I')").run();
+    db.prepare(`
+      INSERT INTO story_pages
+        (id, story_id, page_number, content, user_input, model, cost_usd,
+         continuity_model, continuity_prompt_tokens,
+         continuity_completion_tokens, continuity_cost_usd)
+      VALUES ('page-12', 'story-12', 1, 'The page survives.', 'Keep it', 'test/model', NULL,
+              'test/archivist', 50, 20, 0.012)
+    `).run();
+    db.prepare("INSERT INTO pages (id, chapter_id, ordinal) VALUES ('page-12', 'chapter-12', 1)").run();
+    db.prepare(`
+      INSERT INTO story_memory_pages
+        (page_id, story_id, content_hash, status, summary, delta_json, schema_version)
+      VALUES ('page-12', 'story-12', 'legacy-hash', 'ready', 'The page survived.', '{}', 2)
+    `).run();
+    db.close();
+
+    db = createDb(dbPath, { reconcileOperations: false });
+    expect(schemaIdentity(db).version).toBe(13);
+    expect(db.prepare("SELECT title FROM stories WHERE id = 'story-12'").get())
+      .toEqual({ title: 'Kept manuscript' });
+    expect(db.prepare(`
+      SELECT content, user_input, model, cost_usd, continuity_status,
+             continuity_model, continuity_prompt_tokens,
+             continuity_completion_tokens, continuity_cost_usd
+        FROM manuscript_pages WHERE id = 'page-12'
+    `).get())
+      .toEqual({
+        content: 'The page survives.', user_input: 'Keep it', model: 'test/model',
+        cost_usd: null, continuity_status: 'ready', continuity_model: 'test/archivist',
+        continuity_prompt_tokens: 50, continuity_completion_tokens: 20,
+        continuity_cost_usd: 0.012,
+      });
+    expect(db.prepare(`
+      SELECT summary FROM continuity_deltas
+       WHERE revision_id = (SELECT canonical_revision_id FROM pages WHERE id = 'page-12')
+    `).get()).toEqual({ summary: 'The page survived.' });
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('story_pages', 'story_memory_pages')").all())
+      .toEqual([]);
+    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+    db.close();
+  });
+
   it('migrates and reconciles schema-6 image pages into noncanonical art', async () => {
     const dbPath = path.join(root, 'schema-6-art.db');
     const imageDir = path.join(root, 'images');
@@ -279,7 +331,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     db.close();
 
     db = createDb(dbPath, { reconcileOperations: false });
-    expect(db.prepare("SELECT id, page_number FROM story_pages WHERE story_id = 'story-art' ORDER BY page_number").all())
+    expect(db.prepare("SELECT id, page_number FROM manuscript_pages WHERE story_id = 'story-art' ORDER BY page_number").all())
       .toEqual([{ id: 'prose-a', page_number: 1 }, { id: 'prose-b', page_number: 2 }]);
     expect(db.prepare("SELECT id, ordinal FROM pages WHERE chapter_id = 'chapter-art' ORDER BY ordinal").all())
       .toEqual([{ id: 'prose-a', ordinal: 1 }, { id: 'prose-b', ordinal: 2 }]);
@@ -350,7 +402,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     const open = createTestApp();
     const response = await request(open.app).get('/api/capabilities').expect(200);
     expect(response.body).toMatchObject({
-      release_train: '4.0.0-beta.1',
+      release_train: '4.1.0',
       database: { family: DATABASE_FAMILY, schema_version: DATABASE_SCHEMA_VERSION },
       archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'available' },
     });

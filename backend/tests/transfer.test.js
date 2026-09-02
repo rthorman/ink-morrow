@@ -238,7 +238,7 @@ describe('portable archives and backups', () => {
     ).get(story.id);
     expect(destination.app.locals.publications.get(importedPublication.id).document.assets[0].content_base64)
       .toBe(publication.document.assets[0].content_base64);
-    expect(destination.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value)
+    expect(destination.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value)
       .toBe(1);
   });
 
@@ -267,17 +267,8 @@ describe('portable archives and backups', () => {
       .post(`/api/stories/${story.id}/pages/${page.id}/copyedits`)
       .send({ content: 'The visitor carefully crosses the threshold.' })
       .expect(201);
-    // Stale database metadata without a file must not create a broken image
-    // reference in the portable story.
-    source.db.prepare("UPDATE story_pages SET image_media_type='image/png' WHERE id=?").run(page.id);
-    source.db.prepare(`
-      INSERT INTO story_memory_pages
-        (page_id, story_id, content_hash, status, summary, delta_json, model, cost_usd)
-      VALUES (?, ?, ?, 'ready', ?, ?, 'test/model', 0.001)
-    `).run(page.id, story.id, 'a'.repeat(64), 'The visitor arrived.', JSON.stringify({
-      summary: 'The visitor arrived.', events: [{ text: 'Arrival', character_ids: [visitor.id] }],
-      character_updates: [], goal_updates: [], thread_updates: [], world_fact_updates: [],
-    }));
+    // Canonical manuscript pages have no embedded image metadata; art travels
+    // only through the normalized asset store.
     const canonicalRevision = source.db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(page.id).canonical_revision_id;
     source.db.prepare(`
       INSERT INTO continuity_deltas
@@ -348,11 +339,15 @@ describe('portable archives and backups', () => {
     expect(JSON.parse(importedBinding.snapshot_json).scene_tempo).toBe('brisk');
     const importedStory = destination.db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id);
     expect(JSON.parse(importedStory.characters).map((entry) => entry.id)).toEqual([lead.id, visitor.id]);
-    const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE id = ?').get(page.id);
+    const importedPage = destination.db.prepare('SELECT * FROM manuscript_pages WHERE id = ?').get(page.id);
     expect(importedPage.content).toBe('The visitor carefully crosses the threshold.');
     expect(importedPage.user_input).toBeNull(); // portable history switch was off
     expect(importedPage.image_media_type).toBeNull();
-    expect(destination.db.prepare('SELECT summary FROM story_memory_pages WHERE page_id = ?').get(page.id).summary).toBe('The visitor arrived.');
+    expect(destination.db.prepare(`
+      SELECT delta.summary FROM continuity_deltas delta
+      JOIN pages page ON page.canonical_revision_id = delta.revision_id
+      WHERE page.id = ?
+    `).get(page.id).summary).toBe('The visitor arrived.');
     const importedRevisionPointers = destination.db.prepare('SELECT * FROM pages WHERE id = ?').get(page.id);
     expect(importedRevisionPointers.display_revision_id).not.toBe(importedRevisionPointers.canonical_revision_id);
     expect(destination.db.prepare('SELECT content FROM page_revisions WHERE id = ?')
@@ -428,7 +423,7 @@ describe('portable archives and backups', () => {
     expect(committed.body.settings).toMatchObject({ model: 'writer/model', storyFont: 'georgia', wordsPerPage: 700, costTicker: false });
     expect(committed.body.settings.secretApiKey).toBeUndefined();
     expect(destination.db.prepare('SELECT name FROM worlds').all()).toEqual([]);
-    expect(destination.db.prepare('SELECT user_input FROM story_pages WHERE id = ?').get(page.id).user_input).toBe('A private author direction');
+    expect(destination.db.prepare('SELECT user_input FROM manuscript_pages WHERE id = ?').get(page.id).user_input).toBe('A private author direction');
     expect(fs.readFileSync(path.join(destination.audioDir, `${story.id}.mp3`), 'utf8')).toBe('mp3 bytes');
     await request(destination.app).get(committed.body.safety_backup.download_url).expect(200);
   });
@@ -688,11 +683,12 @@ describe('portable archives and backups', () => {
       .expect(200);
     const sourceRevisionIds = source.db.prepare('SELECT id FROM page_revisions WHERE page_id = ? ORDER BY created_at, rowid')
       .all(page.id).map((row) => row.id);
+    const canonicalRevisionId = source.db.prepare('SELECT canonical_revision_id FROM pages WHERE id = ?').get(page.id).canonical_revision_id;
     source.db.prepare(`
-      INSERT INTO story_memory_pages
-        (page_id, story_id, content_hash, status, summary, delta_json)
-      VALUES (?, ?, ?, 'ready', 'Changed.', ?)
-    `).run(page.id, story.id, 'b'.repeat(64), JSON.stringify({
+      INSERT INTO continuity_deltas
+        (revision_id, story_id, content_hash, status, schema_version, summary, delta_json)
+      VALUES (?, ?, ?, 'ready', 2, 'Changed.', ?)
+    `).run(canonicalRevisionId, story.id, 'b'.repeat(64), JSON.stringify({
       summary: 'Changed.', events: [],
       character_updates: [{ character_id: character.id, condition: 'changed' }],
       goal_updates: [], thread_updates: [], world_fact_updates: [],
@@ -730,7 +726,7 @@ describe('portable archives and backups', () => {
     expect(importedCharacter.world_id).toBe(importedWorld.id);
     expect(importedStory.world_id).toBe(importedWorld.id);
     expect(JSON.parse(importedStory.characters)[0].id).toBe(importedCharacter.id);
-    const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE story_id = ?').get(importedStory.id);
+    const importedPage = destination.db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ?').get(importedStory.id);
     expect(importedPage.id).not.toBe(page.id);
     const sourceVolume = source.db.prepare('SELECT * FROM volumes WHERE story_id = ?').get(story.id);
     const importedVolume = destination.db.prepare('SELECT * FROM volumes WHERE story_id = ?').get(importedStory.id);
@@ -749,7 +745,11 @@ describe('portable archives and backups', () => {
     expect(importedRevisions[1].parent_revision_id).toBe(importedRevisions[0].id);
     const snapshot = destination.db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ?').get(importedStory.id);
     expect(snapshot.character_id).toBe(importedCharacter.id);
-    const memory = destination.db.prepare('SELECT * FROM story_memory_pages WHERE page_id = ?').get(importedPage.id);
+    const memory = destination.db.prepare(`
+      SELECT delta.* FROM continuity_deltas delta
+      JOIN pages page ON page.canonical_revision_id = delta.revision_id
+      WHERE page.id = ?
+    `).get(importedPage.id);
     expect(JSON.parse(memory.delta_json).character_updates[0].character_id).toBe(importedCharacter.id);
     const correction = destination.db.prepare('SELECT * FROM continuity_corrections WHERE story_id = ?').get(importedStory.id);
     expect(correction.subject_id).toBe(importedStory.id);

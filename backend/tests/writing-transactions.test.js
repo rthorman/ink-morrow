@@ -50,7 +50,7 @@ describe('PR 06 transactional writing state machine', () => {
     axios.post.mockResolvedValueOnce(reply('The exact prepared prose.'));
     const prepared = await post(fixture.app, story.id, '/pages/preview', {}, { key: 'prepare-one' }).expect(200);
     expect(prepared.body.preview.preview_id).toMatch(/^[A-Za-z0-9_-]{40,}$/);
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages').get().value).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages').get().value).toBe(0);
 
     await post(fixture.app, story.id, '/pages/commit-preview', {
       preview_id: `${prepared.body.preview.preview_id}-wrong`,
@@ -80,7 +80,7 @@ describe('PR 06 transactional writing state machine', () => {
     const committedReplay = await post(fixture.app, story.id, '/pages/commit-preview', body, { key: 'promote-repeat' }).expect(201);
     expect(committedReplay.body.page.id).toBe(committed.body.page.id);
     expect(committedReplay.body.replayed).toBe(true);
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(1);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(1);
   });
 
   it('consumes the preview when directed work starts and saves no partial page on failure', async () => {
@@ -94,7 +94,7 @@ describe('PR 06 transactional writing state machine', () => {
     }, { key: 'directed-failure' }).expect(502);
     expect(failed.body.error).toContain('provider');
     expect((await request(fixture.app).get(`/api/stories/${story.id}/pages/preview`)).body.preview).toBeNull();
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(0);
     const operation = fixture.db.prepare('SELECT * FROM writing_operations WHERE idempotency_key = ?').get('directed-failure');
     expect(operation.status).toBe('failed');
     expect(JSON.parse(operation.request_json).direction).toBe('Take the dangerous road.');
@@ -115,7 +115,7 @@ describe('PR 06 transactional writing state machine', () => {
     const stale = await first;
     expect(stale.status).toBe(409);
     expect(stale.body.code).toBe('CANON_ADVANCED');
-    const pages = fixture.db.prepare('SELECT content FROM story_pages WHERE story_id = ?').all(story.id);
+    const pages = fixture.db.prepare('SELECT content FROM manuscript_pages WHERE story_id = ?').all(story.id);
     expect(pages.map((row) => row.content)).toEqual(['The second reply landed first.']);
   });
 
@@ -144,7 +144,7 @@ describe('PR 06 transactional writing state machine', () => {
     const late = await running;
     expect(late.status).toBe(409);
     expect(late.body.code).toBe('CANCELLED');
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(0);
   });
 
   it('rejects a competing tab and lets it reconcile after lease expiry', async () => {
@@ -178,7 +178,7 @@ describe('PR 06 transactional writing state machine', () => {
       .send({ content: 'A competing manual page.' })
       .expect(409);
     expect(conflict.body.code).toBe('WRITER_LEASE_CONFLICT');
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(0);
     await request(fixture.app).post(`/api/stories/${story.id}/volumes`)
       .set('X-InkMorrow-Writer-Session', WRITER_B)
       .send({ title: 'Competing structure' })
@@ -226,7 +226,7 @@ describe('PR 06 transactional writing state machine', () => {
     }, { key: 'stale-target-promotion', writer: WRITER_B }).expect(409);
     expect(stale.body.code).toBe('PREVIEW_STALE');
     expect(axios.post).toHaveBeenCalledTimes(1);
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(0);
   });
 
   it('rewrites the tail through one durable operation and replays its result', async () => {
@@ -347,7 +347,7 @@ describe('PR 06 transactional writing state machine', () => {
       const stale = await old;
       expect(stale.status).toBe(409);
       expect(stale.body.code).toBe('WRITER_LEASE_LOST');
-      expect(timed.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(0);
+      expect(timed.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(0);
     } finally {
       timed.close();
     }

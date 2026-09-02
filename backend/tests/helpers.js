@@ -65,7 +65,6 @@ function resetDb(db) {
     DELETE FROM volumes;
     DELETE FROM auth_sessions;
     DELETE FROM auth_owner;
-    DELETE FROM story_pages;
     DELETE FROM stories;
     DELETE FROM scribe_revisions;
     DELETE FROM scribes;

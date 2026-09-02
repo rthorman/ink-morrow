@@ -104,7 +104,7 @@ function neutralPage(number) {
 function portableDatabaseDigest(db, storyId) {
   const queries = [
     ['story', `SELECT id, title, world_id, characters, tone FROM stories WHERE id = ?`, [storyId]],
-    ['pages', `SELECT id, story_id, page_number, content, user_input FROM story_pages WHERE story_id = ? ORDER BY page_number`, [storyId]],
+    ['pages', `SELECT id, story_id, page_number, content, user_input FROM manuscript_pages WHERE story_id = ? ORDER BY page_number`, [storyId]],
     ['volumes', `SELECT id, story_id, ordinal, title FROM volumes WHERE story_id = ? ORDER BY ordinal`, [storyId]],
     ['chapters', `SELECT chapter.id, chapter.volume_id, chapter.ordinal, chapter.title
                     FROM chapters chapter JOIN volumes volume ON volume.id = chapter.volume_id
@@ -171,10 +171,6 @@ async function buildReleaseFixture(fixture) {
   `);
   const insertVolume = db.prepare('INSERT INTO volumes (id, story_id, ordinal, title) VALUES (?, ?, ?, ?)');
   const insertChapter = db.prepare('INSERT INTO chapters (id, volume_id, ordinal, title) VALUES (?, ?, ?, ?)');
-  const insertStoryPage = db.prepare(`
-    INSERT INTO story_pages (id, story_id, page_number, content, user_input)
-    VALUES (?, ?, ?, ?, ?)
-  `);
   const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
   const insertRevision = db.prepare(`
     INSERT INTO page_revisions (id, page_id, kind, content, direction, source, cost_usd)
@@ -232,8 +228,6 @@ async function buildReleaseFixture(fixture) {
             events: facts,
             character_updates: [], world_fact_updates: [], goal_updates: [], thread_updates: [], arc_updates: [],
           };
-          insertStoryPage.run(pageId, storyId, pageNumber, content,
-            pageNumber === 1 ? 'PRIVATE-LONG-FIXTURE-DIRECTION' : null);
           insertPage.run(pageId, chapterId, ordinal);
           insertRevision.run(revisionId, pageId, content, pageNumber === 1 ? 'Synthetic opening.' : null);
           pointPage.run(revisionId, revisionId, pageId);
@@ -252,7 +246,6 @@ async function buildReleaseFixture(fixture) {
       VALUES (?, ?, ?, 'copyedit', ?, 'Release fixture copyedit.', 'author', 0)
     `).run(copyeditId, pageIds[0], revisionIds[0], copyedited);
     db.prepare('UPDATE pages SET display_revision_id = ? WHERE id = ?').run(copyeditId, pageIds[0]);
-    db.prepare('UPDATE story_pages SET content = ? WHERE id = ?').run(copyedited, pageIds[0]);
     db.prepare(`
       INSERT INTO continuity_corrections (id, story_id, scope, subject_id, correction_json)
       VALUES ('release-correction', ?, 'story', ?, ?)
@@ -365,8 +358,8 @@ describe('PR 18 release-scale hardening fixture', () => {
       SELECT COUNT(*) AS count FROM chapters chapter
       JOIN volumes volume ON volume.id = chapter.volume_id WHERE volume.story_id = ?
     `).get(fixture.storyId).count).toBe(100);
-    expect(source.db.prepare('SELECT COUNT(*) AS count FROM story_pages WHERE story_id = ?').get(fixture.storyId).count).toBe(PAGE_COUNT);
-    const wordCount = source.db.prepare('SELECT content FROM story_pages WHERE story_id = ?').all(fixture.storyId)
+    expect(source.db.prepare('SELECT COUNT(*) AS count FROM manuscript_pages WHERE story_id = ?').get(fixture.storyId).count).toBe(PAGE_COUNT);
+    const wordCount = source.db.prepare('SELECT content FROM manuscript_pages WHERE story_id = ?').all(fixture.storyId)
       .reduce((sum, row) => sum + row.content.trim().split(/\s+/).length, 0);
     expect(wordCount).toBe(PAGE_COUNT * WORDS_PER_PAGE + 1);
     expect(source.db.prepare('SELECT COUNT(*) AS count FROM characters').get().count).toBe(CHARACTER_COUNT);

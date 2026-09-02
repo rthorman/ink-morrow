@@ -275,7 +275,6 @@ describe('continuity ledger v2', () => {
   it('rebuilds a 3,000-page fixture identically and serves bounded inspection state from sparse checkpoints', async () => {
     const story = await createStory(app);
     const chapter = db.prepare(`SELECT chapter.id FROM chapters chapter JOIN volumes volume ON volume.id = chapter.volume_id WHERE volume.story_id = ? LIMIT 1`).get(story.id);
-    const insertStoryPage = db.prepare('INSERT INTO story_pages (id, story_id, page_number, content) VALUES (?, ?, ?, ?)');
     const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
     const insertRevision = db.prepare(`INSERT INTO page_revisions (id, page_id, kind, content, source, cost_usd) VALUES (?, ?, 'canonical', ?, 'migration', 0)`);
     const pointPage = db.prepare('UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?');
@@ -290,7 +289,6 @@ describe('continuity ledger v2', () => {
         const revisionId = randomUUID();
         const content = `Neutral fixture page ${number}.`;
         const delta = v2Delta({ summary: `Fixture summary ${number}.` });
-        insertStoryPage.run(pageId, story.id, number, content);
         insertPage.run(pageId, chapter.id, number);
         insertRevision.run(revisionId, pageId, content);
         pointPage.run(revisionId, revisionId, pageId);

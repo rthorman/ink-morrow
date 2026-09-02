@@ -73,7 +73,7 @@ function mediaArchivePath(ownerKind, ownerId, filePath) {
   return `assets/images/${bucket}/${sha256(`${ownerKind}:${ownerId}`).slice(0, 24)}${extension}`;
 }
 
-function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = '3.2.0' }) {
+function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = '4.1.0' }) {
   const worldById = db.prepare('SELECT * FROM worlds WHERE id = ?');
   const characterById = db.prepare('SELECT * FROM characters WHERE id = ?');
   const storyById = db.prepare('SELECT * FROM stories WHERE id = ?');
@@ -232,7 +232,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         ORDER BY v.ordinal, c.ordinal, p.ordinal
       `).all(id).map(hierarchyPageRecord),
     };
-    const pages = db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(id)
+    const pages = db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(id)
       .map((page) => {
         const record = pageRecord(page, options);
         const image = page.image_media_type ? imageFor('page', page.id, options.includeVisuals) : null;
@@ -255,9 +255,18 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const snapshots = db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ? ORDER BY character_id').all(id)
       .filter((snapshot) => castIds.has(snapshot.character_id))
       .map(snapshotRecord);
-    const memoryRows = options.includeWorkingHistory
-      ? db.prepare('SELECT * FROM story_memory_pages WHERE story_id = ? ORDER BY created_at, page_id').all(id)
-      : db.prepare("SELECT * FROM story_memory_pages WHERE story_id = ? AND status = 'ready' ORDER BY created_at, page_id").all(id);
+    // The stable archive-v2 page-keyed continuity projection is now derived
+    // from canonical revision rows instead of a second writable database copy.
+    const memoryRows = db.prepare(`
+      SELECT page.id AS page_id, delta.story_id, delta.content_hash, delta.status,
+             delta.summary, delta.delta_json, delta.model, delta.prompt_tokens,
+             delta.completion_tokens, delta.spend_usd AS cost_usd, delta.error,
+             delta.schema_version, delta.created_at, delta.updated_at
+        FROM continuity_deltas delta
+        JOIN pages page ON page.canonical_revision_id = delta.revision_id
+       WHERE delta.story_id = ? ${options.includeWorkingHistory ? '' : "AND delta.status = 'ready'"}
+       ORDER BY delta.created_at, page.id
+    `).all(id);
     const memory = memoryRows.map((memoryRow) => memoryRecord(memoryRow, options));
     const deltaRows = options.includeWorkingHistory
       ? db.prepare('SELECT * FROM continuity_deltas WHERE story_id = ? ORDER BY created_at, revision_id').all(id)

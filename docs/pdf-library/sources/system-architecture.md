@@ -4,7 +4,7 @@
 
 Ink Morrow is a self-hosted writing system whose hardest problem is not text generation. Its hardest problem is keeping authored prose, remembered story truth, revision history, provider spend, and recoverability honest while all of them change at different speeds.
 
-This document explains the 4.0 architecture through boundaries and decisions. It is intentionally more durable than a source-file tour: modules may move, but the invariants should remain recognizable.
+This document explains the current 4.x architecture through boundaries and decisions, including the canonical-storage boundary introduced in 4.1.0. It is intentionally more durable than a source-file tour: modules may move, but the invariants should remain recognizable.
 
 **Primary promise:** manuscript canon, authoritative story state, and known provider spend advance through explicit, recoverable transactions.
 
@@ -61,6 +61,8 @@ Startup follows a fail-closed sequence:
 7. Reconcile incomplete jobs and only then listen.
 
 This design rejects filename-based identity. Renaming a file does not make it another schema. It also rejects "best effort" migration because a confident refusal is cheaper than silently corrupting the only manuscript.
+
+Schema 13, shipped with Ink Morrow 4.1.0, makes the hierarchy, immutable page revisions, and revision-bound continuity deltas the only writable sources of manuscript prose and Chronicle memory. Existing page-shaped API responses are assembled through a read-only database view. This removes the earlier duplicate writable mirrors without forcing interface consumers or portable `.inkmorrow` v2 archives to change shape.
 
 ## Domain model
 

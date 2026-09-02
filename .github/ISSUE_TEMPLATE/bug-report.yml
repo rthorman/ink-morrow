@@ -13,7 +13,7 @@ body:
     attributes:
       label: Ink Morrow version or commit
       description: Find this in the release tag, Git commit, or installed documentation.
-      placeholder: 4.0.0-beta.1 / abc1234
+      placeholder: 4.1.0 / abc1234
     validations:
       required: true
   - type: dropdown

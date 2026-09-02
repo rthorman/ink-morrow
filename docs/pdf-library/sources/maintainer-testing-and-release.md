@@ -140,6 +140,8 @@ Migration PR evidence includes:
 
 Do not rename a database and infer identity. Do not delete migration history. Do not weaken a refusal to make a local fixture pass.
 
+The current 4.1.0 storage contract is schema 13: hierarchy, immutable page revisions, and revision-bound continuity deltas are canonical. The `manuscript_pages` read view is an API projection, never a writable compatibility store. Schema-12 upgrade tests must prove preservation of prose, Chronicle state, known and unknown cost semantics, and accumulated retry usage before the retired mirror tables disappear.
+
 ## API and schema evolution
 
 Strict schemas should reject unknown fields where accepting them would hide provider or import drift. Public/private response fields are allowlisted. New enums require state-machine documentation, restart handling, frontend rendering, tests, and export/archive consideration.

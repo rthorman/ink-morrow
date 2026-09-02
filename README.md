@@ -7,7 +7,7 @@
 <p align="center"><strong>A self-hosted gothic writing room for long-form fiction.</strong><br>Build reusable worlds and casts, write one page at a time, keep continuity inspectable, illuminate the manuscript, and decide exactly how it leaves.</p>
 
 <p align="center">
-  <img alt="Release: 4.0.0 beta 1" src="https://img.shields.io/badge/release-4.0.0--beta.1-6e1834">
+  <img alt="Release: 4.1.0" src="https://img.shields.io/badge/release-4.1.0-6e1834">
   <img alt="License: AGPL version 3 only" src="https://img.shields.io/badge/license-AGPL--3.0--only-c7a35b">
   <img alt="Node.js 22.5 or newer" src="https://img.shields.io/badge/node-%E2%89%A522.5-447a63">
   <img alt="Browser tested: Chrome" src="https://img.shields.io/badge/browser_tested-Chrome-51305e">
@@ -18,7 +18,7 @@
   <a href="docs/pdf/Ink-Morrow-4.0-User-Guide.pdf">User guide</a> ·
   <a href="#documentation-library">Documentation library</a> ·
   <a href="#screenshots">Screenshots</a> ·
-  <a href="docs/releases/4.0.0/OPERATIONS.md">Operations</a> ·
+  <a href="docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf">Operations</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="docs/releases/4.0.0/KNOWN-ISSUES.md">Known limits</a>
@@ -36,12 +36,13 @@ still be used for manual writing and local project care, but that resilience is
 not the product's center—the directed human/AI loop is.
 
 > [!IMPORTANT]
-> **Ink Morrow 4.0.0-beta.1 is a clean-break beta.** Start it with a new,
-> empty `DATA_DIR`. It deliberately refuses 3.x databases and format-v1
-> archives before writing. Keep the historical 3.2.2 build and its data intact for
-> historical work; there is no in-place migration.
+> **Ink Morrow 4.1.0 upgrades a valid 4.0.x database in place; it does not
+> empty it.** Before updating, download a full Gate backup, stop Ink Morrow,
+> and make a dated copy of the complete `DATA_DIR`. New installations still
+> need an empty data directory. 3.x databases and format-v1 archives remain
+> deliberately unsupported. Follow the [4.1.0 upgrade runbook](docs/releases/4.1.0/README.md).
 
-The beta ships the complete 4.0 Scriptorium: Library manuscript start/import,
+The 4.1 release ships the complete Scriptorium: Library manuscript start/import,
 the Desk, Chronicle, Codex, Gallery, Gate, immutable revisions and recovery,
 transactional prepared-page writing, page-provenanced continuity, safe image
 upload, multi-format publication, encrypted provider credentials, portable
@@ -55,10 +56,10 @@ product, architecture, security, UX, art, and QA record is indexed in
 [docs/releases/4.0.0/](docs/releases/4.0.0/). Operational setup, clean-break
 installation, backup, restore, and sharing guidance is in
 [docs/releases/4.0.0/OPERATIONS.md](docs/releases/4.0.0/OPERATIONS.md), with
-current beta limits in
+the original 4.0 limits record in
 [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
-The task-oriented [Ink Morrow 4.0 User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf)
+The task-oriented [Ink Morrow 4.x User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf)
 explains the main authoring flows with the approved interface and branding.
 
 ## Documentation library
@@ -254,9 +255,11 @@ $EDITOR backend/.env   # set OPENROUTER_API_KEY
 # then choose a password or passphrase of at least 15 characters.
 ```
 
-Ink Morrow 4.0 is a clean data-contract break. If this checkout already has a
+Ink Morrow 4.x is a clean break from 3.x. If this checkout already has a
 3.x `database/ink-morrow.db`, set `DATA_DIR=../database-v4` in
-`backend/.env` before starting 4.0. The server inspects an existing database
+`backend/.env` before starting a new 4.x installation. A valid 4.0.x database
+upgrades in place to 4.1.0 schema 13 after the required backups. The server
+inspects an existing database
 read-only and refuses legacy or future schema families with recovery guidance;
 it never upgrades or reinterprets a 3.x manuscript in place.
 
@@ -280,7 +283,7 @@ npm start               # http://localhost:3000
 | `ALLOW_INSECURE_LAN` | — | Set to `1` only to acknowledge that direct LAN HTTP exposes passwords and manuscripts in transit |
 | `ALLOWED_HOSTS` | — | Comma-separated public hostnames accepted when an HTTPS reverse proxy fronts the loopback server |
 | `TRUST_PROXY` | — | Set to `1` only for an HTTPS reverse proxy running on the same machine/loopback |
-| `DATA_DIR` | `../database` | Root for the SQLite database, images, audio, and transfer staging. Use a new empty directory for the 4.0 clean break |
+| `DATA_DIR` | `../database` | Root for the SQLite database, images, audio, and transfer staging. Use an empty directory for a new 4.x installation; preserve and back up an existing 4.0.x directory before the 4.1 upgrade |
 | `DB_PATH` | `<DATA_DIR>/ink-morrow.db` | Advanced SQLite-file override; `:memory:` for ephemeral runs. Without `DATA_DIR`, media follows the file's directory |
 | `AI_MAX_TOKENS` | `1500` | Cap per generated page |
 | `AI_RETRY_BASE_DELAY` | `800` | Backoff base for transient AI errors |

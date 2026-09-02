@@ -1,6 +1,6 @@
 {
   "name": "ink-morrow-frontend",
-  "version": "4.0.0-beta.1",
+  "version": "4.1.0",
   "description": "Frontend for Ink Morrow (served by the backend)",
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",

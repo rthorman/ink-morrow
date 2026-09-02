@@ -138,7 +138,7 @@ function createWritingTransactions({
     if (!story) return null;
     const pages = db.prepare(`
       SELECT sp.id, sp.page_number, p.canonical_revision_id, p.display_revision_id
-        FROM story_pages sp
+        FROM manuscript_pages sp
         JOIN pages p ON p.id = sp.id
        WHERE sp.story_id = ?
        ORDER BY sp.page_number
@@ -932,7 +932,7 @@ function createWritingTransactions({
     `).get(storyId);
     const committed = db.prepare(`
       SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS value
-        FROM story_pages WHERE story_id = ?
+        FROM manuscript_pages WHERE story_id = ?
     `).get(storyId).value;
     const prepared = latestPrepared(storyId);
     return {

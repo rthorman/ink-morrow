@@ -4,7 +4,7 @@
 
 This handbook is the practical companion for the person who owns the Ink Morrow installation. It explains not only which command to run, but what that command changes, how to recognize a healthy result, and how to get back to safety when something does not behave as expected.
 
-**Scope:** Ink Morrow 4.0.0 beta, single-owner self-hosting, Windows/macOS/Linux, current Google Chrome.
+**Scope:** Ink Morrow 4.x, single-owner self-hosting, Windows/macOS/Linux, current Google Chrome.
 
 **Reading paths:** New operators should read Chapters 1-4 and 7. Experienced operators can begin with the checklists. During an incident, start with Chapter 10 and resist the urge to improvise destructive database repairs.
 
@@ -157,6 +157,14 @@ Never combine a database from one date with media folders from another. Their re
 7. Start once and read the complete startup result.
 8. Verify Library counts, manuscript title, cast, Chronicle coverage, Codex facts, placed art, and Gate formats.
 9. Only then resume authoring.
+
+### The 4.1.0 schema-13 update
+
+Ink Morrow 4.1.0 upgrades a valid 4.0.x schema-12 database in place. The catalogue does **not** empty. Schema 13 verifies that every manuscript page and Chronicle memory row has a complete canonical revision record, repairs a safe partial backfill when possible, and only then retires the duplicate writable page and memory tables. The `.inkmorrow` archive stays at version 2 because its portable JSON contract is unchanged.
+
+Use the checklist above exactly: make the full Gate backup while the old version is running, stop the application, and make the cold `DATA_DIR` copy before pulling or starting 4.1.0. Start 4.1.0 against that same 4.0.x data directory once. If startup refuses the database, stop and preserve the complete message. Do not rename, delete, or manually edit the database.
+
+Rollback means stopping the app, restoring the **entire** pre-update cold copy, and running the old code. Do not mix a schema-13 database with an older media directory, and do not expect 4.0.x to open the newer schema.
 
 Earlier 4.0 beta databases from before the Ink Morrow naming change are adopted only after their 4.0 identity and migration checksums are proven. Before changing identity, startup writes a complete `*.pre-ink-morrow-v4.bak` SQLite snapshot beside the database and prints its location.
 

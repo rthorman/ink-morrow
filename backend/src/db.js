@@ -1381,6 +1381,225 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 13,
+    name: 'canonical manuscript and continuity storage',
+    checksumSource: `Current manuscript pages become a read-only projection of hierarchy and immutable revisions; legacy prose and continuity mirrors are retired after their canonical rows are proven complete.`,
+    up(db) {
+      db.exec(`
+        ALTER TABLE page_revisions ADD COLUMN cost_known INTEGER NOT NULL DEFAULT 1
+          CHECK (cost_known IN (0, 1));
+        DROP TRIGGER page_revisions_immutable;
+        UPDATE page_revisions
+           SET cost_known = 0
+         WHERE id IN (
+           SELECT page.canonical_revision_id
+             FROM pages page
+             JOIN story_pages legacy ON legacy.id = page.id
+            WHERE legacy.cost_usd IS NULL
+         );
+      `);
+      // Be deliberately defensive at the one-way boundary. Normal schema-12
+      // databases already have these rows; repairing a partially completed
+      // earlier backfill here is safer than discarding otherwise valid prose.
+      backfillManuscriptHierarchy(db);
+      const insertRevision = db.prepare(`
+        INSERT INTO page_revisions
+          (id, page_id, parent_revision_id, kind, content, direction, created_at,
+           source, model, prompt_tokens, completion_tokens, cost_usd, cost_known)
+        VALUES (?, ?, NULL, 'canonical', ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      const setPointers = db.prepare(`
+        UPDATE pages SET canonical_revision_id = ?, display_revision_id = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE id = ?
+      `);
+      const incompletePages = db.prepare(`
+        SELECT legacy.*
+          FROM story_pages legacy
+          JOIN pages page ON page.id = legacy.id
+         WHERE page.canonical_revision_id IS NULL OR page.display_revision_id IS NULL
+         ORDER BY legacy.story_id, legacy.page_number
+      `).all();
+      for (const page of incompletePages) {
+        const revisionId = randomUUID();
+        insertRevision.run(
+          revisionId, page.id, page.content, page.user_input, page.created_at,
+          page.model ? 'ai' : 'migration', page.model, page.prompt_tokens,
+          page.completion_tokens, page.cost_usd || 0, page.cost_usd === null ? 0 : 1
+        );
+        setPointers.run(revisionId, revisionId, page.id);
+      }
+      db.exec(`
+        INSERT OR IGNORE INTO continuity_deltas
+          (revision_id, story_id, status, schema_version, delta_json,
+           provider_result_json, spend_usd, error_code, created_at, updated_at,
+           content_hash, summary, model, prompt_tokens, completion_tokens, error)
+        SELECT page.canonical_revision_id, memory.story_id, memory.status,
+               memory.schema_version, memory.delta_json,
+               json_object('model', memory.model,
+                           'prompt_tokens', memory.prompt_tokens,
+                           'completion_tokens', memory.completion_tokens),
+               memory.cost_usd,
+               CASE WHEN memory.status = 'failed' THEN 'EXTRACTION_FAILED' ELSE NULL END,
+               memory.created_at, memory.updated_at, memory.content_hash,
+               memory.summary, memory.model, memory.prompt_tokens,
+               memory.completion_tokens, memory.error
+          FROM story_memory_pages memory
+          JOIN pages page ON page.id = memory.page_id
+         WHERE page.canonical_revision_id IS NOT NULL;
+
+        INSERT OR IGNORE INTO continuity_search (revision_id, story_id, content)
+        SELECT page.canonical_revision_id, search.story_id, search.content
+          FROM story_memory_search search
+          JOIN pages page ON page.id = search.page_id
+          JOIN continuity_deltas delta ON delta.revision_id = page.canonical_revision_id
+         WHERE delta.status = 'ready';
+
+        -- The old page projection accumulated every extraction attempt while
+        -- the earlier canonical delta stored only the latest attempt. Carry
+        -- the larger lifetime totals forward before retiring that projection.
+        UPDATE continuity_deltas
+           SET spend_usd = MAX(spend_usd, COALESCE((
+                 SELECT legacy.continuity_cost_usd
+                   FROM pages page
+                   JOIN story_pages legacy ON legacy.id = page.id
+                  WHERE page.canonical_revision_id = continuity_deltas.revision_id
+               ), 0)),
+               model = COALESCE((
+                 SELECT legacy.continuity_model
+                   FROM pages page
+                   JOIN story_pages legacy ON legacy.id = page.id
+                  WHERE page.canonical_revision_id = continuity_deltas.revision_id
+               ), model)
+         WHERE revision_id IN (SELECT canonical_revision_id FROM pages);
+
+        UPDATE continuity_deltas
+           SET prompt_tokens = MAX(COALESCE(prompt_tokens, 0), (
+                 SELECT legacy.continuity_prompt_tokens
+                   FROM pages page
+                   JOIN story_pages legacy ON legacy.id = page.id
+                  WHERE page.canonical_revision_id = continuity_deltas.revision_id
+               ))
+         WHERE EXISTS (
+           SELECT 1 FROM pages page
+           JOIN story_pages legacy ON legacy.id = page.id
+           WHERE page.canonical_revision_id = continuity_deltas.revision_id
+             AND legacy.continuity_prompt_tokens IS NOT NULL
+         );
+
+        UPDATE continuity_deltas
+           SET completion_tokens = MAX(COALESCE(completion_tokens, 0), (
+                 SELECT legacy.continuity_completion_tokens
+                   FROM pages page
+                   JOIN story_pages legacy ON legacy.id = page.id
+                  WHERE page.canonical_revision_id = continuity_deltas.revision_id
+               ))
+         WHERE EXISTS (
+           SELECT 1 FROM pages page
+           JOIN story_pages legacy ON legacy.id = page.id
+           WHERE page.canonical_revision_id = continuity_deltas.revision_id
+             AND legacy.continuity_completion_tokens IS NOT NULL
+         );
+      `);
+      const missingPages = db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM story_pages legacy
+          LEFT JOIN pages page ON page.id = legacy.id
+          LEFT JOIN page_revisions canonical ON canonical.id = page.canonical_revision_id
+          LEFT JOIN page_revisions display ON display.id = page.display_revision_id
+         WHERE page.id IS NULL OR canonical.id IS NULL OR display.id IS NULL
+      `).get().count;
+      if (Number(missingPages) > 0) {
+        throw new Error('Schema 13 cannot retire page mirrors because canonical revisions are incomplete');
+      }
+      const missingContinuity = db.prepare(`
+        SELECT COUNT(*) AS count
+          FROM story_memory_pages memory
+          JOIN pages page ON page.id = memory.page_id
+          LEFT JOIN continuity_deltas delta ON delta.revision_id = page.canonical_revision_id
+         WHERE delta.revision_id IS NULL
+      `).get().count;
+      if (Number(missingContinuity) > 0) {
+        throw new Error('Schema 13 cannot retire continuity mirrors because canonical deltas are incomplete');
+      }
+      db.exec(`
+        DROP TRIGGER IF EXISTS story_pages_invalidate_memory;
+        DROP TRIGGER IF EXISTS story_memory_search_fts_delete;
+        DROP TRIGGER IF EXISTS continuity_checkpoint_canonical_changed;
+        DROP TRIGGER IF EXISTS continuity_checkpoint_page_removed;
+        DROP TRIGGER IF EXISTS continuity_checkpoint_page_renumbered;
+        DROP TABLE IF EXISTS story_memory_fts;
+        DROP TABLE story_memory_search;
+        DROP TABLE story_memory_pages;
+        DROP TABLE story_pages;
+
+        CREATE TRIGGER page_revisions_immutable
+        BEFORE UPDATE ON page_revisions
+        BEGIN
+          SELECT RAISE(ABORT, 'Page revisions are immutable');
+        END;
+
+        CREATE VIEW manuscript_pages AS
+        WITH ordered_pages AS (
+          SELECT page.id, page.chapter_id, page.ordinal,
+                 page.canonical_revision_id, page.display_revision_id,
+                 page.created_at, page.updated_at, volume.story_id,
+                 ROW_NUMBER() OVER (
+                   PARTITION BY volume.story_id
+                   ORDER BY volume.ordinal, chapter.ordinal, page.ordinal, page.id
+                 ) AS page_number
+            FROM pages page
+            JOIN chapters chapter ON chapter.id = page.chapter_id
+            JOIN volumes volume ON volume.id = chapter.volume_id
+        )
+        SELECT ordered.id, ordered.story_id, ordered.page_number,
+               COALESCE(display.content, canonical.content, '') AS content,
+               canonical.direction AS user_input, canonical.model,
+               canonical.prompt_tokens, canonical.completion_tokens,
+               CASE WHEN canonical.cost_known = 1 THEN canonical.cost_usd ELSE NULL END AS cost_usd,
+               NULL AS image_media_type,
+               NULL AS image_prompt, delta.model AS continuity_model,
+               delta.prompt_tokens AS continuity_prompt_tokens,
+               delta.completion_tokens AS continuity_completion_tokens,
+               COALESCE(delta.spend_usd, 0) AS continuity_cost_usd,
+               delta.status AS continuity_status,
+               delta.error AS continuity_error,
+               delta.error_code AS continuity_error_code,
+               ordered.created_at, ordered.updated_at,
+               ordered.chapter_id, ordered.ordinal,
+               ordered.canonical_revision_id, ordered.display_revision_id
+          FROM ordered_pages ordered
+          LEFT JOIN page_revisions canonical ON canonical.id = ordered.canonical_revision_id
+          LEFT JOIN page_revisions display ON display.id = ordered.display_revision_id
+          LEFT JOIN continuity_deltas delta ON delta.revision_id = ordered.canonical_revision_id;
+
+        CREATE TRIGGER continuity_checkpoint_canonical_changed
+        AFTER UPDATE OF canonical_revision_id ON pages
+        WHEN OLD.canonical_revision_id IS NOT NEW.canonical_revision_id
+        BEGIN
+          DELETE FROM continuity_projection_checkpoints
+           WHERE story_id = (
+             SELECT story_id FROM manuscript_pages WHERE id = NEW.id
+           )
+             AND page_number >= COALESCE(
+               (SELECT page_number FROM manuscript_pages WHERE id = NEW.id), 1
+             );
+        END;
+
+        CREATE TRIGGER continuity_checkpoint_page_removed
+        BEFORE DELETE ON pages
+        BEGIN
+          DELETE FROM continuity_projection_checkpoints
+           WHERE story_id = (
+             SELECT story_id FROM manuscript_pages WHERE id = OLD.id
+           )
+             AND page_number >= COALESCE(
+               (SELECT page_number FROM manuscript_pages WHERE id = OLD.id), 1
+             );
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {
@@ -1636,20 +1855,6 @@ function runMigrations(db, currentVersion, migrations = MIGRATIONS) {
 function ensureContinuitySearch(db) {
   try {
     db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS story_memory_fts
-        USING fts5(page_id UNINDEXED, story_id UNINDEXED, content);
-      CREATE TRIGGER IF NOT EXISTS story_memory_search_fts_delete
-      AFTER DELETE ON story_memory_search BEGIN
-        DELETE FROM story_memory_fts WHERE page_id = OLD.page_id;
-      END;
-      DELETE FROM story_memory_fts
-        WHERE page_id NOT IN (SELECT page_id FROM story_memory_search);
-      INSERT INTO story_memory_fts (page_id, story_id, content)
-        SELECT s.page_id, s.story_id, s.content
-          FROM story_memory_search s
-         WHERE NOT EXISTS (
-           SELECT 1 FROM story_memory_fts f WHERE f.page_id = s.page_id
-         );
       CREATE VIRTUAL TABLE IF NOT EXISTS continuity_search_fts
         USING fts5(revision_id UNINDEXED, story_id UNINDEXED, content);
       CREATE TRIGGER IF NOT EXISTS continuity_search_fts_delete
