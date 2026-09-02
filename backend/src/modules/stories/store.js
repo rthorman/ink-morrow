@@ -9,7 +9,7 @@ const { normalizeCast, validateCastPayload, parseCastJson } = require('./cast');
 const { createHierarchyStore } = require('./hierarchy');
 const { createRevisionStore } = require('./revisions');
 
-function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
+function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDays, clock }) {
   const hierarchy = createHierarchyStore(db);
   const getStory = (id) => db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
   const storyPages = (storyId) =>
@@ -36,6 +36,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       db.prepare(
         "SELECT COALESCE(SUM(spend_usd), 0) AS s FROM assets WHERE story_id = ? AND status = 'ready' AND source = 'ai-generated'"
       ).get(story.id).s,
+    scribe: scribes?.forStory(story.id) || null,
   });
 
   const storyWithHierarchy = (story) => ({
@@ -164,7 +165,15 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       cast = result.cast;
     }
 
-    return { title, world_id, tone, cast };
+    let scribe_id = existing && scribes ? scribes.forStory(existing.id)?.source_scribe_id || null : null;
+    if (body.scribe_id !== undefined) {
+      scribe_id = body.scribe_id === null || body.scribe_id === '' ? null : asString(body.scribe_id);
+      if (scribe_id && (!scribes || !scribes.getScribe(scribe_id))) {
+        return { error: 'scribe_id does not reference an existing Scribe' };
+      }
+    }
+
+    return { title, world_id, tone, cast, scribe_id, scribe_changed: body.scribe_id !== undefined };
   }
 
   // -- story CRUD ------------------------------------------------------------
@@ -187,19 +196,29 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       );
       ensureCastSnapshots(id, payload.cast);
       ensureWorldSnapshot(id, payload.world_id);
+      if (payload.scribe_id) scribes?.bindStoryInTransaction(id, payload.scribe_id);
       hierarchy.ensureDefaultInTransaction(id);
     });
     return getStory(id);
   }
 
   function updateStory(storyId, payload) {
-    db.prepare(
-      'UPDATE stories SET title = ?, world_id = ?, characters = ?, tone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
-    ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
-    ensureCastSnapshots(storyId, payload.cast);
-    ensureWorldSnapshot(storyId, payload.world_id);
+    hierarchy.inImmediateTransaction(() => {
+      db.prepare(
+        'UPDATE stories SET title = ?, world_id = ?, characters = ?, tone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'
+      ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
+      ensureCastSnapshots(storyId, payload.cast);
+      ensureWorldSnapshot(storyId, payload.world_id);
+      if (payload.scribe_changed) scribes?.bindStoryInTransaction(storyId, payload.scribe_id);
+    });
     invalidatePreview(storyId);
     return getStory(storyId);
+  }
+
+  function bindScribe(storyId, scribeId) {
+    hierarchy.inImmediateTransaction(() => scribes?.bindStoryInTransaction(storyId, scribeId));
+    invalidatePreview(storyId);
+    return scribes?.forStory(storyId) || null;
   }
 
   function setImageDeleted(storyId) {
@@ -214,7 +233,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
   }
 
   function insertGeneratedPageInTransaction(storyId, {
-    content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber,
+    content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber, scribeBindingId = null,
   }) {
     const id = randomUUID();
     db.prepare(
@@ -230,6 +249,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
       promptTokens: promptTokens ?? null,
       completionTokens: completionTokens ?? null,
       costUsd: costUsd ?? 0,
+      scribeBindingId,
     });
     db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
     revisions.journalInTransaction('page.create', storyId, 'page', id, {
@@ -346,6 +366,7 @@ function createStoriesStore(db, { getWorld, recoveryRetentionDays, clock }) {
     invalidatePreview,
     markPreviewInvalidated,
     invalidatePreviewsForWorld,
+    bindScribe,
     previewRevision,
     validateStoryPayload,
     createStory,

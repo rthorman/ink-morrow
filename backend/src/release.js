@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-4';
-const DATABASE_SCHEMA_VERSION = 10;
+const DATABASE_SCHEMA_VERSION = 11;
 const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
@@ -34,6 +34,7 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'publication-core', status: 'available' }),
   Object.freeze({ id: 'publication', status: 'available' }),
   Object.freeze({ id: 'snapshot-sharing', status: 'available' }),
+  Object.freeze({ id: 'first-class-scribes', status: 'available' }),
 ]);
 
 function releaseCapabilities(applicationVersion) {

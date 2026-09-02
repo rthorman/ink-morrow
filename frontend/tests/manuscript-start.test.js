@@ -73,7 +73,7 @@ describe('PR10 Library manuscript start', () => {
     document.getElementById('manuscriptStartSubmit').click();
     for (let i = 0; i < 8; i++) await flush();
 
-    expect(writes[0][1]).toMatchObject({ title: 'Started Tale', characters: [], world_id: null });
+    expect(writes[0][1]).toMatchObject({ title: 'Started Tale', characters: [], world_id: null, scribe_id: null });
     expect(writes[1][1]).toMatchObject({ content: 'A local opening.' });
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/providers'))).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => String(url).includes('/ai/'))).toBe(false);

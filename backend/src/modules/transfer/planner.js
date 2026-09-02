@@ -16,6 +16,9 @@ const {
   archiveFilename,
   worldRecord,
   characterRecord,
+  scribeRecord,
+  scribeRevisionRecord,
+  scribeBindingRecord,
   storyRecord,
   pageRecord,
   volumeRecord,
@@ -76,7 +79,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
 
   function normalizeOptions(input) {
     const scope = input?.scope;
-    if (!EXPORT_SCOPES.has(scope)) throw httpError('scope must be world, character, story, or full');
+    if (!EXPORT_SCOPES.has(scope)) throw httpError('scope must be world, character, scribe, story, or full');
     const includeVisuals = input.include_visuals !== false;
     const includeAudio = input.include_audio === undefined ? scope === 'full' : input.include_audio === true;
     const includeWorkingHistory = input.include_working_history === undefined
@@ -96,15 +99,17 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
   function selectedIds(options) {
     const worlds = new Set();
     const characters = new Set();
+    const scribes = new Set();
     const stories = new Set();
     let rootName = null;
 
     if (options.scope === 'full') {
       for (const row of db.prepare('SELECT id FROM worlds').all()) worlds.add(row.id);
       for (const row of db.prepare('SELECT id FROM characters').all()) characters.add(row.id);
+      for (const row of db.prepare('SELECT id FROM scribes').all()) scribes.add(row.id);
       for (const row of db.prepare('SELECT id FROM stories').all()) stories.add(row.id);
       rootName = 'ink-morrow-backup';
-      return { worlds, characters, stories, rootName, externalWorlds: [] };
+      return { worlds, characters, scribes, stories, rootName, externalWorlds: [] };
     }
     if (!validId(options.id)) throw httpError('id is required for this export scope');
 
@@ -123,7 +128,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         if (!allowed.has(id)) throw httpError('A selected character does not belong to this world');
         characters.add(id);
       }
-      return { worlds, characters, stories, rootName, externalWorlds: [] };
+      return { worlds, characters, scribes, stories, rootName, externalWorlds: [] };
     }
 
     if (options.scope === 'character') {
@@ -132,7 +137,15 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       characters.add(character.id);
       if (character.world_id) worlds.add(character.world_id);
       rootName = character.name;
-      return { worlds, characters, stories, rootName, externalWorlds: [] };
+      return { worlds, characters, scribes, stories, rootName, externalWorlds: [] };
+    }
+
+    if (options.scope === 'scribe') {
+      const scribe = db.prepare('SELECT * FROM scribes WHERE id = ?').get(options.id);
+      if (!scribe) throw httpError('Scribe not found', 404);
+      scribes.add(scribe.id);
+      rootName = scribe.name;
+      return { worlds, characters, scribes, stories, rootName, externalWorlds: [] };
     }
 
     const story = storyById.get(options.id);
@@ -154,7 +167,11 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       .map((id) => worldById.get(id))
       .filter(Boolean)
       .map((row) => ({ id: row.id, name: row.name }));
-    return { worlds, characters, stories, rootName, externalWorlds };
+    for (const binding of db.prepare(`
+      SELECT DISTINCT source_scribe_id FROM story_scribe_bindings
+       WHERE story_id = ? AND source_scribe_id IS NOT NULL
+    `).all(story.id)) scribes.add(binding.source_scribe_id);
+    return { worlds, characters, scribes, stories, rootName, externalWorlds };
   }
 
   function imageFor(kind, id, enabled) {
@@ -177,6 +194,18 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const record = characterRecord(row, { hasVisual: Boolean(image), includeWorkingHistory: options.includeWorkingHistory });
     if (image) record.image_media_type = image.mediaType;
     return { bundle: { record }, image };
+  }
+
+  function buildScribeBundle(id, options) {
+    const row = db.prepare('SELECT * FROM scribes WHERE id = ?').get(id);
+    if (!row) throw httpError('Archive dependency Scribe is missing', 409);
+    const image = imageFor('scribe', id, options.includeVisuals);
+    const record = scribeRecord(row, { hasVisual: Boolean(image), includeWorkingHistory: options.includeWorkingHistory });
+    if (image) record.image_media_type = image.mediaType;
+    const revisions = db.prepare(`
+      SELECT * FROM scribe_revisions WHERE scribe_id = ? ORDER BY revision_number
+    `).all(id).map(scribeRevisionRecord);
+    return { bundle: { record, revisions }, image };
   }
 
   function buildStoryBundle(id, options) {
@@ -218,6 +247,9 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       WHERE v.story_id = ?
       ORDER BY v.ordinal, c.ordinal, p.ordinal, r.created_at, r.rowid
     `).all(id).map((revision) => revisionRecord(revision, options));
+    const scribeBindings = db.prepare(`
+      SELECT * FROM story_scribe_bindings WHERE story_id = ? ORDER BY created_at, rowid
+    `).all(id).map(scribeBindingRecord);
     const castIds = new Set(parseCastJson(row.characters).map((entry) => entry.id));
     const snapshots = db.prepare('SELECT * FROM story_character_snapshots WHERE story_id = ? ORDER BY character_id').all(id)
       .filter((snapshot) => castIds.has(snapshot.character_id))
@@ -307,6 +339,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         hierarchy,
         pages,
         revisions,
+        scribe_bindings: scribeBindings,
         snapshots,
         template_snapshots: templateSnapshots,
         memory,
@@ -353,7 +386,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       name: kind === 'story' ? bundle.record.title : bundle.record.name,
       path: objectPath(kind, id),
       sha256: sha256(buffer),
-      semantic_sha256: semanticHash(kind, bundle),
+      semantic_sha256: semanticHash(kind, bundle, { includeScribes: true }),
       size_bytes: buffer.length,
       dependencies,
       buffer,
@@ -378,11 +411,21 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       entities.push(await createEntity('character', id, bundle, dependencies));
       await addImageAsset(assets, { ownerKind: 'character', ownerId: id, file: image });
     }
+    for (const id of selection.scribes) {
+      const { bundle, image } = buildScribeBundle(id, options);
+      entities.push(await createEntity('scribe', id, bundle, []));
+      await addImageAsset(assets, { ownerKind: 'scribe', ownerId: id, file: image });
+    }
     for (const id of selection.stories) {
       const { bundle, cover, pageImages, audioFile, artAssets } = buildStoryBundle(id, options);
       const dependencies = [];
       if (bundle.record.world_id) dependencies.push({ kind: 'world', id: bundle.record.world_id });
       for (const cast of bundle.record.characters) dependencies.push({ kind: 'character', id: cast.id });
+      for (const binding of bundle.scribe_bindings || []) {
+        if (binding.source_scribe_id && selection.scribes.has(binding.source_scribe_id)) {
+          dependencies.push({ kind: 'scribe', id: binding.source_scribe_id });
+        }
+      }
       entities.push(await createEntity('story', id, bundle, dependencies));
       await addImageAsset(assets, { ownerKind: 'story', ownerId: id, storyId: id, file: cover });
       for (const page of bundle.pages) {
@@ -439,6 +482,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const exposure = {
       worlds: selection.worlds.size,
       characters: selection.characters.size,
+      scribes: selection.scribes.size,
       stories: selection.stories.size,
       pages,
       continuity_rows: memory,
@@ -513,6 +557,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     };
     if (kind === 'world') return buildWorldBundle(id, options).bundle;
     if (kind === 'character') return buildCharacterBundle(id, options).bundle;
+    if (kind === 'scribe') return buildScribeBundle(id, options).bundle;
     if (kind === 'story') return buildStoryBundle(id, options).bundle;
     return null;
   }

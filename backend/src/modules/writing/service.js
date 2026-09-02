@@ -33,7 +33,7 @@ function parseAiJson(content) {
   }
 }
 
-function createWritingService({ catalog, stories, continuity, chatCompletion }) {
+function createWritingService({ catalog, scribes = null, stories, continuity, chatCompletion }) {
   function castCharacters(story) {
     return continuity.contextForPrompt(story).characters;
   }
@@ -58,6 +58,7 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
       world,
       characters: memory.characters,
       continuity: memory,
+      scribe: scribes?.forStory(story.id) || null,
       pages: {
         total: allPages.length,
         included,
@@ -70,7 +71,7 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
       { role: 'system', content: 'You are a talented, disciplined fiction writer.' },
       { role: 'user', content: buildPrompt({
         story, world: ctx.world, characters: ctx.characters, continuity: ctx.continuity,
-        pages: ctx.pages, userInput, wordTarget,
+        pages: ctx.pages, userInput, wordTarget, scribe: ctx.scribe,
       }) },
     ];
   }
@@ -105,9 +106,9 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
   // -- AI drafts (world / character fleshing-out) -----------------------------
 
   const DRAFT_LENGTHS = {
-    short: { label: 'short', world: 'Keep the description to 2-3 vivid sentences.', character: 'Keep each field to 1-2 sentences except the description (2-3 sentences).' },
-    medium: { label: 'medium', world: 'Aim for roughly 120-180 words of description.', character: 'Aim for roughly 25-50 words per field.' },
-    long: { label: 'long', world: 'Aim for roughly 300-450 words of description, rich but disciplined.', character: 'Aim for roughly 60-110 words per field.' },
+    short: { label: 'short', world: 'Keep the description to 2-3 vivid sentences.', character: 'Keep each field to 1-2 sentences except the description (2-3 sentences).', scribe: 'Keep each prose field to 1-2 precise sentences.' },
+    medium: { label: 'medium', world: 'Aim for roughly 120-180 words of description.', character: 'Aim for roughly 25-50 words per field.', scribe: 'Aim for roughly 25-50 words per prose field.' },
+    long: { label: 'long', world: 'Aim for roughly 300-450 words of description, rich but disciplined.', character: 'Aim for roughly 60-110 words per field.', scribe: 'Aim for roughly 50-90 words per prose field, specific rather than repetitive.' },
   };
 
   function draftVariantLine(variant) {
@@ -258,6 +259,35 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
     return { foundations: parsed, model: result.model, cost_usd, seeds };
   }
 
+  async function draftScribe(body, modelOverride) {
+    const seeds = {};
+    for (const key of [
+      'name', 'description', 'personality', 'appearance', 'background', 'feline_traits',
+      'diction', 'sentence_rhythm', 'narrative_distance', 'figurative_language',
+      'description_density', 'dialogue_tendency', 'exposition_style', 'humor',
+      'scene_tempo', 'progress_appetite', 'tension_tolerance', 'aftermath_dwell',
+      'signature_habits', 'avoidances',
+    ]) seeds[key] = body[key];
+    seeds.focus_areas = Array.isArray(body.focus_areas) ? body.focus_areas : [];
+    const { length, variant } = draftLengthAndVariant(body);
+    const { parsed, result, cost_usd } = await runDraft(() => {
+      const seedLines = Object.entries(seeds)
+        .filter(([, value]) => Array.isArray(value) ? value.length : value)
+        .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(', ') : value}`);
+      return [
+        'Design one distinctive Ink Morrow Scribe: a first-class creative collaborator with a coherent identity and a usable, non-imitative craft signature.',
+        'BRAND CANON IS ABSOLUTE: every Scribe is an unmistakably adult human woman with exactly one natural, biological, anatomically cat-conforming feline tail and exactly one pair of natural feline ears on top of her head. Otherwise her anatomy is human. Never add visible human ears, costume parts, fox/wolf/rabbit/demon traits, a furry muzzle, paws, digitigrade legs, full-body fur, a child, a teenager, or youthful ambiguity.',
+        'Her identity as a catgirl is independent of her prose. A Scribe may use any gendered or regional linguistic register, occupation-influenced vocabulary, or temperament without becoming a man or another species. Do not imitate a named living or dead author.',
+        'Make the writing profile behaviorally useful: distinguish moment-to-moment scene tempo from appetite for durable plot progress; give specific attention biases, selective signature habits, and avoidances without turning them into hard rules.',
+        seedLines.length ? `THE USER'S SEED (honor supplied choices and build into blanks):\n${seedLines.join('\n')}` : 'The user gave no seed; invent freely within canon.',
+        DRAFT_LENGTHS[length].scribe,
+        draftVariantLine(variant),
+        'Return strict JSON with exactly these keys: {"name": string, "description": string, "personality": string, "appearance": string, "background": string, "feline_traits": string, "diction": "plain"|"balanced"|"ornate", "sentence_rhythm": "clipped"|"varied"|"flowing", "narrative_distance": "intimate"|"flexible"|"observational", "figurative_language": "restrained"|"balanced"|"abundant", "description_density": "lean"|"balanced"|"immersive", "dialogue_tendency": "sparse"|"balanced"|"dialogue-led", "exposition_style": "explicit"|"balanced"|"implicit", "humor": "none"|"restrained"|"dry"|"warm"|"dark"|"playful", "scene_tempo": "contemplative"|"measured"|"brisk", "progress_appetite": "linger"|"develop"|"advance", "tension_tolerance": "low"|"medium"|"high", "aftermath_dwell": "brief"|"balanced"|"patient", "focus_areas": array of up to 8 from ["interiority","relationships","dialogue","action","sensory-detail","setting","world-systems","mystery","theme","humor","consequences"], "signature_habits": string, "avoidances": string}',
+      ].filter(Boolean).join('\n\n');
+    });
+    return { scribe: parsed, model: result.model, cost_usd, seeds };
+  }
+
   return {
     castCharacters,
     loadContext,
@@ -268,6 +298,7 @@ function createWritingService({ catalog, stories, continuity, chatCompletion }) 
     draftWorld,
     draftCharacter,
     draftFoundations,
+    draftScribe,
     DRAFT_LENGTHS,
   };
 }

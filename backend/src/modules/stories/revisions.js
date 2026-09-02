@@ -68,8 +68,8 @@ function createRevisionStore(db, {
   const insertRevision = db.prepare(`
     INSERT INTO page_revisions
       (id, page_id, parent_revision_id, kind, content, direction, source,
-       model, prompt_tokens, completion_tokens, cost_usd, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       model, prompt_tokens, completion_tokens, cost_usd, scribe_binding_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const setPointers = db.prepare(`
     UPDATE pages
@@ -115,7 +115,7 @@ function createRevisionStore(db, {
 
   function createInitialRevisionInTransaction(pageId, {
     content = '', direction = null, source = 'author', model = null,
-    promptTokens = null, completionTokens = null, costUsd = 0, createdAt = null,
+    promptTokens = null, completionTokens = null, costUsd = 0, scribeBindingId = null, createdAt = null,
   } = {}) {
     const page = db.prepare('SELECT * FROM pages WHERE id = ?').get(pageId);
     if (!page) throw new Error(`Hierarchy page ${pageId} does not exist`);
@@ -125,7 +125,7 @@ function createRevisionStore(db, {
     insertRevision.run(
       id, pageId, null, 'canonical', content, direction,
       ['author', 'ai', 'import', 'migration'].includes(source) ? source : 'author',
-      model, promptTokens, completionTokens, Number(costUsd) || 0, timestamp
+      model, promptTokens, completionTokens, Number(costUsd) || 0, scribeBindingId, timestamp
     );
     setPointers.run(id, id, timestamp, pageId);
     return getRevision.get(id);
@@ -187,7 +187,7 @@ function createRevisionStore(db, {
   function tailEdit(storyId, pageId, {
     content, direction = null, source = 'author', model = null,
     promptTokens = null, completionTokens = null, costUsd = 0,
-    idempotencyKey = null,
+    idempotencyKey = null, scribeBindingId = null,
   }) {
     const kind = 'page.tail_edit';
     const repeated = replay(kind, storyId, idempotencyKey);
@@ -195,7 +195,7 @@ function createRevisionStore(db, {
     let result;
     hierarchy.inImmediateTransaction(() => {
       result = tailEditInTransaction(storyId, pageId, {
-        content, direction, source, model, promptTokens, completionTokens, costUsd, idempotencyKey,
+        content, direction, source, model, promptTokens, completionTokens, costUsd, idempotencyKey, scribeBindingId,
       });
     });
     if (!result) return null;
@@ -206,7 +206,7 @@ function createRevisionStore(db, {
   function tailEditInTransaction(storyId, pageId, {
     content, direction = null, source = 'author', model = null,
     promptTokens = null, completionTokens = null, costUsd = 0,
-    idempotencyKey = null,
+    idempotencyKey = null, scribeBindingId = null,
   }) {
     const page = getPlacement.get(storyId, pageId);
     if (!page) return null;
@@ -222,7 +222,7 @@ function createRevisionStore(db, {
     insertRevision.run(
       revisionId, pageId, current.id, 'canonical', content, direction,
       source === 'ai' ? 'ai' : 'author', model, promptTokens, completionTokens,
-      Number(costUsd) || 0, timestamp
+      Number(costUsd) || 0, scribeBindingId, timestamp
     );
     setPointers.run(revisionId, revisionId, timestamp, pageId);
     db.prepare(`
@@ -272,7 +272,7 @@ function createRevisionStore(db, {
       const timestamp = now();
       insertRevision.run(
         revisionId, pageId, parent.id, 'copyedit', content, null,
-        'author', null, null, null, 0, timestamp
+        'author', null, null, null, 0, null, timestamp
       );
       setPointers.run(canonical.id, revisionId, timestamp, pageId);
       // story_pages is the temporary read/export projection. The v3 trigger
@@ -536,7 +536,7 @@ function createRevisionStore(db, {
       for (const revision of orderedRevisions(payload.revisions)) {
         const fields = [
           'id', 'page_id', 'parent_revision_id', 'kind', 'content', 'direction',
-          'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd', 'created_at',
+          'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd', 'scribe_binding_id', 'created_at',
         ];
         insertRevision.run(...fields.map((field) => revision[field]));
       }

@@ -26,6 +26,7 @@ describe('UI navigation (hash routes)', () => {
       ['library', 'librarySection'],
       ['worlds', 'worldsSection'],
       ['characters', 'charactersSection'],
+      ['tribe', 'tribeSection'],
     ];
     for (const [btn, section] of destinations) {
       document.getElementById(`${btn}Btn`).click();
@@ -37,7 +38,7 @@ describe('UI navigation (hash routes)', () => {
         expect(document.getElementById(otherSection).classList.contains('active')).toBe(false);
       }
     }
-    expect(window.location.hash).toBe('#/characters');
+    expect(window.location.hash).toBe('#/tribe');
   });
 
   it('keeps the five manuscript destinations stable and gates story-only rooms', async () => {

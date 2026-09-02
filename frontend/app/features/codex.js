@@ -43,6 +43,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   let templates = [];
   let loadToken = 0;
   let facts = [];
+  let boundScribe = null;
 
   function hasLead() {
     return Boolean(continuity?.characters?.some((character) => character.role === 'mc'));
@@ -194,6 +195,50 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     if (!grid.children.length) grid.appendChild(el('p', 'codex-empty', 'This manuscript has no world or cast foundations yet.'));
     target.appendChild(grid);
     renderTemplateUpdates();
+  }
+
+  function renderScribeBinding() {
+    const target = document.getElementById('codexScribe');
+    if (!target) return;
+    target.textContent = '';
+    const head = el('div', 'codex-author-head');
+    const copy = el('div');
+    copy.append(
+      el('h3', '', 'Manuscript Scribe'),
+      el('p', 'setting-hint', boundScribe
+        ? `${boundScribe.name} revision ${boundScribe.source_revision_number} is frozen into this manuscript. Changing Scribe affects future pages only.`
+        : 'No Tribe member is bound. Future prose uses neutral house craft.'),
+    );
+    const form = el('form', 'codex-template__form');
+    const label = el('label', '', 'Scribe for future pages');
+    const select = document.createElement('select');
+    select.appendChild(new Option('No Scribe — neutral house craft', ''));
+    for (const scribe of state.data.scribes || []) {
+      select.appendChild(new Option(`${scribe.name} — revision ${scribe.revision_number}`, scribe.id));
+    }
+    select.value = boundScribe?.source_scribe_id || '';
+    label.appendChild(select);
+    const save = el('button', 'btn btn-secondary', 'Bind for future pages');
+    save.type = 'submit';
+    form.append(label, save);
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      save.disabled = true;
+      try {
+        const result = await apiCall(`/stories/${activeStoryId}/scribe`, 'PUT', { scribe_id: select.value || null });
+        boundScribe = result.story.scribe || null;
+        await features.stories.loadStories();
+        renderScribeBinding();
+        showSuccess(boundScribe
+          ? `${boundScribe.name} revision ${boundScribe.source_revision_number} will shape future pages.`
+          : 'Future pages returned to neutral house craft. Earlier page provenance was preserved.');
+      } catch (error) {
+        showError(error.message);
+        save.disabled = false;
+      }
+    });
+    head.append(copy, form);
+    target.appendChild(head);
   }
 
   function renderTemplateUpdates() {
@@ -733,6 +778,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   }
 
   function render() {
+    renderScribeBinding();
     renderFoundations();
     renderCoverage();
     renderCanon();
@@ -774,6 +820,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       return;
     }
     activeStoryId = story.id;
+    boundScribe = story.scribe || null;
     await load(story.id);
   }
 
@@ -791,7 +838,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     continuity = null;
     templates = [];
     facts = [];
-    for (const id of ['codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary']) {
+    boundScribe = null;
+    for (const id of ['codexScribe', 'codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary']) {
       const target = document.getElementById(id);
       if (target) target.textContent = '';
     }

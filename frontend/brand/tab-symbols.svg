@@ -21,6 +21,10 @@
     <path class="icon" d="m4 6 5-3 3 3 3-3 5 3-2 11-6 4-6-4Zm5-3L7 9m8-6 2 6M8 11l3 1m5-1-3 1"/>
     <path class="accent" d="m12 12 2 3-2 3-2-3Z"/><path class="inner" d="m9 18 3 3 3-3"/>
   </symbol>
+  <symbol id="tribe" viewBox="0 0 24 24">
+    <path class="icon" d="M4 8 8 3l4 4 4-4 4 5-2 10-6 4-6-4Zm4-5 1 7m7-7-1 7M7 12l3-2m7 2-3-2M9 17l3 2 3-2"/>
+    <path class="inner" d="M5 7 2 5m17 2 3-2M4 16l-3 2m19-2 3 2"/><path class="accent" d="m12 8 3 4-3 4-3-4Z"/><circle class="spark" cx="12" cy="12" r="1"/>
+  </symbol>
   <symbol id="settings" viewBox="0 0 24 24">
     <path class="icon" d="m12 2 2 5 5-2-2 5 5 2-5 2 2 5-5-2-2 5-2-5-5 2 2-5-5-2 5-2-2-5 5 2Z"/>
     <path class="inner" d="m12 6 4 6-4 6-4-6Z"/><path class="accent" d="m12 9 2 3-2 3-2-3Z"/>

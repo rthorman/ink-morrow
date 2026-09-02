@@ -247,10 +247,13 @@ describe('portable archives and backups', () => {
     const visitorWorld = await createWorld(source.app, { name: 'Visitor World', generate_image: false });
     const lead = await createCharacter(source.app, storyWorld.id, { name: 'Lead', generate_image: false });
     const visitor = await createCharacter(source.app, visitorWorld.id, { name: 'Visitor', generate_image: false });
+    const scribe = (await request(source.app).post('/api/scribes').send({
+      name: 'Portable Scribe', scene_tempo: 'brisk', focus_areas: ['consequences'], generate_image: false,
+    }).expect(201)).body.scribe;
     const story = await createStory(source.app, storyWorld.id, [
       { id: lead.id, role: 'mc', relation: null, state: null },
       { id: visitor.id, role: 'supporting', relation: 'new arrival', state: null },
-    ], { title: 'The Portable Tale', tone: 'romantic' });
+    ], { title: 'The Portable Tale', tone: 'romantic', scribe_id: scribe.id });
     const page = await addPage(source.app, story.id, 'The visitor crosses the threshold.', 'Make the visitor arrive');
     const volumeOne = story.hierarchy.volumes[0];
     const secondChapter = (await request(source.app)
@@ -326,16 +329,23 @@ describe('portable archives and backups', () => {
     expect(plan.exposure.excluded).toContain('API keys');
 
     const reviewed = await preflight(destination.app, bytes).expect(200);
-    expect(reviewed.body.summary).toMatchObject({ entities: 5, assets: 3, conflicts: 0 });
+    expect(reviewed.body.summary).toMatchObject({ entities: 6, assets: 3, conflicts: 0 });
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM stories').get().c).toBe(0); // preflight never writes
 
     const committed = await request(destination.app)
       .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
       .send({ mode: 'merge' })
       .expect(200);
-    expect(committed.body.counts.imported).toBe(5);
+    expect(committed.body.counts.imported).toBe(6);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM worlds').get().c).toBe(2);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM characters').get().c).toBe(2);
+    expect(destination.db.prepare('SELECT name, entity_kind FROM scribes WHERE id = ?').get(scribe.id))
+      .toEqual({ name: 'Portable Scribe', entity_kind: 'catgirl' });
+    const importedBinding = destination.db.prepare(`
+      SELECT source_scribe_id, snapshot_json FROM story_scribe_bindings WHERE story_id = ?
+    `).get(story.id);
+    expect(importedBinding.source_scribe_id).toBe(scribe.id);
+    expect(JSON.parse(importedBinding.snapshot_json).scene_tempo).toBe('brisk');
     const importedStory = destination.db.prepare('SELECT * FROM stories WHERE id = ?').get(story.id);
     expect(JSON.parse(importedStory.characters).map((entry) => entry.id)).toEqual([lead.id, visitor.id]);
     const importedPage = destination.db.prepare('SELECT * FROM story_pages WHERE id = ?').get(page.id);

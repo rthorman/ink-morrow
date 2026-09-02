@@ -46,6 +46,7 @@ export function createSharedState() {
   const data = {
     worlds: [],
     characters: [],
+    scribes: [],
     stories: [],
     currentStory: null,
     currentPage: 1,
@@ -200,6 +201,7 @@ export function createSharedState() {
   function clearPrivateData() {
     data.worlds = [];
     data.characters = [];
+    data.scribes = [];
     data.stories = [];
     data.currentStory = null;
     data.currentPage = 1;
@@ -239,6 +241,7 @@ export function createSharedState() {
       return {
         worlds: data.worlds,
         characters: data.characters,
+        scribes: data.scribes,
         stories: data.stories,
         currentStory: data.currentStory,
         currentPage: data.currentPage,
