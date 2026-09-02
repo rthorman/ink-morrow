@@ -16,6 +16,8 @@ const { releaseCapabilities } = require('./release');
 
 const { createCatalogStore } = require('./modules/catalog/store');
 const { createCatalogRouter } = require('./modules/catalog/routes');
+const { createScribeStore } = require('./modules/scribes/store');
+const { createScribeRouter } = require('./modules/scribes/routes');
 const { createStoriesStore } = require('./modules/stories/store');
 const { createStoriesRouter } = require('./modules/stories/routes');
 const { createContinuityStore } = require('./modules/continuity/store');
@@ -124,8 +126,10 @@ function createApp(
   // -- runtime / service set -------------------------------------------------
 
   const catalog = createCatalogStore(db);
+  const scribes = createScribeStore(db);
   const stories = createStoriesStore(db, {
     getWorld: catalog.getWorld,
+    scribes,
     recoveryRetentionDays,
     clock,
   });
@@ -139,7 +143,7 @@ function createApp(
   const continuity = createContinuityService({
     db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
   });
-  const writing = createWritingService({ db, catalog, stories, continuity, chatCompletion: ai.chatCompletion });
+  const writing = createWritingService({ db, catalog, scribes, stories, continuity, chatCompletion: ai.chatCompletion });
   const writingTransactions = createWritingTransactions({
     db,
     stories,
@@ -233,6 +237,7 @@ function createApp(
   // -- feature routers (unchanged paths) ---------------------------------------
 
   app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
+  app.use(createScribeRouter({ store: scribes, imageQueue, imageStore, stories }));
   app.use(createProviderRouter({ providers, ai }));
   app.use(createStoriesRouter({
     store: stories, imageStore, artStore, imageQueue, audio, transactions: writingTransactions,

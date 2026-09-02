@@ -59,12 +59,15 @@ function resetDb(db) {
     DELETE FROM prepared_pages;
     DELETE FROM pages;
     DELETE FROM page_revisions;
+    DELETE FROM story_scribe_bindings;
     DELETE FROM chapters;
     DELETE FROM volumes;
     DELETE FROM auth_sessions;
     DELETE FROM auth_owner;
     DELETE FROM story_pages;
     DELETE FROM stories;
+    DELETE FROM scribe_revisions;
+    DELETE FROM scribes;
     DELETE FROM characters;
     DELETE FROM worlds;
   `);

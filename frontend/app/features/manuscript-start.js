@@ -42,6 +42,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       prose: el('startImportProse')?.value || '',
       importMode: el('startImportMode')?.value || 'headings',
       worldId: el('startWorld')?.value || '',
+      scribeId: el('startScribe')?.value || '',
       castMode: features.storyEditor?.castMode?.() || 'ensemble',
       cast: features.storyEditor?.storyCast?.() || [],
       castDraft: features.storyEditor?.creationCastDraft?.() || null,
@@ -121,6 +122,23 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
         world.appendChild(option);
       }
       if ([...world.options].some((option) => option.value === wanted)) world.value = wanted;
+    }
+
+    const scribe = el('startScribe');
+    if (scribe) {
+      const wanted = keep.scribeId ?? scribe.value;
+      scribe.textContent = '';
+      const neutral = document.createElement('option');
+      neutral.value = '';
+      neutral.textContent = 'No Scribe — neutral house craft';
+      scribe.appendChild(neutral);
+      for (const item of state.data.scribes || []) {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.name} — revision ${item.revision_number}`;
+        scribe.appendChild(option);
+      }
+      if ([...scribe.options].some((option) => option.value === wanted)) scribe.value = wanted;
     }
 
     if (Array.isArray(keep.cast)) {
@@ -300,6 +318,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
         generate_image: withCover,
         title: el('manuscriptStartName').value.trim() || untitledName(),
         world_id: el('startWorld').value || null,
+        scribe_id: el('startScribe').value || null,
         tone: el('manuscriptStartTone').value,
         characters: (features.storyEditor?.storyCast?.() || []).map((entry) => ({ ...entry, state: null })),
       });

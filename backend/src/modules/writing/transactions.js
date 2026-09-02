@@ -178,6 +178,11 @@ function createWritingTransactions({
          )
        ORDER BY entry.created_at, entry.id
     `).all(storyId);
+    const scribeBinding = db.prepare(`
+      SELECT id, action, source_scribe_id, source_revision_number, snapshot_json, created_at
+        FROM story_scribe_bindings WHERE story_id = ?
+       ORDER BY created_at DESC, rowid DESC LIMIT 1
+    `).get(storyId) || null;
     // Folded state is versioned by its canonical evidence chain and explicit
     // author corrections, not by asynchronous projection/checkpoint timing.
     const foldedStateVersion = sha256(stableJson({
@@ -215,6 +220,12 @@ function createWritingTransactions({
         source_revision: row.source_revision,
         snapshot_hash: sha256(row.snapshot_json),
       })),
+      scribe: scribeBinding && scribeBinding.action === 'assigned' ? {
+        binding_id: scribeBinding.id,
+        source_scribe_id: scribeBinding.source_scribe_id,
+        source_revision_number: scribeBinding.source_revision_number,
+        snapshot_hash: sha256(scribeBinding.snapshot_json),
+      } : null,
       folded_state_version: foldedStateVersion,
       generation: stableValue(generation),
     };
@@ -570,7 +581,7 @@ function createWritingTransactions({
     });
   }
 
-  function commitGeneratedInTransaction({ operation, provider, direction, expectedPage }) {
+  function commitGeneratedInTransaction({ operation, provider, direction, expectedPage, scribeBindingId = null }) {
     const inserted = stories.insertGeneratedPageInTransaction(operation.story_id, {
       content: provider.content,
       userInput: direction,
@@ -579,6 +590,7 @@ function createWritingTransactions({
       completionTokens: provider.usage?.completion_tokens ?? null,
       costUsd: provider.cost_usd,
       pageNumber: expectedPage,
+      scribeBindingId,
     });
     enqueueContinuityInTransaction(inserted.page, inserted.revision);
     db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(operation.story_id);
@@ -664,6 +676,7 @@ function createWritingTransactions({
       }
       const inserted = commitGeneratedInTransaction({
         operation, provider, direction, expectedPage: stories.nextPageNumber(story.id),
+        scribeBindingId: snapshot.context.scribe?.binding_id || null,
       });
       const response = {
         page: inserted.page,
@@ -764,6 +777,7 @@ function createWritingTransactions({
         promptTokens: provider.usage?.prompt_tokens ?? null,
         completionTokens: provider.usage?.completion_tokens ?? null,
         costUsd: provider.cost_usd,
+        scribeBindingId: snapshot.context.scribe?.binding_id || null,
       });
       enqueueContinuityInTransaction(edited.page, edited.revision);
       db.prepare(`
@@ -848,6 +862,7 @@ function createWritingTransactions({
         provider,
         direction: null,
         expectedPage: prepared.expected_page,
+        scribeBindingId: fresh.context.scribe?.binding_id || null,
       });
       const response = {
         page: inserted.page,

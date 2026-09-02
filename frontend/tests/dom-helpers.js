@@ -38,6 +38,7 @@ function buildDom() {
       <button id="libraryBtn" class="nav-btn">Manuscripts</button>
       <button id="worldsBtn" class="nav-btn">World templates</button>
       <button id="charactersBtn" class="nav-btn">Character templates</button>
+      <button id="tribeBtn" class="nav-btn">Tribe</button>
       <button id="settingsBtn" class="nav-btn">Settings</button>
       <button id="lockBtn" class="nav-btn">Lock</button>
     </nav>
@@ -76,6 +77,7 @@ function buildDom() {
             <div id="manuscriptStartHintWrap"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
             <details id="startFoundations">
               <select id="startWorld"><option value="">No world</option></select>
+              <select id="startScribe"><option value="">No Scribe</option></select>
               <div class="character-selection">
                 <button type="button" id="castModeCentered" role="radio" aria-checked="false">Centered</button>
                 <button type="button" id="castModeEnsemble" role="radio" aria-checked="true">Ensemble</button>
@@ -138,6 +140,9 @@ function buildDom() {
           <button id="characterAiBtn" type="button" class="btn btn-secondary">Flesh out with AI</button>
         </form>
         <div id="charactersList" class="items-grid"></div>
+      </section>
+      <section id="tribeSection" class="content-section">
+        <div id="scribesList" class="items-grid"></div>
       </section>
       <section id="librarySection" class="content-section">
         <div class="library-tabs" role="tablist" aria-label="Library">

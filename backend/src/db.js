@@ -1270,6 +1270,86 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 11,
+    name: 'first-class catgirl scribes',
+    checksumSource: `The Tribe stores versioned catgirl Scribes, immutable manuscript bindings, and per-page Scribe provenance.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE scribes (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          entity_kind TEXT NOT NULL DEFAULT 'catgirl' CHECK (entity_kind = 'catgirl'),
+          name TEXT NOT NULL CHECK (length(trim(name)) > 0),
+          description TEXT,
+          personality TEXT,
+          appearance TEXT,
+          background TEXT,
+          feline_traits TEXT,
+          diction TEXT NOT NULL DEFAULT 'balanced' CHECK (diction IN ('plain', 'balanced', 'ornate')),
+          sentence_rhythm TEXT NOT NULL DEFAULT 'varied' CHECK (sentence_rhythm IN ('clipped', 'varied', 'flowing')),
+          narrative_distance TEXT NOT NULL DEFAULT 'flexible' CHECK (narrative_distance IN ('intimate', 'flexible', 'observational')),
+          figurative_language TEXT NOT NULL DEFAULT 'balanced' CHECK (figurative_language IN ('restrained', 'balanced', 'abundant')),
+          description_density TEXT NOT NULL DEFAULT 'balanced' CHECK (description_density IN ('lean', 'balanced', 'immersive')),
+          dialogue_tendency TEXT NOT NULL DEFAULT 'balanced' CHECK (dialogue_tendency IN ('sparse', 'balanced', 'dialogue-led')),
+          exposition_style TEXT NOT NULL DEFAULT 'balanced' CHECK (exposition_style IN ('explicit', 'balanced', 'implicit')),
+          humor TEXT NOT NULL DEFAULT 'restrained' CHECK (humor IN ('none', 'restrained', 'dry', 'warm', 'dark', 'playful')),
+          scene_tempo TEXT NOT NULL DEFAULT 'measured' CHECK (scene_tempo IN ('contemplative', 'measured', 'brisk')),
+          progress_appetite TEXT NOT NULL DEFAULT 'develop' CHECK (progress_appetite IN ('linger', 'develop', 'advance')),
+          tension_tolerance TEXT NOT NULL DEFAULT 'medium' CHECK (tension_tolerance IN ('low', 'medium', 'high')),
+          aftermath_dwell TEXT NOT NULL DEFAULT 'balanced' CHECK (aftermath_dwell IN ('brief', 'balanced', 'patient')),
+          focus_areas TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(focus_areas) AND json_type(focus_areas) = 'array'),
+          signature_habits TEXT,
+          avoidances TEXT,
+          image_prompt TEXT,
+          image_status TEXT NOT NULL DEFAULT 'none',
+          image_media_type TEXT,
+          image_cost_usd REAL,
+          image_updated_at TEXT,
+          revision_number INTEGER NOT NULL DEFAULT 1 CHECK (revision_number > 0),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE scribe_revisions (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          scribe_id TEXT NOT NULL REFERENCES scribes (id) ON DELETE CASCADE,
+          revision_number INTEGER NOT NULL CHECK (revision_number > 0),
+          snapshot_json TEXT NOT NULL CHECK (json_valid(snapshot_json)),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (scribe_id, revision_number)
+        );
+
+        CREATE TRIGGER scribe_revisions_immutable
+        BEFORE UPDATE ON scribe_revisions
+        BEGIN
+          SELECT RAISE(ABORT, 'scribe revisions are immutable');
+        END;
+
+        CREATE TABLE story_scribe_bindings (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          action TEXT NOT NULL CHECK (action IN ('assigned', 'cleared')),
+          source_scribe_id TEXT REFERENCES scribes (id) ON DELETE SET NULL,
+          source_revision_number INTEGER,
+          snapshot_json TEXT CHECK (snapshot_json IS NULL OR json_valid(snapshot_json)),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CHECK (
+            (action = 'assigned' AND source_revision_number > 0 AND snapshot_json IS NOT NULL) OR
+            (action = 'cleared' AND source_scribe_id IS NULL AND source_revision_number IS NULL AND snapshot_json IS NULL)
+          )
+        );
+
+        CREATE INDEX idx_story_scribe_bindings_story
+          ON story_scribe_bindings (story_id, created_at);
+
+        ALTER TABLE page_revisions
+          ADD COLUMN scribe_binding_id TEXT REFERENCES story_scribe_bindings (id);
+
+        CREATE INDEX idx_page_revisions_scribe_binding
+          ON page_revisions (scribe_binding_id);
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

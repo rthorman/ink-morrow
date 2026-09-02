@@ -18,6 +18,9 @@ const {
   EXPORT_SCOPES,
   WORLD_FIELDS,
   CHARACTER_FIELDS,
+  SCRIBE_FIELDS,
+  SCRIBE_REVISION_FIELDS,
+  SCRIBE_BINDING_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
   VOLUME_FIELDS,
@@ -43,6 +46,7 @@ const {
 } = require('./format');
 const { hashFile, httpError } = require('./planner');
 const { hashDocument, validatePublicationDocument } = require('../publication/document');
+const { ENUMS: SCRIBE_ENUMS, FOCUS_AREAS: SCRIBE_FOCUS_AREAS } = require('../scribes/store');
 
 const DEFAULT_LIMITS = Object.freeze({
   maxArchiveBytes: 20 * 1024 * 1024 * 1024,
@@ -282,9 +286,12 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
         'author_canon_revisions', 'writing_operations',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
-        'publication_snapshots']
-    : ['record'], `${meta.kind} bundle`);
-  assertKnown(bundle.record, meta.kind === 'world' ? WORLD_FIELDS : meta.kind === 'character' ? CHARACTER_FIELDS : STORY_FIELDS, `${meta.kind} record`);
+        'publication_snapshots', 'scribe_bindings']
+    : meta.kind === 'scribe' ? ['record', 'revisions'] : ['record'], `${meta.kind} bundle`);
+  const recordFields = meta.kind === 'world' ? WORLD_FIELDS
+    : meta.kind === 'character' ? CHARACTER_FIELDS
+      : meta.kind === 'scribe' ? SCRIBE_FIELDS : STORY_FIELDS;
+  assertKnown(bundle.record, recordFields, `${meta.kind} record`);
   const name = meta.kind === 'story' ? bundle.record.title : bundle.record.name;
   if (typeof name !== 'string' || !name.trim() || name.length > 300) throw httpError(`${meta.kind} has an invalid name`);
   if (meta.name !== name) throw httpError(`${meta.kind} display name does not match its record`);
@@ -302,6 +309,25 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     if (!boundedText(bundle.record.description, 10000) || !boundedText(bundle.record.personality, 10000) ||
         !boundedText(bundle.record.appearance, 10000) || !boundedText(bundle.record.background, 10000) ||
         !boundedText(bundle.record.image_prompt, 2000)) throw httpError('Character contains an invalid or oversized field');
+    return;
+  }
+  if (meta.kind === 'scribe') {
+    if (bundle.record.entity_kind !== 'catgirl' || !Number.isSafeInteger(bundle.record.revision_number) ||
+        bundle.record.revision_number < 1 || !Array.isArray(bundle.record.focus_areas) ||
+        bundle.record.focus_areas.some((value) => !SCRIBE_FOCUS_AREAS.includes(value)) ||
+        Object.entries(SCRIBE_ENUMS).some(([field, allowed]) => !allowed.includes(bundle.record[field])) ||
+        !Array.isArray(bundle.revisions)) {
+      throw httpError('Scribe archive violates Tribe canon or revision structure');
+    }
+    for (const revision of bundle.revisions) {
+      assertKnown(revision, SCRIBE_REVISION_FIELDS, 'Scribe revision');
+      if (!validId(revision.id) || revision.scribe_id !== meta.id ||
+          !Number.isSafeInteger(revision.revision_number) || revision.revision_number < 1 ||
+          !revision.snapshot_json || typeof revision.snapshot_json !== 'object' || Array.isArray(revision.snapshot_json) ||
+          revision.snapshot_json.entity_kind !== 'catgirl') {
+        throw httpError('Scribe archive contains an invalid revision');
+      }
+    }
     return;
   }
   if (!['fade-to-black', 'romantic', 'explicit'].includes(bundle.record.tone)) throw httpError('Story has an invalid maturity level');
@@ -339,6 +365,24 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   }
   const ordered = [...numbers].sort((a, b) => a - b);
   if (ordered.some((number, index) => number !== index + 1)) throw httpError('Story page numbers must be contiguous');
+  const bindingIds = new Set();
+  for (const binding of bundle.scribe_bindings || []) {
+    assertKnown(binding, SCRIBE_BINDING_FIELDS, 'Story Scribe binding');
+    if (!validId(binding.id) || binding.story_id !== meta.id || bindingIds.has(binding.id) ||
+        !['assigned', 'cleared'].includes(binding.action) ||
+        (binding.source_scribe_id !== null && !validId(binding.source_scribe_id)) ||
+        (binding.action === 'assigned' && (
+          !Number.isSafeInteger(binding.source_revision_number) || binding.source_revision_number < 1 ||
+          !binding.snapshot_json || typeof binding.snapshot_json !== 'object' || Array.isArray(binding.snapshot_json) ||
+          binding.snapshot_json.entity_kind !== 'catgirl'
+        )) ||
+        (binding.action === 'cleared' && (
+          binding.source_scribe_id !== null || binding.source_revision_number !== null || binding.snapshot_json !== null
+        ))) {
+      throw httpError('Story archive contains an invalid Scribe binding');
+    }
+    bindingIds.add(binding.id);
+  }
 
   const hierarchy = bundle.hierarchy;
   if (databaseSchemaVersion >= 2 && (!hierarchy || typeof hierarchy !== 'object' || Array.isArray(hierarchy))) {
@@ -412,7 +456,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       if (!revision || !validId(revision.id) || !pageIds.has(revision.page_id) || revisions.has(revision.id) ||
           !['canonical', 'copyedit'].includes(revision.kind) || typeof revision.content !== 'string' ||
           revision.content.length > 500000 || !['author', 'ai', 'import', 'migration'].includes(revision.source) ||
-          (revision.parent_revision_id !== null && revision.parent_revision_id !== undefined && !validId(revision.parent_revision_id))) {
+          (revision.parent_revision_id !== null && revision.parent_revision_id !== undefined && !validId(revision.parent_revision_id)) ||
+          (revision.scribe_binding_id !== null && revision.scribe_binding_id !== undefined && !bindingIds.has(revision.scribe_binding_id))) {
         throw httpError('Story archive contains an invalid page revision');
       }
       revisions.set(revision.id, revision);
@@ -781,7 +826,7 @@ function validateManifest(manifest, files) {
     const assetFields = Object.keys(ARCHIVE_MANIFEST_SCHEMA.properties.assets.items.properties);
     if (!asset || typeof asset !== 'object' || Object.keys(asset).some((key) => !assetFields.includes(key)) ||
         !['image', 'audio'].includes(asset.kind) || !validId(asset.owner_id) ||
-        !['world', 'character', 'story', 'page', 'asset'].includes(asset.owner_kind)) {
+        !['world', 'character', 'scribe', 'story', 'page', 'asset'].includes(asset.owner_kind)) {
       throw httpError('Archive contains invalid media metadata');
     }
     if ((asset.story_id !== null && !validId(asset.story_id)) ||
@@ -789,7 +834,7 @@ function validateManifest(manifest, files) {
         (asset.owner_kind === 'page' && (!validId(asset.story_id) || !Number.isSafeInteger(asset.page_number))) ||
         (asset.owner_kind !== 'page' && asset.page_number !== null) ||
         (['story', 'page', 'asset'].includes(asset.owner_kind) && !validId(asset.story_id)) ||
-        (['world', 'character'].includes(asset.owner_kind) && asset.story_id !== null)) {
+        (['world', 'character', 'scribe'].includes(asset.owner_kind) && asset.story_id !== null)) {
       throw httpError('Archive media ownership metadata is invalid');
     }
     assertArchivePath(asset.archive_path, 'assets/');
@@ -826,6 +871,7 @@ async function stageAndReadArchive(uploadPath, stageRoot, customLimits = {}) {
     const semantic = semanticHash(meta.kind, bundle, {
       includeHierarchy: manifest.database_schema.version >= 2,
       includeArtStore: manifest.database_schema.version >= 7,
+      includeScribes: manifest.database_schema.version >= 11,
     });
     // Some schema-1..6 fixtures are produced by a newer exporter and carry
     // explicit empty art collections. Accept either canonical empty shape;
@@ -837,6 +883,7 @@ async function stageAndReadArchive(uploadPath, stageRoot, customLimits = {}) {
       ? semanticHash(meta.kind, bundle, {
           includeHierarchy: manifest.database_schema.version >= 2,
           includeArtStore: true,
+          includeScribes: manifest.database_schema.version >= 11,
         })
       : null;
     if (semantic !== meta.semantic_sha256 && futureEmptySemantic !== meta.semantic_sha256) {

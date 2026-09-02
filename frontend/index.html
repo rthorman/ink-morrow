@@ -52,6 +52,7 @@
             <button id="libraryBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#manuscripts"></use></svg><span>Manuscripts</span></button>
             <button id="worldsBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#worlds"></use></svg><span>World templates</span></button>
             <button id="charactersBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#characters"></use></svg><span>Character templates</span></button>
+            <button id="tribeBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#tribe"></use></svg><span>Tribe</span></button>
             <button id="settingsBtn" class="nav-btn nav-btn--utility" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#settings"></use></svg><span>Settings</span></button>
             <button id="lockBtn" class="nav-btn nav-btn--lock" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#lock"></use></svg><span>Lock</span></button>
         </nav>
@@ -239,6 +240,9 @@
                                 <input id="startProviderKey" type="password" autocomplete="off" maxlength="8192">
                                 <button id="startProviderSave" class="btn btn-primary" type="button">Use for this session</button>
                             </div>
+                        <label for="startScribe">Scribe</label>
+                        <select id="startScribe"><option value="">No Scribe — neutral house craft</option></select>
+                        <p class="setting-hint">The manuscript freezes this Scribe revision. Her preferences shape the prose softly; your direction and canon always outrank them.</p>
                         <label for="manuscriptStartTone">Maturity level</label>
                         <select id="manuscriptStartTone">
                             <option value="fade-to-black">Tasteful &mdash; intimate moments fade to black</option>
@@ -270,6 +274,10 @@
                         <a href="#/characters" class="home-path__step">
                             <strong>Characters</strong>
                             <span>optional — reusable people and portraits</span>
+                        </a>
+                        <a href="#/tribe" class="home-path__step">
+                            <strong>Tribe</strong>
+                            <span>optional — choose the Scribe whose craft shapes the prose</span>
                         </a>
                         <a href="#/library/stories" class="home-path__step">
                             <strong>Manuscripts</strong>
@@ -344,6 +352,52 @@
                             <button type="submit" class="btn btn-primary">Create and paint (≈$0.06)</button>
                             <button id="characterNoImageBtn" class="btn btn-secondary" type="submit">Create without image</button>
                             <button id="characterAiBtn" class="btn btn-secondary" type="button">Flesh out with AI</button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Tribe Section -->
+            <section id="tribeSection" class="content-section" aria-label="Tribe">
+                <div class="catalog-head">
+                    <div><p class="hero__kicker">The Scriptorium</p><h2>The Tribe</h2></div>
+                    <button id="scribeNewBtn" class="btn btn-primary" type="button" aria-expanded="false" aria-controls="scribeCreateWrap">New Scribe</button>
+                </div>
+                <p class="setting-hint">Scribes are adult catgirl collaborators with distinct craft instincts. A manuscript keeps the exact revision it chose; later Tribe edits never rewrite its contract.</p>
+                <div class="list-container"><div id="scribesList" class="items-grid"></div></div>
+                <div id="scribeCreateWrap" class="create-form" hidden>
+                    <h3>Welcome a Scribe to the Tribe</h3>
+                    <form id="scribeForm">
+                        <label for="scribeName">Name</label><input id="scribeName" type="text" maxlength="200" required placeholder="The name beneath her seal">
+                        <label for="scribeDescription">Presence</label><textarea id="scribeDescription" rows="3" maxlength="10000" placeholder="Who she is in the Scriptorium"></textarea>
+                        <label for="scribePersonality">Temperament</label><textarea id="scribePersonality" rows="2" maxlength="10000"></textarea>
+                        <label for="scribeAppearance">Appearance and clothing</label><textarea id="scribeAppearance" rows="2" maxlength="10000"></textarea>
+                        <label for="scribeFelineTraits">Feline ears and tail</label><textarea id="scribeFelineTraits" rows="2" maxlength="10000" placeholder="Color, markings, motion and expression"></textarea>
+                        <label for="scribeBackground">History</label><textarea id="scribeBackground" rows="2" maxlength="10000"></textarea>
+                        <details class="start-foundations scribe-craft" open>
+                            <summary>Craft signature <span>soft defaults — author direction always wins</span></summary>
+                            <div class="scribe-craft-grid">
+                                <label>Diction<select id="scribeDiction"><option>plain</option><option selected>balanced</option><option>ornate</option></select></label>
+                                <label>Sentence rhythm<select id="scribeSentenceRhythm"><option>clipped</option><option selected>varied</option><option>flowing</option></select></label>
+                                <label>Narrative distance<select id="scribeNarrativeDistance"><option>intimate</option><option selected>flexible</option><option>observational</option></select></label>
+                                <label>Figurative language<select id="scribeFigurativeLanguage"><option>restrained</option><option selected>balanced</option><option>abundant</option></select></label>
+                                <label>Description<select id="scribeDescriptionDensity"><option>lean</option><option selected>balanced</option><option>immersive</option></select></label>
+                                <label>Dialogue<select id="scribeDialogueTendency"><option>sparse</option><option selected>balanced</option><option>dialogue-led</option></select></label>
+                                <label>Exposition<select id="scribeExpositionStyle"><option>explicit</option><option selected>balanced</option><option>implicit</option></select></label>
+                                <label>Humor<select id="scribeHumor"><option>none</option><option selected>restrained</option><option>dry</option><option>warm</option><option>dark</option><option>playful</option></select></label>
+                                <label>Scene tempo<select id="scribeSceneTempo"><option>contemplative</option><option selected>measured</option><option>brisk</option></select></label>
+                                <label>Plot progress<select id="scribeProgressAppetite"><option>linger</option><option selected>develop</option><option>advance</option></select></label>
+                                <label>Tension tolerance<select id="scribeTensionTolerance"><option>low</option><option selected>medium</option><option>high</option></select></label>
+                                <label>Aftermath attention<select id="scribeAftermathDwell"><option>brief</option><option selected>balanced</option><option>patient</option></select></label>
+                            </div>
+                            <fieldset class="scribe-focus"><legend>Favored attention</legend><div id="scribeFocusAreas" class="scribe-focus-grid"></div></fieldset>
+                            <label for="scribeSignatureHabits">Signature habits</label><textarea id="scribeSignatureHabits" rows="2" maxlength="10000" placeholder="Techniques she reaches for selectively"></textarea>
+                            <label for="scribeAvoidances">Avoidances</label><textarea id="scribeAvoidances" rows="2" maxlength="10000" placeholder="Tendencies she resists unless the story requires them"></textarea>
+                        </details>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Create and paint (≈$0.06)</button>
+                            <button id="scribeNoImageBtn" type="submit" class="btn btn-secondary">Create without image</button>
+                            <button id="scribeAiBtn" type="button" class="btn btn-secondary">Design with AI…</button>
                         </div>
                     </form>
                 </div>
@@ -507,6 +561,7 @@
                     <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
                 </div>
                 <section id="codexFoundationsPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexFoundationsTab">
+                    <div id="codexScribe"></div>
                     <div id="codexFoundations"></div>
                     <div id="codexTemplateUpdates"></div>
                 </section>
@@ -840,6 +895,44 @@
                 <button id="charEditSaveBtn" type="submit" form="characterEditorForm" class="btn btn-primary">Save</button>
                 <button id="charEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo image</button>
                 <button id="charEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scribeEditorModal" class="burn-modal" hidden>
+        <div class="burn-modal__panel draft-panel editor-panel" role="dialog" aria-modal="true" aria-labelledby="scribeEditorTitle">
+            <h2 id="scribeEditorTitle">Edit Scribe</h2>
+            <p class="setting-hint">Saving creates a new Tribe revision. Bound manuscripts keep their frozen craft signature.</p>
+            <form id="scribeEditorForm" class="create-form editor-form">
+                <label for="scribeEditName">Name</label><input id="scribeEditName" type="text" maxlength="200" required>
+                <label for="scribeEditDescription">Presence</label><textarea id="scribeEditDescription" rows="3" maxlength="10000"></textarea>
+                <label for="scribeEditPersonality">Temperament</label><textarea id="scribeEditPersonality" rows="2" maxlength="10000"></textarea>
+                <label for="scribeEditAppearance">Appearance and clothing</label><textarea id="scribeEditAppearance" rows="2" maxlength="10000"></textarea>
+                <label for="scribeEditFelineTraits">Feline ears and tail</label><textarea id="scribeEditFelineTraits" rows="2" maxlength="10000"></textarea>
+                <label for="scribeEditBackground">History</label><textarea id="scribeEditBackground" rows="2" maxlength="10000"></textarea>
+                <div class="scribe-craft-grid">
+                    <label>Diction<select id="scribeEditDiction"><option>plain</option><option>balanced</option><option>ornate</option></select></label>
+                    <label>Sentence rhythm<select id="scribeEditSentenceRhythm"><option>clipped</option><option>varied</option><option>flowing</option></select></label>
+                    <label>Narrative distance<select id="scribeEditNarrativeDistance"><option>intimate</option><option>flexible</option><option>observational</option></select></label>
+                    <label>Figurative language<select id="scribeEditFigurativeLanguage"><option>restrained</option><option>balanced</option><option>abundant</option></select></label>
+                    <label>Description<select id="scribeEditDescriptionDensity"><option>lean</option><option>balanced</option><option>immersive</option></select></label>
+                    <label>Dialogue<select id="scribeEditDialogueTendency"><option>sparse</option><option>balanced</option><option>dialogue-led</option></select></label>
+                    <label>Exposition<select id="scribeEditExpositionStyle"><option>explicit</option><option>balanced</option><option>implicit</option></select></label>
+                    <label>Humor<select id="scribeEditHumor"><option>none</option><option>restrained</option><option>dry</option><option>warm</option><option>dark</option><option>playful</option></select></label>
+                    <label>Scene tempo<select id="scribeEditSceneTempo"><option>contemplative</option><option>measured</option><option>brisk</option></select></label>
+                    <label>Plot progress<select id="scribeEditProgressAppetite"><option>linger</option><option>develop</option><option>advance</option></select></label>
+                    <label>Tension tolerance<select id="scribeEditTensionTolerance"><option>low</option><option>medium</option><option>high</option></select></label>
+                    <label>Aftermath attention<select id="scribeEditAftermathDwell"><option>brief</option><option>balanced</option><option>patient</option></select></label>
+                </div>
+                <fieldset class="scribe-focus"><legend>Favored attention</legend><div id="scribeEditFocusAreas" class="scribe-focus-grid"></div></fieldset>
+                <label for="scribeEditSignatureHabits">Signature habits</label><textarea id="scribeEditSignatureHabits" rows="2" maxlength="10000"></textarea>
+                <label for="scribeEditAvoidances">Avoidances</label><textarea id="scribeEditAvoidances" rows="2" maxlength="10000"></textarea>
+                <label for="scribeEditImagePrompt">Portrait direction (the adult-catgirl rules always remain in force)</label><textarea id="scribeEditImagePrompt" rows="3" maxlength="3000"></textarea>
+            </form>
+            <div class="burn-modal__actions">
+                <button type="submit" form="scribeEditorForm" class="btn btn-primary">Save new revision</button>
+                <button id="scribeEditRedoImageBtn" type="button" class="btn btn-secondary">Save &amp; redo portrait</button>
+                <button id="scribeEditCancelBtn" type="button" class="btn btn-secondary">Cancel</button>
             </div>
         </div>
     </div>

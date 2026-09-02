@@ -16,6 +16,7 @@ import { entityImageBlock, cardActions, createCatalogPoll } from './components/e
 
 import { createWorlds } from './features/worlds.js';
 import { createCharacters } from './features/characters.js';
+import { createScribes } from './features/scribes.js';
 import { createHome } from './features/home.js';
 import { createManuscriptStart } from './features/manuscript-start.js';
 import { createLibrary } from './features/library/index.js';
@@ -61,12 +62,14 @@ export function initApp() {
   catalogPoll.loaders = {
     loadWorlds: () => features.worlds.loadWorlds(),
     loadCharacters: () => features.characters.loadCharacters(),
+    loadScribes: () => features.scribes.loadScribes(),
   };
 
   features.settings = createSettings({ api, state, notify, shell, dialogs });
   features.transfer = createTransfer({ api, state, notify, features, dialogs });
   features.worlds = createWorlds({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.characters = createCharacters({ api, state, notify, catalogPoll, entityCard, features, dialogs });
+  features.scribes = createScribes({ api, state, notify, catalogPoll, entityCard, features, dialogs });
   features.home = createHome({ state, notify, router: null, features });
   features.manuscriptStart = createManuscriptStart({ api, state, notify, features, dialogs });
   features.library = createLibrary({ router: null, features });
@@ -103,6 +106,7 @@ export function initApp() {
     'library-bookshelf': 'library',
     worlds: 'worlds',
     characters: 'characters',
+    tribe: 'tribe',
     settings: 'settings',
   };
 
@@ -137,6 +141,7 @@ export function initApp() {
     }
     if (route.name === 'worlds') features.worlds.loadWorlds();
     if (route.name === 'characters') features.characters.loadCharacters();
+    if (route.name === 'tribe') features.scribes.loadScribes();
     if (route.name === 'chronicle') {
       features.chronicle.enter(route.params).then(syncManuscriptShell);
     } else if (route.name === 'codex') {
@@ -191,6 +196,7 @@ export function initApp() {
   document.getElementById('libraryBtn').addEventListener('click', () => router.navigate('library-stories'));
   document.getElementById('worldsBtn').addEventListener('click', () => router.navigate('worlds'));
   document.getElementById('charactersBtn').addEventListener('click', () => router.navigate('characters'));
+  document.getElementById('tribeBtn').addEventListener('click', () => router.navigate('tribe'));
   document.getElementById('settingsBtn').addEventListener('click', () => router.navigate('settings'));
   function navigateWorkspace(destination) {
     const storyId = state.data.currentStory?.id || document.getElementById('shellManuscriptSelect')?.value || null;
@@ -224,6 +230,7 @@ export function initApp() {
   features.imagery.init(); // scene viewer first so Escape dismisses it before the prompt popup
   features.worlds.init(); // entity editors
   features.characters.init();
+  features.scribes.init();
   features.audiobook.init();
   features.bookshelf.init();
   features.storyEditor.init();
@@ -254,6 +261,7 @@ export function initApp() {
       await Promise.all([
         features.worlds.loadWorlds(),
         features.characters.loadCharacters(),
+        features.scribes.loadScribes(),
         features.stories.loadStories(),
       ]);
       if (token !== lifecycleToken) return;
@@ -288,7 +296,7 @@ export function initApp() {
     state.clearPrivateData();
     syncManuscriptShell();
     for (const id of [
-      'worldsList', 'charactersList', 'storiesList', 'bookshelfList',
+      'worldsList', 'charactersList', 'scribesList', 'storiesList', 'bookshelfList',
       'homeRecentList', 'storyContent', 'storyAssetsBody', 'storyCastList',
       'storyCastDetail', 'storyReview', 'castList', 'modelList',
     ]) {
@@ -298,7 +306,7 @@ export function initApp() {
     const direction = document.getElementById('userInput');
     if (direction) direction.value = '';
     for (const formId of [
-      'worldForm', 'characterForm', 'manuscriptStartForm', 'characterEditorForm',
+      'worldForm', 'characterForm', 'scribeForm', 'manuscriptStartForm', 'characterEditorForm', 'scribeEditorForm',
       'worldEditorForm', 'passwordChangeForm',
     ]) {
       document.getElementById(formId)?.reset();
@@ -306,6 +314,7 @@ export function initApp() {
     const privateSelects = {
       startWorld: 'No world',
       characterWorld: 'No world',
+      startScribe: 'No Scribe — neutral house craft',
       mcSelect: '— Choose a lead —',
       castCharSelect: '— Choose a character —',
       storyCastAddSelect: '— Choose a character —',
@@ -338,7 +347,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery, gate } = features;
+  const { worlds, characters, scribes, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery, gate } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -349,11 +358,14 @@ function buildFacade(ctx) {
     apiCall: api.apiCall,
     loadWorlds: worlds.loadWorlds,
     loadCharacters: characters.loadCharacters,
+    loadScribes: scribes.loadScribes,
     loadStories: stories.loadStories,
     loadStoryPages: write.loadStoryPages,
     refreshStoryAssets: write.refreshStoryAssets,
     renderWorlds: worlds.renderWorlds,
     renderCharacters: characters.renderCharacters,
+    renderScribes: scribes.renderScribes,
+    handleScribeSubmit: scribes.handleSubmit,
     renderStories: stories.renderStories,
     updateWorldSelects: worlds.updateWorldSelects,
     renderCastBuilder: storyEditor.renderCastBuilder,
@@ -443,6 +455,7 @@ function buildFacade(ctx) {
     __sceneViewerState: imagery.__sceneViewerState,
     // Entity editors
     openCharacterEditor: characters.openCharacterEditor,
+    openScribeEditor: scribes.openEditor,
     saveCharacterEditor: characters.saveCharacterEditor,
     openWorldEditor: worlds.openWorldEditor,
     saveWorldEditor: worlds.saveWorldEditor,

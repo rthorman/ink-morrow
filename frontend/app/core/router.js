@@ -10,6 +10,7 @@
 //   #/library/bookshelf
 //   #/worlds
 //   #/characters
+//   #/tribe
 //   #/settings
 //
 // #/home and #/write remain resolving aliases during the 4.0 transition; they
@@ -28,6 +29,7 @@ const ROUTES = [
   { name: 'library-bookshelf', pattern: /^\/library\/bookshelf$/ },
   { name: 'worlds', pattern: /^\/worlds$/ },
   { name: 'characters', pattern: /^\/characters$/ },
+  { name: 'tribe', pattern: /^\/tribe$/ },
   { name: 'settings', pattern: /^\/settings$/ },
 ];
 
@@ -65,6 +67,7 @@ export function formatHash(name, params = {}) {
     case 'library-bookshelf': return '#/library/bookshelf';
     case 'worlds': return '#/worlds';
     case 'characters': return '#/characters';
+    case 'tribe': return '#/tribe';
     case 'settings': return '#/settings';
     default: return '#/library';
   }

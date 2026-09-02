@@ -3,7 +3,7 @@
 // Actions (Edit / More menu) live on the card itself, never hidden behind
 // hover; the image block is presentation-only.
 
-export const IMAGE_COST_ESTIMATE = { world: 0.04, character: 0.06, story: 0.06 };
+export const IMAGE_COST_ESTIMATE = { world: 0.04, character: 0.06, scribe: 0.06, story: 0.06 };
 
 export function entityImageBlock(kind, row, altText) {
   const wrap = document.createElement('div');
@@ -13,7 +13,7 @@ export function entityImageBlock(kind, row, altText) {
     img.className = 'card-image';
     img.src = kind === 'story'
       ? `/api/stories/${row.id}/cover`
-      : `/api/${kind === 'world' ? 'worlds' : 'characters'}/${row.id}/image`;
+      : `/api/${kind === 'world' ? 'worlds' : kind === 'scribe' ? 'scribes' : 'characters'}/${row.id}/image`;
     img.alt = altText;
     // A "ready" image whose file has gone missing (legacy copies) degrades
     // to the failed placeholder instead of a broken image.
@@ -119,7 +119,7 @@ export function createCatalogPoll({ state, loaders }) {
   let timer = null;
 
   function anyPending() {
-    return [...state.data.worlds, ...state.data.characters].some((r) => r.image_status === 'pending');
+    return [...state.data.worlds, ...state.data.characters, ...state.data.scribes].some((r) => r.image_status === 'pending');
   }
 
   function schedule() {
@@ -131,7 +131,7 @@ export function createCatalogPoll({ state, loaders }) {
         stop();
         return;
       }
-      await Promise.all([loaders.loadWorlds(), loaders.loadCharacters()]);
+        await Promise.all([loaders.loadWorlds(), loaders.loadCharacters(), loaders.loadScribes()]);
     }, 4000);
   }
 

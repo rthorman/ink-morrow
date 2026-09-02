@@ -8,6 +8,9 @@ const { normalizeNarrationText } = require('../audio/narration');
 const {
   WORLD_FIELDS,
   CHARACTER_FIELDS,
+  SCRIBE_FIELDS,
+  SCRIBE_REVISION_FIELDS,
+  SCRIBE_BINDING_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
   VOLUME_FIELDS,
@@ -183,11 +186,12 @@ function createTransferService({
   function localRows(kind) {
     if (kind === 'world') return db.prepare('SELECT * FROM worlds').all();
     if (kind === 'character') return db.prepare('SELECT * FROM characters').all();
+    if (kind === 'scribe') return db.prepare('SELECT * FROM scribes').all();
     return db.prepare('SELECT * FROM stories').all();
   }
 
   function localRow(kind, id) {
-    const table = kind === 'world' ? 'worlds' : kind === 'character' ? 'characters' : 'stories';
+    const table = kind === 'world' ? 'worlds' : kind === 'character' ? 'characters' : kind === 'scribe' ? 'scribes' : 'stories';
     return db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
   }
 
@@ -206,6 +210,13 @@ function createTransferService({
       const stories = db.prepare('SELECT characters FROM stories').all()
         .filter((row) => parseJson(row.characters, []).some((entry) => entry.id === id)).length;
       return { stories };
+    }
+    if (kind === 'scribe') {
+      return {
+        manuscript_snapshots: db.prepare(`
+          SELECT COUNT(DISTINCT story_id) AS c FROM story_scribe_bindings WHERE source_scribe_id = ?
+        `).get(id).c,
+      };
     }
     return {
       pages: db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(id).c,
@@ -232,6 +243,11 @@ function createTransferService({
         if (record.world_id && !keys.has(`world:${record.world_id}`)) throw httpError('Archive is missing the story world');
         for (const cast of record.characters) {
           if (!keys.has(`character:${cast.id}`)) throw httpError(`Archive is missing cast member ${cast.id}`);
+        }
+        for (const binding of entity.bundle.scribe_bindings || []) {
+          if (binding.source_scribe_id && !keys.has(`scribe:${binding.source_scribe_id}`)) {
+            throw httpError(`Archive is missing Scribe dependency ${binding.source_scribe_id}`);
+          }
         }
       }
     }
@@ -281,7 +297,7 @@ function createTransferService({
     const options = imported.manifest.options;
     const descriptors = [];
     if (options.include_visuals) {
-      if (kind === 'world' || kind === 'character') {
+      if (kind === 'world' || kind === 'character' || kind === 'scribe') {
         const asset = local ? imageStore.fileInfo(kind, id) : imported.assets.find((item) =>
           item.kind === 'image' && item.owner_kind === kind && item.owner_id === entity.id);
         descriptors.push(['image', asset ? (local ? await hashFile(asset.path) : asset.sha256) : null]);
@@ -332,6 +348,7 @@ function createTransferService({
         hashes.set(key, semanticHash(kind, bundle, {
           includeHierarchy: imported.manifest.database_schema.version >= 2,
           includeArtStore: imported.manifest.database_schema.version >= 7,
+          includeScribes: imported.manifest.database_schema.version >= 11,
         }));
       }
       return hashes.get(key);
@@ -463,7 +480,7 @@ function createTransferService({
   }
 
   function uniqueCopyName(kind, base, reserved) {
-    const table = kind === 'world' ? 'worlds' : kind === 'character' ? 'characters' : 'stories';
+    const table = kind === 'world' ? 'worlds' : kind === 'character' ? 'characters' : kind === 'scribe' ? 'scribes' : 'stories';
     const column = kind === 'story' ? 'title' : 'name';
     const existing = new Set(db.prepare(`SELECT LOWER(${column}) AS name FROM ${table}`).all().map((row) => row.name));
     for (const value of reserved) existing.add(value.toLowerCase());
@@ -490,13 +507,14 @@ function createTransferService({
     }
 
     const maps = {
-      world: new Map(), character: new Map(), story: new Map(),
+      world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), page: new Map(), revision: new Map(),
+      scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
-    const reservedNames = { world: new Set(), character: new Set(), story: new Set() };
+    const reservedNames = { world: new Set(), character: new Set(), scribe: new Set(), story: new Set() };
     const copiedNames = new Map();
-    for (const kind of ['world', 'character', 'story']) {
+    for (const kind of ['world', 'character', 'scribe', 'story']) {
       for (const entity of session.imported.entities.filter((item) => item.kind === kind)) {
         const action = actions.get(`${kind}:${entity.id}`);
         let targetId;
@@ -506,6 +524,12 @@ function createTransferService({
         if (!validId(targetId)) throw httpError(`Could not resolve ${entity.name}`);
         maps[kind].set(entity.id, targetId);
         if (action.action === 'copy') copiedNames.set(`${kind}:${entity.id}`, uniqueCopyName(kind, entity.name, reservedNames[kind]));
+      }
+    }
+    for (const entity of session.imported.entities.filter((item) => item.kind === 'scribe')) {
+      const action = actions.get(`scribe:${entity.id}`);
+      for (const revision of entity.bundle.revisions || []) {
+        maps.scribeRevision.set(revision.id, action.action === 'copy' ? randomUUID() : revision.id);
       }
     }
     for (const entity of session.imported.entities.filter((item) => item.kind === 'story')) {
@@ -545,6 +569,9 @@ function createTransferService({
         const existing = mode === 'replace_all' ? null : db.prepare('SELECT page_id FROM page_revisions WHERE id = ?').get(id);
         if (action.action === 'copy' || (existing && existing.page_id !== revision.page_id)) id = randomUUID();
         maps.revision.set(revision.id, id);
+      }
+      for (const binding of entity.bundle.scribe_bindings || []) {
+        maps.scribeBinding.set(binding.id, action.action === 'copy' ? randomUUID() : binding.id);
       }
       const targetStoryId = maps.story.get(entity.id);
       for (const asset of entity.bundle.art_assets || []) {
@@ -588,7 +615,7 @@ function createTransferService({
     for (const entity of session.imported.entities) {
       const action = resolved.actions.get(`${entity.kind}:${entity.id}`);
       if (action.action !== 'replace') continue;
-      if (entity.kind === 'world' || entity.kind === 'character') paths.push(...imageStore.pathsFor(entity.kind, entity.id));
+      if (entity.kind === 'world' || entity.kind === 'character' || entity.kind === 'scribe') paths.push(...imageStore.pathsFor(entity.kind, entity.id));
       if (entity.kind === 'story') {
         paths.push(...imageStore.pathsFor('story', entity.id));
         const oldPages = db.prepare('SELECT id FROM story_pages WHERE story_id = ?').all(entity.id);
@@ -660,7 +687,7 @@ function createTransferService({
   function importRows(session, resolved) {
     const { actions, maps, copiedNames } = resolved;
     if (resolved.mode === 'replace_all') {
-      db.exec('DELETE FROM stories; DELETE FROM characters; DELETE FROM worlds;');
+      db.exec('DELETE FROM stories; DELETE FROM scribes; DELETE FROM characters; DELETE FROM worlds;');
     } else {
       for (const entity of session.imported.entities.filter((item) => item.kind === 'story')) {
         if (actions.get(`story:${entity.id}`).action === 'replace') db.prepare('DELETE FROM stories WHERE id = ?').run(entity.id);
@@ -693,6 +720,30 @@ function createTransferService({
       insertOrUpdate(db, 'characters', record, CHARACTER_FIELDS);
     }
 
+    for (const entity of session.imported.entities.filter((item) => item.kind === 'scribe')) {
+      const action = actions.get(`scribe:${entity.id}`);
+      if (action.action === 'keep') continue;
+      if (action.action === 'replace') db.prepare('DELETE FROM scribe_revisions WHERE scribe_id = ?').run(entity.id);
+      const record = {
+        ...entity.bundle.record,
+        id: maps.scribe.get(entity.id),
+        focus_areas: JSON.stringify(entity.bundle.record.focus_areas || []),
+      };
+      if (copiedNames.has(`scribe:${entity.id}`)) record.name = copiedNames.get(`scribe:${entity.id}`);
+      const hasImage = hasAsset(session, 'scribe', entity.id);
+      record.image_status = hasImage ? 'ready' : 'none';
+      if (!hasImage) record.image_media_type = null;
+      insertOrUpdate(db, 'scribes', record, SCRIBE_FIELDS);
+      for (const source of entity.bundle.revisions || []) {
+        insertOrUpdate(db, 'scribe_revisions', {
+          ...source,
+          id: maps.scribeRevision.get(source.id),
+          scribe_id: maps.scribe.get(source.scribe_id),
+          snapshot_json: JSON.stringify(source.snapshot_json),
+        }, SCRIBE_REVISION_FIELDS);
+      }
+    }
+
     for (const entity of session.imported.entities.filter((item) => item.kind === 'story')) {
       const action = actions.get(`story:${entity.id}`);
       if (action.action === 'keep') continue;
@@ -712,6 +763,16 @@ function createTransferService({
       record.image_status = hasCover ? 'ready' : 'none';
       if (!hasCover) record.image_media_type = null;
       insertOrUpdate(db, 'stories', record, STORY_FIELDS);
+
+      for (const source of entity.bundle.scribe_bindings || []) {
+        insertOrUpdate(db, 'story_scribe_bindings', {
+          ...source,
+          id: maps.scribeBinding.get(source.id),
+          story_id: storyId,
+          source_scribe_id: source.source_scribe_id ? maps.scribe.get(source.source_scribe_id) || null : null,
+          snapshot_json: source.snapshot_json === null ? null : JSON.stringify(source.snapshot_json),
+        }, SCRIBE_BINDING_FIELDS);
+      }
 
       const importedPages = [];
       for (const pageSource of entity.bundle.pages) {
@@ -772,6 +833,9 @@ function createTransferService({
               page_id: maps.page.get(revisionSource.page_id),
               parent_revision_id: revisionSource.parent_revision_id
                 ? maps.revision.get(revisionSource.parent_revision_id)
+                : null,
+              scribe_binding_id: revisionSource.scribe_binding_id
+                ? maps.scribeBinding.get(revisionSource.scribe_binding_id)
                 : null,
             };
             insertOrUpdate(db, 'page_revisions', revision, REVISION_FIELDS);

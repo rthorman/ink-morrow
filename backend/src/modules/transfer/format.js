@@ -14,8 +14,8 @@ const {
   ARCHIVE_EXTENSION,
 } = require('../../release');
 const ARCHIVE_MANIFEST_SCHEMA = require('./archive-manifest-v2.schema.json');
-const ENTITY_KINDS = new Set(['world', 'character', 'story']);
-const EXPORT_SCOPES = new Set(['world', 'character', 'story', 'full']);
+const ENTITY_KINDS = new Set(['world', 'character', 'scribe', 'story']);
+const EXPORT_SCOPES = new Set(['world', 'character', 'scribe', 'story', 'full']);
 
 const WORLD_FIELDS = [
   'id', 'name', 'description', 'genre', 'setting', 'lore', 'image_prompt',
@@ -26,6 +26,22 @@ const CHARACTER_FIELDS = [
   'id', 'name', 'description', 'personality', 'appearance', 'background',
   'world_id', 'image_prompt', 'image_status', 'image_media_type',
   'image_cost_usd', 'image_updated_at', 'created_at', 'updated_at',
+];
+const SCRIBE_FIELDS = [
+  'id', 'entity_kind', 'name', 'description', 'personality', 'appearance', 'background',
+  'feline_traits', 'diction', 'sentence_rhythm', 'narrative_distance',
+  'figurative_language', 'description_density', 'dialogue_tendency', 'exposition_style',
+  'humor', 'scene_tempo', 'progress_appetite', 'tension_tolerance', 'aftermath_dwell',
+  'focus_areas', 'signature_habits', 'avoidances', 'image_prompt', 'image_status',
+  'image_media_type', 'image_cost_usd', 'image_updated_at', 'revision_number',
+  'created_at', 'updated_at',
+];
+const SCRIBE_REVISION_FIELDS = [
+  'id', 'scribe_id', 'revision_number', 'snapshot_json', 'created_at',
+];
+const SCRIBE_BINDING_FIELDS = [
+  'id', 'story_id', 'action', 'source_scribe_id', 'source_revision_number',
+  'snapshot_json', 'created_at',
 ];
 const STORY_FIELDS = [
   'id', 'title', 'world_id', 'characters', 'tone', 'image_prompt',
@@ -51,7 +67,7 @@ const HIERARCHY_PAGE_FIELDS = [
 const REVISION_FIELDS = [
   'id', 'page_id', 'parent_revision_id', 'kind', 'content', 'direction',
   'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd',
-  'created_at',
+  'scribe_binding_id', 'created_at',
 ];
 const SNAPSHOT_FIELDS = [
   'story_id', 'character_id', 'name', 'description', 'personality',
@@ -182,6 +198,24 @@ function characterRecord(row, options) {
   return cleanImageFields(pick(row, CHARACTER_FIELDS), options);
 }
 
+function scribeRecord(row, options) {
+  const record = cleanImageFields(pick(row, SCRIBE_FIELDS), options);
+  record.focus_areas = parseJson(record.focus_areas, []);
+  return record;
+}
+
+function scribeRevisionRecord(row) {
+  const record = pick(row, SCRIBE_REVISION_FIELDS);
+  record.snapshot_json = parseJson(record.snapshot_json, {});
+  return record;
+}
+
+function scribeBindingRecord(row) {
+  const record = pick(row, SCRIBE_BINDING_FIELDS);
+  record.snapshot_json = parseJson(record.snapshot_json, null);
+  return record;
+}
+
 function storyRecord(row, options) {
   const record = cleanImageFields(pick(row, STORY_FIELDS), options);
   record.characters = parseJson(record.characters, []);
@@ -304,7 +338,10 @@ function without(object, keys) {
 // own primary id, and transient image status. Story pages are compared by
 // order; dependency ids remain meaningful so differently linked graphs are
 // never collapsed into one collision result.
-function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore = true } = {}) {
+function semanticEntity(kind, bundle, options = {}) {
+  const includeHierarchy = options.includeHierarchy !== false;
+  const includeArtStore = options.includeArtStore !== false;
+  const includeScribes = options.includeScribes === undefined ? includeHierarchy : options.includeScribes;
   if (kind === 'world') {
     return without(bundle.record, [
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
@@ -316,6 +353,15 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
       'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
       'image_cost_usd', 'image_updated_at',
     ]);
+  }
+  if (kind === 'scribe') {
+    return {
+      record: without(bundle.record, [
+        'id', 'created_at', 'updated_at', 'image_status', 'image_media_type',
+        'image_cost_usd', 'image_updated_at',
+      ]),
+      revisions: (bundle.revisions || []).map((row) => without(row, ['id', 'scribe_id', 'created_at'])),
+    };
   }
   const pageNumberById = new Map((bundle.pages || []).map((page) => [page.id, page.page_number]));
   const hierarchy = bundle.hierarchy || { volumes: [], chapters: [], pages: [] };
@@ -353,6 +399,7 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
     revisionsByPage.get(revision.page_id).push(revision);
   }
   const hierarchyPageById = new Map((hierarchy.pages || []).map((page) => [page.id, page]));
+  const scribeBindingIndex = new Map((bundle.scribe_bindings || []).map((binding, index) => [binding.id, index + 1]));
   const semanticRevisions = (bundle.pages || []).map((page) => {
     const rows = (revisionsByPage.get(page.id) || []).slice()
       .sort((left, right) => String(left.created_at).localeCompare(String(right.created_at)) || left.id.localeCompare(right.id));
@@ -372,6 +419,7 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
         prompt_tokens: row.prompt_tokens,
         completion_tokens: row.completion_tokens,
         cost_usd: row.cost_usd,
+        ...(includeScribes ? { scribe_binding: scribeBindingIndex.get(row.scribe_binding_id) || null } : {}),
       })),
     };
   });
@@ -392,6 +440,14 @@ function semanticEntity(kind, bundle, { includeHierarchy = true, includeArtStore
     pages: (bundle.pages || []).map((page) => without(page, ['id', 'story_id', 'created_at'])),
     ...(includeHierarchy ? { hierarchy: semanticHierarchy } : {}),
     revisions: semanticRevisions,
+    ...(includeScribes ? {
+      scribe_bindings: (bundle.scribe_bindings || []).map((row) => ({
+        action: row.action,
+        source_scribe_id: row.source_scribe_id,
+        source_revision_number: row.source_revision_number,
+        snapshot: row.snapshot_json,
+      })),
+    } : {}),
     ...(includeArtStore ? {
       art_assets: semanticAssets,
       asset_placements: semanticPlacements,
@@ -499,6 +555,9 @@ module.exports = {
   EXPORT_SCOPES,
   WORLD_FIELDS,
   CHARACTER_FIELDS,
+  SCRIBE_FIELDS,
+  SCRIBE_REVISION_FIELDS,
+  SCRIBE_BINDING_FIELDS,
   STORY_FIELDS,
   PAGE_FIELDS,
   VOLUME_FIELDS,
@@ -527,6 +586,9 @@ module.exports = {
   archiveFilename,
   worldRecord,
   characterRecord,
+  scribeRecord,
+  scribeRevisionRecord,
+  scribeBindingRecord,
   storyRecord,
   pageRecord,
   volumeRecord,

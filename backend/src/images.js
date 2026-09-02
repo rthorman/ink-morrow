@@ -161,9 +161,9 @@ function extFor(mediaType) {
 function createImageStore(rootDir) {
   const kindDir = (kind) => path.join(
     rootDir,
-    kind === 'world' ? 'worlds' : kind === 'page' ? 'pages' : kind === 'story' ? 'covers' : 'characters'
+    kind === 'world' ? 'worlds' : kind === 'page' ? 'pages' : kind === 'story' ? 'covers' : kind === 'scribe' ? 'scribes' : 'characters'
   );
-  for (const kind of ['world', 'character', 'story', 'page']) {
+  for (const kind of ['world', 'character', 'scribe', 'story', 'page']) {
     fs.mkdirSync(kindDir(kind), { recursive: true });
   }
 

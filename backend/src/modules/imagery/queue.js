@@ -4,10 +4,12 @@
 // instantly; portraits/scenes land when the model finishes. The queue owns
 // its arrays and drain loop - callers only see commands.
 
-const { buildCharacterImagePrompt, buildWorldImagePrompt, buildStoryCoverPrompt } = require('../../prompt');
+const { buildCharacterImagePrompt, buildScribeImagePrompt, buildWorldImagePrompt, buildStoryCoverPrompt } = require('../../prompt');
 
 function createImageQueue({ db, continuity, generateImage, imageStore, logger, autoImagesEnabled }) {
-  const tableFor = (kind) => (kind === 'world' ? 'worlds' : kind === 'story' ? 'stories' : 'characters');
+  const tableFor = (kind) => (
+    kind === 'world' ? 'worlds' : kind === 'story' ? 'stories' : kind === 'scribe' ? 'scribes' : 'characters'
+  );
   const queue = [];
   const inFlight = new Set(); // 'character:<id>' keys being generated
   let working = false;
@@ -40,7 +42,11 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
           // An edited blurb overrides the auto-composed one
           let prompt;
           let inputReferences = [];
-          if (row.image_prompt && row.image_prompt.trim()) {
+          if (kind === 'scribe') {
+            // Unlike ordinary art blurbs, Scribe direction can never replace
+            // the adult-catgirl canon that the composed prompt enforces.
+            prompt = buildScribeImagePrompt({ ...row, focus_areas: JSON.parse(row.focus_areas || '[]') });
+          } else if (row.image_prompt && row.image_prompt.trim()) {
             prompt = row.image_prompt;
           } else if (kind === 'world') {
             prompt = buildWorldImagePrompt(row);
@@ -104,6 +110,9 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
     }
     for (const row of db.prepare("SELECT id FROM worlds WHERE image_status IS NULL OR image_status = 'none'").all()) {
       enqueue('world', row.id);
+    }
+    for (const row of db.prepare("SELECT id FROM scribes WHERE image_status IS NULL OR image_status = 'none'").all()) {
+      enqueue('scribe', row.id);
     }
   }
 

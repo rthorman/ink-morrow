@@ -60,6 +60,7 @@ export function createShell({ api, notify }) {
       library: 'libraryBtn',
       worlds: 'worldsBtn',
       characters: 'charactersBtn',
+      tribe: 'tribeBtn',
       settings: 'settingsBtn',
     }[section] || null;
     const activeBtn = globalButtonId ? document.getElementById(globalButtonId) : null;

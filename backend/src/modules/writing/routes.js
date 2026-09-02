@@ -8,6 +8,7 @@ const express = require('express');
 const { createHash, randomUUID } = require('node:crypto');
 const { badRequest, notFound } = require('../../core/http');
 const { optionalText, modelOverrideOf, parseReasoningEffort, parseWordTarget, asString } = require('../../core/validation');
+const { ENUMS, DEFAULTS, FOCUS_AREAS } = require('../scribes/store');
 
 function previewKey(preview) {
   if (!preview) return null;
@@ -153,6 +154,36 @@ function createWritingRouter({ catalog, stories, writing, transactions, ai }) {
         model,
         cost_usd,
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  router.post('/api/ai/scribe', async (req, res, next) => {
+    try {
+      const textKeys = ['name', 'description', 'personality', 'appearance', 'background', 'feline_traits', 'signature_habits', 'avoidances'];
+      const seeds = {};
+      for (const key of textKeys) {
+        seeds[key] = optionalText(req.body[key], { max: key === 'name' ? 200 : 3000 });
+      }
+      if (Object.values(seeds).includes(undefined)) return badRequest(res, 'Scribe seed fields must be text');
+      const modelOverride = modelOverrideOf(req.body.model);
+      if (req.body.model !== undefined && !modelOverride) return badRequest(res, '"model" must be a non-empty string');
+      const result = await writing.draftScribe({ ...req.body, ...seeds }, modelOverride);
+      const scribe = { entity_kind: 'catgirl' };
+      scribe.name = asString(result.scribe.name) || seeds.name || 'An Unnamed Scribe';
+      for (const key of textKeys.filter((key) => key !== 'name')) {
+        scribe[key] = asString(result.scribe[key]) || seeds[key] || '';
+      }
+      for (const [key, allowed] of Object.entries(ENUMS)) {
+        const proposed = asString(result.scribe[key]);
+        const seeded = asString(req.body[key]);
+        scribe[key] = allowed.includes(proposed) ? proposed : allowed.includes(seeded) ? seeded : DEFAULTS[key];
+      }
+      scribe.focus_areas = Array.isArray(result.scribe.focus_areas)
+        ? [...new Set(result.scribe.focus_areas.filter((value) => FOCUS_AREAS.includes(value)))].slice(0, 8)
+        : Array.isArray(req.body.focus_areas) ? req.body.focus_areas.filter((value) => FOCUS_AREAS.includes(value)).slice(0, 8) : [];
+      res.json({ scribe, model: result.model, cost_usd: result.cost_usd });
     } catch (error) {
       next(error);
     }

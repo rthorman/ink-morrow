@@ -8,6 +8,7 @@ const SCOPE_LABELS = {
   full: 'Everything — full backup',
   world: 'One world and chosen residents',
   character: 'One character and their home world',
+  scribe: 'One Scribe and her revision history',
   story: 'One story and all of its dependencies',
 };
 
@@ -42,6 +43,7 @@ function exposureList(exposure) {
   const rows = [
     ['Worlds', exposure.worlds],
     ['Characters', exposure.characters],
+    ['Scribes', exposure.scribes],
     ['Stories', exposure.stories],
     ['Pages', exposure.pages],
     ['Continuity rows', exposure.continuity_rows],
@@ -65,6 +67,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
   function collectionFor(scope) {
     if (scope === 'world') return state.data.worlds;
     if (scope === 'character') return state.data.characters;
+    if (scope === 'scribe') return state.data.scribes;
     if (scope === 'story') return state.data.stories;
     return [];
   }
@@ -319,7 +322,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
   async function refreshAfterImport(mode) {
     if (mode === 'replace_all') features.write.resetAfterStoryDeletion();
     await features.worlds.loadWorlds();
-    await Promise.all([features.characters.loadCharacters(), features.stories.loadStories()]);
+    await Promise.all([features.characters.loadCharacters(), features.scribes.loadScribes(), features.stories.loadStories()]);
     features.bookshelf.loadBookshelf();
   }
 
@@ -367,7 +370,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
       mode.append(merge, replace);
       body.appendChild(labeledControl('Full backup restore mode', mode));
       body.appendChild(element('p', 'transfer-warning transfer-replace-warning',
-        'Replace everything removes current worlds, characters, stories, pages, paintings, and audio after automatically creating a safety backup.'));
+        'Replace everything removes current worlds, characters, Scribes, stories, pages, paintings, and audio after automatically creating a safety backup.'));
     }
 
     const restoreSettings = review.settings_available
