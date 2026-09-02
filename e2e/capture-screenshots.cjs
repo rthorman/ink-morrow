@@ -1,5 +1,11 @@
 // Captures current screenshots for the README from a fresh in-memory server
 // with a small seeded tale. This is a documentation helper, not a test.
+// Current Playwright honors an explicit browser path on Android, but only
+// after PLAYWRIGHT_BROWSERS_PATH prevents its unsupported default-cache path.
+if (process.platform === 'android' && !process.env.PLAYWRIGHT_BROWSERS_PATH) {
+  process.env.PLAYWRIGHT_BROWSERS_PATH = '0';
+}
+
 const { chromium } = require('@playwright/test');
 const { spawn } = require('child_process');
 const fs = require('fs');

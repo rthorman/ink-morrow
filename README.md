@@ -245,7 +245,7 @@ The project was built as an experiment in running AI coding tools natively on Te
 git clone https://github.com/rthorman/ink-morrow.git
 cd ink-morrow
 
-bash setup.sh        # installs deps, creates backend/.env, makes start.sh executable
+bash setup.sh        # safely updates deps, creates backend/.env, makes start.sh executable
 
 $EDITOR backend/.env   # set OPENROUTER_API_KEY
 
@@ -438,6 +438,10 @@ Validation errors return `400` with a helpful message; unknown ids return `404`;
 ## Testing
 
 Use `bash setup.sh --dev` on a development checkout; the normal setup intentionally omits test and browser tooling.
+Existing dependency directories are updated in place. Use `--clean` only when
+you deliberately want setup to replace the selected `node_modules` directories
+from their lockfiles; setup prints every affected path before doing so. The
+flags may be combined as `bash setup.sh --dev --clean`.
 
 ```bash
 npm run lint         # ESLint over backend, frontend and e2e (CI runs it first)

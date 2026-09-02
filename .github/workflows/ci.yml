@@ -44,6 +44,9 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      - name: Setup safety contract
+        run: npm run test:setup
+
   test:
     name: Jest (backend + frontend)
     runs-on: ubuntu-latest

@@ -582,14 +582,21 @@
 
 .empty-state--archive {
   display: grid;
-  grid-template-columns: minmax(220px, 380px) 1fr;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(220px, 380px) minmax(0, 1fr);
   gap: 1.4rem;
   align-items: center;
+  min-width: 0;
+  width: 100%;
   border: 1px solid var(--im-violet-600);
   border-radius: 10px;
   background: var(--surface-archive);
   padding: 1.1rem;
   margin-top: 0.6rem;
+}
+
+.empty-state--archive > * {
+  min-width: 0;
 }
 
 .empty-state--archive img {

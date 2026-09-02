@@ -4,6 +4,18 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
+## Unreleased
+
+### Fixed
+
+- Re-running `setup.sh` now updates existing dependency trees instead of
+  deleting them. Exact `npm ci` replacement requires the explicit `--clean`
+  flag, reports every affected path, and refuses linked `node_modules` paths.
+- Android/Termux Playwright uses a tracked launcher instead of edits inside
+  installed dependencies, so reinstalls no longer erase local compatibility.
+- An empty Manuscripts catalogue presents one creation action, and its archive
+  panel spans the catalogue grid without clipping at narrow widths.
+
 ## 4.0.0-beta.1 — 2026-09-01
 
 This is a clean-break beta. Use a new, empty `DATA_DIR`; Ink Morrow 4.0
