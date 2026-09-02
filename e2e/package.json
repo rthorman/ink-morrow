@@ -3,10 +3,10 @@
   "version": "4.0.0-beta.1",
   "description": "End-to-end tests for Ink Morrow (Playwright)",
   "scripts": {
-    "test": "node sweep-e2e-server.cjs && playwright test --project=chromium && node sweep-e2e-server.cjs && playwright test --project=\"Mobile Chrome\"",
-    "test:headed": "node sweep-e2e-server.cjs && playwright test --headed --project=chromium",
-    "test:debug": "node sweep-e2e-server.cjs && playwright test --debug --project=chromium",
-    "install-browsers": "playwright install chromium"
+    "test": "node sweep-e2e-server.cjs && node run-playwright.cjs test --project=chromium && node sweep-e2e-server.cjs && node run-playwright.cjs test --project=\"Mobile Chrome\"",
+    "test:headed": "node sweep-e2e-server.cjs && node run-playwright.cjs test --headed --project=chromium",
+    "test:debug": "node sweep-e2e-server.cjs && node run-playwright.cjs test --debug --project=chromium",
+    "install-browsers": "node run-playwright.cjs install chromium"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",

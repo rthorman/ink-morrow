@@ -40,12 +40,24 @@ describe('Library management and canonical manuscript creation', () => {
     await fw.loadStories();
     expect(document.getElementById('storyCreateWrap')).toBeNull();
     expect(document.getElementById('storiesList').textContent).toContain('No manuscripts are bound');
+    const beginButtons = [...document.querySelectorAll('#librarySection button')]
+      .filter((button) => button.textContent === 'Begin a manuscript' && !button.hidden);
+    expect(beginButtons).toHaveLength(1);
+    expect(document.getElementById('libraryBeginBtn').hidden).toBe(true);
+    expect(document.querySelector('#storiesList .empty-state--archive')).toBeTruthy();
     document.querySelector('#storiesList button').click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(window.location.hash).toBe('#/library');
     expect(document.getElementById('manuscriptStartSheet').hidden).toBe(false);
     expect(document.getElementById('storyCreateWrap')).toBeNull();
+  });
+
+  it('restores the persistent Begin action when manuscripts exist', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(storiesResponse({ id: 's1', title: 'Existing Tale', page_count: 1 })));
+    await fw.loadStories();
+    expect(document.getElementById('libraryBeginBtn').hidden).toBe(false);
+    expect(document.querySelector('#storiesList .empty-state--archive')).toBeNull();
   });
 
   it('redirects a bare first-story Desk visit to the complete canonical sheet', async () => {

@@ -140,7 +140,10 @@ export function createStories({ api, state, notify, features, dialogs, entityCar
     const container = document.getElementById('storiesList');
     if (!container) return;
     container.textContent = '';
-    if (state.data.stories.length === 0) {
+    const isEmpty = state.data.stories.length === 0;
+    const persistentBegin = document.getElementById('libraryBeginBtn');
+    if (persistentBegin) persistentBegin.hidden = isEmpty;
+    if (isEmpty) {
       const empty = document.createElement('div');
       empty.className = 'empty-state empty-state--archive';
       const art = document.createElement('img');

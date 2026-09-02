@@ -1,19 +1,36 @@
 #!/bin/bash
 
 # Ink Morrow - Setup Script
-# Installs dependencies, creates config, and prints launch instructions.
+# Updates dependencies, creates config, and prints launch instructions.
 # The backend serves both the API and the frontend, so there is only one server.
 
 set -e
 umask 077
 
 DEV_SETUP=0
-if [ "${1:-}" = "--dev" ]; then
-    DEV_SETUP=1
-elif [ -n "${1:-}" ]; then
-    echo "Usage: ./setup.sh [--dev]"
-    exit 2
-fi
+CLEAN_SETUP=0
+
+usage() {
+    echo "Usage: ./setup.sh [--dev] [--clean]"
+    echo "  --dev    Include lint, Jest, and Playwright tooling."
+    echo "  --clean  Replace the selected node_modules directories from lockfiles."
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --dev) DEV_SETUP=1 ;;
+        --clean) CLEAN_SETUP=1 ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
+        *)
+            usage
+            exit 2
+            ;;
+    esac
+    shift
+done
 
 echo "🐱📜 Ink Morrow Setup 🐱📜"
 echo "================================"
@@ -40,16 +57,68 @@ echo "✅ Node $(node --version)"
 
 # A normal installation needs only the backend runtime. The frontend is
 # static and has no build step; developer/Jest/Playwright tools are opt-in.
-echo "📦 Installing backend dependencies..."
+# Existing dependency trees are updated in place. A clean replacement is a
+# separate, explicit operation because npm ci always removes node_modules.
+INSTALL_DIRS=(backend)
 if [ "$DEV_SETUP" -eq 1 ]; then
-    (cd backend && npm ci)
-    echo "📦 Installing root and frontend test tooling..."
-    npm ci
-    (cd frontend && npm ci)
-    echo "📦 Installing Playwright test tooling (browser binaries remain separate)..."
-    (cd e2e && npm ci)
+    INSTALL_DIRS=(backend . frontend e2e)
+fi
+
+modules_target() {
+    if [ "$1" = "." ]; then
+        printf '%s/node_modules' "$PROJECT_ROOT"
+    else
+        printf '%s/%s/node_modules' "$PROJECT_ROOT" "$1"
+    fi
+}
+
+refuse_linked_modules() {
+    local target
+    target=$(modules_target "$1")
+    if [ -L "$target" ]; then
+        echo "❌ Refusing to modify linked dependency directory: $target"
+        echo "   Replace it with a real directory or manage its dependencies manually."
+        exit 1
+    fi
+}
+
+install_package() {
+    local directory="$1"
+    shift
+    local target
+    target=$(modules_target "$directory")
+    refuse_linked_modules "$directory"
+
+    if [ "$CLEAN_SETUP" -eq 1 ]; then
+        (cd "$directory" && npm ci "$@")
+    elif [ -d "$target" ]; then
+        (cd "$directory" && npm install "$@")
+    else
+        # With no existing tree there is nothing to erase, so use the exact
+        # lockfile install without turning an ordinary rerun into a reset.
+        (cd "$directory" && npm ci "$@")
+    fi
+}
+
+PROJECT_ROOT=$(pwd -P)
+if [ "$CLEAN_SETUP" -eq 1 ]; then
+    echo "⚠️  Clean dependency replacement requested. npm ci will replace:"
+    for directory in "${INSTALL_DIRS[@]}"; do
+        echo "   - $(modules_target "$directory")"
+        refuse_linked_modules "$directory"
+    done
+fi
+
+echo "📦 Updating backend dependencies..."
+if [ "$DEV_SETUP" -eq 1 ]; then
+    install_package backend
+    echo "📦 Updating root and frontend test tooling..."
+    install_package .
+    install_package frontend
+    echo "📦 Updating Playwright test tooling (browser binaries remain separate)..."
+    install_package e2e
 else
-    (cd backend && npm ci --omit=dev)
+    install_package backend --omit=dev
 fi
 
 # Database + config

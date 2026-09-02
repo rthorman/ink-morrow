@@ -22,15 +22,18 @@ passwords, cookies, share capabilities, private prompts, or unredacted logs.
 
 ## Local development
 
-Ink Morrow requires Node.js 22.5 or newer. Install each package from its own
-lockfile:
+Ink Morrow requires Node.js 22.5 or newer. The development setup updates each
+package from its own lockfile without first deleting an existing dependency
+tree:
 
 ```bash
-npm ci
-cd backend && npm ci
-cd ../frontend && npm ci
-cd ../e2e && npm ci
+bash setup.sh --dev
 ```
+
+For a deliberately clean reinstall, use `bash setup.sh --dev --clean`. That
+explicit mode prints and then replaces only the repository root, backend,
+frontend, and E2E `node_modules` directories. It does not touch source,
+configuration, databases, manuscripts, or media.
 
 Run the fast verification from the repository root:
 
