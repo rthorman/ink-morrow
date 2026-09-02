@@ -13,12 +13,49 @@ function jobError(message, statusCode = 400, code = 'PUBLICATION_JOB_INVALID') {
   return error;
 }
 
-function createPublicationJobs({ publications, rootDir, renderer = renderPublication, clock = () => new Date() }) {
+function createPublicationJobs({
+  publications,
+  rootDir,
+  renderer = renderPublication,
+  clock = () => new Date(),
+  terminalTtlMs = 60 * 60 * 1000,
+  activeTtlMs = 24 * 60 * 60 * 1000,
+  sweepIntervalMs = 5 * 60 * 1000,
+}) {
   fs.mkdirSync(rootDir, { recursive: true, mode: 0o700 });
   for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
     try { fs.rmSync(path.join(rootDir, entry.name), { recursive: true, force: true }); } catch { /* inaccessible stale staging fails later writes honestly */ }
   }
   const jobs = new Map();
+
+  function nowMs() {
+    return clock().getTime();
+  }
+
+  function terminal(job, status, error = null) {
+    job.status = status;
+    job.error = error;
+    job.updatedAt = clock().toISOString();
+    job.terminalAt = nowMs();
+  }
+
+  function expired(job) {
+    if (job.terminalAt !== null) return nowMs() - job.terminalAt >= terminalTtlMs;
+    return nowMs() - job.createdAtMs >= activeTtlMs;
+  }
+
+  function expire(job) {
+    job.cancelRequested = true;
+    jobs.delete(job.id);
+    fs.promises.rm(job.stageDir, { recursive: true, force: true }).catch(() => {});
+  }
+
+  function sweepExpired() {
+    for (const job of jobs.values()) if (expired(job)) expire(job);
+  }
+
+  const sweepTimer = setInterval(sweepExpired, Math.max(1000, sweepIntervalMs));
+  sweepTimer.unref?.();
 
   function publicJob(job) {
     return {
@@ -82,14 +119,12 @@ function createPublicationJobs({ publications, rootDir, renderer = renderPublica
       }
       if (job.cancelRequested) {
         await removeStage(job);
-        job.status = 'cancelled';
-      } else job.status = 'ready';
+        terminal(job, 'cancelled');
+      } else terminal(job, 'ready');
     } catch (error) {
       await removeStage(job);
-      job.status = 'failed';
-      job.error = error.message || 'Publication export failed.';
+      terminal(job, 'failed', error.message || 'Publication export failed.');
     }
-    job.updatedAt = clock().toISOString();
   }
 
   function create(snapshotId, formats) {
@@ -108,7 +143,9 @@ function createPublicationJobs({ publications, rootDir, renderer = renderPublica
       cancelRequested: false,
       stageDir: path.join(rootDir, id),
       createdAt: now,
+      createdAtMs: nowMs(),
       updatedAt: now,
+      terminalAt: null,
     };
     jobs.set(id, job);
     setImmediate(() => run(job));
@@ -117,6 +154,10 @@ function createPublicationJobs({ publications, rootDir, renderer = renderPublica
 
   function get(id) {
     const job = jobs.get(id);
+    if (job && expired(job)) {
+      expire(job);
+      return null;
+    }
     return job ? publicJob(job) : null;
   }
 
@@ -126,8 +167,7 @@ function createPublicationJobs({ publications, rootDir, renderer = renderPublica
     job.cancelRequested = true;
     if (job.status === 'queued' || job.status === 'ready' || job.status === 'failed') {
       await removeStage(job);
-      job.status = 'cancelled';
-      job.updatedAt = clock().toISOString();
+      terminal(job, 'cancelled');
     }
     return publicJob(job);
   }
@@ -158,7 +198,9 @@ function createPublicationJobs({ publications, rootDir, renderer = renderPublica
   }
 
   function dispose() {
+    clearInterval(sweepTimer);
     for (const job of jobs.values()) job.cancelRequested = true;
+    for (const job of jobs.values()) fs.promises.rm(job.stageDir, { recursive: true, force: true }).catch(() => {});
     jobs.clear();
   }
 

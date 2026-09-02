@@ -96,7 +96,8 @@ describe('End-to-end authoring workflow', () => {
     const exportRes = await request(app).get(`/api/stories/${story.id}/export`).buffer().parse(binaryParser).expect(200);
     const exportText = exportRes.body.toString('utf8');
     expect(exportText).toContain('<dc:title>The Vale Remembers</dc:title>');
-    expect(exportText).toContain('page-3.xhtml');
+    expect(exportText).toContain('EPUB/book.xhtml');
+    expect(exportText).toContain('Generated page 4: the tale unfolds.');
 
     // 9. Delete cascades
     await request(app).delete(`/api/stories/${story.id}`).expect(204);

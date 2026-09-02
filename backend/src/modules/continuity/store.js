@@ -515,15 +515,24 @@ function createContinuityStore(db) {
       JOIN page_revisions revision ON revision.id = delta.revision_id
       JOIN pages page ON page.id = revision.page_id AND page.canonical_revision_id = delta.revision_id
       JOIN story_pages story_page ON story_page.id = page.id
-     WHERE delta.story_id = ? AND delta.status = 'ready'
-     ORDER BY story_page.page_number, page.id
   `;
 
-  function memoryRows(storyId, { throughPageNumber = null, excludePageIds = [] } = {}) {
-    const excluded = new Set(excludePageIds || []);
-    return db.prepare(READY_ROWS_SQL).all(storyId).filter((row) =>
-      (throughPageNumber === null || row.page_number <= throughPageNumber) && !excluded.has(row.page_id)
-    );
+  function memoryRows(storyId, { throughPageNumber = null, afterPageNumber = 0, excludePageIds = [] } = {}) {
+    const predicates = ["delta.story_id = ?", "delta.status = 'ready'", 'story_page.page_number > ?'];
+    const parameters = [storyId, Math.max(0, Number(afterPageNumber) || 0)];
+    if (throughPageNumber !== null) {
+      predicates.push('story_page.page_number <= ?');
+      parameters.push(Number(throughPageNumber));
+    }
+    const excluded = [...new Set(excludePageIds || [])];
+    if (excluded.length) {
+      predicates.push(`revision.page_id NOT IN (${excluded.map(() => '?').join(', ')})`);
+      parameters.push(...excluded);
+    }
+    return db.prepare(`${READY_ROWS_SQL}
+      WHERE ${predicates.join(' AND ')}
+      ORDER BY story_page.page_number, page.id
+    `).all(...parameters);
   }
 
   function validCheckpoint(row) {
@@ -564,7 +573,7 @@ function createContinuityStore(db) {
       VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
     `);
     let rebuilt = 0;
-    const rows = memoryRows(storyId).filter((item) => item.page_number >= start);
+    const rows = memoryRows(storyId, { afterPageNumber: start - 1 });
     for (const [index, row] of rows.entries()) {
       applyDelta(ledger, parseJson(row.delta_json, {}), row);
       if (row.page_number % CHECKPOINT_INTERVAL === 0 || index === rows.length - 1) {
@@ -624,7 +633,7 @@ function createContinuityStore(db) {
       `).get(storyId, throughPageNumber);
       const ledger = validCheckpoint(checkpoint) || emptyLedger();
       const after = checkpoint?.page_number || 0;
-      for (const row of memoryRows(storyId, { throughPageNumber }).filter((item) => item.page_number > after)) {
+      for (const row of memoryRows(storyId, { throughPageNumber, afterPageNumber: after })) {
         applyDelta(ledger, parseJson(row.delta_json, {}), row);
       }
       return ledger;

@@ -312,7 +312,7 @@ ink-morrow/
 │   │   ├── ai.js              # OpenAI-compatible client with retry/backoff + catalogs
 │   │   ├── prompt.js          # prompt builder (tone, snapshots, ledger retrieval)
 │   │   ├── quality.js         # reply quality guards (empty/truncated/language)
-│   │   ├── epub.js            # dependency-free EPUB/ZIP writer
+│   │   ├── modules/publication/ # validated snapshots and all reading-copy formats
 │   │   ├── images.js          # OpenRouter Image API client (Grok Imagine) + disk store
 │   │   ├── core/              # http + validation helpers shared by all routers
 │   │   └── modules/           # feature routers/stores/services:

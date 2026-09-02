@@ -234,9 +234,9 @@ describe('portable archives and backups', () => {
     await request(destination.app).get(imported.body.assets[0].content_url).expect(200)
       .expect('Content-Type', /image\/webp/);
     const importedPublication = destination.db.prepare(
-      'SELECT document_json FROM publication_snapshots WHERE story_id = ?'
+      'SELECT id FROM publication_snapshots WHERE story_id = ?'
     ).get(story.id);
-    expect(JSON.parse(importedPublication.document_json).assets[0].content_base64)
+    expect(destination.app.locals.publications.get(importedPublication.id).document.assets[0].content_base64)
       .toBe(publication.document.assets[0].content_base64);
     expect(destination.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value)
       .toBe(1);
@@ -502,7 +502,7 @@ describe('portable archives and backups', () => {
     `).all(story.id);
     expect(importedSnapshots).toHaveLength(1);
     expect(importedSnapshots[0].sha256).toBe(snapshot.sha256);
-    expect(JSON.parse(importedSnapshots[0].document_json)).toEqual(snapshot.document);
+    expect(destination.app.locals.publications.get(importedSnapshots[0].id).document).toEqual(snapshot.document);
     expect(destination.db.prepare('SELECT COUNT(*) AS count FROM shares').get().count).toBe(0);
     expect(destination.db.prepare('SELECT COUNT(*) AS count FROM recovery_suffixes').get().count).toBe(0);
     expect(destination.db.prepare('SELECT COUNT(*) AS count FROM provider_secrets').get().count).toBe(0);

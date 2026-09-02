@@ -4,6 +4,14 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const { adapterForImageModel, boundedText } = require('./modules/imagery/provider-adapters');
+const { normalizeImage, MAX_IMAGE_BYTES } = require('./modules/imagery/art-store');
+
+// A 20 MB decoded image expands to a little under 27 MB of base64. Leave a
+// small amount of room for the provider envelope while refusing an upstream
+// response that could otherwise consume an arbitrary amount of process RAM.
+const MAX_IMAGE_RESPONSE_BYTES = 30 * 1024 * 1024;
+const MAX_IMAGE_BASE64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4;
+const PROVIDER_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
 // Grok Imagine Image 2.0 via OpenRouter's dedicated Image API. Billing is
 // all-or-nothing upstream: a failed generation throws and is never charged.
@@ -98,6 +106,8 @@ async function generateImageWithConfig(cfg, {
           'Content-Type': 'application/json',
         },
         timeout: cfg.timeout,
+        maxContentLength: MAX_IMAGE_RESPONSE_BYTES,
+        maxBodyLength: MAX_IMAGE_RESPONSE_BYTES,
       }
     );
   } catch (error) {
@@ -109,9 +119,35 @@ async function generateImageWithConfig(cfg, {
     err.statusCode = 502;
     throw err;
   }
+  const encoded = image.b64_json;
+  const mediaType = String(image.media_type || 'image/png').toLowerCase();
+  if (typeof encoded !== 'string' || encoded.length > MAX_IMAGE_BASE64_CHARS ||
+      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded) ||
+      !PROVIDER_IMAGE_TYPES.has(mediaType)) {
+    const err = new Error('The image model returned an invalid or oversized image payload.');
+    err.statusCode = 502;
+    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
+    throw err;
+  }
+  const decoded = Buffer.from(encoded, 'base64');
+  if (decoded.toString('base64') !== encoded) {
+    const err = new Error('The image model returned invalid base64 image data.');
+    err.statusCode = 502;
+    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
+    throw err;
+  }
+  let normalized;
+  try {
+    normalized = await normalizeImage(decoded, mediaType);
+  } catch {
+    const err = new Error('The image model returned an unsafe or unreadable image.');
+    err.statusCode = 502;
+    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
+    throw err;
+  }
   return {
-    buffer: Buffer.from(image.b64_json, 'base64'),
-    mediaType: image.media_type || 'image/png',
+    buffer: normalized.buffer,
+    mediaType: normalized.mediaType,
     cost: typeof response.data?.usage?.cost === 'number' ? response.data.usage.cost : null,
   };
 }

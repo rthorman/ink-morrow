@@ -2,7 +2,12 @@ name: CI
 
 on:
   push:
+    branches: [main]
   pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -21,6 +26,9 @@ jobs:
 
       - name: Reject retired product identifiers
         run: npm run check:brand
+
+      - name: Verify release identities
+        run: npm run check:release
 
       - name: Warn when PDF documentation may be stale
         run: npm run check:docs

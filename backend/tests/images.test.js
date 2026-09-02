@@ -6,6 +6,7 @@ const os = require('os');
 const path = require('path');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
+const { normalizeImage } = require('../src/modules/imagery/art-store');
 const {
   resetDb,
   createWorld,
@@ -17,11 +18,13 @@ const {
 jest.mock('axios', () => ({ post: jest.fn(), get: jest.fn() }));
 const axios = require('axios');
 
-const PNG_BYTES = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+const PNG_BYTES = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
+let NORMALIZED_BYTES;
 
 let app, db, close, imageDir, logEntries;
 
-beforeAll(() => {
+beforeAll(async () => {
+  NORMALIZED_BYTES = (await normalizeImage(PNG_BYTES, 'image/png')).buffer;
   process.env.ENABLE_BACKGROUND_IMAGES = '1'; // opt into auto-enqueue in this suite
   process.env.OPENROUTER_API_KEY = 'test-key';
   imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-images-'));
@@ -93,7 +96,7 @@ describe('Character & world reference images', () => {
     await waitForImageStatus('characters', res.body.character.id, 'ready');
     const row = db.prepare('SELECT image_cost_usd, image_media_type FROM characters WHERE id = ?').get(res.body.character.id);
     expect(row.image_cost_usd).toBe(0.06);
-    expect(row.image_media_type).toBe('image/png');
+    expect(row.image_media_type).toBe('image/webp');
 
     // The prompt sent upstream is a plain single-figure reference portrait
     const body = axios.post.mock.calls[0][1];
@@ -105,7 +108,7 @@ describe('Character & world reference images', () => {
 
     // The image is served back with its media type
     const image = await request(app).get(`/api/characters/${res.body.character.id}/image`).expect(200);
-    expect(image.headers['content-type']).toContain('image/png');
+    expect(image.headers['content-type']).toContain('image/webp');
     expect(Buffer.isBuffer(image.body)).toBe(true);
   });
 
@@ -193,6 +196,19 @@ describe('Character & world reference images', () => {
     await waitForImageStatus('characters', character.id, 'ready');
   });
 
+  it('rejects a provider payload that is not an exact decodable image', async () => {
+    axios.post.mockResolvedValue({
+      data: { data: [{ b64_json: Buffer.from('not an image').toString('base64'), media_type: 'image/png' }] },
+    });
+    const character = await createCharacter(app, null, { name: 'False Image' });
+    await waitForImageStatus('characters', character.id, 'failed');
+    expect(fs.readdirSync(path.join(imageDir, 'characters'))).toHaveLength(0);
+    expect(axios.post.mock.calls[0][2]).toMatchObject({
+      maxContentLength: 30 * 1024 * 1024,
+      maxBodyLength: 30 * 1024 * 1024,
+    });
+  });
+
   it('deletes the stored image with the entity', async () => {
     const character = await createCharacter(app, null, { name: 'Ephemeral' });
     await waitForImageStatus('characters', character.id, 'ready');
@@ -221,6 +237,29 @@ describe('Character & world reference images', () => {
       const image = await request(bootApp).get(`/api/worlds/${worldId}/image`).expect(200);
       expect(Buffer.isBuffer(image.body)).toBe(true);
     } finally {
+      bootDb.close();
+      fs.rmSync(bootDir, { recursive: true, force: true });
+    }
+  });
+
+  it('fails interrupted pending work on boot and allows an explicit retry', async () => {
+    const bootDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-images-interrupted-'));
+    const bootDb = createDb(':memory:');
+    const characterId = 'interrupted-character-0001';
+    bootDb.prepare("INSERT INTO characters (id, name, image_status) VALUES (?, 'Interrupted', 'pending')").run(characterId);
+    const bootApp = createApp(bootDb, { staticDir: null, imageDir: bootDir });
+    try {
+      expect(bootDb.prepare('SELECT image_status FROM characters WHERE id = ?').get(characterId).image_status).toBe('failed');
+      await request(bootApp).post(`/api/characters/${characterId}/image`).expect(200);
+      const started = Date.now();
+      for (;;) {
+        const row = bootDb.prepare('SELECT image_status FROM characters WHERE id = ?').get(characterId);
+        if (row?.image_status === 'ready') break;
+        if (Date.now() - started > 3000) throw new Error(`interrupted retry stayed ${row?.image_status}`);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    } finally {
+      bootApp.locals.dispose?.();
       bootDb.close();
       fs.rmSync(bootDir, { recursive: true, force: true });
     }
@@ -282,6 +321,7 @@ describe('Character & world reference images', () => {
 
   it('feeds world lore into the world image prompt (places only, still unpopulated)', async () => {
     const world = await createWorld(app, { name: 'Lored Realm', description: 'Brass city' });
+    await waitForImageStatus('worlds', world.id, 'ready');
     await request(app)
       .put(`/api/worlds/${world.id}`)
       .send({ lore: 'The Ashfall district burns eternally beneath the aqueduct of teeth.' })
@@ -324,9 +364,9 @@ describe('Story covers', () => {
     expect(call[1].input_references).toHaveLength(3); // two portraits + world
 
     const cover = await request(app).get(`/api/stories/${res.body.story.id}/cover?download=1`).expect(200);
-    expect(cover.headers['content-disposition']).toContain('the_cover_tale-cover.png');
+    expect(cover.headers['content-disposition']).toContain('the_cover_tale-cover.webp');
     expect(cover.headers['cache-control']).toBe('no-cache');
-    expect(cover.body.equals(PNG_BYTES)).toBe(true);
+    expect(cover.body.equals(NORMALIZED_BYTES)).toBe(true);
 
     await request(app)
       .post(`/api/stories/${res.body.story.id}/pages`)
@@ -338,8 +378,8 @@ describe('Story covers', () => {
       id: res.body.story.id,
       excerpt: 'The drowned bells rang beneath the city.',
       asset_count: 1,
-      disk_bytes: PNG_BYTES.length,
-      cover: { status: 'ready', size_bytes: PNG_BYTES.length, file_missing: false },
+      disk_bytes: NORMALIZED_BYTES.length,
+      cover: { status: 'ready', size_bytes: NORMALIZED_BYTES.length, file_missing: false },
     });
   });
 
@@ -412,8 +452,8 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
       .send({ prompt: 'A candlelit hall, two figures, tense composition.' })
       .expect(200);
 
-    expect(res.body.media_type).toBe('image/png');
-    expect(Buffer.from(res.body.image, 'base64').equals(PNG_BYTES)).toBe(true);
+    expect(res.body.media_type).toBe('image/webp');
+    expect(Buffer.from(res.body.image, 'base64').equals(NORMALIZED_BYTES)).toBe(true);
     expect(res.body.cost_usd).toBe(0.06);
     expect(res.body.references).toEqual([mc.id, ally.id]);
 
@@ -424,8 +464,8 @@ describe('POST /api/stories/:id/pages/:n/scene-image', () => {
     expect(body.resolution).toBe('1K');
     expect(body.input_references.length).toBe(2);
     // Both cast portraits ride along as base64 identity references
-    expect(body.input_references[0].image_url.url.startsWith('data:image/png;base64,')).toBe(true);
-    expect(body.input_references[1].image_url.url.startsWith('data:image/png;base64,')).toBe(true);
+    expect(body.input_references[0].image_url.url.startsWith('data:image/webp;base64,')).toBe(true);
+    expect(body.input_references[1].image_url.url.startsWith('data:image/webp;base64,')).toBe(true);
   });
 
   it('honors the chosen render variant and rejects unknown ones', async () => {

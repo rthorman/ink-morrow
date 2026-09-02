@@ -121,4 +121,28 @@ describe('PR 16 multi-format publication jobs', () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it('expires terminal jobs and their staged downloads', async () => {
+    const source = await snapshot();
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-publication-expiry-'));
+    let now = new Date('2026-09-02T10:00:00.000Z');
+    const jobs = createPublicationJobs({
+      publications: fixture.app.locals.publications,
+      rootDir: root,
+      clock: () => new Date(now),
+      terminalTtlMs: 1000,
+      sweepIntervalMs: 60_000,
+    });
+    try {
+      const created = jobs.create(source.id, ['txt']);
+      const ready = await waitFor(() => jobs.get(created.id), (value) => value?.status === 'ready');
+      expect(fs.existsSync(path.join(root, ready.id))).toBe(true);
+      now = new Date(now.getTime() + 1001);
+      expect(jobs.get(ready.id)).toBeNull();
+      await waitFor(() => fs.existsSync(path.join(root, ready.id)), (exists) => !exists);
+    } finally {
+      jobs.dispose();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

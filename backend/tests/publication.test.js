@@ -106,9 +106,32 @@ describe('PR 15 PublicationDocument and core adapters', () => {
 
     expect(() => fixture.db.prepare("UPDATE publication_snapshots SET document_json = '{}' WHERE id = ?").run(snapshot.id))
       .toThrow(/immutable/);
+    const stored = JSON.parse(fixture.db.prepare('SELECT document_json FROM publication_snapshots WHERE id = ?').get(snapshot.id).document_json);
+    expect(stored.assets[0]).not.toHaveProperty('content_base64');
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM publication_blobs').get().value).toBe(1);
+    fixture.app.locals.publications.snapshot(story.id, { art: { asset_ids: [asset.id] } });
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM publication_blobs').get().value).toBe(1);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM publication_snapshot_assets').get().value).toBe(2);
     const fetched = await request(fixture.app).get(`/api/publications/${snapshot.id}`).expect(200);
     expect(fetched.body.snapshot.sha256).toBe(snapshot.sha256);
     expect(fetched.body.snapshot.document).toEqual(snapshot.document);
+  });
+
+  it('bounds unshared snapshot history and deletes detached media', async () => {
+    const { story, asset } = await manuscript();
+    const snapshots = [];
+    for (let index = 0; index < 21; index += 1) {
+      snapshots.push(fixture.app.locals.publications.snapshot(story.id, {
+        metadata: { subtitle: `Review ${index}` },
+        art: { asset_ids: [asset.id] },
+      }));
+    }
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM publication_snapshots WHERE story_id = ?').get(story.id).value).toBe(20);
+    expect(fixture.app.locals.publications.get(snapshots[0].id)).toBeNull();
+    const newest = snapshots.at(-1);
+    await request(fixture.app).delete(`/api/publications/${newest.id}`).expect(204);
+    expect(fixture.app.locals.publications.get(newest.id)).toBeNull();
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM publication_blobs').get().value).toBe(1);
   });
 
   it('renders every adapter from the exact same immutable semantic view and emits parseable packages', async () => {

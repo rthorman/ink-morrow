@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { randomUUID } = require('node:crypto');
 const { normalizeNarrationText } = require('../audio/narration');
+const { storePortablePublicationSnapshot } = require('../publication/document');
 const {
   WORLD_FIELDS,
   CHARACTER_FIELDS,
@@ -30,7 +31,6 @@ const {
   AUDIOBOOK_FIELDS,
   ART_ASSET_FIELDS,
   ASSET_PLACEMENT_FIELDS,
-  PUBLICATION_SNAPSHOT_FIELDS,
   ARCHIVE_EXTENSION,
   semanticHash,
   sanitizeSettings,
@@ -1126,11 +1126,11 @@ function createTransferService({
           .run(JSON.stringify({ preview: publicPrepared }), prepared.operation_id);
       }
       for (const publicationSource of entity.bundle.publication_snapshots || []) {
-        insertOrReplace(db, 'publication_snapshots', {
+        storePortablePublicationSnapshot(db, {
           ...publicationSource,
           id: randomUUID(),
           story_id: storyId,
-        }, PUBLICATION_SNAPSHOT_FIELDS);
+        });
       }
       if (entity.bundle.preview) {
         insertOrUpdate(db, 'story_previews', { ...entity.bundle.preview, story_id: storyId }, PREVIEW_FIELDS, 'story_id');

@@ -13,8 +13,18 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
   const queue = [];
   const inFlight = new Set(); // 'character:<id>' keys being generated
   let working = false;
+  let disposed = false;
+
+  // Provider work is process-local. A pending row surviving a restart cannot
+  // complete, and treating it as live makes every future retry a no-op.
+  for (const table of ['worlds', 'characters', 'scribes', 'stories']) {
+    db.prepare(
+      `UPDATE ${table} SET image_status = 'failed', image_updated_at = CURRENT_TIMESTAMP WHERE image_status = 'pending'`
+    ).run();
+  }
 
   function enqueue(kind, id, { auto = false } = {}) {
+    if (disposed) return;
     if (auto && !autoImagesEnabled) return;
     const key = kind + ':' + id;
     if (inFlight.has(key)) return; // already queued or generating
@@ -29,7 +39,7 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
   }
 
   async function drain() {
-    if (working) return;
+    if (working || disposed) return;
     working = true;
     try {
       while (queue.length > 0) {
@@ -102,7 +112,7 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
   // Backfill: existing entities get their reference image in the background
   // as soon as the server boots with an API key configured.
   function backfill() {
-    if (!process.env.OPENROUTER_API_KEY || !autoImagesEnabled) return;
+    if (disposed || !process.env.OPENROUTER_API_KEY || !autoImagesEnabled) return;
     for (const row of db
       .prepare("SELECT id FROM characters WHERE image_status IS NULL OR image_status = 'none'")
       .all()) {
@@ -119,7 +129,16 @@ function createImageQueue({ db, continuity, generateImage, imageStore, logger, a
   // Test/runtime disposal: stop accepting work, drop queued items. Files and
   // DB rows already written are persisted user data and stay.
   function dispose() {
+    disposed = true;
     queue.length = 0;
+    for (const key of inFlight) {
+      const separator = key.indexOf(':');
+      const kind = key.slice(0, separator);
+      const id = key.slice(separator + 1);
+      db.prepare(
+        `UPDATE ${tableFor(kind)} SET image_status = 'failed', image_updated_at = CURRENT_TIMESTAMP WHERE id = ? AND image_status = 'pending'`
+      ).run(id);
+    }
   }
 
   return { enqueue, backfill, dispose };

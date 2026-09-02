@@ -98,7 +98,8 @@ describe('Ink Morrow 4.0 kernel', () => {
       'writing_operations', 'continuity_deltas', 'continuity_corrections',
       'continuity_issues', 'continuity_search', 'continuity_projection_checkpoints',
       'template_snapshots', 'recovery_suffixes', 'assets',
-      'asset_placements', 'publication_snapshots', 'shares', 'operation_journal',
+      'asset_placements', 'publication_snapshots', 'publication_blobs',
+      'publication_snapshot_assets', 'shares', 'operation_journal',
       'provider_profiles', 'provider_role_assignments', 'provider_vault', 'provider_secrets',
     ]) {
       expect(tables.has(table)).toBe(true);

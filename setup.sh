@@ -48,8 +48,7 @@ for cmd in node npm; do
     fi
 done
 
-NODE_MAJOR=$(node -e 'console.log(process.versions.node.split(".")[0])')
-if [ "$NODE_MAJOR" -lt 22 ]; then
+if ! node -e 'const [major, minor] = process.versions.node.split(".").map(Number); process.exit(major > 22 || (major === 22 && minor >= 5) ? 0 : 1)'; then
     echo "❌ Node >= 22.5 is required (built-in node:sqlite). Found: $(node --version)"
     exit 1
 fi

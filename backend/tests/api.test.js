@@ -383,8 +383,7 @@ describe('Database integrity and export', () => {
     expect(asText).toContain('Hero of Exports');
     expect(asText).toContain('First page body.');
     expect(asText).toContain('Second page body.');
-    expect(asText).toContain('page-1.xhtml');
-    expect(asText).toContain('page-2.xhtml');
+    expect(asText).toContain('EPUB/book.xhtml');
   });
 });
 

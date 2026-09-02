@@ -246,7 +246,7 @@ function createApp(
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
   app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
-  app.use(createLibraryRouter({ db, catalog, stories, continuity, imageStore, artStore, audiobooks }));
+  app.use(createLibraryRouter({ db, catalog, stories, continuity, publications, imageStore, artStore, audiobooks }));
   app.use(createPublicationRouter({ publications, jobs: publicationJobs }));
   app.use(createPublicationShareRouter({ shares: publicationShares }));
   app.use(createTransferRouter({ transfers }));

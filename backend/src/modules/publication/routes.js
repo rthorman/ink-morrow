@@ -44,6 +44,15 @@ function createPublicationRouter({ publications, jobs = null }) {
     } catch (error) { return next(error); }
   });
 
+  router.delete('/api/publications/:snapshotId', (req, res, next) => {
+    try {
+      if (!publications.remove(req.params.snapshotId)) {
+        return res.status(404).json({ error: 'Publication snapshot not found.' });
+      }
+      return res.status(204).end();
+    } catch (error) { return next(error); }
+  });
+
   router.get('/api/publications/:snapshotId/formats/:format', async (req, res, next) => {
     try {
       const snapshot = publications.get(req.params.snapshotId);

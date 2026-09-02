@@ -8,35 +8,29 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - AI via OpenRouter (key in backend/.env, see backend/.env.example); branding per InkMorrow-OpenCode-Branding/ in the repo root (frontend assets in frontend/brand/, WebP + SVG only — PNG masters stay in the package dir)
 - Dev server control: `~/bin/im-server {start|stop|restart|status}` (PID-file based) — never `pkill -f` a pattern; a command line containing the plain string anywhere in its argv self-matches and kills the shell (hung the tool twice). Use the helper.
 
-### 4.0.0 planning contract (not yet shipped)
+### 4.0.0 release record (shipped on `main`)
 
-- The stakeholder-accepted alpha-to-beta contract is indexed at
-  `docs/releases/4.0.0/README.md`. It defines the 4.0.0 product, system,
-  security, UX, art, QA, and ordered PR plan.
-- Current sections below remain the source of truth for shipped 3.2.2 behavior.
-  A 4.0 implementation PR must name the plan item it implements and update
-  current contracts only when behavior actually changes.
+- The accepted alpha-to-beta contract and release evidence are archived at
+  `docs/releases/4.0.0/README.md`. They explain how the current 4.0 line was
+  built; current code, tests, and user-facing documentation define behavior.
 - Product invariants in
   `docs/releases/4.0.0/WORKSHOP-DECISIONS.md` require explicit stakeholder
   approval to change. Do not silently reinterpret them during implementation.
-- PRs 01–18 target `release/4.0.0`. PR 19 is a reviewed unrelated-history
-  cutover to main whose tree must exactly equal the approved release tree.
+- PRs 01–18 and the unrelated-history PR 19 cutover are completed history.
+  New work branches from and targets `main`.
 
 ### 4.0 license and Git-history contract
 
 - Project-owned material in the 4.0 release line is `AGPL-3.0-only`. Do not
   restore MIT project metadata from the historical line. Dependencies, fonts,
   and other third-party materials retain their own license metadata.
-- `release/4.0.0` begins at a parentless Git root and must have no `main`
-  commit as an ancestor. Never merge `main` into it or rebase it onto `main`.
-- Every 4.0 implementation branch starts from the latest `release/4.0.0` and
-  targets that branch. Do not start a 4.0 implementation branch from `main`.
+- `release/4.0.0` remains an immutable record of the decoupled release line.
+  Do not rebase or rewrite it; ordinary maintenance now starts from `main`.
 - The historical `main` line through 3.2.2 remains untouched and MIT-licensed.
   There is no commitment to keep a historical version hosted or distributed.
-- Final integration uses a dedicated cutover branch based on `main`, joins the
-  unrelated histories explicitly, and proves that the resulting tree equals
-  the reviewed release tip. This must not add `main` ancestry to the release
-  branch itself.
+- Final integration used a dedicated cutover branch based on `main`, joined
+  the unrelated histories explicitly, and preserved the release branch as an
+  immutable historical record.
 
 ### 4.0 kernel contract (PR 01)
 
@@ -417,7 +411,7 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - SPECULATIVE FAILURE RULE (v3.2.2): a successful prepared commit displays its existing prose without waiting for continuity, then always starts exactly ONE disclosed successor preview. The green path never calls `/pages/generate`, including after 404/409/network failure; it reconciles free page/preview reads instead. Live writes and rewrites snapshot next-page/tail identity + the same context revision before the provider call and return a billed 409 without saving if another tab/action changes the story. A failed or superseded live write/rewrite starts no successor. A late preview response can never alter DB/UI state, but known provider spend still counts in Session because staleness does not refund work.
 - AI drafts: POST /api/ai/world + /api/ai/character (seeds → short/medium/long JSON drafts, variant counter for regenerate)
 - Old pages are read-only; writing happens on the last page; "delete everything after this page" truncates via DELETE /api/stories/:id/pages?after=N with the shared destructive dialog (app/core/dialogs.js confirmDestructive: exact count + range + consequence, price-free). SINGLE-PAGE DELETE RENUMBERS (v3.0.1): store.deletePage deletes the row + decrements every later page one-by-one (page_number ASC) inside ONE transaction, invalidates the preview, and bumps updated_at — numbering is always contiguous 1..N, surviving page IDs keep their identity (plate files are keyed by page ID), and only the deleted page's plate file is unlinked. The frontend reader lands on an existing page after any delete
-- Export is EPUB (dependency-free zip writer in backend/src/epub.js); placed art embeds before/after its prose anchor in the same XHTML spine item (OEBPS/images/, alt text from asset metadata). A missing derivative degrades to text-only prose, never a broken book or extra narrative page
+- One-click EPUB export uses the same validated PublicationDocument adapter as Gate (`backend/src/modules/publication/`); placed art embeds beside its prose anchor with alt text from asset metadata. A missing derivative fails honestly rather than producing a broken book.
 - PORTABLE ARCHIVE CONTRACT (4.0 kernel, carrying forward the v3.2 transfer behavior): `.inkmorrow` ZIP container, format id `ink-morrow-project-archive`, version 2, manifest schema 1, and source database family/version; ordinary manifest + JSON aggregates + optional media, never raw SQLite. Character export includes its home world; world export includes an explicit resident subset; story export always includes story world/current cast/cast home worlds/pages/revisions/story-local templates/ready revision continuity/corrections/immutable publication snapshots; full includes all entities plus sanitized `im-settings`. Share records/capabilities and recovery suffixes/undo credentials are local-only and never travel. Visuals, audio, and working history are explicit (full defaults on; entity portability defaults audio/history off); audio is always shown as a choice. Working history = directions, preview, image prompts, replaced-revision deltas, model/token/cost/error traces; ready current continuity is functional and always included. API keys/credentials/passwords/paid consent never travel; archives remain unencrypted (the access password is separate and never travels). Export plan returns exposure + token, then GET streams ZIP; media is uncompressed and never read wholesale into JS memory. Import uploads via busboy to `database/transfers/{uploads,staging}`, yauzl validates traversal/backslashes/symlinks/duplicates/undeclared paths/entry+expanded limits/ratio/media/id safety and SHA-256 before any catalogue write. The preflight refuses v1/3.x, unknown-family, and future versions. Collision grammar: new=add, same-name=warn, identical data+included media=reuse, same-id divergent=copy recommended plus keep/replace; no field merge and no story page splice. Copy remaps world/character/story/page/revision ids through cast, snapshots, corrections, deltas and media. Commit stages sibling files + rollback moves and uses one SQLite transaction. Full replace first writes a persistent full safety archive under `database/transfers/backups`. Derived continuity search/FTS/checkpoints/issues are rebuilt, never exported. No AI/provider call occurs. Full spec: docs/portable-archives.md.
 - SECURITY CONTRACT (v3.2.1): one local owner, no username/roles/MFA/email. Before setup, `/api/auth/status` and setup/login are the only usable API surface; the gate fails closed and no private catalogue/route/disk/model call starts. First-run requires the random terminal code plus a 15–128 Unicode-character password. Passwords are NFC-normalized and asynchronously scrypt-hashed with a per-owner random salt (production N=2^15,r=8,p=3); only an opaque session token's SHA-256 digest is stored. Cookie = HttpOnly + SameSite=Strict (+ Secure under HTTPS); remembered sessions idle 7d/absolute 30d, unremembered idle 8h/absolute 24h. Every protected mutation requires the in-memory per-session CSRF token and same-origin request; Host validation limits DNS rebinding. Setup/login use bounded in-memory progressive delay/10 attempts per 15m (restart clears attempts, never permanent lockout). Lock revokes one session; password change revokes all others; `npm run auth:reset -- --yes` deletes only owner/sessions. Auth runs before JSON parsing; ordinary bodies 256KiB, image-page 12MiB. Default bind is 127.0.0.1; direct non-loopback HTTP requires `ALLOW_INSECURE_LAN=1`; loopback HTTPS proxies use `ALLOWED_HOSTS` + `TRUST_PROXY=1`. Database/media remain unencrypted at rest and portable archives remain unencrypted/exclude auth. No security background poll; session touches/cleanup are throttled. Full boundary: SECURITY.md.
 - HISTORICAL 3.x IMAGE-PAGE CONTRACT: superseded on `release/4.0.0` by the PR 07 noncanonical art contract above. The compatibility `image-page` route now creates and places an AI-generated asset; it never inserts a prose row, renumbers pages, invalidates prepared prose, or enters continuity.
