@@ -19,19 +19,54 @@ function reply(content, usage = null) {
 }
 
 function delta(overrides = {}) {
-  return JSON.stringify({
+  return {
     summary: 'A durable page summary.',
     events: [],
     character_updates: [],
     goal_updates: [],
     thread_updates: [],
     world_fact_updates: [],
+    arc_updates: [],
     ...overrides,
+  };
+}
+
+function wireDelta(pageContent, value = delta()) {
+  const quote = pageContent.slice(0, 500);
+  const character_changes = [];
+  for (const update of value.character_updates || []) {
+    for (const field of ['location', 'condition', 'personality', 'appearance']) {
+      if (update[field]) character_changes.push({ character_id: update.character_id, field, value: update[field], related_character_id: null, evidence_quote: quote });
+    }
+    for (const [source, field] of [['knowledge_gained', 'knowledge_gain'], ['knowledge_lost', 'knowledge_loss'], ['possessions_gained', 'possession_gain'], ['possessions_lost', 'possession_loss']]) {
+      for (const item of update[source] || []) character_changes.push({ character_id: update.character_id, field, value: item, related_character_id: null, evidence_quote: quote });
+    }
+  }
+  const story_changes = [
+    ...(value.goal_updates || []).map((item) => ({ kind: 'goal', id: item.id ?? null, character_id: item.character_id ?? null, text: item.text ?? null, state: item.status, evidence_quote: quote })),
+    ...(value.thread_updates || []).map((item) => ({ kind: 'thread', id: item.id ?? null, character_id: null, text: item.text ?? null, state: item.status, evidence_quote: quote })),
+    ...(value.world_fact_updates || []).map((item) => ({ kind: 'world_fact', id: item.id ?? null, character_id: null, text: item.text ?? null, state: item.status, evidence_quote: quote })),
+    ...(value.arc_updates || []).map((item) => ({ kind: 'arc', id: item.id ?? null, character_id: item.character_id ?? null, text: item.text, state: item.movement, evidence_quote: quote })),
+  ];
+  const events = (value.events || []).map((item) => ({
+    text: item.text, character_ids: item.character_ids || [], importance: item.importance || 'minor',
+    type: item.type || 'action', evidence_quote: quote,
+  }));
+  if (!events.length && !character_changes.length && !story_changes.length) {
+    events.push({ text: value.summary, character_ids: [], importance: 'minor', type: 'transition', evidence_quote: quote });
+  }
+  let summary = value.summary;
+  const pageWords = new Set((pageContent.toLowerCase().match(/[a-z0-9]{4,}/g) || []));
+  if (!(summary.toLowerCase().match(/[a-z0-9]{4,}/g) || []).some((word) => pageWords.has(word))) {
+    summary = `${summary} ${pageContent}`;
+  }
+  return JSON.stringify({
+    schema_version: 2, summary, summary_evidence: [quote], events, character_changes, story_changes,
   });
 }
 
 async function generate(storyId, author, memory) {
-  axios.post.mockResolvedValueOnce(reply(author)).mockResolvedValueOnce(reply(memory));
+  axios.post.mockResolvedValueOnce(reply(author)).mockResolvedValueOnce(reply(wireDelta(author, memory)));
   return request(app).post(`/api/stories/${storyId}/pages/generate`).send({ user_input: 'Continue carefully' });
 }
 
@@ -94,7 +129,10 @@ describe('page-provenanced continuity ledger', () => {
     const clerkRequest = axios.post.mock.calls[1][1];
     expect(clerkRequest.response_format.type).toBe('json_schema');
     expect(clerkRequest.response_format.json_schema.schema.properties.schema_version)
-      .toEqual({ type: 'integer', enum: [2] });
+      .toMatchObject({ type: 'integer', enum: [2] });
+    expect(clerkRequest.response_format.json_schema.schema.properties.character_changes).toBeDefined();
+    expect(clerkRequest.response_format.json_schema.schema.properties.character_updates).toBeUndefined();
+    expect(clerkRequest.max_tokens).toBe(4000);
     expect(clerkRequest.provider).toEqual({ require_parameters: true });
     expect(clerkRequest.reasoning).toEqual({ effort: 'none' });
     expect(clerkRequest.messages[0].content).toContain('plans, desires, hypothetical language');
@@ -121,8 +159,9 @@ describe('page-provenanced continuity ledger', () => {
       if (index === 25) namedBackground = character;
     }
     const story = await createStory(app, null, cast);
-    axios.post.mockResolvedValueOnce(reply('Background 25 crosses the moonlit court.'))
-      .mockResolvedValueOnce(reply(delta({ summary: 'A background figure crosses the court.' })));
+    const pageText = 'Background 25 crosses the moonlit court.';
+    axios.post.mockResolvedValueOnce(reply(pageText))
+      .mockResolvedValueOnce(reply(wireDelta(pageText, delta({ summary: 'A background figure crosses the court.' }))));
     const generated = await request(app).post(`/api/stories/${story.id}/pages/generate`).send({
       user_input: 'Continue.',
       model: 'vendor/browser-scribe',
@@ -149,7 +188,10 @@ describe('page-provenanced continuity ledger', () => {
     let view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
     expect(view.body.continuity.coverage).toMatchObject({ total: 1, ready: 1 });
 
-    axios.post.mockResolvedValueOnce(reply(delta({ summary: 'The prepared page is now committed.' })));
+    axios.post.mockResolvedValueOnce(reply(wireDelta(
+      'The prepared page waits.',
+      delta({ summary: 'The prepared page is now committed.' })
+    )));
     const committed = await request(app).post(`/api/stories/${story.id}/pages/commit-preview`)
       .send({ preview_id: prepared.body.preview.preview_id }).expect(201);
     await request(app)
@@ -181,7 +223,10 @@ describe('page-provenanced continuity ledger', () => {
     await new Promise((resolve) => setImmediate(resolve));
     expect(axios.post).toHaveBeenCalledTimes(2); // one author + one shared clerk call
 
-    resolveMemory(reply(delta({ summary: 'The prepared page is remembered once.' })));
+    resolveMemory(reply(wireDelta(
+      'The prepared page appears at once.',
+      delta({ summary: 'The prepared page is remembered once.' })
+    )));
     const synced = await joined;
     expect(synced.status).toBe(200);
     expect(synced.body.memory.status).toBe('ready');
@@ -216,7 +261,7 @@ describe('page-provenanced continuity ledger', () => {
     expect(view.body.continuity.characters[0].current.location).toBe('Tower B');
 
     axios.post.mockResolvedValueOnce(reply('Mara leaves for the winter inn.'))
-      .mockResolvedValueOnce(reply(at('winter inn')));
+      .mockResolvedValueOnce(reply(wireDelta('Mara leaves for the winter inn.', at('winter inn'))));
     const rewritten = await request(app).post(`/api/stories/${story.id}/pages/regenerate`).send({}).expect(200);
     expect(rewritten.body.page.content).toContain('winter inn');
     const rewritePrompt = axios.post.mock.calls[axios.post.mock.calls.length - 2][1].messages[1].content;
@@ -238,12 +283,15 @@ describe('page-provenanced continuity ledger', () => {
     expect(sync.body.memory.status).toBe('failed');
     expect(sync.body.memory).toMatchObject({
       error_code: 'INVALID_CONTINUITY_JSON',
-      error: expect.stringContaining('did not return one valid JSON object'),
+      error: expect.stringContaining('did not return one complete JSON object'),
     });
     expect(sync.body.page.content).toContain('sealed door');
     expect(axios.post).toHaveBeenCalledTimes(2);
 
-    axios.post.mockResolvedValueOnce(reply(delta({ summary: 'The sealed door is open.' })));
+    axios.post.mockResolvedValueOnce(reply(wireDelta(
+      'A hand opens the sealed door.',
+      delta({ summary: 'The sealed door is open.' })
+    )));
     sync = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
       .expect(200);
@@ -251,24 +299,31 @@ describe('page-provenanced continuity ledger', () => {
     const repaired = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
     expect(repaired.body.continuity.coverage).toMatchObject({ total: 1, ready: 1 });
 
-    // A billable empty completion must not trigger the AI adapter's ordinary
-    // three-attempt prose retry loop; the advertised clerk ceiling stays true.
+    // A billable empty completion receives one evidence-directed repair, not
+    // the AI adapter's ordinary prose retry loop.
     const emptyPage = await addPage(app, story.id, 'A second page waits for memory.');
     axios.post.mockReset();
-    axios.post.mockResolvedValueOnce(reply('')).mockResolvedValueOnce(reply(delta()));
+    axios.post.mockResolvedValueOnce(reply('')).mockResolvedValueOnce(reply(wireDelta(
+      'A second page waits for memory.',
+      delta({ summary: 'The second page is remembered after a silent response.' })
+    )));
     sync = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${emptyPage.id}/sync`)
       .send({})
       .expect(200);
-    expect(sync.body.memory.status).toBe('failed');
-    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(sync.body.memory.status).toBe('ready');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+    expect(axios.post.mock.calls[1][1].messages.at(-1).content).toMatch(/no final answer/i);
   });
 
   it('falls back cleanly when a provider rejects JSON Schema capability', async () => {
     const story = await createStory(app);
     const page = await addPage(app, story.id, 'A plain page becomes memory.');
     axios.post.mockRejectedValueOnce({ response: { status: 400, data: { error: 'response_format unsupported' } } })
-      .mockResolvedValueOnce(reply(delta({ summary: 'The plain page is remembered.' })));
+      .mockResolvedValueOnce(reply(wireDelta(
+        'A plain page becomes memory.',
+        delta({ summary: 'The plain page is remembered.' })
+      )));
     const sync = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
       .send({})
@@ -277,8 +332,8 @@ describe('page-provenanced continuity ledger', () => {
     expect(axios.post).toHaveBeenCalledTimes(2);
     expect(axios.post.mock.calls[0][1].response_format).toBeDefined();
     expect(axios.post.mock.calls[0][1].provider).toEqual({ require_parameters: true });
-    expect(axios.post.mock.calls[1][1].response_format).toBeUndefined();
-    expect(axios.post.mock.calls[1][1].provider).toBeUndefined();
+    expect(axios.post.mock.calls[1][1].response_format).toEqual({ type: 'json_object' });
+    expect(axios.post.mock.calls[1][1].provider).toEqual({ require_parameters: true });
     expect(axios.post.mock.calls[1][1].reasoning).toEqual({ effort: 'none' });
   });
 
@@ -286,7 +341,10 @@ describe('page-provenanced continuity ledger', () => {
     const story = await createStory(app);
     const page = await addPage(app, story.id, 'A routed page becomes memory.');
     axios.post.mockRejectedValueOnce({ response: { status, data: { error: 'structured output unavailable' } } })
-      .mockResolvedValueOnce(reply(delta({ summary: 'The routed page is remembered.' })));
+      .mockResolvedValueOnce(reply(wireDelta(
+        'A routed page becomes memory.',
+        delta({ summary: 'The routed page is remembered.' })
+      )));
 
     const sync = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
@@ -322,7 +380,9 @@ describe('page-provenanced continuity ledger', () => {
     axios.get.mockResolvedValue({ data: { data: [{
       id: 'google/gemini-2.5-flash-lite', pricing: { prompt: '0.000001', completion: '0.000002' },
     }] } });
-    axios.post.mockResolvedValueOnce(reply(delta(), { prompt_tokens: 1000, completion_tokens: 500 }));
+    axios.post.mockResolvedValueOnce(reply(wireDelta('The costed page closes.', delta()), {
+      prompt_tokens: 1000, completion_tokens: 500,
+    }));
     const sync = await request(app)
       .post(`/api/stories/${story.id}/continuity/pages/${page.id}/sync`)
       .send({})

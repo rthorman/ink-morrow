@@ -23,9 +23,13 @@ working history but cannot affect current state.
 
 ## Versioned Archivist schema
 
-Schema version 2 is a strict JSON object. Unknown keys, missing keys, wrong
-types, invalid enum values, characters outside the story snapshot, and durable
-items without evidence are rejected. It contains:
+The provider receives a compact, flat observation schema: a page-specific
+summary with direct evidence, events, atomic character-field changes, and
+story changes. The server rejects unknown keys, missing keys, wrong types,
+invalid enum values, characters outside the story snapshot, generic or empty
+memory, and evidence that is not an exact page quotation. Accepted
+observations are deterministically compiled into the richer stored schema 2,
+which contains:
 
 - a factual summary;
 - events with stable IDs, involved character IDs, importance and type;
@@ -36,13 +40,16 @@ items without evidence are rejected. It contains:
 - one to five short direct page quotations for every durable item.
 
 The server requests provider JSON Schema support and also validates the parsed
-reply locally. A schema-invalid successful reply gets one corrective attempt.
+reply locally. A malformed, empty, truncated, or semantically unusable
+successful reply gets one corrective attempt that includes the exact local
+validation failure rather than a generic request to try again.
 Fresh installations assign `google/gemini-2.5-flash-lite` to the Archivist by
 default because it supports structured output, a long context, and an explicit
 no-reasoning mode. Existing installations keep their saved role assignment.
-If a chosen model cannot accept JSON Schema, the server makes one strict
-plain-JSON fallback and applies the same local validation; invalid data is
-never folded into canon and remains visibly repairable.
+If a chosen endpoint cannot accept JSON Schema, the server can step down to
+JSON-object mode and then prompt-only JSON without purchasing an extra
+completion for a rejected request. The same local validation applies in every
+mode; invalid data is never folded into canon and remains visibly repairable.
 If that fails, the canonical page remains valid and its delta becomes
 `failed`, with its provider spend retained.
 

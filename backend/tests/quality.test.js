@@ -123,6 +123,40 @@ const GOOD_PAGE =
   'The knight said nothing, but his hand never left the hilt of the sword, and the path narrowed with every step they took toward the castle gates.';
 
 describe('quality enforcement on page generation', () => {
+  it('accepts OpenAI-compatible text content parts instead of mistaking them for silence', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await seededStory();
+    axios.post.mockResolvedValueOnce({
+      data: { choices: [{ message: { content: [{ type: 'text', text: GOOD_PAGE }] }, finish_reason: 'stop' }] },
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', words: 50 })
+      .expect(201);
+
+    expect(res.body.page.content).toBe(GOOD_PAGE);
+    expect(axios.post).toHaveBeenCalledTimes(1);
+  });
+
+  it('treats a provider length finish reason as truncation even when the text looks complete', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const story = await seededStory();
+    axios.post.mockResolvedValueOnce({
+      data: { choices: [{ message: { content: GOOD_PAGE }, finish_reason: 'length' }] },
+    }).mockResolvedValueOnce({
+      data: { choices: [{ message: { content: `${GOOD_PAGE} At last, the gate opened.` }, finish_reason: 'stop' }] },
+    });
+
+    const res = await request(app)
+      .post(`/api/stories/${story.id}/pages/generate`)
+      .send({ user_input: 'go', words: 50 })
+      .expect(201);
+
+    expect(res.body.page.content).toContain('At last, the gate opened.');
+    expect(axios.post).toHaveBeenCalledTimes(2);
+  });
+
   it('retries a truncated reply and saves the complete one', async () => {
     process.env.OPENROUTER_API_KEY = 'test-key';
     const story = await seededStory();

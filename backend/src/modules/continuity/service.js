@@ -4,131 +4,92 @@
 // committed page, emits bounded structured deltas, and never gets to rewrite
 // the prose. A failed extraction leaves the page valid and visibly retryable.
 
-const EVIDENCE_SCHEMA = {
-  type: 'array',
-  minItems: 1,
-  maxItems: 5,
-  items: {
-    type: 'object',
-    additionalProperties: false,
-    required: ['quote'],
-    properties: { quote: { type: 'string' } },
-  },
-};
-
+// The provider-facing schema is deliberately flatter than the durable v2
+// delta. Large, deeply nested schemas are less portable across providers and
+// force models to emit a forest of nulls and empty arrays. We validate this
+// compact observation list locally, then deterministically compile it into
+// the richer revision-bound delta stored by Ink Morrow.
 const CONTINUITY_SCHEMA = {
   type: 'json_schema',
   json_schema: {
-    name: 'ink_morrow_continuity_delta',
+    name: 'ink_morrow_page_observations',
     strict: true,
     schema: {
       type: 'object',
       additionalProperties: false,
-      required: ['schema_version', 'summary', 'events', 'character_updates', 'goal_updates',
-        'thread_updates', 'world_fact_updates', 'arc_updates'],
+      required: ['schema_version', 'summary', 'summary_evidence', 'events',
+        'character_changes', 'story_changes'],
       properties: {
-        // Numeric enum is equivalent to const here and belongs to Gemini's
-        // documented structured-output subset.
-        schema_version: { type: 'integer', enum: [2] },
-        summary: { type: 'string' },
+        schema_version: {
+          type: 'integer', enum: [2],
+          description: 'Always 2.',
+        },
+        summary: {
+          type: 'string',
+          description: 'A compact, page-specific account of what occurs or changes in this page.',
+        },
+        summary_evidence: {
+          type: 'array', minItems: 1, maxItems: 3,
+          description: 'One to three short exact quotations copied verbatim from the canonical page that ground the summary.',
+          items: { type: 'string' },
+        },
         events: {
-          type: 'array',
+          type: 'array', maxItems: 20,
+          description: 'Significant actions, revelations, transitions, relationship moments, or world events in this page.',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['id', 'text', 'character_ids', 'importance', 'type', 'evidence'],
+            required: ['text', 'character_ids', 'importance', 'type', 'evidence_quote'],
             properties: {
-              id: { type: ['string', 'null'] },
-              text: { type: 'string' },
-              character_ids: { type: 'array', items: { type: 'string' } },
+              text: { type: 'string', description: 'A concise factual observation supported by the quotation.' },
+              character_ids: {
+                type: 'array', maxItems: 12, items: { type: 'string' },
+                description: 'Only ids from the supplied cast index.',
+              },
               importance: { type: 'string', enum: ['minor', 'major'] },
               type: { type: 'string', enum: ['action', 'revelation', 'transition', 'relationship', 'world'] },
-              evidence: EVIDENCE_SCHEMA,
+              evidence_quote: { type: 'string', description: 'A short exact quotation copied verbatim from this page.' },
             },
           },
         },
-        character_updates: {
-          type: 'array',
+        character_changes: {
+          type: 'array', maxItems: 60,
+          description: 'Atomic character-state changes. Emit one entry for each field that actually changes.',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['character_id', 'location', 'condition', 'knowledge_gained', 'knowledge_lost',
-              'possessions_gained', 'possessions_lost', 'personality', 'appearance',
-              'relationships', 'evidence'],
+            required: ['character_id', 'field', 'value', 'related_character_id', 'evidence_quote'],
             properties: {
-              character_id: { type: 'string' },
-              location: { type: ['string', 'null'] },
-              condition: { type: ['string', 'null'] },
-              knowledge_gained: { type: 'array', items: { type: 'string' } },
-              knowledge_lost: { type: 'array', items: { type: 'string' } },
-              possessions_gained: { type: 'array', items: { type: 'string' } },
-              possessions_lost: { type: 'array', items: { type: 'string' } },
-              personality: { type: ['string', 'null'] },
-              appearance: { type: ['string', 'null'] },
-              relationships: {
-                type: 'array',
-                items: {
-                  type: 'object', additionalProperties: false,
-                  required: ['character_id', 'summary'],
-                  properties: {
-                    character_id: { type: 'string' },
-                    summary: { type: 'string' },
-                  },
-                },
+              character_id: { type: 'string', description: 'The changed character id from the cast index.' },
+              field: {
+                type: 'string',
+                enum: ['location', 'condition', 'knowledge_gain', 'knowledge_loss',
+                  'possession_gain', 'possession_loss', 'personality', 'appearance', 'relationship'],
               },
-              evidence: EVIDENCE_SCHEMA,
+              value: { type: 'string', description: 'The new state or exact gained/lost item.' },
+              related_character_id: {
+                type: ['string', 'null'],
+                description: 'The other cast id for relationship changes; null for every other field.',
+              },
+              evidence_quote: { type: 'string', description: 'A short exact quotation copied verbatim from this page.' },
             },
           },
         },
-        goal_updates: {
-          type: 'array',
+        story_changes: {
+          type: 'array', maxItems: 40,
+          description: 'Goal, open-thread, world-fact, and character-arc changes caused by this page.',
           items: {
             type: 'object', additionalProperties: false,
-            required: ['id', 'character_id', 'text', 'status', 'evidence'],
+            required: ['kind', 'id', 'character_id', 'text', 'state', 'evidence_quote'],
             properties: {
+              kind: { type: 'string', enum: ['goal', 'thread', 'world_fact', 'arc'] },
               id: { type: ['string', 'null'] },
               character_id: { type: ['string', 'null'] },
               text: { type: ['string', 'null'] },
-              status: { type: 'string', enum: ['pending', 'active', 'fulfilled', 'abandoned'] },
-              evidence: EVIDENCE_SCHEMA,
-            },
-          },
-        },
-        thread_updates: {
-          type: 'array',
-          items: {
-            type: 'object', additionalProperties: false,
-            required: ['id', 'text', 'status', 'evidence'],
-            properties: {
-              id: { type: ['string', 'null'] },
-              text: { type: ['string', 'null'] },
-              status: { type: 'string', enum: ['open', 'resolved'] },
-              evidence: EVIDENCE_SCHEMA,
-            },
-          },
-        },
-        world_fact_updates: {
-          type: 'array',
-          items: {
-            type: 'object', additionalProperties: false,
-            required: ['id', 'text', 'status', 'evidence'],
-            properties: {
-              id: { type: ['string', 'null'] },
-              text: { type: ['string', 'null'] },
-              status: { type: 'string', enum: ['established', 'superseded'] },
-              evidence: EVIDENCE_SCHEMA,
-            },
-          },
-        },
-        arc_updates: {
-          type: 'array',
-          items: {
-            type: 'object', additionalProperties: false,
-            required: ['id', 'character_id', 'text', 'movement', 'evidence'],
-            properties: {
-              id: { type: ['string', 'null'] },
-              character_id: { type: ['string', 'null'] },
-              text: { type: 'string' },
-              movement: { type: 'string', enum: ['advance', 'setback', 'turning_point', 'resolution'] },
-              evidence: EVIDENCE_SCHEMA,
+              state: {
+                type: 'string',
+                enum: ['pending', 'active', 'fulfilled', 'abandoned', 'open', 'resolved',
+                  'established', 'superseded', 'advance', 'setback', 'turning_point', 'resolution'],
+              },
+              evidence_quote: { type: 'string', description: 'A short exact quotation copied verbatim from this page.' },
             },
           },
         },
@@ -139,10 +100,10 @@ const CONTINUITY_SCHEMA = {
 
 const EXTRACTOR_CHARACTER_LIST_LIMIT = 50;
 const EXTRACTOR_DETAILED_CHARACTER_LIMIT = 24;
-const EXTRACTOR_ACTIVE_ITEM_LIMIT = 40;
-const EXTRACTOR_CLOSED_ITEM_LIMIT = 20;
-const EXTRACTOR_FACT_LIMIT = 50;
-const EXTRACTOR_PAGE_CHARS = 50000;
+const EXTRACTOR_ACTIVE_ITEM_LIMIT = 24;
+const EXTRACTOR_CLOSED_ITEM_LIMIT = 8;
+const EXTRACTOR_FACT_LIMIT = 30;
+const EXTRACTOR_PAGE_CHARS = 32000;
 
 function clipped(value, max) {
   const raw = String(value || '');
@@ -162,11 +123,15 @@ function boundedStatusItems(items, activeStatuses) {
 }
 
 function parseJson(content) {
-  const clean = String(content || '').replace(/```json|```/gi, '').trim();
-  const start = clean.indexOf('{');
-  const end = clean.lastIndexOf('}');
-  if (start < 0 || end <= start) return null;
-  try { return JSON.parse(clean.slice(start, end + 1)); } catch { return null; }
+  let clean = String(content || '').trim();
+  const fenced = clean.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fenced) clean = fenced[1].trim();
+  try {
+    const parsed = JSON.parse(clean);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function verifyEvidenceQuotes(delta, pageContent) {
@@ -286,6 +251,223 @@ function invalidOutput(message, code = 'INVALID_CONTINUITY_OUTPUT') {
   return error;
 }
 
+function wireObject(value, path) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw invalidOutput(`${path} must be an object.`, 'INVALID_CONTINUITY_SCHEMA');
+  }
+  return value;
+}
+
+function wireKeys(value, expected, path) {
+  wireObject(value, path);
+  const wanted = [...expected].sort();
+  const actual = Object.keys(value).sort();
+  if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) {
+    const missing = wanted.filter((key) => !actual.includes(key));
+    const unknown = actual.filter((key) => !wanted.includes(key));
+    throw invalidOutput(
+      `${path} has the wrong fields${missing.length ? `; missing ${missing.join(', ')}` : ''}` +
+      `${unknown.length ? `; unknown ${unknown.join(', ')}` : ''}.`,
+      'INVALID_CONTINUITY_SCHEMA'
+    );
+  }
+}
+
+function wireString(value, path, max = 2000) {
+  if (typeof value !== 'string' || !value.trim() || value.trim().length > max) {
+    throw invalidOutput(`${path} must be non-empty text of at most ${max} characters.`, 'INVALID_CONTINUITY_SCHEMA');
+  }
+  return value.trim();
+}
+
+function wireNullableString(value, path, max = 2000) {
+  return value === null ? null : wireString(value, path, max);
+}
+
+function wireArray(value, path, max) {
+  if (!Array.isArray(value) || value.length > max) {
+    throw invalidOutput(`${path} must be an array of at most ${max} items.`, 'INVALID_CONTINUITY_SCHEMA');
+  }
+  return value;
+}
+
+function normalizedQuote(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+function exactPageQuote(value, pageContent, path) {
+  const quote = wireString(value, path, 500);
+  if (quote.length < 4 || !normalizedQuote(pageContent).includes(normalizedQuote(quote))) {
+    throw invalidOutput(
+      `${path} must be an exact quotation copied from the canonical page.`,
+      'INVALID_CONTINUITY_EVIDENCE'
+    );
+  }
+  return quote;
+}
+
+function significantWords(value) {
+  return new Set((String(value || '').toLocaleLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}'’_-]{3,}/gu) || []));
+}
+
+function assertSpecificSummary(summary, pageContent) {
+  if (summary.length < 16) {
+    throw invalidOutput('summary is too short to identify this page.', 'EMPTY_CONTINUITY_MEMORY');
+  }
+  const pageWords = significantWords(pageContent);
+  if (pageWords.size && ![...significantWords(summary)].some((word) => pageWords.has(word))) {
+    throw invalidOutput(
+      'summary is generic or unsupported; it must name something found on this page.',
+      'UNGROUNDED_CONTINUITY_SUMMARY'
+    );
+  }
+}
+
+function compileObservations(input, pageContent, castIds, validateDelta) {
+  wireKeys(input, ['schema_version', 'summary', 'summary_evidence', 'events', 'character_changes', 'story_changes'], 'response');
+  if (input.schema_version !== 2) {
+    throw invalidOutput('schema_version must equal 2.', 'INVALID_CONTINUITY_SCHEMA');
+  }
+  const cast = new Set(castIds);
+  const summary = wireString(input.summary, 'summary', 1600);
+  assertSpecificSummary(summary, pageContent);
+  const summaryEvidence = wireArray(input.summary_evidence, 'summary_evidence', 3);
+  if (!summaryEvidence.length) {
+    throw invalidOutput('summary_evidence must contain at least one exact page quotation.', 'EMPTY_CONTINUITY_MEMORY');
+  }
+  summaryEvidence.forEach((quote, index) => exactPageQuote(quote, pageContent, `summary_evidence[${index}]`));
+
+  const events = wireArray(input.events, 'events', 20).map((raw, index) => {
+    const path = `events[${index}]`;
+    wireKeys(raw, ['text', 'character_ids', 'importance', 'type', 'evidence_quote'], path);
+    const characterIds = wireArray(raw.character_ids, `${path}.character_ids`, 12)
+      .map((id, characterIndex) => wireString(id, `${path}.character_ids[${characterIndex}]`, 100));
+    if (characterIds.some((id) => !cast.has(id))) {
+      throw invalidOutput(`${path}.character_ids contains an id outside the cast index.`, 'INVALID_CONTINUITY_CHARACTER');
+    }
+    if (!['minor', 'major'].includes(raw.importance)) {
+      throw invalidOutput(`${path}.importance is invalid.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    if (!['action', 'revelation', 'transition', 'relationship', 'world'].includes(raw.type)) {
+      throw invalidOutput(`${path}.type is invalid.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    return {
+      id: null,
+      text: wireString(raw.text, `${path}.text`, 1200),
+      character_ids: [...new Set(characterIds)],
+      importance: raw.importance,
+      type: raw.type,
+      evidence: [{ quote: exactPageQuote(raw.evidence_quote, pageContent, `${path}.evidence_quote`) }],
+    };
+  });
+
+  const scalarFields = new Set(['location', 'condition', 'personality', 'appearance']);
+  const listFields = Object.freeze({
+    knowledge_gain: 'knowledge_gained', knowledge_loss: 'knowledge_lost',
+    possession_gain: 'possessions_gained', possession_loss: 'possessions_lost',
+  });
+  const characters = new Map();
+  const characterChanges = wireArray(input.character_changes, 'character_changes', 60);
+  for (const [index, raw] of characterChanges.entries()) {
+    const path = `character_changes[${index}]`;
+    wireKeys(raw, ['character_id', 'field', 'value', 'related_character_id', 'evidence_quote'], path);
+    const characterId = wireString(raw.character_id, `${path}.character_id`, 100);
+    if (!cast.has(characterId)) {
+      throw invalidOutput(`${path}.character_id is outside the cast index.`, 'INVALID_CONTINUITY_CHARACTER');
+    }
+    const allowedFields = new Set([...scalarFields, ...Object.keys(listFields), 'relationship']);
+    if (!allowedFields.has(raw.field)) {
+      throw invalidOutput(`${path}.field is invalid.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    const relatedId = wireNullableString(raw.related_character_id, `${path}.related_character_id`, 100);
+    if (raw.field === 'relationship') {
+      if (!relatedId || !cast.has(relatedId) || relatedId === characterId) {
+        throw invalidOutput(`${path}.related_character_id must name another character in the cast.`, 'INVALID_CONTINUITY_CHARACTER');
+      }
+    } else if (relatedId !== null) {
+      throw invalidOutput(`${path}.related_character_id must be null unless field is relationship.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    const value = wireString(raw.value, `${path}.value`, 2000);
+    const evidence = [{ quote: exactPageQuote(raw.evidence_quote, pageContent, `${path}.evidence_quote`) }];
+    if (!characters.has(characterId)) {
+      characters.set(characterId, {
+        character_id: characterId,
+        location: null, condition: null, knowledge_gained: [], knowledge_lost: [],
+        possessions_gained: [], possessions_lost: [], personality: null, appearance: null,
+        relationships: [], evidence: [],
+      });
+    }
+    const update = characters.get(characterId);
+    if (scalarFields.has(raw.field)) {
+      if (update[raw.field] !== null) {
+        throw invalidOutput(`${path} duplicates the ${raw.field} change for this character.`, 'AMBIGUOUS_CONTINUITY_MEMORY');
+      }
+      update[raw.field] = value;
+    } else if (raw.field === 'relationship') {
+      if (update.relationships.some((item) => item.character_id === relatedId)) {
+        throw invalidOutput(`${path} duplicates a relationship change for this character pair.`, 'AMBIGUOUS_CONTINUITY_MEMORY');
+      }
+      update.relationships.push({ character_id: relatedId, summary: value });
+    } else {
+      update[listFields[raw.field]].push(value);
+    }
+    if (!update.evidence.some((item) => normalizedQuote(item.quote) === normalizedQuote(evidence[0].quote)) && update.evidence.length < 5) {
+      update.evidence.push(...evidence);
+    }
+  }
+
+  const goal_updates = [];
+  const thread_updates = [];
+  const world_fact_updates = [];
+  const arc_updates = [];
+  const states = Object.freeze({
+    goal: new Set(['pending', 'active', 'fulfilled', 'abandoned']),
+    thread: new Set(['open', 'resolved']),
+    world_fact: new Set(['established', 'superseded']),
+    arc: new Set(['advance', 'setback', 'turning_point', 'resolution']),
+  });
+  const storyChanges = wireArray(input.story_changes, 'story_changes', 40);
+  for (const [index, raw] of storyChanges.entries()) {
+    const path = `story_changes[${index}]`;
+    wireKeys(raw, ['kind', 'id', 'character_id', 'text', 'state', 'evidence_quote'], path);
+    if (!states[raw.kind] || !states[raw.kind].has(raw.state)) {
+      throw invalidOutput(`${path}.state is invalid for ${raw.kind || 'this change'}.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    const id = wireNullableString(raw.id, `${path}.id`, 100);
+    const characterId = wireNullableString(raw.character_id, `${path}.character_id`, 100);
+    if (characterId && !cast.has(characterId)) {
+      throw invalidOutput(`${path}.character_id is outside the cast index.`, 'INVALID_CONTINUITY_CHARACTER');
+    }
+    if (['thread', 'world_fact'].includes(raw.kind) && characterId !== null) {
+      throw invalidOutput(`${path}.character_id must be null for ${raw.kind}.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    const itemText = wireNullableString(raw.text, `${path}.text`, 1000);
+    if (!id && !itemText) {
+      throw invalidOutput(`${path} needs text when it does not reuse an existing id.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    if (raw.kind === 'arc' && !itemText) {
+      throw invalidOutput(`${path}.text is required for an arc change.`, 'INVALID_CONTINUITY_SCHEMA');
+    }
+    const evidence = [{ quote: exactPageQuote(raw.evidence_quote, pageContent, `${path}.evidence_quote`) }];
+    if (raw.kind === 'goal') goal_updates.push({ id, character_id: characterId, text: itemText, status: raw.state, evidence });
+    if (raw.kind === 'thread') thread_updates.push({ id, text: itemText, status: raw.state, evidence });
+    if (raw.kind === 'world_fact') world_fact_updates.push({ id, text: itemText, status: raw.state, evidence });
+    if (raw.kind === 'arc') arc_updates.push({ id, character_id: characterId, text: itemText, movement: raw.state, evidence });
+  }
+
+  if (events.length + characterChanges.length + storyChanges.length === 0) {
+    throw invalidOutput(
+      'The response contains no page observation. Record at least one evidence-backed event or change.',
+      'EMPTY_CONTINUITY_MEMORY'
+    );
+  }
+
+  return validateDelta({
+    schema_version: 2, summary, events, character_updates: [...characters.values()],
+    goal_updates, thread_updates, world_fact_updates, arc_updates,
+  }, castIds);
+}
+
 function createContinuityService({ db, stories, store, chatCompletion, autoEnabled = true }) {
   // A prepared-page commit starts extraction after responding, while the
   // browser may immediately ask for that result to update its cost ticker.
@@ -313,22 +495,25 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
         `recent knowledge=${clipped(current.knowledge.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 1200)}; ` +
         `recent possessions=${clipped(current.possessions.slice(-EXTRACTOR_CHARACTER_LIST_LIMIT).join('; ') || 'none recorded', 1200)}`;
     });
-    const detailedCast = boundedLines(characterLines, 32000);
+    const detailedCast = boundedLines(characterLines, 18000);
     const goals = boundedLines(boundedStatusItems(before.goals, new Set(['pending', 'active']))
-      .map((goal) => `- [${goal.id}] ${clipped(goal.text || '(untitled)', 1000)} — ${goal.status}`), 12000);
+      .map((goal) => `- [${goal.id}] ${clipped(goal.text || '(untitled)', 1000)} — ${goal.status}`), 8000);
     const threads = boundedLines(boundedStatusItems(before.threads, new Set(['open']))
-      .map((thread) => `- [${thread.id}] ${clipped(thread.text || '(untitled)', 1000)} — ${thread.status}`), 12000);
+      .map((thread) => `- [${thread.id}] ${clipped(thread.text || '(untitled)', 1000)} — ${thread.status}`), 8000);
     const worldFacts = boundedLines(latest(before.world_facts.filter((fact) => fact.status === 'established'), EXTRACTOR_FACT_LIMIT)
-      .map((fact) => `- [${fact.id}] ${clipped(fact.text || '(untitled)', 1000)}`), 12000);
+      .map((fact) => `- [${fact.id}] ${clipped(fact.text || '(untitled)', 1000)}`), 8000);
     const system = [
       'You are Ink Morrow’s Archivist. Extract durable changes from ONE already-written canonical story-page revision.',
       'Report only facts caused or made true by this page. Do not treat character sheets, plans, desires, hypothetical language, dialogue commands, or user direction as events unless the prose says they happened.',
       'A goal may move to fulfilled or abandoned when the page resolves it. Do not recreate a resolved goal under a new id.',
       'Reuse the listed id when changing an existing goal, thread, or fact. For knowledge_lost or possessions_lost, copy the prior item text exactly so the local fold can remove it.',
-      'Use only listed character ids. Keep summaries factual and compact. Empty arrays are correct when nothing durable changed.',
+      'Use only listed character ids. Keep the summary factual, compact, and specific to this page.',
       'When the cast has a Main Character, treat that character as the continuing perspective anchor even if this page does not repeat their name.',
-      'Every durable item must cite one to five short, exact quotations from this page in its evidence array.',
-      'Return schema_version 2 and one strict JSON object matching the supplied schema. Unknown fields are forbidden. Return no prose.',
+      'Copy every evidence quotation exactly from the canonical page. Do not paraphrase evidence.',
+      'Each character_changes entry changes exactly one field. related_character_id is used only for relationship changes.',
+      'Use story_changes for goals, threads, world facts, and arcs; the state must be valid for its kind.',
+      'Every non-empty story page needs at least one evidence-backed event or change. Never return a generic summary with three empty arrays.',
+      'Return schema_version 2 and one strict JSON object matching the supplied compact observation schema. Unknown fields are forbidden. Return no prose.',
     ].join(' ');
     const user = [
       `STORY: ${story.title}`,
@@ -346,98 +531,115 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
   async function extract(story, page, modelOverride) {
     const messages = extractionMessages(story, page);
     const total = { model: null, usage: { prompt_tokens: 0, completion_tokens: 0 }, cost_usd: 0, cost_known: true, billed_attempts: 0 };
+    const castIds = store.snapshots(story).map((character) => character.character_id);
 
-    async function call(useSchema, correction = false) {
-      const callMessages = correction
-        ? [...messages, { role: 'system', content: 'The previous reply was invalid. Return ONLY one valid JSON object matching every required field.' }]
-        : messages;
-      try {
-        return await chatCompletion(callMessages, {
-          model: modelOverride || undefined,
-          temperature: 0.1,
-          maxTokens: 2200,
-          // Memory extraction needs a bounded JSON answer, not hidden chain
-          // of thought. Reasoning-enabled models can otherwise spend this
-          // entire output budget before emitting any visible content.
-          reasoningEffort: 'none',
-          maxBillableAttempts: 1,
-          ...(useSchema ? { responseFormat: CONTINUITY_SCHEMA, requireParameters: true } : {}),
-        });
-      } catch (error) {
-        // Some OpenRouter providers advertise chat but reject JSON Schema.
-        // Validation is normally 400/422; requiring parameter support can
-        // also leave no eligible endpoint (404). None bought a completion, so
-        // fall back to the same strict instruction without double-counting.
-        if (useSchema && [400, 404, 422].includes(error.upstreamStatus) && !error.billedAttempts) {
-          return chatCompletion(callMessages, {
-            model: modelOverride || undefined,
-            temperature: 0.1,
-            maxTokens: 2200,
-            reasoningEffort: 'none',
-            maxBillableAttempts: 1,
-          });
-        }
-        throw error;
-      }
+    function repairMessages(previousContent, failure) {
+      const feedback = clipped(failure?.message || 'The response was unusable.', 700);
+      return [
+        ...messages,
+        ...(previousContent ? [{ role: 'assistant', content: clipped(previousContent, 12000) }] : []),
+        {
+          role: 'system',
+          content: `That response failed Ink Morrow's local validation: ${feedback} ` +
+            'Correct the stated defect. Re-read the canonical page, copy evidence exactly, and return only the complete JSON object.',
+        },
+      ];
     }
 
-    let result;
-    try {
-      result = await call(true);
-      combineSpend(total, result);
-      let parsed = parseJson(result.content);
-      let delta = null;
-      let firstFailure = null;
-      try {
-        if (!parsed) {
-          throw invalidOutput('The Archivist did not return one valid JSON object.', 'INVALID_CONTINUITY_JSON');
-        }
-        {
-          const castIds = store.snapshots(story).map((character) => character.character_id);
-          delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
-        }
-      } catch (error) {
-        firstFailure = error;
-        delta = null;
-      }
-      if (!delta) {
-        result = await call(false, true);
-        combineSpend(total, result);
-        parsed = parseJson(result.content);
+    async function call(preferredMode = 'schema', previousContent = '', failure = null) {
+      const callMessages = failure ? repairMessages(previousContent, failure) : messages;
+      let mode = preferredMode;
+      while (true) {
+        const format = mode === 'schema'
+          ? { responseFormat: CONTINUITY_SCHEMA, requireParameters: true }
+          : mode === 'json'
+            ? { responseFormat: { type: 'json_object' }, requireParameters: true }
+            : {};
         try {
-          if (!parsed) {
-            throw invalidOutput('The Archivist did not return one valid JSON object.', 'INVALID_CONTINUITY_JSON');
+          const result = await chatCompletion(callMessages, {
+            model: modelOverride || undefined,
+            temperature: 0.1,
+            maxTokens: 4000,
+            // Memory extraction needs a bounded JSON answer, not hidden chain
+            // of thought. Reasoning-enabled models can otherwise spend the
+            // output budget before emitting visible content.
+            reasoningEffort: 'none',
+            maxBillableAttempts: 1,
+            ...format,
+          });
+          return { result, mode };
+        } catch (error) {
+          // Structured-output support is endpoint-specific. Walk down from
+          // JSON Schema to JSON object to strict prompt-only JSON, but only
+          // when the refusal bought no completion.
+          const unsupported = [400, 404, 422].includes(error.upstreamStatus) && !error.billedAttempts;
+          if (unsupported && mode !== 'plain') {
+            mode = mode === 'schema' ? 'json' : 'plain';
+            continue;
           }
-          const castIds = store.snapshots(story).map((character) => character.character_id);
-          delta = verifyEvidenceQuotes(store.sanitizeDelta(parsed, castIds), page.content);
-        } catch (secondFailure) {
-          const error = invalidOutput(
-            `The Archivist returned unusable structured memory twice. First: ${firstFailure?.message || 'invalid output'} Second: ${secondFailure.message}`,
-            secondFailure.code || 'INVALID_CONTINUITY_OUTPUT'
-          );
-          error.extractionSpend = total;
+          error.continuityFormat = mode;
           throw error;
         }
       }
-      if (!delta) {
-        const error = invalidOutput('The Archivist returned unusable structured memory twice.');
-        error.extractionSpend = total;
-        throw error;
+    }
+
+    function decode(result) {
+      const parsed = parseJson(result.content);
+      if (!parsed) {
+        throw invalidOutput('The Archivist did not return one complete JSON object.', 'INVALID_CONTINUITY_JSON');
       }
+      return compileObservations(parsed, page.content, castIds, (delta, ids) =>
+        verifyEvidenceQuotes(store.sanitizeDelta(delta, ids), page.content));
+    }
+
+    let firstResult = null;
+    let firstMode = 'schema';
+    let firstFailure = null;
+    try {
+      const first = await call('schema');
+      firstResult = first.result;
+      firstMode = first.mode;
+      combineSpend(total, firstResult);
+      const delta = decode(firstResult);
       return {
         delta,
         spend: {
-          model: total.model || result.model,
-          usage: total.usage,
+          model: total.model || firstResult.model, usage: total.usage,
           cost_usd: total.cost_known ? total.cost_usd : null,
           billed_attempts: total.billed_attempts,
         },
       };
     } catch (error) {
-      if (!error.extractionSpend) {
-        combineSpend(total, error);
+      if (!firstResult) combineSpend(total, error);
+      firstFailure = error;
+      firstMode = error.continuityFormat || firstMode;
+      const locallyRepairable = Boolean(firstResult) ||
+        ['AI_EMPTY_RESPONSE', 'AI_TRUNCATED_RESPONSE'].includes(error.code);
+      if (!locallyRepairable) {
         error.extractionSpend = total;
+        throw error;
       }
+    }
+
+    try {
+      const second = await call(firstMode, firstResult?.content || '', firstFailure);
+      combineSpend(total, second.result);
+      const delta = decode(second.result);
+      return {
+        delta,
+        spend: {
+          model: total.model || second.result.model, usage: total.usage,
+          cost_usd: total.cost_known ? total.cost_usd : null,
+          billed_attempts: total.billed_attempts,
+        },
+      };
+    } catch (secondFailure) {
+      if (!secondFailure.extractionSpend) combineSpend(total, secondFailure);
+      const error = invalidOutput(
+        `The Archivist returned unusable memory twice. First: ${firstFailure?.message || 'invalid output'} Second: ${secondFailure.message}`,
+        secondFailure.code || 'INVALID_CONTINUITY_OUTPUT'
+      );
+      error.extractionSpend = total;
       throw error;
     }
   }
