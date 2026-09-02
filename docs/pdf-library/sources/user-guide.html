@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ink Morrow 4.0 User Guide</title>
   <style>
-    @font-face { font-family: Cormorant; src: url("../../frontend/fonts/cormorant-garamond-latin.woff2") format("woff2"); }
-    @font-face { font-family: Inter; src: url("../../frontend/fonts/inter-latin.woff2") format("woff2"); }
-    @font-face { font-family: Literata; src: url("../../frontend/fonts/literata-latin.woff2") format("woff2"); }
-    @font-face { font-family: Plex; src: url("../../frontend/fonts/ibm-plex-mono-latin.woff2") format("woff2"); }
-    @font-face { font-family: Fraktur; src: url("../../frontend/fonts/unifraktur-cook.ttf") format("truetype"); }
+    @font-face { font-family: Cormorant; src: url("../../../frontend/fonts/cormorant-garamond-latin.woff2") format("woff2"); }
+    @font-face { font-family: Inter; src: url("../../../frontend/fonts/inter-latin.woff2") format("woff2"); }
+    @font-face { font-family: Literata; src: url("../../../frontend/fonts/literata-latin.woff2") format("woff2"); }
+    @font-face { font-family: Plex; src: url("../../../frontend/fonts/ibm-plex-mono-latin.woff2") format("woff2"); }
+    @font-face { font-family: Fraktur; src: url("../../../frontend/fonts/unifraktur-cook.ttf") format("truetype"); }
 
     :root {
       --ink: #130b17;
@@ -63,7 +63,7 @@
     .running-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5mm; color: var(--wine); }
     .running-head .brand { font-family: Cormorant, Georgia, serif; font-weight: 700; font-size: 12pt; letter-spacing: .03em; }
     .running-head .section { font-family: Plex, monospace; font-size: 6.8pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
-    .running-rule { height: 2.5mm; margin: -2mm 0 5mm; background: url("../../frontend/brand/ornament-divider.svg") center / 44mm 5mm no-repeat; opacity: .72; }
+    .running-rule { height: 2.5mm; margin: -2mm 0 5mm; background: url("../../../frontend/brand/ornament-divider.svg") center / 44mm 5mm no-repeat; opacity: .72; }
     .folio { position: absolute; left: 18mm; right: 18mm; bottom: 8.7mm; display: flex; justify-content: space-between; color: var(--muted); font-family: Plex, monospace; font-size: 6.5pt; letter-spacing: .08em; }
     .folio strong { color: var(--wine); font-weight: 600; }
 
@@ -169,10 +169,10 @@
 <body>
 <main>
   <section class="page cover" aria-label="Cover">
-    <img class="cover-art" src="../../frontend/brand/hero-scriptorium-desktop.webp" alt="A cat-eared scribe writing by candlelight in the gothic Scriptorium">
+    <img class="cover-art" src="../../../frontend/brand/hero-scriptorium-desktop.webp" alt="A cat-eared scribe writing by candlelight in the gothic Scriptorium">
     <div class="cover-shade"></div>
     <div class="cover-content">
-      <img class="cover-lockup" src="../../frontend/brand/ink-morrow-lockup.svg" alt="Ink Morrow - where stories grow claws">
+      <img class="cover-lockup" src="../../../frontend/brand/ink-morrow-lockup.svg" alt="Ink Morrow - where stories grow claws">
       <div class="kicker">The author’s field guide</div>
       <h1>User Guide</h1>
       <p class="subtitle">Write, remember, illuminate, bind-and keep every story under your control.</p>
@@ -271,7 +271,7 @@ $EDITOR backend/.env
     <p>The Library owns manuscripts, reusable templates, import and restore, recent work, recovery notices, and the path to Settings. Select a manuscript to enter its five-destination workspace.</p>
     <figure>
       <div class="screenshot">
-        <img src="../screenshots/home-desktop.png" alt="Desktop Library showing the manuscript selector, global tabs, story navigation rail, and start actions">
+        <img src="../../screenshots/home-desktop.png" alt="Desktop Library showing the manuscript selector, global tabs, story navigation rail, and start actions">
         <span class="overlay" style="left:49%;top:6%">1</span><span class="overlay" style="left:30%;top:17%">2</span><span class="overlay" style="left:3%;top:42%">3</span><span class="overlay" style="left:20%;top:69%">4</span>
       </div>
       <figcaption>Desktop Library. The gothic frame orients you; actions remain literal and the manuscript surface stays quiet.</figcaption>
@@ -304,7 +304,7 @@ $EDITOR backend/.env
       <li>Optionally open <strong>Foundations</strong> for premise, voice, point of view, tense, arcs, and constraints.</li>
       <li>Enter the Desk with Volume I and Chapter I already created.</li>
     </ol>
-    <div class="art-strip"><img src="../../frontend/brand/vesper-threshold.webp" alt="Vesper, the Scriptorium scribe, seated at a writing desk"></div>
+    <div class="art-strip"><img src="../../../frontend/brand/vesper-threshold.webp" alt="Vesper, the Scriptorium scribe, seated at a writing desk"></div>
     <h3>Foundations are guidance, not a gate</h3>
     <p>AI suggestions in Foundations are drafts. Accept them field by field. You can begin writing without completing every setting, and you can return later.</p>
     <div class="cols-2">
@@ -318,7 +318,7 @@ $EDITOR backend/.env
     <div class="running-head"><span class="brand">Ink Morrow 4.0</span><span class="section">Templates</span></div><div class="running-rule"></div>
     <div class="kicker">04 · Reusable material</div><h2 id="templates-title">Build worlds and characters once</h2>
     <p>World and character templates live in the global Library. They are reusable source material-not remote truth imposed on every manuscript.</p>
-    <figure><div class="screenshot"><img src="../screenshots/worlds-desktop.png" alt="World templates catalogue on desktop with a New world action and world cards"></div><figcaption>The global world catalogue. Create without an image when you want a fully local path; painting is a separate paid action.</figcaption></figure>
+    <figure><div class="screenshot"><img src="../../screenshots/worlds-desktop.png" alt="World templates catalogue on desktop with a New world action and world cards"></div><figcaption>The global world catalogue. Create without an image when you want a fully local path; painting is a separate paid action.</figcaption></figure>
     <div class="cols-2">
       <div>
         <h3>World templates</h3>
@@ -341,7 +341,7 @@ $EDITOR backend/.env
     <div class="kicker">05 · The writing loop</div><h2 id="desk-title">The manuscript stays at the center</h2>
     <figure>
       <div class="screenshot">
-        <img src="../screenshots/write-desktop.png" alt="Desktop Desk with the global manuscript selector, navigation rail, page controls, reading tools, Gallery link, and manuscript page">
+        <img src="../../screenshots/write-desktop.png" alt="Desktop Desk with the global manuscript selector, navigation rail, page controls, reading tools, Gallery link, and manuscript page">
         <span class="overlay" style="left:3%;top:42%">1</span><span class="overlay" style="left:55%;top:4%">2</span><span class="overlay" style="left:29%;top:35%">3</span><span class="overlay" style="left:77%;top:43%">4</span><span class="overlay" style="left:52%;top:68%">5</span>
       </div>
       <figcaption>The Desk on desktop. Controls frame the prose; artwork never sits behind the manuscript.</figcaption>
@@ -361,7 +361,7 @@ $EDITOR backend/.env
     <div class="running-head"><span class="brand">Ink Morrow 4.0</span><span class="section">Direction & prepared pages</span></div><div class="running-rule"></div>
     <div class="kicker">05 · The writing loop</div><h2 id="direction-title">The direction changes the action</h2>
     <div class="cols-2" style="grid-template-columns: 74mm 1fr; align-items:start">
-      <figure style="margin:0"><div class="screenshot"><img class="portrait-shot" src="../screenshots/write-tablet-portrait.png" alt="Portrait-tablet Desk showing the manuscript, reading tools, and named bottom navigation"></div><figcaption>Portrait tablet keeps the five destinations named and the manuscript comfortably readable.</figcaption></figure>
+      <figure style="margin:0"><div class="screenshot"><img class="portrait-shot" src="../../screenshots/write-tablet-portrait.png" alt="Portrait-tablet Desk showing the manuscript, reading tools, and named bottom navigation"></div><figcaption>Portrait tablet keeps the five destinations named and the manuscript comfortably readable.</figcaption></figure>
       <div>
         <h3>When direction is empty</h3>
         <p>If a prepared page waits, <strong>Next Page</strong> commits that exact prose. It does not call the provider for a different version.</p>
@@ -391,7 +391,7 @@ $EDITOR backend/.env
       </tbody>
     </table>
     <div class="callout warning"><span class="label">Read the exact range</span>The return confirmation names the volumes, chapters, pages, narrative count, prepared work, and recovery period. The action reads <strong>Return and remove N later pages</strong>.</div>
-    <div class="section-art"><img src="../../frontend/brand/moth-archive.webp" alt="Moth, the archivist, cataloguing manuscripts"><h2>Chronicle keeps the trail visible</h2></div>
+    <div class="section-art"><img src="../../../frontend/brand/moth-archive.webp" alt="Moth, the archivist, cataloguing manuscripts"><h2>Chronicle keeps the trail visible</h2></div>
     <div class="cols-2">
       <div>
         <h3>Navigate structure</h3>
@@ -442,7 +442,7 @@ $EDITOR backend/.env
   <section class="page" aria-labelledby="codex-anatomy-title">
     <div class="running-head"><span class="brand">Ink Morrow 4.0</span><span class="section">Codex</span></div><div class="running-rule"></div>
     <div class="kicker">07 · Author truth and extracted evidence</div><h2 id="codex-anatomy-title">Use Codex as a ledger, not an oracle</h2>
-    <figure><div class="screenshot"><img src="../screenshots/codex-desktop.png" alt="Ink Morrow Codex showing manuscript-local truth and evidence"></div><figcaption>Codex keeps foundations, Author Canon, remembered evidence, corrections, arcs, and threads in one manuscript-local view.</figcaption></figure>
+    <figure><div class="screenshot"><img src="../../screenshots/codex-desktop.png" alt="Ink Morrow Codex showing manuscript-local truth and evidence"></div><figcaption>Codex keeps foundations, Author Canon, remembered evidence, corrections, arcs, and threads in one manuscript-local view.</figcaption></figure>
     <div class="cols-2">
       <div><h3>Author Canon</h3><p>Create and edit facts, world events, people, places, factions, objects, rules, and other truths that the story should obey. Every edit creates a version; retirement preserves history.</p></div>
       <div><h3>Remembered canon</h3><p>The Archivist extracts structured facts, events, character states, threads, and arc movement. Each item cites the page and canonical revision that produced it.</p></div>
@@ -474,7 +474,7 @@ $EDITOR backend/.env
   <section class="page" aria-labelledby="gallery-title">
     <div class="running-head"><span class="brand">Ink Morrow 4.0</span><span class="section">Gallery</span></div><div class="running-rule"></div>
     <div class="kicker">08 · Illuminate without changing canon</div><h2 id="gallery-title">Upload or paint, then place deliberately</h2>
-    <div class="section-art"><img src="../../frontend/brand/cinder-cast.webp" alt="Cinder, the illuminator, working with story art"><h2>Two equal paths</h2></div>
+    <div class="section-art"><img src="../../../frontend/brand/cinder-cast.webp" alt="Cinder, the illuminator, working with story art"><h2>Two equal paths</h2></div>
     <div class="cols-2">
       <div class="card"><h3>Upload an image</h3><ol><li>Choose a file with the native picker.</li><li>Review the local preview and metadata-removal notice.</li><li>Add a title and useful alt text.</li><li>Keep it in Gallery or place it before/after a narrative page.</li></ol></div>
       <div class="card"><h3>Paint with AI</h3><ol><li>Write or condense a visible prompt.</li><li>Choose references and quality deliberately.</li><li>Review cost and generate.</li><li>Place the result exactly like uploaded art.</li></ol></div>
@@ -613,7 +613,7 @@ $EDITOR backend/.env
       </div>
     </div>
     <div style="margin-top:10mm;text-align:center">
-      <img src="../../frontend/brand/ink-morrow-mark.svg" alt="Ink Morrow book-and-cat-ear mark" style="width:22mm;height:22mm">
+      <img src="../../../frontend/brand/ink-morrow-mark.svg" alt="Ink Morrow book-and-cat-ear mark" style="width:22mm;height:22mm">
       <h2 style="font-size:27pt;margin-top:3mm">The next page is yours.</h2>
       <p class="lead" style="max-width:125mm;margin:3mm auto">Lead with intent. Let the Scribe accelerate. Keep canon human, the provider bounded, and the backups close.</p>
     </div>
@@ -627,15 +627,15 @@ $EDITOR backend/.env
     <p>Long ago, a nameless empire burned its histories so no future voice could contradict the throne. The fire consumed the royal archive, but not the Stories inside it. They fled into ink, shadow, and the margins of unwritten pages. Around those surviving sparks the Scriptorium grew, and from its living script came the first feline scribes-adult, self-possessed keepers of invention, memory, and illumination. No crown owns them. No model commands them. They answer to the Story, and they lend their craft to the author who leads it.</p>
     <div class="tribe-grid">
       <article class="tribe-card">
-        <img src="../../frontend/brand/vesper-threshold.webp" alt="Vesper Quill at the moonlit threshold in a fitted leather bodice and ivory sleeves">
+        <img src="../../../frontend/brand/vesper-threshold.webp" alt="Vesper Quill at the moonlit threshold in a fitted leather bodice and ivory sleeves">
         <div class="tribe-card__body"><span class="role">Scribe · Warden</span><h3>Vesper Quill</h3><p>Wine-black curls, amber eyes, ivory sleeves, and a fitted leather bodice mark the keeper of the threshold. Vesper hears the first sentence before it is spoken. She opens the door, guards the author’s intent, and waits with her quill poised-but never writes past the human hand that leads her.</p></div>
       </article>
       <article class="tribe-card">
-        <img src="../../frontend/brand/cinder-cast.webp" alt="Cinder the Inkbreaker, a sleek copper-haired catgirl in flowing red and gold silks, drawing luminous lines across a manuscript">
+        <img src="../../../frontend/brand/cinder-cast.webp" alt="Cinder the Inkbreaker, a sleek copper-haired catgirl in flowing red and gold silks, drawing luminous lines across a manuscript">
         <div class="tribe-card__body"><span class="role">Illuminator</span><h3>Cinder, the Inkbreaker</h3><p>Sleek and quick, with copper ears, a high dark-red tail of hair, and flowing sheer silks in garnet and gold, Cinder draws light through stubborn ink. She gives worlds a face, casts a silhouette, and turns scenes into illumination-without confusing the image for the truth of the page.</p></div>
       </article>
       <article class="tribe-card">
-        <img src="../../frontend/brand/moth-archive.webp" alt="Moth, a silver-haired catgirl archivist in violet-black robes and a narrow velvet collar with a bell">
+        <img src="../../../frontend/brand/moth-archive.webp" alt="Moth, a silver-haired catgirl archivist in violet-black robes and a narrow velvet collar with a bell">
         <div class="tribe-card__body"><span class="role">Archivist</span><h3>Moth, Archivist of Forgotten Things</h3><p>Silver-haired and grave in violet-black robes, Moth wears a narrow velvet collar whose small bell sounds when a fact is almost lost. She gathers revisions, broken threads, and discarded paths into her chained archive. She remembers evidence, not destiny, and yields every correction to the author.</p></div>
       </article>
     </div>

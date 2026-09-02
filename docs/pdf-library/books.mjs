@@ -1,5 +1,12 @@
 export const books = [
   {
+    slug: 'user-guide',
+    title: 'User Guide',
+    format: 'fixed-html',
+    source: 'sources/user-guide.html',
+    output: 'Ink-Morrow-4.0-User-Guide.pdf',
+  },
+  {
     slug: 'operations-and-recovery',
     title: 'Operations & Recovery Handbook',
     subtitle: 'Install, protect, update, diagnose, and restore Ink Morrow 4.0',

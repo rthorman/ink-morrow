@@ -21,9 +21,7 @@ OLD_BRAND = re.compile("scribe" + ".?" + "tribe", re.IGNORECASE)
 
 
 def pdfs(repo: Path) -> list[Path]:
-    return sorted((repo / "docs" / "pdf").glob("*.pdf")) + [
-        repo / "docs" / "user-guide" / "Ink-Morrow-4.0-User-Guide.pdf"
-    ]
+    return sorted((repo / "docs" / "pdf").glob("*.pdf"))
 
 
 def rasterize(pdf: Path, target: Path, dpi: int) -> list[Path]:
