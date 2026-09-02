@@ -45,6 +45,7 @@ function resetDb(db) {
     DELETE FROM operation_journal;
     DELETE FROM shares;
     DELETE FROM publication_snapshots;
+    DELETE FROM publication_blobs;
     DELETE FROM asset_placements;
     DELETE FROM assets;
     DELETE FROM legacy_art_pages;

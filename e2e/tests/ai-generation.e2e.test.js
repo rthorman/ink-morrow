@@ -283,7 +283,7 @@ test.describe('AI generation flows (mocked)', () => {
     const text = buf.toString('utf8');
     expect(text).toContain('application/epub+zip');
     expect(text).toContain('<dc:title>Export Test</dc:title>');
-    expect(text).toContain('OEBPS/nav.xhtml');
+    expect(text).toContain('EPUB/nav.xhtml');
   });
 });
 test.describe('Reading old pages and burning the rest', () => {
@@ -874,8 +874,8 @@ test.describe('Scene image prompt', () => {
     expect(exportRes.ok()).toBe(true);
     const book = await exportRes.body();
     const asText = book.toString('utf8');
-    expect(asText).toContain('<item id="img1_1" href="images/page-1-art-1.webp" media-type="image/webp"/>');
-    expect(asText).toContain('<img src="images/page-1-art-1.webp"');
+    expect(asText).toContain('<item id="asset-1" href="images/asset-1.webp" media-type="image/webp"/>');
+    expect(asText).toContain('<img src="images/asset-1.webp"');
     expect(asText).toContain('Second prose page.');
   });
 });

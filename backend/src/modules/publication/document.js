@@ -2,6 +2,7 @@
 
 const { createHash, randomUUID } = require('node:crypto');
 const { assertTechnicalInput, MAX_IMAGE_BYTES } = require('../imagery/art-store');
+const { thinPublicationDocument, persistPublicationMedia, hydratePublicationDocument } = require('./media-store');
 
 const PUBLICATION_FORMAT = 'ink-morrow-publication-document';
 const PUBLICATION_SCHEMA_VERSION = 1;
@@ -9,6 +10,8 @@ const PUBLICATION_FORMATS = Object.freeze(['docx', 'odt', 'rtf', 'epub', 'pdf', 
 const INPUT_FIELDS = new Set(['metadata', 'front_matter', 'back_matter', 'art', 'expected_story_updated_at']);
 const METADATA_FIELDS = new Set(['title', 'subtitle', 'author', 'language', 'description', 'publisher', 'rights', 'date']);
 const MATTER_ROLES = new Set(['dedication', 'preface', 'acknowledgments', 'afterword', 'about-author', 'other']);
+const MAX_PUBLICATION_MEDIA_BYTES = 128 * 1024 * 1024;
+const RETAIN_UNSHARED_SNAPSHOTS_PER_STORY = 20;
 
 function publicationError(message, statusCode = 400, code = 'INVALID_PUBLICATION') {
   const error = new Error(message);
@@ -227,6 +230,28 @@ function validatePublicationDocument(document) {
   return document;
 }
 
+function portablePublicationSnapshotRow(db, row) {
+  const document = hydratePublicationDocument(db, row.id, JSON.parse(row.document_json));
+  validatePublicationDocument(document);
+  if (hashDocument(document) !== row.sha256) {
+    throw publicationError('The publication snapshot failed its integrity check.', 500, 'PUBLICATION_INTEGRITY_FAILED');
+  }
+  return { ...row, document_json: JSON.stringify(document) };
+}
+
+function storePortablePublicationSnapshot(db, row) {
+  const document = typeof row.document_json === 'string' ? JSON.parse(row.document_json) : row.document_json;
+  validatePublicationDocument(document);
+  if (hashDocument(document) !== row.sha256) {
+    throw publicationError('Imported publication snapshot does not match its digest.', 400, 'PUBLICATION_INTEGRITY_FAILED');
+  }
+  db.prepare(`
+    INSERT INTO publication_snapshots (id, story_id, schema_version, document_json, sha256, created_at)
+    VALUES (?, ?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP))
+  `).run(row.id, row.story_id, row.schema_version, JSON.stringify(thinPublicationDocument(document)), row.sha256, row.created_at || null);
+  persistPublicationMedia(db, row.id, document);
+}
+
 function createPublicationService({ db, stories, artStore }) {
   const insertSnapshot = db.prepare(`
     INSERT INTO publication_snapshots (id, story_id, schema_version, document_json, sha256)
@@ -249,107 +274,133 @@ function createPublicationService({ db, stories, artStore }) {
   }
 
   function snapshot(storyId, body = {}) {
+    const story = stories.getStory(storyId);
+    if (!story) throw publicationError('Story not found.', 404, 'STORY_NOT_FOUND');
+    const input = normalizeInput(body, story.title);
+    if (input.expectedStoryUpdatedAt && input.expectedStoryUpdatedAt !== story.updated_at) {
+      throw publicationError('The story changed after publication review. Review it again.', 409, 'PUBLICATION_STORY_CHANGED');
+    }
+
+    const selected = new Set(input.selectedAssetIds);
+    const art = artStore.list(storyId);
+    const artFingerprint = hashDocument(art);
+    const assetById = new Map(art.assets.map((asset) => [asset.id, asset]));
+    const placedIds = new Set(art.placements.map((placement) => placement.asset_id));
+    for (const id of selected) {
+      if (!assetById.has(id)) throw publicationError(`Selected art ${id} does not exist.`, 400, 'PUBLICATION_ART_MISSING');
+      if (!placedIds.has(id)) throw publicationError(`Selected art ${id} is not placed in the manuscript.`, 400, 'PUBLICATION_ART_UNPLACED');
+    }
+
+    const assets = [];
+    const keyByAssetId = new Map();
+    const warnings = [];
+    let mediaBytes = 0;
+    for (const id of input.selectedAssetIds) {
+      const asset = assetById.get(id);
+      const content = artStore.readAsset(storyId, id);
+      if (!content) throw publicationError(`Selected art ${id} is unavailable.`, 409, 'PUBLICATION_ART_UNAVAILABLE');
+      mediaBytes += content.buffer.length;
+      if (mediaBytes > MAX_PUBLICATION_MEDIA_BYTES) {
+        throw publicationError('Selected publication art exceeds the 128 MB snapshot limit.', 413, 'PUBLICATION_ART_TOO_LARGE');
+      }
+      const key = `asset-${assets.length + 1}`;
+      const altText = String(asset.alt_text || '').trim();
+      if (!altText) warnings.push({ code: 'ART_ALT_TEXT_MISSING', asset_key: key, message: 'Selected art has no accessible description.' });
+      keyByAssetId.set(id, key);
+      assets.push({
+        key,
+        media_type: asset.media_type,
+        sha256: asset.sha256,
+        width: Number(asset.width),
+        height: Number(asset.height),
+        title: asset.title || null,
+        alt_text: altText,
+        content_base64: content.buffer.toString('base64'),
+      });
+    }
+
+    const placementsByPage = new Map();
+    const beforeStory = [];
+    for (const placement of art.placements) {
+      if (!selected.has(placement.asset_id)) continue;
+      const asset = assetById.get(placement.asset_id);
+      const block = {
+        type: 'art',
+        asset_key: keyByAssetId.get(placement.asset_id),
+        alt_text: String(asset.alt_text || '').trim(),
+        position: placement.after_page_id === null ? 'before' : 'after',
+      };
+      if (placement.after_page_id === null) beforeStory.push({ ordinal: placement.ordinal, block });
+      else {
+        if (!placementsByPage.has(placement.after_page_id)) placementsByPage.set(placement.after_page_id, []);
+        placementsByPage.get(placement.after_page_id).push({ ordinal: placement.ordinal, block });
+      }
+    }
+    beforeStory.sort((left, right) => left.ordinal - right.ordinal);
+    for (const list of placementsByPage.values()) list.sort((left, right) => left.ordinal - right.ordinal);
+
+    const volumes = [];
+    let currentVolume;
+    let currentChapter;
+    for (const row of storyRows(storyId)) {
+      if (!currentVolume || currentVolume.ordinal !== row.volume_ordinal) {
+        currentVolume = { ordinal: row.volume_ordinal, title: row.volume_title || '', chapters: [] };
+        volumes.push(currentVolume);
+        currentChapter = null;
+      }
+      if (!currentChapter || currentChapter.ordinal !== row.chapter_ordinal) {
+        currentChapter = { ordinal: row.chapter_ordinal, title: row.chapter_title || '', pages: [] };
+        currentVolume.chapters.push(currentChapter);
+      }
+      if (row.page_id) {
+        const blocks = blocksOf(row.display_content);
+        for (const item of placementsByPage.get(row.page_id) || []) blocks.push(item.block);
+        currentChapter.pages.push({ ordinal: row.page_ordinal, blocks });
+      }
+    }
+    if (beforeStory.length) {
+      const firstChapter = volumes[0]?.chapters[0];
+      if (!firstChapter) throw publicationError('The manuscript hierarchy is incomplete.', 409, 'PUBLICATION_HIERARCHY_INVALID');
+      if (!firstChapter.pages.length) firstChapter.pages.push({ ordinal: 1, blocks: [] });
+      firstChapter.pages[0].blocks.unshift(...beforeStory.map((item) => item.block));
+    }
+
+    const document = freeze({
+      format: PUBLICATION_FORMAT,
+      schema_version: PUBLICATION_SCHEMA_VERSION,
+      metadata: input.metadata,
+      front_matter: input.frontMatter,
+      volumes,
+      back_matter: input.backMatter,
+      assets,
+    });
+    validatePublicationDocument(document);
+    const sha256 = hashDocument(document);
+    const id = randomUUID();
     db.exec('BEGIN IMMEDIATE');
     try {
-      const story = stories.getStory(storyId);
-      if (!story) throw publicationError('Story not found.', 404, 'STORY_NOT_FOUND');
-      const input = normalizeInput(body, story.title);
-      if (input.expectedStoryUpdatedAt && input.expectedStoryUpdatedAt !== story.updated_at) {
-        throw publicationError('The story changed after publication review. Review it again.', 409, 'PUBLICATION_STORY_CHANGED');
+      const live = db.prepare('SELECT updated_at FROM stories WHERE id = ?').get(storyId);
+      if (!live || live.updated_at !== story.updated_at || hashDocument(artStore.list(storyId)) !== artFingerprint) {
+        throw publicationError('The story changed while the publication was being assembled. Review it again.', 409, 'PUBLICATION_STORY_CHANGED');
       }
-
-      const selected = new Set(input.selectedAssetIds);
-      const art = artStore.list(storyId);
-      const assetById = new Map(art.assets.map((asset) => [asset.id, asset]));
-      const placedIds = new Set(art.placements.map((placement) => placement.asset_id));
-      for (const id of selected) {
-        if (!assetById.has(id)) throw publicationError(`Selected art ${id} does not exist.`, 400, 'PUBLICATION_ART_MISSING');
-        if (!placedIds.has(id)) throw publicationError(`Selected art ${id} is not placed in the manuscript.`, 400, 'PUBLICATION_ART_UNPLACED');
-      }
-
-      const assets = [];
-      const keyByAssetId = new Map();
-      const warnings = [];
-      for (const id of input.selectedAssetIds) {
-        const asset = assetById.get(id);
-        const content = artStore.readAsset(storyId, id);
-        if (!content) throw publicationError(`Selected art ${id} is unavailable.`, 409, 'PUBLICATION_ART_UNAVAILABLE');
-        const key = `asset-${assets.length + 1}`;
-        const altText = String(asset.alt_text || '').trim();
-        if (!altText) warnings.push({ code: 'ART_ALT_TEXT_MISSING', asset_key: key, message: 'Selected art has no accessible description.' });
-        keyByAssetId.set(id, key);
-        assets.push({
-          key,
-          media_type: asset.media_type,
-          sha256: asset.sha256,
-          width: Number(asset.width),
-          height: Number(asset.height),
-          title: asset.title || null,
-          alt_text: altText,
-          content_base64: content.buffer.toString('base64'),
-        });
-      }
-
-      const placementsByPage = new Map();
-      const beforeStory = [];
-      for (const placement of art.placements) {
-        if (!selected.has(placement.asset_id)) continue;
-        const asset = assetById.get(placement.asset_id);
-        const block = {
-          type: 'art',
-          asset_key: keyByAssetId.get(placement.asset_id),
-          alt_text: String(asset.alt_text || '').trim(),
-          position: placement.after_page_id === null ? 'before' : 'after',
-        };
-        if (placement.after_page_id === null) beforeStory.push({ ordinal: placement.ordinal, block });
-        else {
-          if (!placementsByPage.has(placement.after_page_id)) placementsByPage.set(placement.after_page_id, []);
-          placementsByPage.get(placement.after_page_id).push({ ordinal: placement.ordinal, block });
-        }
-      }
-      beforeStory.sort((left, right) => left.ordinal - right.ordinal);
-      for (const list of placementsByPage.values()) list.sort((left, right) => left.ordinal - right.ordinal);
-
-      const volumes = [];
-      let currentVolume;
-      let currentChapter;
-      for (const row of storyRows(storyId)) {
-        if (!currentVolume || currentVolume.ordinal !== row.volume_ordinal) {
-          currentVolume = { ordinal: row.volume_ordinal, title: row.volume_title || '', chapters: [] };
-          volumes.push(currentVolume);
-          currentChapter = null;
-        }
-        if (!currentChapter || currentChapter.ordinal !== row.chapter_ordinal) {
-          currentChapter = { ordinal: row.chapter_ordinal, title: row.chapter_title || '', pages: [] };
-          currentVolume.chapters.push(currentChapter);
-        }
-        if (row.page_id) {
-          const blocks = blocksOf(row.display_content);
-          for (const item of placementsByPage.get(row.page_id) || []) blocks.push(item.block);
-          currentChapter.pages.push({ ordinal: row.page_ordinal, blocks });
-        }
-      }
-      if (beforeStory.length) {
-        const firstChapter = volumes[0]?.chapters[0];
-        if (!firstChapter) throw publicationError('The manuscript hierarchy is incomplete.', 409, 'PUBLICATION_HIERARCHY_INVALID');
-        if (!firstChapter.pages.length) firstChapter.pages.push({ ordinal: 1, blocks: [] });
-        firstChapter.pages[0].blocks.unshift(...beforeStory.map((item) => item.block));
-      }
-
-      const document = freeze({
-        format: PUBLICATION_FORMAT,
-        schema_version: PUBLICATION_SCHEMA_VERSION,
-        metadata: input.metadata,
-        front_matter: input.frontMatter,
-        volumes,
-        back_matter: input.backMatter,
-        assets,
-      });
-      validatePublicationDocument(document);
-      const documentJson = JSON.stringify(document);
-      const sha256 = hashDocument(document);
-      const id = randomUUID();
-      insertSnapshot.run(id, storyId, PUBLICATION_SCHEMA_VERSION, documentJson, sha256);
+      insertSnapshot.run(id, storyId, PUBLICATION_SCHEMA_VERSION, JSON.stringify(thinPublicationDocument(document)), sha256);
+      persistPublicationMedia(db, id, document);
+      db.prepare(`
+        DELETE FROM publication_snapshots
+         WHERE id IN (
+           SELECT snapshot.id FROM publication_snapshots snapshot
+            WHERE snapshot.story_id = ?
+              AND NOT EXISTS (SELECT 1 FROM shares WHERE publication_snapshot_id = snapshot.id)
+            ORDER BY snapshot.created_at DESC, snapshot.rowid DESC
+            LIMIT -1 OFFSET ?
+         )
+      `).run(storyId, RETAIN_UNSHARED_SNAPSHOTS_PER_STORY);
+      db.prepare(`
+        DELETE FROM publication_blobs
+         WHERE NOT EXISTS (
+           SELECT 1 FROM publication_snapshot_assets link WHERE link.sha256 = publication_blobs.sha256
+         )
+      `).run();
       const record = db.prepare('SELECT created_at FROM publication_snapshots WHERE id = ?').get(id);
       db.exec('COMMIT');
       return freeze({ id, sha256, created_at: record.created_at, warnings, document });
@@ -362,7 +413,7 @@ function createPublicationService({ db, stories, artStore }) {
   function get(snapshotId) {
     const row = db.prepare('SELECT id, story_id, schema_version, document_json, sha256, created_at FROM publication_snapshots WHERE id = ?').get(snapshotId);
     if (!row) return null;
-    const document = JSON.parse(row.document_json);
+    const document = hydratePublicationDocument(db, row.id, JSON.parse(row.document_json));
     let valid = true;
     try { validatePublicationDocument(document); } catch { valid = false; }
     if (!valid || row.schema_version !== PUBLICATION_SCHEMA_VERSION || hashDocument(document) !== row.sha256) {
@@ -371,7 +422,26 @@ function createPublicationService({ db, stories, artStore }) {
     return freeze({ id: row.id, sha256: row.sha256, created_at: row.created_at, document });
   }
 
-  return { snapshot, get, formats: PUBLICATION_FORMATS };
+  function remove(snapshotId) {
+    const row = db.prepare('SELECT id FROM publication_snapshots WHERE id = ?').get(snapshotId);
+    if (!row) return false;
+    const activeShare = db.prepare("SELECT 1 FROM shares WHERE publication_snapshot_id = ? AND status = 'active' LIMIT 1").get(snapshotId);
+    if (activeShare) throw publicationError('Revoke this snapshot\'s active reading link before deleting it.', 409, 'PUBLICATION_SNAPSHOT_SHARED');
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      db.prepare('DELETE FROM publication_snapshots WHERE id = ?').run(snapshotId);
+      db.prepare(`DELETE FROM publication_blobs WHERE NOT EXISTS (
+        SELECT 1 FROM publication_snapshot_assets link WHERE link.sha256 = publication_blobs.sha256
+      )`).run();
+      db.exec('COMMIT');
+      return true;
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* original error wins */ }
+      throw error;
+    }
+  }
+
+  return { snapshot, get, remove, formats: PUBLICATION_FORMATS };
 }
 
 module.exports = {
@@ -382,5 +452,9 @@ module.exports = {
   freeze,
   hashDocument,
   validatePublicationDocument,
+  thinPublicationDocument,
+  hydratePublicationDocument,
+  portablePublicationSnapshotRow,
+  storePortablePublicationSnapshot,
   createPublicationService,
 };

@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-4';
-const DATABASE_SCHEMA_VERSION = 11;
+const DATABASE_SCHEMA_VERSION = 12;
 const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
@@ -14,7 +14,7 @@ const ARCHIVE_VERSION = 2;
 const ARCHIVE_MANIFEST_SCHEMA_VERSION = 1;
 const ARCHIVE_EXTENSION = '.inkmorrow';
 
-const RELEASE_TRAIN = '4.0.0-beta.1';
+const RELEASE_TRAIN = require('../../package.json').version;
 
 const FEATURES = Object.freeze([
   Object.freeze({ id: 'v4-kernel', status: 'available' }),

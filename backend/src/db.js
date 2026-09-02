@@ -1350,6 +1350,37 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 12,
+    name: 'bounded publication media and continuity lookup',
+    checksumSource: `Publication snapshots reference deduplicated immutable media blobs; continuity issues gain a story/status lookup index.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE publication_blobs (
+          sha256 TEXT PRIMARY KEY CHECK (length(sha256) = 64),
+          media_type TEXT NOT NULL CHECK (media_type IN ('image/png', 'image/jpeg', 'image/webp')),
+          width INTEGER NOT NULL CHECK (width > 0 AND width <= 4096),
+          height INTEGER NOT NULL CHECK (height > 0 AND height <= 4096),
+          size_bytes INTEGER NOT NULL CHECK (size_bytes > 0),
+          content BLOB NOT NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE publication_snapshot_assets (
+          snapshot_id TEXT NOT NULL REFERENCES publication_snapshots (id) ON DELETE CASCADE,
+          asset_key TEXT NOT NULL CHECK (length(trim(asset_key)) > 0),
+          sha256 TEXT NOT NULL REFERENCES publication_blobs (sha256),
+          PRIMARY KEY (snapshot_id, asset_key)
+        );
+
+        CREATE INDEX idx_publication_snapshot_assets_blob
+          ON publication_snapshot_assets (sha256);
+
+        CREATE INDEX idx_continuity_issues_story_status
+          ON continuity_issues (story_id, status, created_at);
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

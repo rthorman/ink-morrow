@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { parseCastJson } = require('../stories/cast');
+const { portablePublicationSnapshotRow } = require('../publication/document');
 const {
   ARCHIVE_FORMAT,
   ARCHIVE_VERSION,
@@ -332,7 +333,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       : [];
     const publicationSnapshots = db.prepare(`
       SELECT * FROM publication_snapshots WHERE story_id = ? ORDER BY created_at, id
-    `).all(id).map((row) => pick(row, PUBLICATION_SNAPSHOT_FIELDS));
+    `).all(id).map((row) => pick(portablePublicationSnapshotRow(db, row), PUBLICATION_SNAPSHOT_FIELDS));
     return {
       bundle: {
         record,

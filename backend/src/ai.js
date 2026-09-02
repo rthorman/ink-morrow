@@ -6,10 +6,34 @@ const { checkReply } = require('./quality');
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const RETRY_ATTEMPTS = 3;
 const MODELS_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const GENERATION_COST_TTL_MS = 24 * 60 * 60 * 1000;
+const GENERATION_COST_MAX_ENTRIES = 2000;
+const MAX_CATALOGUE_RESPONSE_BYTES = 10 * 1024 * 1024;
 
 let modelsCache = new Map();
 let speechModelsCache = new Map();
 const generationCosts = new Map(); // generation id -> reconciled cost payload
+
+function cachedGenerationCost(key) {
+  const entry = generationCosts.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.at >= GENERATION_COST_TTL_MS) {
+    generationCosts.delete(key);
+    return null;
+  }
+  // Map insertion order is our LRU order. Refresh a successful read.
+  generationCosts.delete(key);
+  generationCosts.set(key, entry);
+  return entry.payload;
+}
+
+function rememberGenerationCost(key, payload) {
+  generationCosts.delete(key);
+  generationCosts.set(key, { at: Date.now(), payload });
+  while (generationCosts.size > GENERATION_COST_MAX_ENTRIES) {
+    generationCosts.delete(generationCosts.keys().next().value);
+  }
+}
 
 function aiConfig() {
   return {
@@ -41,6 +65,7 @@ async function listModelsWithConfig(cfg, onCatalogue = null) {
   const response = await axios.get(`${cfg.baseUrl}/models`, {
     ...(cfg.apiKey ? { headers: { Authorization: `Bearer ${cfg.apiKey}` } } : {}),
     timeout: Math.min(cfg.timeout || 15000, 30000),
+    maxContentLength: MAX_CATALOGUE_RESPONSE_BYTES,
   });
   const effortVocabulary = new Set(['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']);
   const models = (response.data?.data || [])
@@ -84,6 +109,7 @@ async function listModelsWithConfig(cfg, onCatalogue = null) {
 function resetModelCache() {
   modelsCache = new Map();
   speechModelsCache = new Map();
+  generationCosts.clear();
 }
 
 /**
@@ -103,6 +129,7 @@ async function listSpeechModelsWithConfig(cfg, onCatalogue = null) {
     params: { output_modalities: 'speech' },
     ...(cfg.apiKey ? { headers: { Authorization: `Bearer ${cfg.apiKey}` } } : {}),
     timeout: Math.min(cfg.timeout || 15000, 30000),
+    maxContentLength: MAX_CATALOGUE_RESPONSE_BYTES,
   });
   const models = (response.data?.data || [])
     .filter((m) => typeof m.id === 'string' && Array.isArray(m.supported_voices) && m.supported_voices.length > 0)
@@ -246,7 +273,8 @@ async function fetchGenerationCost(generationId) {
 
 async function fetchGenerationCostWithConfig(cfg, generationId) {
   const cacheKey = `${cfg.profileId || 'environment'}|${generationId}`;
-  if (generationCosts.has(cacheKey)) return generationCosts.get(cacheKey);
+  const cached = cachedGenerationCost(cacheKey);
+  if (cached) return cached;
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -256,6 +284,7 @@ async function fetchGenerationCostWithConfig(cfg, generationId) {
     params: { id: generationId },
     headers: { Authorization: `Bearer ${cfg.apiKey}` },
     timeout: 15000,
+    maxContentLength: 1024 * 1024,
   });
   const data = response.data?.data || {};
   const payload = {
@@ -265,7 +294,7 @@ async function fetchGenerationCostWithConfig(cfg, generationId) {
     provider: data.provider_name || null,
     latency_ms: typeof data.latency === 'number' ? data.latency : null,
   };
-  generationCosts.set(cacheKey, payload);
+  rememberGenerationCost(cacheKey, payload);
   return payload;
 }
 

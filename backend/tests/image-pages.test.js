@@ -144,10 +144,10 @@ describe('Noncanonical generated art compatibility', () => {
 
     const epub = await request(app).get(`/api/stories/${story.id}/export`).buffer().parse(binaryParser).expect(200);
     const text = epub.body.toString('utf8');
-    expect(text).toContain('page-2-art-1.webp');
+    expect(text).toContain('EPUB/images/asset-1.webp');
     expect(text).toContain('A candlelit hall, shadows leaning in.');
     expect(text).toContain('Second page body.');
-    expect(text).not.toContain('page-4.xhtml');
+    expect(text).toContain('EPUB/book.xhtml');
     expect(epub.body.includes(media.body)).toBe(true);
   });
 

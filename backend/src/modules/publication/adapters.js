@@ -1,6 +1,6 @@
 'use strict';
 
-const { zipStore } = require('../../epub');
+const { zipStore } = require('./zip');
 const sharp = require('sharp');
 const fs = require('node:fs');
 const path = require('node:path');

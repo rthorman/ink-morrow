@@ -107,4 +107,17 @@ describe('PR 17 immutable snapshot sharing', () => {
     expect(JSON.stringify(listing.body)).not.toContain(capability);
     expect(listing.body.shares[0]).not.toHaveProperty('share_url');
   });
+
+  it('protects an actively shared snapshot from deletion', async () => {
+    const source = await ownerSnapshot();
+    const created = await source.owner.post(`/api/publications/${source.snapshot.id}/shares`)
+      .set('X-InkMorrow-CSRF', source.csrf).send({}).expect(201);
+    const blocked = await source.owner.delete(`/api/publications/${source.snapshot.id}`)
+      .set('X-InkMorrow-CSRF', source.csrf).expect(409);
+    expect(blocked.body.code).toBe('PUBLICATION_SNAPSHOT_SHARED');
+    await source.owner.post(`/api/publication-shares/${created.body.share.id}/revoke`)
+      .set('X-InkMorrow-CSRF', source.csrf).send({}).expect(200);
+    await source.owner.delete(`/api/publications/${source.snapshot.id}`)
+      .set('X-InkMorrow-CSRF', source.csrf).expect(204);
+  });
 });

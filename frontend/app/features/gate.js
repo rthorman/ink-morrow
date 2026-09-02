@@ -30,6 +30,14 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     pollTimer = null;
   }
 
+  async function releaseFinishedJob() {
+    const job = currentJob;
+    if (!job || ['queued', 'running'].includes(job.status)) return;
+    currentJob = null;
+    try { await apiCall(`/publication-jobs/${job.id}`, 'DELETE'); }
+    catch { /* server-side expiry is the final cleanup boundary */ }
+  }
+
   function selectedFormats() {
     return [...document.querySelectorAll('[name="publication-format"]:checked')].map((input) => input.value);
   }
@@ -108,6 +116,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
           onClick: async (close) => {
             close(true);
             try {
+              await releaseFinishedJob();
               const result = await apiCall(`/publications/${snapshot.id}/exports`, 'POST', { formats });
               currentJob = result.job;
               renderJob(currentJob);
@@ -342,6 +351,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
 
   function reset() {
     stopPolling();
+    void releaseFinishedJob();
     loadToken++;
     activeStoryId = null;
     assets = [];

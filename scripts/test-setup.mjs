@@ -24,7 +24,7 @@ function findBash() {
 const bash = findBash();
 const roots = [];
 
-function fixture({ installed = [] } = {}) {
+function fixture({ installed = [], nodeVersion = '22.5.0' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'ink-morrow-setup-'));
   roots.push(root);
   for (const directory of ['backend', 'frontend', 'e2e', 'test-bin']) {
@@ -35,11 +35,13 @@ function fixture({ installed = [] } = {}) {
   writeFileSync(join(root, 'backend', 'package.json'), '{}\n');
   writeFileSync(join(root, 'backend', '.env.example'), 'OPENROUTER_API_KEY=\n');
 
+  const [nodeMajor, nodeMinor] = nodeVersion.split('.').map(Number);
+  const supportedNode = nodeMajor > 22 || (nodeMajor === 22 && nodeMinor >= 5);
   const mockNode = `#!/bin/sh
 if [ "\${1:-}" = "-e" ]; then
-  echo 22
+  exit ${supportedNode ? 0 : 1}
 else
-  echo v22.5.0
+  echo v${nodeVersion}
 fi
 `;
   const mockNpm = `#!/bin/sh
@@ -132,6 +134,12 @@ try {
   assert.equal(result.status, 2);
   assert.match(result.output, /Usage: \.\/setup\.sh \[--dev\] \[--clean\]/);
   assert.deepEqual(commands(invalid), []);
+
+  const oldNode = fixture({ nodeVersion: '22.4.1' });
+  result = run(oldNode);
+  assert.notEqual(result.status, 0);
+  assert.match(result.output, /Node >= 22\.5 is required/);
+  assert.deepEqual(commands(oldNode), []);
 
   const linked = fixture();
   const linkTarget = join(linked, 'linked-modules');
