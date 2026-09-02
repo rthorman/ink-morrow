@@ -3,7 +3,11 @@
 // persisted presentation preferences. Every change saves immediately.
 
 import { formatUsd } from '../core/dom.js';
-import { ROUGH_NARRATION_PAGE_ESTIMATE, ROUGH_TEXT_CALL_ESTIMATE } from '../core/cost.js';
+import {
+  estimatePageCost,
+  ROUGH_NARRATION_PAGE_ESTIMATE,
+  ROUGH_TEXT_CALL_ESTIMATE,
+} from '../core/cost.js';
 import { STORY_FONTS } from '../core/state.js';
 
 export function createSettings({ api, state, notify, shell }) {
@@ -153,9 +157,16 @@ export function createSettings({ api, state, notify, shell }) {
       const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k ctx` : 'ctx n/a';
       const defaultMark = m.is_default ? ' · server default' : '';
       const hasCataloguePrice = Number.isFinite(m.pricing?.prompt_per_mtok) || Number.isFinite(m.pricing?.completion_per_mtok);
+      const words = Number.isFinite(state.settings.wordsPerPage) ? state.settings.wordsPerPage : 400;
+      const pageEstimate = estimatePageCost({
+        models: [m],
+        model: m.id,
+        wordsPerPage: words,
+        pageChars: words * 6,
+      });
       meta.textContent = hasCataloguePrice
-        ? `${ctx}${defaultMark} · in ${formatUsd(m.pricing?.prompt_per_mtok)}/1M · out ${formatUsd(m.pricing?.completion_per_mtok)}/1M`
-        : `${ctx}${defaultMark} · rough page ballpark ≈${formatUsd(ROUGH_TEXT_CALL_ESTIMATE)} until pricing loads`;
+        ? `${ctx}${defaultMark} · ≈${formatUsd(pageEstimate)} per ${words}-word writing page`
+        : `${ctx}${defaultMark} · ≈${formatUsd(ROUGH_TEXT_CALL_ESTIMATE)} per ${words}-word writing page (rough ballpark until pricing loads)`;
       item.append(name, id, meta);
 
       item.addEventListener('click', () => {
@@ -335,7 +346,10 @@ export function createSettings({ api, state, notify, shell }) {
     if (tickerToggle) tickerToggle.addEventListener('change', () => state.setSetting('costTicker', tickerToggle.checked));
     const wordsInput = document.getElementById('wordsPerPageInput');
     if (wordsInput) {
-      wordsInput.addEventListener('change', () => state.setSetting('wordsPerPage', wordsInput.value));
+      wordsInput.addEventListener('change', () => {
+        state.setSetting('wordsPerPage', wordsInput.value);
+        if (state.modelsCache) renderModelList();
+      });
     }
     const fontSizeSelect = document.getElementById('fontSizeSelect');
     if (fontSizeSelect) {
