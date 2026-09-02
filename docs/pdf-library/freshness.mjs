@@ -9,8 +9,8 @@ const root = path.resolve(here, '../..');
 const manifestPath = path.join(here, 'generated.json');
 const write = process.argv.includes('--write');
 const strict = process.argv.includes('--strict');
-const sourceRoots = ['docs/pdf-library/books.mjs','docs/pdf-library/markdown.mjs','docs/pdf-library/render.mjs','docs/pdf-library/theme.css','docs/pdf-library/sources','docs/user-guide/index.html','docs/user-guide/render.mjs','docs/screenshots','frontend/brand','frontend/fonts'];
-const outputs = ['docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf','docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf','docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf','docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf','docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf','docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf'];
+const sourceRoots = ['docs/pdf-library/books.mjs','docs/pdf-library/markdown.mjs','docs/pdf-library/render.mjs','docs/pdf-library/theme.css','docs/pdf-library/sources','docs/screenshots','frontend/brand','frontend/fonts'];
+const outputs = ['docs/pdf/Ink-Morrow-4.0-User-Guide.pdf','docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf','docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf','docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf','docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf','docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf'];
 
 async function filesUnder(relative) {
   const absolute = path.join(root, relative);

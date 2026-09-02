@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
-  <a href="docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf">User guide</a> ·
+  <a href="docs/pdf/Ink-Morrow-4.0-User-Guide.pdf">User guide</a> ·
   <a href="#documentation-library">Documentation library</a> ·
   <a href="#screenshots">Screenshots</a> ·
   <a href="docs/releases/4.0.0/OPERATIONS.md">Operations</a> ·
@@ -58,7 +58,7 @@ installation, backup, restore, and sharing guidance is in
 current beta limits in
 [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
-The task-oriented [Ink Morrow 4.0 User Guide](docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf)
+The task-oriented [Ink Morrow 4.0 User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf)
 explains the main authoring flows with the approved interface and branding.
 
 ## Documentation library
@@ -69,7 +69,7 @@ practice so each audience can get to the useful answer quickly.
 
 | Book | Use it for |
 |---|---|
-| [User Guide](docs/user-guide/Ink-Morrow-4.0-User-Guide.pdf) | Everyday authoring, Chronicle, Codex, Gallery, Gate, and Scriptorium lore |
+| [User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf) | Everyday authoring, Chronicle, Codex, Gallery, Gate, and Scriptorium lore |
 | [Operations & Recovery Handbook](docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf) | Installation, configuration, HTTPS, backup, update, diagnosis, and restore |
 | [System Architecture & Design Rationale](docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf) | System boundaries, canon transactions, storage, publication, and design decisions |
 | [State Machine & Invariant Atlas](docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf) | Durable states, guards, retry/restart behavior, invariants, and test traceability |

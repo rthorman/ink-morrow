@@ -8,6 +8,7 @@ Scriptorium art for denser technical writing.
 
 | Book | Primary reader |
 |---|---|
+| User Guide | Authors using Ink Morrow |
 | Operations & Recovery Handbook | Owner-operator |
 | System Architecture & Design Rationale | Maintainer and technical reviewer |
 | State Machine & Invariant Atlas | Implementer, tester, incident investigator |
@@ -59,5 +60,9 @@ After every source or theme change:
    product naming.
 6. Keep the PDFs and sources in the same pull request.
 
-The User Guide is maintained separately under [`docs/user-guide/`](../user-guide/)
-but uses the same publication family and is part of the six-book render set.
+The User Guide keeps its art-directed fixed-page HTML source in
+[`sources/user-guide.html`](sources/user-guide.html), while the five denser
+technical books use Markdown sources plus the shared theme. All six books are
+declared in [`books.mjs`](books.mjs), rendered through the same
+[`render.mjs`](render.mjs) entry point, published together in
+[`docs/pdf/`](../pdf/), and covered by the same freshness manifest and QA pass.
