@@ -339,11 +339,12 @@ test.describe('Ink Morrow UI', () => {
     expect(await page.locator('#reasoningSelect option').evaluateAll((options) => options.map((option) => option.value)))
       .toEqual(['max', 'high', 'low']);
 
-    // Search + per-model cost are visible
+    // Search + an author-facing per-page estimate are visible.
     await page.locator('.model-disclosure summary').click();
     await page.fill('#modelSearch', 'other');
     await expect(page.locator('#modelList .model-item')).toHaveCount(1);
-    await expect(page.locator('#modelList .model-item')).toContainText('$10.00');
+    await expect(page.locator('#modelList .model-item'))
+      .toContainText('≈$0.0360 per 400-word writing page');
 
     // Selecting a model updates the label
     await page.locator('#modelList .model-item').click();

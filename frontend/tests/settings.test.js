@@ -56,7 +56,8 @@ describe('Model picker', () => {
     fw.renderModelList();
     let items = document.querySelectorAll('#modelList .model-item');
     expect(items).toHaveLength(2);
-    expect(items[0].textContent).toContain('$1.50');
+    expect(items[0].textContent).toContain('≈$0.0039 per 400-word writing page');
+    expect(items[0].textContent).not.toContain('/1M');
     expect(items[0].textContent).toContain('128k ctx');
 
     document.getElementById('modelSearch').value = 'other';
@@ -72,6 +73,23 @@ describe('Model picker', () => {
     document.getElementById('modelResetBtn').click();
     expect(fw.state().settings.model).toBeNull();
     expect(document.getElementById('currentModel').textContent).toContain('server default');
+  });
+
+  it('recalculates model-list page prices when the page-length setting changes', async () => {
+    mockModels();
+    const fw = await loadScript();
+
+    await fw.loadModels();
+    fw.renderModelList();
+    expect(document.querySelector('#modelList .model-item').textContent)
+      .toContain('≈$0.0039 per 400-word writing page');
+
+    const words = document.getElementById('wordsPerPageInput');
+    words.value = '800';
+    words.dispatchEvent(new Event('change'));
+
+    expect(document.querySelector('#modelList .model-item').textContent)
+      .toContain('≈$0.0060 per 800-word writing page');
   });
 
   it('sends the selected model with generate requests', async () => {
