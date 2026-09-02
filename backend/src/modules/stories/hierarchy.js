@@ -1,10 +1,8 @@
 'use strict';
 
-// PR 02 manuscript hierarchy. The new tables are authoritative for structure
-// and stable identity; story_pages remains the compatibility prose/accounting
-// row until PR 03 moves content to immutable page revisions. A committed page
-// deliberately uses the same opaque id in both tables so later migrations can
-// retire that seam without changing links, continuity provenance, or media.
+// Manuscript hierarchy owns stable structural identity. Prose and generation
+// accounting live only in immutable revisions; manuscript_pages is the
+// read-only ordered projection used at API boundaries.
 
 const { randomUUID } = require('node:crypto');
 
@@ -82,8 +80,7 @@ function createHierarchyStore(db) {
   }
 
   // Called inside the story-creation/page-write transaction. It also repairs
-  // a manually inserted compatibility story if an old test/admin seam reaches
-  // a page write without structure.
+  // a story whose empty structural containers were removed manually.
   function ensureDefaultInTransaction(storyId) {
     let volume = activeVolume(storyId);
     if (!volume) {
@@ -160,23 +157,21 @@ function createHierarchyStore(db) {
     for (const chapter of chapters) volumeById.get(chapter.volume_id)?.chapters.push(chapter);
 
     const pages = db.prepare(`
-      SELECT p.id, p.chapter_id, p.ordinal, p.created_at, p.updated_at,
-             p.canonical_revision_id, p.display_revision_id, sp.image_media_type,
-             SUBSTR(COALESCE(display_revision.content, sp.content, ''), 1, 240) AS excerpt,
-             COALESCE(delta.status, legacy.status, 'pending') AS continuity_status,
-             COALESCE(delta.error, legacy.error) AS continuity_error,
-             delta.error_code AS continuity_error_code,
-             COALESCE(delta.model, legacy.model, sp.continuity_model) AS continuity_model,
+       SELECT p.id, p.chapter_id, p.ordinal, p.created_at, p.updated_at,
+              p.canonical_revision_id, p.display_revision_id, NULL AS image_media_type,
+              SUBSTR(COALESCE(display_revision.content, ''), 1, 240) AS excerpt,
+              COALESCE(delta.status, 'pending') AS continuity_status,
+              delta.error AS continuity_error,
+              delta.error_code AS continuity_error_code,
+              delta.model AS continuity_model,
              (SELECT COUNT(*)
                 FROM asset_placements placement
                WHERE placement.story_id = v.story_id AND placement.after_page_id = p.id) AS art_count
         FROM pages p
         JOIN chapters c ON c.id = p.chapter_id
         JOIN volumes v ON v.id = c.volume_id
-        LEFT JOIN story_pages sp ON sp.id = p.id AND sp.story_id = v.story_id
         LEFT JOIN page_revisions display_revision ON display_revision.id = p.display_revision_id
         LEFT JOIN continuity_deltas delta ON delta.revision_id = p.canonical_revision_id
-        LEFT JOIN story_memory_pages legacy ON legacy.page_id = p.id
        WHERE v.story_id = ?
        ORDER BY v.ordinal, c.ordinal, p.ordinal
     `).all(storyId);
@@ -234,30 +229,30 @@ function createHierarchyStore(db) {
 
   function stablePage(storyId, pageId) {
     const row = db.prepare(`
-      SELECT sp.*, p.ordinal AS hierarchy_ordinal,
+      SELECT projected.*, p.ordinal AS hierarchy_ordinal,
              c.id AS chapter_id, c.ordinal AS chapter_ordinal, c.title AS chapter_title,
              v.id AS volume_id, v.ordinal AS volume_ordinal, v.title AS volume_title
         FROM pages p
         JOIN chapters c ON c.id = p.chapter_id
         JOIN volumes v ON v.id = c.volume_id
-        LEFT JOIN story_pages sp ON sp.id = p.id AND sp.story_id = v.story_id
+        JOIN manuscript_pages projected ON projected.id = p.id AND projected.story_id = v.story_id
        WHERE v.story_id = ? AND p.id = ?
     `).get(storyId, pageId);
     if (!row) return null;
     const previous = row.page_number > 1
-      ? db.prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number = ?').get(storyId, row.page_number - 1)
+      ? db.prepare('SELECT id FROM manuscript_pages WHERE story_id = ? AND page_number = ?').get(storyId, row.page_number - 1)
       : null;
     const next = Number.isSafeInteger(row.page_number)
-      ? db.prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number = ?').get(storyId, row.page_number + 1)
+      ? db.prepare('SELECT id FROM manuscript_pages WHERE story_id = ? AND page_number = ?').get(storyId, row.page_number + 1)
       : null;
-    const compatibilityFields = [
+    const pageFields = [
       'id', 'story_id', 'page_number', 'content', 'user_input', 'model',
       'prompt_tokens', 'completion_tokens', 'cost_usd', 'image_media_type',
       'image_prompt', 'continuity_model', 'continuity_prompt_tokens',
       'continuity_completion_tokens', 'continuity_cost_usd', 'created_at',
     ];
     const page = {};
-    for (const field of compatibilityFields) page[field] = row[field] ?? null;
+    for (const field of pageFields) page[field] = row[field] ?? null;
     page.id = page.id || pageId;
     page.story_id = page.story_id || storyId;
     return {

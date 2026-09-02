@@ -55,21 +55,20 @@ function createRevisionStore(db, {
   const days = retentionDays(recoveryRetentionDays);
 
   const getPlacement = db.prepare(`
-    SELECT p.*, sp.story_id, sp.page_number, sp.content, sp.user_input,
-           sp.model, sp.prompt_tokens, sp.completion_tokens, sp.cost_usd,
-           sp.image_media_type, sp.image_prompt
+    SELECT p.*, projected.story_id, projected.page_number, projected.content,
+           projected.user_input, projected.model, projected.prompt_tokens,
+           projected.completion_tokens, projected.cost_usd,
+           projected.image_media_type, projected.image_prompt
       FROM pages p
-      JOIN chapters c ON c.id = p.chapter_id
-      JOIN volumes v ON v.id = c.volume_id
-      JOIN story_pages sp ON sp.id = p.id AND sp.story_id = v.story_id
-     WHERE v.story_id = ? AND p.id = ?
+      JOIN manuscript_pages projected ON projected.id = p.id
+     WHERE projected.story_id = ? AND p.id = ?
   `);
   const getRevision = db.prepare('SELECT * FROM page_revisions WHERE id = ?');
   const insertRevision = db.prepare(`
     INSERT INTO page_revisions
       (id, page_id, parent_revision_id, kind, content, direction, source,
-       model, prompt_tokens, completion_tokens, cost_usd, scribe_binding_id, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       model, prompt_tokens, completion_tokens, cost_usd, cost_known, scribe_binding_id, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const setPointers = db.prepare(`
     UPDATE pages
@@ -125,7 +124,8 @@ function createRevisionStore(db, {
     insertRevision.run(
       id, pageId, null, 'canonical', content, direction,
       ['author', 'ai', 'import', 'migration'].includes(source) ? source : 'author',
-      model, promptTokens, completionTokens, Number(costUsd) || 0, scribeBindingId, timestamp
+      model, promptTokens, completionTokens, Number(costUsd) || 0,
+      costUsd === null || costUsd === undefined ? 0 : 1, scribeBindingId, timestamp
     );
     setPointers.run(id, id, timestamp, pageId);
     return getRevision.get(id);
@@ -178,9 +178,9 @@ function createRevisionStore(db, {
 
   function activeTailId(storyId) {
     return db.prepare(`
-      SELECT sp.id FROM story_pages sp
-       WHERE sp.story_id = ?
-       ORDER BY sp.page_number DESC LIMIT 1
+      SELECT id FROM manuscript_pages
+       WHERE story_id = ?
+       ORDER BY page_number DESC LIMIT 1
     `).get(storyId)?.id || null;
   }
 
@@ -222,22 +222,15 @@ function createRevisionStore(db, {
     insertRevision.run(
       revisionId, pageId, current.id, 'canonical', content, direction,
       source === 'ai' ? 'ai' : 'author', model, promptTokens, completionTokens,
-      Number(costUsd) || 0, scribeBindingId, timestamp
+      Number(costUsd) || 0, costUsd === null || costUsd === undefined ? 0 : 1,
+      scribeBindingId, timestamp
     );
     setPointers.run(revisionId, revisionId, timestamp, pageId);
-    db.prepare(`
-      UPDATE story_pages
-         SET content = ?, user_input = ?, model = ?, prompt_tokens = ?,
-             completion_tokens = ?, cost_usd = ?,
-             continuity_model = NULL, continuity_prompt_tokens = NULL,
-             continuity_completion_tokens = NULL, continuity_cost_usd = 0
-       WHERE id = ?
-    `).run(content, direction, model, promptTokens, completionTokens, Number(costUsd) || 0, pageId);
     db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
     db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
     db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
     const result = {
-      page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(pageId),
+      page: db.prepare('SELECT * FROM manuscript_pages WHERE id = ?').get(pageId),
       revision: getRevision.get(revisionId),
       canonical_revision_id: revisionId,
       display_revision_id: revisionId,
@@ -272,18 +265,14 @@ function createRevisionStore(db, {
       const timestamp = now();
       insertRevision.run(
         revisionId, pageId, parent.id, 'copyedit', content, null,
-        'author', null, null, null, 0, null, timestamp
+        'author', null, null, null, 0, 1, null, timestamp
       );
       setPointers.run(canonical.id, revisionId, timestamp, pageId);
-      // story_pages is the temporary read/export projection. The v3 trigger
-      // sees differing canonical/display pointers and deliberately preserves
-      // the established continuity row for this display-only edit.
-      db.prepare('UPDATE story_pages SET content = ? WHERE id = ?').run(content, pageId);
       db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
       db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
       db.prepare('UPDATE stories SET updated_at = ? WHERE id = ?').run(timestamp, storyId);
       result = {
-        page: db.prepare('SELECT * FROM story_pages WHERE id = ?').get(pageId),
+        page: db.prepare('SELECT * FROM manuscript_pages WHERE id = ?').get(pageId),
         revision: getRevision.get(revisionId),
         canonical_revision_id: canonical.id,
         display_revision_id: revisionId,
@@ -383,7 +372,7 @@ function createRevisionStore(db, {
     const placeholders = ids.map(() => '?').join(',');
     const select = (sql) => ids.length ? db.prepare(sql.replace('PAGE_IDS', placeholders)).all(...ids) : [];
     return {
-      version: 1,
+      version: 2,
       story_id: storyId,
       anchor_page_id: anchor.id,
       anchor_page_number: anchor.page_number,
@@ -391,11 +380,8 @@ function createRevisionStore(db, {
       removed_range: { first: doomed[0].page_number, last: doomed.at(-1).page_number },
       undo_sha256: undoHash,
       undo_expires_at: undoExpiresAt,
-      pages: doomed,
       placements: select(`SELECT * FROM pages WHERE id IN (PAGE_IDS) ORDER BY rowid`),
       revisions: select(`SELECT * FROM page_revisions WHERE page_id IN (PAGE_IDS) ORDER BY created_at, rowid`),
-      memory: select(`SELECT * FROM story_memory_pages WHERE page_id IN (PAGE_IDS) ORDER BY created_at, page_id`),
-      memory_search: select(`SELECT * FROM story_memory_search WHERE page_id IN (PAGE_IDS) ORDER BY page_id`),
       continuity_deltas: select(`SELECT * FROM continuity_deltas WHERE revision_id IN (
         SELECT id FROM page_revisions WHERE page_id IN (PAGE_IDS)
       ) ORDER BY created_at, revision_id`),
@@ -415,11 +401,11 @@ function createRevisionStore(db, {
     let mutated = false;
     hierarchy.inImmediateTransaction(() => {
       const anchor = db.prepare(`
-        SELECT sp.* FROM story_pages sp WHERE sp.story_id = ? AND sp.page_number = ?
+        SELECT * FROM manuscript_pages WHERE story_id = ? AND page_number = ?
       `).get(storyId, after);
       if (!anchor) throw conflict('The selected page is not in the current canonical chain.', 'INVALID_ANCHOR');
       const doomed = db.prepare(`
-        SELECT * FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number
+        SELECT * FROM manuscript_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number
       `).all(storyId, after);
       if (!doomed.length) {
         result = { deleted: 0, remaining: after };
@@ -436,7 +422,6 @@ function createRevisionStore(db, {
       const deletePlacement = db.prepare('DELETE FROM pages WHERE id = ?');
       for (const page of doomed) clearPointers.run(page.id);
       for (const page of doomed) deletePlacement.run(page.id);
-      db.prepare('DELETE FROM story_pages WHERE story_id = ? AND page_number > ?').run(storyId, after);
       db.prepare('DELETE FROM story_previews WHERE story_id = ?').run(storyId);
       db.prepare('DELETE FROM prepared_pages WHERE story_id = ?').run(storyId);
       payload.head_fingerprint = chainFingerprint(storyId);
@@ -509,7 +494,9 @@ function createRevisionStore(db, {
         throw conflict('This recovery suffix has expired.', 'RECOVERY_EXPIRED');
       }
       const payload = parseJson(row.payload_json);
-      if (!payload || payload.version !== 1) throw conflict('Recovery package is unreadable.', 'INVALID_RECOVERY');
+      if (!payload || ![1, 2].includes(payload.version)) {
+        throw conflict('Recovery package is unreadable.', 'INVALID_RECOVERY');
+      }
       if (undoToken) {
         if (payload.undo_expires_at <= timestamp || !safeEqual(sha256(undoToken), payload.undo_sha256)) {
           throw conflict('The immediate undo token is invalid or expired.', 'UNDO_EXPIRED');
@@ -522,23 +509,27 @@ function createRevisionStore(db, {
         );
       }
 
-      for (const page of payload.pages) {
-        const fields = Object.keys(page);
-        db.prepare(`INSERT INTO story_pages (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`)
-          .run(...fields.map((field) => page[field]));
-      }
       for (const placement of payload.placements) {
         db.prepare(`
           INSERT INTO pages (id, chapter_id, ordinal, canonical_revision_id, display_revision_id, created_at, updated_at)
           VALUES (?, ?, ?, NULL, NULL, ?, ?)
         `).run(placement.id, placement.chapter_id, placement.ordinal, placement.created_at, placement.updated_at);
       }
+      const legacyPageById = new Map((payload.pages || []).map((page) => [page.id, page]));
+      const placementById = new Map(payload.placements.map((page) => [page.id, page]));
       for (const revision of orderedRevisions(payload.revisions)) {
         const fields = [
           'id', 'page_id', 'parent_revision_id', 'kind', 'content', 'direction',
-          'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd', 'scribe_binding_id', 'created_at',
+          'source', 'model', 'prompt_tokens', 'completion_tokens', 'cost_usd', 'cost_known',
+          'scribe_binding_id', 'created_at',
         ];
-        insertRevision.run(...fields.map((field) => revision[field]));
+        insertRevision.run(...fields.map((field) => {
+          if (field !== 'cost_known') return revision[field];
+          if (revision[field] !== undefined && revision[field] !== null) return revision[field];
+          const legacyPage = legacyPageById.get(revision.page_id);
+          const placement = placementById.get(revision.page_id);
+          return placement?.canonical_revision_id === revision.id && legacyPage?.cost_usd === null ? 0 : 1;
+        }));
       }
       for (const placement of payload.placements) {
         setPointers.run(
@@ -547,15 +538,6 @@ function createRevisionStore(db, {
           placement.updated_at,
           placement.id
         );
-      }
-      for (const memory of payload.memory || []) {
-        const fields = Object.keys(memory);
-        db.prepare(`INSERT INTO story_memory_pages (${fields.join(', ')}) VALUES (${fields.map(() => '?').join(', ')})`)
-          .run(...fields.map((field) => memory[field]));
-      }
-      for (const search of payload.memory_search || []) {
-        db.prepare('INSERT INTO story_memory_search (page_id, story_id, content) VALUES (?, ?, ?)')
-          .run(search.page_id, search.story_id, search.content);
       }
       for (const delta of payload.continuity_deltas || []) {
         const fields = Object.keys(delta);
@@ -626,7 +608,8 @@ function createRevisionStore(db, {
   function recoveryPageIds(storyId) {
     const ids = new Set();
     for (const row of db.prepare('SELECT payload_json FROM recovery_suffixes WHERE story_id = ?').all(storyId)) {
-      for (const page of parseJson(row.payload_json, {})?.pages || []) ids.add(page.id);
+      const payload = parseJson(row.payload_json, {});
+      for (const page of payload?.pages || payload?.placements || []) ids.add(page.id);
     }
     return [...ids];
   }

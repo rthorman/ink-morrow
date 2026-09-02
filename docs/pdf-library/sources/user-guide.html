@@ -195,9 +195,9 @@
       <div class="kicker">The author’s field guide</div>
       <h1>User Guide</h1>
       <p class="subtitle">Write, remember, illuminate, bind-and keep every story under your control.</p>
-      <p class="edition">4.0 beta · single-owner self-hosted edition</p>
+      <p class="edition">4.1 · single-owner self-hosted edition</p>
     </div>
-    <div class="version">Ink Morrow 4.0.0-beta.1 · September 2026</div>
+    <div class="version">Ink Morrow 4.1.0 · September 2026</div>
   </section>
 
   <section class="page" aria-labelledby="start-title">
@@ -206,8 +206,8 @@
     <h2 id="start-title">Know the shape of the Scriptorium</h2>
     <p class="dek">Ink Morrow is a self-hosted, single-owner environment for <strong>human-led, AI-collaborative writing</strong>. You supply intent, taste, direction, revision, and the final word on canon; the Scribe accelerates drafting, continuity work, illustration, and narration without taking ownership of the manuscript.</p>
     <div class="callout warning">
-      <span class="label">4.0 clean break</span>
-      Start with a <strong>new, empty <code>DATA_DIR</code></strong>. Never point 4.0 at a 3.x database. Keep the historical 3.2.2 build and its data intact for historical work; there is no in-place migration.
+      <span class="label">Know your data line</span>
+      A new 4.x installation needs an <strong>empty <code>DATA_DIR</code></strong>; never point it at 3.x. A valid 4.0.x installation upgrades to 4.1 in place only after a full Gate backup and a cold copy of the stopped data directory.
     </div>
     <div class="flow six" aria-label="The main author journey">
       <div class="node">Library</div><div class="node">Desk</div><div class="node">Chronicle</div><div class="node">Codex</div><div class="node">Gallery</div><div class="node">Gate</div>
@@ -241,7 +241,7 @@
       <div class="toc-item"><span class="n">A</span><b>Lore of the Scriptorium</b><span class="p">20</span></div>
       <div class="toc-item"><span class="n">B</span><b>Choosing AI models</b><span class="p">21-25</span></div>
     </div>
-    <div class="folio"><span><strong>USER GUIDE</strong> · 4.0 beta</span><span>2</span></div>
+    <div class="folio"><span><strong>USER GUIDE</strong> · 4.1</span><span>2</span></div>
   </section>
 
   <section class="page page--tight" aria-labelledby="install-title">
@@ -257,9 +257,9 @@ $EDITOR backend/.env
     <p>Open <code>http://localhost:3000</code>. On the first launch, the terminal prints a one-time setup code. Enter it in the browser, then choose a distinctive password or passphrase of <strong>15-128 characters</strong>.</p>
     <div class="cols-2">
       <div>
-        <h3>Before starting 4.0</h3>
+        <h3>Before starting 4.1</h3>
         <ol class="steps">
-          <li>Create a new empty data directory. If the checkout already has 3.x data, set <code>DATA_DIR=../database-v4</code> in <code>backend/.env</code>.</li>
+          <li>For a new install, create an empty data directory. For an existing 4.0.x install, back it up in Gate, stop the app, and cold-copy its complete data directory before updating.</li>
           <li>Configure a provider key for the core collaborative workflow. Local writing and project care remain available without one.</li>
           <li>Start the server and keep the terminal available for status and recovery.</li>
         </ol>
@@ -549,9 +549,9 @@ $EDITOR backend/.env
     </div>
     <h3>Before an upgrade</h3>
     <ol class="steps"><li>Record the installed commit, Node version, and data paths.</li><li>Finish active provider/publication jobs and create a full Gate backup.</li><li>Stop Ink Morrow and make a dated cold copy of the complete data directory.</li><li>Install the reviewed release and validate the catalogue before resuming work.</li></ol>
-    <h3>Restore a 4.0 backup</h3>
-    <ol class="steps"><li>Start 4.0 with a new, empty <code>DATA_DIR</code>.</li><li>Open Gate and preflight the archive.</li><li>Review exposure and collisions; choose <strong>Replace everything</strong> only for an intentional full restore.</li><li>Verify hierarchy, revisions, continuity, media, prepared work, snapshots, and settings.</li><li>Export again and compare with the source evidence.</li></ol>
-    <div class="callout warning"><span class="label">Never mix generations</span>Ink Morrow 4.0 does not open 3.x databases or import format-v1 archives. Never combine a database from one backup with media or transfer directories from another.</div>
+    <h3>Restore a 4.x backup</h3>
+    <ol class="steps"><li>Start 4.1 with a new, empty <code>DATA_DIR</code>.</li><li>Open Gate and preflight the archive.</li><li>Review exposure and collisions; choose <strong>Replace everything</strong> only for an intentional full restore.</li><li>Verify hierarchy, revisions, continuity, media, prepared work, snapshots, and settings.</li><li>Export again and compare with the source evidence.</li></ol>
+    <div class="callout warning"><span class="label">Never mix generations</span>4.1 upgrades a valid 4.0.x database in place but does not open 3.x databases or import format-v1 archives. Never combine a database from one backup with media or transfer directories from another.</div>
     <h3>What the portable archive deliberately omits</h3>
     <p>Passwords, sessions, provider secrets, remembered paid consent, recovery credentials, and public-share capabilities/records. The archive itself is not encrypted.</p>
     <div class="folio"><span><strong>09</strong> · Backup & restore</span><span>16</span></div>
@@ -596,7 +596,7 @@ $EDITOR backend/.env
     <table class="decision-table">
       <thead><tr><th>Symptom</th><th>What to check</th></tr></thead>
       <tbody>
-        <tr><td>4.0 refuses to start</td><td>Confirm Node 22.5+ and a new empty <code>DATA_DIR</code>; do not reuse a 3.x database.</td></tr>
+        <tr><td>4.1 refuses to start</td><td>Preserve the exact error. Confirm Node 22.5+ and the intended 4.0.x or empty 4.x <code>DATA_DIR</code>; never substitute a 3.x database.</td></tr>
         <tr><td>Unlock fails repeatedly</td><td>Wait for the temporary throttle, verify the password, or use terminal recovery after stopping the server.</td></tr>
         <tr><td>AI action is unavailable</td><td>Open Settings; confirm provider profile, credential source, vault unlock, model role, and network access.</td></tr>
         <tr><td>Next Page is disabled</td><td>A successor may still be preparing. Do not start a competing request.</td></tr>
@@ -614,7 +614,7 @@ $EDITOR backend/.env
     <div class="kicker">10 · Leave this page near the Desk</div><h2 id="reference-title">A safe author’s checklist</h2>
     <div class="cols-2">
       <div>
-        <h3>Before writing</h3><ul class="checklist"><li>4.0 uses a new empty data directory.</li><li>The provider key has a hard spend limit.</li><li>The correct manuscript is selected.</li><li>World and cast snapshots are the intended ones.</li></ul>
+        <h3>Before writing</h3><ul class="checklist"><li>The intended 4.x data directory is active.</li><li>The provider key has a hard spend limit.</li><li>The correct manuscript is selected.</li><li>World and cast snapshots are the intended ones.</li></ul>
         <h3>During writing</h3><ul class="checklist"><li>Empty direction commits the waiting page.</li><li>Typed direction deliberately requests a replacement.</li><li>Copyedit changes prose, not remembered canon.</li><li>Return manuscript removes later canon with bounded recovery.</li></ul>
         <h3>Before sharing</h3><ul class="checklist"><li>The snapshot revision and included art are correct.</li><li>HTTPS is configured and logs omit capability headers.</li><li>The recipient and expiry are appropriate.</li><li>The link will be revoked when no longer needed.</li></ul>
       </div>
@@ -625,11 +625,11 @@ $EDITOR backend/.env
           <li><a href="https://github.com/rthorman/ink-morrow/blob/main/README.md">README - install and feature overview</a></li>
           <li><a href="https://github.com/rthorman/ink-morrow/blob/main/SECURITY.md">Security boundary and safe networking</a></li>
           <li><a href="https://github.com/rthorman/ink-morrow/blob/main/PRIVACY.md">Self-hosted privacy notice</a></li>
-          <li><a href="https://github.com/rthorman/ink-morrow/blob/main/docs/releases/4.0.0/OPERATIONS.md">Operations, backup, restore, and sharing</a></li>
+          <li><a href="https://github.com/rthorman/ink-morrow/blob/main/docs/releases/4.1.0/README.md">4.1 upgrade and rollback runbook</a></li>
           <li><a href="https://github.com/rthorman/ink-morrow/blob/main/docs/releases/4.0.0/KNOWN-ISSUES.md">Current beta limits</a></li>
           <li><a href="https://github.com/rthorman/ink-morrow/blob/main/docs/releases/4.0.0/RELEASE-NOTES.md">4.0.0-beta.1 release notes</a></li>
         </ul>
-        <div class="callout"><span class="label">Version</span>This guide describes <strong>Ink Morrow 4.0.0-beta.1</strong>. Interface details can change during the beta; consult the documentation shipped with the installed tag.</div>
+        <div class="callout"><span class="label">Version</span>This guide describes <strong>Ink Morrow 4.1.0</strong>. Consult the documentation shipped with the installed tag before an update or restore.</div>
       </div>
     </div>
     <div style="margin-top:10mm;text-align:center">

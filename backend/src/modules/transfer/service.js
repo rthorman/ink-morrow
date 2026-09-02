@@ -13,13 +13,11 @@ const {
   SCRIBE_REVISION_FIELDS,
   SCRIBE_BINDING_FIELDS,
   STORY_FIELDS,
-  PAGE_FIELDS,
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
-  MEMORY_FIELDS,
   CONTINUITY_DELTA_FIELDS,
   TEMPLATE_SNAPSHOT_FIELDS,
   CORRECTION_FIELDS,
@@ -219,8 +217,8 @@ function createTransferService({
       };
     }
     return {
-      pages: db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(id).c,
-      continuity_rows: db.prepare('SELECT COUNT(*) AS c FROM story_memory_pages WHERE story_id = ?').get(id).c,
+      pages: db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(id).c,
+      continuity_rows: db.prepare('SELECT COUNT(*) AS c FROM continuity_deltas WHERE story_id = ?').get(id).c,
       has_audiobook: Boolean(db.prepare('SELECT 1 FROM audiobooks WHERE story_id = ?').get(id)),
     };
   }
@@ -306,7 +304,7 @@ function createTransferService({
           item.kind === 'image' && item.owner_kind === 'story' && item.owner_id === entity.id);
         descriptors.push(['cover', cover ? (local ? await hashFile(cover.path) : cover.sha256) : null]);
         const pages = local
-          ? db.prepare('SELECT id, page_number, image_media_type FROM story_pages WHERE story_id = ? ORDER BY page_number').all(id)
+          ? db.prepare('SELECT id, page_number, image_media_type FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(id)
           : entity.bundle.pages;
         for (const page of pages.filter((item) => item.image_media_type)) {
           const asset = local ? imageStore.fileInfo('page', page.id) : imported.assets.find((item) =>
@@ -550,7 +548,7 @@ function createTransferService({
       }
       for (const page of entity.bundle.pages) {
         let id = page.id;
-        const compatibilityOwner = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM story_pages WHERE id = ?').get(id);
+        const compatibilityOwner = mode === 'replace_all' ? null : db.prepare('SELECT story_id FROM manuscript_pages WHERE id = ?').get(id);
         const hierarchyOwner = mode === 'replace_all' ? null : db.prepare(`
           SELECT v.story_id FROM pages p
           JOIN chapters c ON c.id = p.chapter_id
@@ -618,7 +616,7 @@ function createTransferService({
       if (entity.kind === 'world' || entity.kind === 'character' || entity.kind === 'scribe') paths.push(...imageStore.pathsFor(entity.kind, entity.id));
       if (entity.kind === 'story') {
         paths.push(...imageStore.pathsFor('story', entity.id));
-        const oldPages = db.prepare('SELECT id FROM story_pages WHERE story_id = ?').all(entity.id);
+        const oldPages = db.prepare('SELECT id FROM manuscript_pages WHERE story_id = ?').all(entity.id);
         for (const page of oldPages) paths.push(...imageStore.pathsFor('page', page.id));
         paths.push(...artStore.pathsForStory(entity.id));
         paths.push(path.join(audioDir, `${entity.id}.mp3`), path.join(audioDir, `${entity.id}.mp3.tmp`));
@@ -781,7 +779,6 @@ function createTransferService({
           id: maps.page.get(pageSource.id),
           story_id: storyId,
         };
-        insertOrUpdate(db, 'story_pages', page, PAGE_FIELDS);
         importedPages.push(page);
       }
       if (entity.bundle.hierarchy) {
@@ -822,6 +819,8 @@ function createTransferService({
         importedPages.forEach((page, index) => insertPage.run(page.id, chapterId, index + 1));
       }
       if (entity.bundle.revisions?.length && entity.bundle.hierarchy) {
+        const hierarchyPageById = new Map(entity.bundle.hierarchy.pages.map((page) => [page.id, page]));
+        const portablePageById = new Map(entity.bundle.pages.map((page) => [page.id, page]));
         const pending = new Map(entity.bundle.revisions.map((revision) => [revision.id, revision]));
         while (pending.size) {
           let progressed = false;
@@ -837,8 +836,10 @@ function createTransferService({
               scribe_binding_id: revisionSource.scribe_binding_id
                 ? maps.scribeBinding.get(revisionSource.scribe_binding_id)
                 : null,
+              cost_known: hierarchyPageById.get(revisionSource.page_id)?.canonical_revision_id === sourceId &&
+                portablePageById.get(revisionSource.page_id)?.cost_usd === null ? 0 : 1,
             };
-            insertOrUpdate(db, 'page_revisions', revision, REVISION_FIELDS);
+            insertOrUpdate(db, 'page_revisions', revision, [...REVISION_FIELDS, 'cost_known']);
             pending.delete(sourceId);
             progressed = true;
           }
@@ -861,8 +862,8 @@ function createTransferService({
         const insertRevision = db.prepare(`
           INSERT INTO page_revisions
             (id, page_id, parent_revision_id, kind, content, direction, source,
-             model, prompt_tokens, completion_tokens, cost_usd, created_at)
-          VALUES (?, ?, NULL, 'canonical', ?, ?, 'import', ?, ?, ?, ?, ?)
+             model, prompt_tokens, completion_tokens, cost_usd, cost_known, created_at)
+          VALUES (?, ?, NULL, 'canonical', ?, ?, 'import', ?, ?, ?, ?, ?, ?)
         `);
         const setPointers = db.prepare(`
           UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?
@@ -873,6 +874,7 @@ function createTransferService({
           insertRevision.run(
             revisionId, page.id, page.content, page.user_input, page.model,
             page.prompt_tokens, page.completion_tokens, page.cost_usd || 0,
+            page.cost_usd === null ? 0 : 1,
             page.created_at
           );
           setPointers.run(revisionId, revisionId, page.id);
@@ -921,27 +923,6 @@ function createTransferService({
           source_template_id: sourceId,
         };
         insertOrReplace(db, 'template_snapshots', snapshot, TEMPLATE_SNAPSHOT_FIELDS);
-      }
-      for (const memorySource of entity.bundle.memory) {
-        const memory = {
-          ...memorySource,
-          page_id: maps.page.get(memorySource.page_id),
-          story_id: storyId,
-          delta_json: memorySource.delta_json
-            ? JSON.stringify(mapObjectIds(parseJson(memorySource.delta_json, {}), characterMap))
-            : null,
-        };
-        insertOrUpdate(db, 'story_memory_pages', memory, MEMORY_FIELDS, 'page_id');
-        if (memory.status === 'ready') {
-          const content = searchTextForMemory(memory);
-          db.prepare('INSERT OR REPLACE INTO story_memory_search (page_id, story_id, content) VALUES (?, ?, ?)')
-            .run(memory.page_id, storyId, content);
-          try {
-            db.prepare('DELETE FROM story_memory_fts WHERE page_id = ?').run(memory.page_id);
-            db.prepare('INSERT INTO story_memory_fts (page_id, story_id, content) VALUES (?, ?, ?)')
-              .run(memory.page_id, storyId, content);
-          } catch { /* LIKE search remains correct */ }
-        }
       }
       const importedDeltas = entity.bundle.continuity_deltas || [];
       if (importedDeltas.length) {

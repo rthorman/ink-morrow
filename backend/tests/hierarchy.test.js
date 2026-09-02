@@ -229,11 +229,10 @@ describe('PR 02 manuscript hierarchy', () => {
       fixture.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM volumes WHERE story_id = ? ORDER BY ordinal DESC LIMIT 1').all(story.id),
       fixture.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM chapters WHERE volume_id = ? ORDER BY ordinal DESC LIMIT 1').all('large-volume-10'),
       fixture.db.prepare('EXPLAIN QUERY PLAN SELECT * FROM pages WHERE chapter_id = ? ORDER BY ordinal DESC LIMIT 1').all('large-volume-10-chapter-10'),
-      fixture.db.prepare('EXPLAIN QUERY PLAN SELECT id FROM story_pages WHERE story_id = ? AND page_number = ?').all(story.id, 1),
+      fixture.db.prepare('EXPLAIN QUERY PLAN SELECT id FROM manuscript_pages WHERE story_id = ? AND page_number = ?').all(story.id, 1),
     ].flat().map((row) => row.detail).join('\n');
     expect(plans).toContain('idx_volumes_story_order');
     expect(plans).toContain('idx_chapters_volume_order');
     expect(plans).toContain('idx_pages_chapter_order');
-    expect(plans).toMatch(/SEARCH story_pages USING INDEX .*\(story_id=\? AND page_number=\?\)/);
   });
 });

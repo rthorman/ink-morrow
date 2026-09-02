@@ -1,6 +1,6 @@
 {
   "name": "ink-morrow-e2e",
-  "version": "4.0.0-beta.1",
+  "version": "4.1.0",
   "description": "End-to-end tests for Ink Morrow (Playwright)",
   "scripts": {
     "test": "node sweep-e2e-server.cjs && node run-playwright.cjs test --project=chromium && node sweep-e2e-server.cjs && node run-playwright.cjs test --project=\"Mobile Chrome\"",

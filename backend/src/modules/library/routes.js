@@ -46,7 +46,7 @@ function createLibraryRouter({ db, catalog, stories, continuity, publications, i
         })();
         const plates = platesByStory.get(story.id) || [];
         const firstPage = db.prepare(
-          "SELECT SUBSTR(content, 1, 1200) AS content FROM story_pages WHERE story_id = ? AND TRIM(content) <> '' ORDER BY page_number LIMIT 1"
+          "SELECT SUBSTR(content, 1, 1200) AS content FROM manuscript_pages WHERE story_id = ? AND TRIM(content) <> '' ORDER BY page_number LIMIT 1"
         ).get(story.id);
         const diskBytes =
           (coverImage ? coverImage.buffer.length : 0) +

@@ -13,10 +13,10 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
   const hierarchy = createHierarchyStore(db);
   const getStory = (id) => db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
   const storyPages = (storyId) =>
-    db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(storyId);
+    db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(storyId);
   const getPageByNumber = (storyId, number) =>
-    db.prepare('SELECT * FROM story_pages WHERE story_id = ? AND page_number = ?').get(storyId, number);
-  const getPageById = (id) => db.prepare('SELECT * FROM story_pages WHERE id = ?').get(id);
+    db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? AND page_number = ?').get(storyId, number);
+  const getPageById = (id) => db.prepare('SELECT * FROM manuscript_pages WHERE id = ?').get(id);
   // In-flight preview generation cannot be cancelled at the provider. Keep a
   // process-local context revision so a reply produced against an invalidated
   // story can be billed honestly without being allowed to resurrect itself in
@@ -28,10 +28,10 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
     ...story,
     characters: normalizeCast(JSON.parse(story.characters || '[]')),
     continuity_overrides: JSON.parse(story.continuity_overrides || '{}'),
-    page_count: db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(story.id).c,
+    page_count: db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(story.id).c,
     total_cost_usd:
       db.prepare(
-        'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM story_pages WHERE story_id = ?'
+        'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM manuscript_pages WHERE story_id = ?'
       ).get(story.id).s +
       db.prepare(
         "SELECT COALESCE(SUM(spend_usd), 0) AS s FROM assets WHERE story_id = ? AND status = 'ready' AND source = 'ai-generated'"
@@ -184,7 +184,6 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
   }
 
   function deleteStoryCascade(storyId) {
-    db.prepare('DELETE FROM story_pages WHERE story_id = ?').run(storyId);
     db.prepare('DELETE FROM stories WHERE id = ?').run(storyId);
   }
 
@@ -229,17 +228,15 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
 
   // -- pages ------------------------------------------------------------------
   function nextPageNumber(storyId) {
-    return db.prepare('SELECT COALESCE(MAX(page_number), 0) + 1 AS n FROM story_pages WHERE story_id = ?').get(storyId).n;
+    return db.prepare('SELECT COUNT(*) + 1 AS n FROM manuscript_pages WHERE story_id = ?').get(storyId).n;
   }
 
   function insertGeneratedPageInTransaction(storyId, {
     content, userInput, model, promptTokens, completionTokens, costUsd, pageNumber, scribeBindingId = null,
   }) {
     const id = randomUUID();
-    db.prepare(
-      'INSERT INTO story_pages (id, story_id, page_number, content, user_input, model, prompt_tokens, completion_tokens, cost_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).run(id, storyId, pageNumber ?? nextPageNumber(storyId), content, userInput ?? null,
-      model ?? null, promptTokens ?? null, completionTokens ?? null, costUsd ?? null);
+    const expectedPage = pageNumber ?? nextPageNumber(storyId);
+    if (expectedPage !== nextPageNumber(storyId)) throw new Error('The manuscript tail changed before the page could be stored');
     hierarchy.insertTailPageInTransaction(storyId, id);
     const revision = revisions.createInitialRevisionInTransaction(id, {
       content,
@@ -248,7 +245,7 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
       model: model ?? null,
       promptTokens: promptTokens ?? null,
       completionTokens: completionTokens ?? null,
-      costUsd: costUsd ?? 0,
+      costUsd,
       scribeBindingId,
     });
     db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
@@ -269,9 +266,6 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
   function insertManualPage(storyId, content, userInput) {
     const id = randomUUID();
     hierarchy.inImmediateTransaction(() => {
-      db.prepare('INSERT INTO story_pages (id, story_id, page_number, content, user_input) VALUES (?, ?, ?, ?, ?)').run(
-        id, storyId, nextPageNumber(storyId), content, userInput
-      );
       hierarchy.insertTailPageInTransaction(storyId, id);
       const revision = revisions.createInitialRevisionInTransaction(id, {
         content,
@@ -299,7 +293,7 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
       model: model ?? null,
       promptTokens: promptTokens ?? null,
       completionTokens: completionTokens ?? null,
-      costUsd: costUsd ?? 0,
+      costUsd,
     });
     return edited?.page || null;
   }
@@ -311,14 +305,8 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
   // the plate files keyed by them) keep their identity; only the deleted
   // page's plate file is removed (by the route, after this commits).
   function deletePage(page) {
-    const later = db
-      .prepare('SELECT id FROM story_pages WHERE story_id = ? AND page_number > ? ORDER BY page_number ASC')
-      .all(page.story_id, page.page_number);
-    const bump = db.prepare('UPDATE story_pages SET page_number = page_number - 1 WHERE id = ?');
     hierarchy.inImmediateTransaction(() => {
       hierarchy.removePageInTransaction(page.id);
-      db.prepare('DELETE FROM story_pages WHERE id = ?').run(page.id);
-      for (const row of later) bump.run(row.id);
       deletePreview.run(page.story_id);
       deletePreparedPage.run(page.story_id);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(page.story_id);

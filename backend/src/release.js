@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-4';
-const DATABASE_SCHEMA_VERSION = 12;
+const DATABASE_SCHEMA_VERSION = 13;
 const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';

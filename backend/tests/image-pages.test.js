@@ -171,7 +171,7 @@ describe('Noncanonical generated art compatibility', () => {
     await placeGenerated(story.id, 1, { gallery_only: 'yes' }, 400);
     await placeGenerated(story.id, 1, { title: 'x'.repeat(501) }, 400);
     expect(db.prepare('SELECT COUNT(*) AS value FROM assets').get().value).toBe(0);
-    expect(db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(3);
+    expect(db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(3);
   });
 
   it('deletes asset media with its story and reports the art filesystem capacity', async () => {

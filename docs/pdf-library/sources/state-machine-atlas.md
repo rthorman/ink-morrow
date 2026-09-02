@@ -332,6 +332,8 @@ candidate -> identity proven -> migrated -> reconciled -> listening
 
 No schema write occurs before identity proof. Earlier 4.0 pre-rebrand adoption takes a complete SQLite snapshot before identity changes. Migration steps are ordered, checksum-proven, and transactional. Listening is the final state, not an optimistic early side effect.
 
+In 4.1.0, schema 13 first proves or completes canonical page revisions and revision-bound continuity deltas, then retires the older writable mirrors. A page-shaped read view may preserve an API projection, but it is not another state owner. A failed proof rolls back the migration and prevents the server from listening.
+
 ## UI request state
 
 Every user-facing asynchronous surface should distinguish:

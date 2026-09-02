@@ -106,7 +106,7 @@ describe('first-class Tribe Scribes', () => {
     await request(app).put(`/api/stories/${story.id}/scribe`).send({ scribe_id: second.id }).expect(200);
     await request(app).post(`/api/stories/${story.id}/pages/generate`).send({ user_input: 'Second.' }).expect(201);
     const provenance = db.prepare(`
-      SELECT sp.page_number, r.scribe_binding_id FROM story_pages sp
+      SELECT sp.page_number, r.scribe_binding_id FROM manuscript_pages sp
       JOIN pages p ON p.id = sp.id JOIN page_revisions r ON r.id = p.canonical_revision_id
       ORDER BY sp.page_number
     `).all();

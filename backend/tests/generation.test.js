@@ -155,9 +155,23 @@ describe('POST /api/stories/:id/pages/generate', () => {
 
     const story = await createStory(app);
     // Seed 12 pages directly (bypassing AI) so we control history size
-    const insert = db.prepare('INSERT INTO story_pages (id, story_id, page_number, content) VALUES (?, ?, ?, ?)');
+    const chapter = db.prepare(`
+      SELECT chapter.id FROM chapters chapter
+      JOIN volumes volume ON volume.id = chapter.volume_id
+      WHERE volume.story_id = ? ORDER BY volume.ordinal, chapter.ordinal LIMIT 1
+    `).get(story.id);
+    const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
+    const insertRevision = db.prepare(`
+      INSERT INTO page_revisions (id, page_id, kind, content, source, cost_usd)
+      VALUES (?, ?, 'canonical', ?, 'migration', 0)
+    `);
+    const pointPage = db.prepare('UPDATE pages SET canonical_revision_id = ?, display_revision_id = ? WHERE id = ?');
     for (let i = 1; i <= 12; i++) {
-      insert.run(`seed-${i}`, story.id, i, `Seeded page ${i} content.`);
+      const pageId = `seed-${i}`;
+      const revisionId = `seed-revision-${i}`;
+      insertPage.run(pageId, chapter.id, i);
+      insertRevision.run(revisionId, pageId, `Seeded page ${i} content.`);
+      pointPage.run(revisionId, revisionId, pageId);
     }
 
     const res = await generatePage(story.id, 'Continue');

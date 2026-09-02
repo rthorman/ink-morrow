@@ -115,7 +115,7 @@ describe('PR 07 noncanonical art and safe upload', () => {
     expect(response.body.asset).not.toHaveProperty('storage_key');
     expect(response.body.placement).toMatchObject({ after_page_id: pages[0].id, ordinal: 1 });
     expect(axios.post).not.toHaveBeenCalled();
-    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM story_pages WHERE story_id = ?').get(story.id).value).toBe(3);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM manuscript_pages WHERE story_id = ?').get(story.id).value).toBe(3);
     expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM continuity_deltas').get().value).toBe(beforeDeltas);
     expect(fs.readdirSync(path.join(imageDir, 'assets'))).toHaveLength(1);
     expect(fs.readdirSync(path.join(imageDir, 'assets'))[0]).not.toContain('whatever-the-owner-chose');
@@ -195,7 +195,7 @@ describe('PR 07 noncanonical art and safe upload', () => {
     await request(fixture.app).delete(`/api/stories/${story.id}/pages/1`).expect(204);
     let listing = await request(fixture.app).get(`/api/stories/${story.id}/assets`).expect(200);
     expect(listing.body.placements[0].after_page_id).toBe(pages[1].id);
-    expect(fixture.db.prepare('SELECT page_number FROM story_pages WHERE id = ?').get(pages[1].id).page_number).toBe(1);
+    expect(fixture.db.prepare('SELECT page_number FROM manuscript_pages WHERE id = ?').get(pages[1].id).page_number).toBe(1);
 
     await request(fixture.app).delete(`/api/stories/${story.id}/pages?after=1`).expect(200);
     listing = await request(fixture.app).get(`/api/stories/${story.id}/assets`).expect(200);
@@ -239,7 +239,7 @@ describe('PR 07 noncanonical art and safe upload', () => {
     listing = await request(fixture.app).get(`/api/stories/${story.id}/assets`).expect(200);
     expect(listing.body.assets.map((asset) => asset.id)).toEqual([first.body.asset.id]);
     expect(listing.body.placements).toEqual([]);
-    expect(fixture.db.prepare('SELECT group_concat(page_number) AS value FROM story_pages WHERE story_id = ? ORDER BY page_number')
+    expect(fixture.db.prepare('SELECT group_concat(page_number) AS value FROM manuscript_pages WHERE story_id = ? ORDER BY page_number')
       .get(story.id).value).toBe('1,2');
     expect(pages).toHaveLength(2);
   });

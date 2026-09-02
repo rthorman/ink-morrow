@@ -101,7 +101,7 @@ describe('End-to-end authoring workflow', () => {
 
     // 9. Delete cascades
     await request(app).delete(`/api/stories/${story.id}`).expect(204);
-    expect(db.prepare('SELECT COUNT(*) AS c FROM story_pages').get().c).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages').get().c).toBe(0);
   });
 
   it('characters from different worlds can share a story', async () => {

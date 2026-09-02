@@ -64,10 +64,11 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     const first = await addPage(fixture.app, story.id, 'First canonical page.', 'Begin');
     const tail = await addPage(fixture.app, story.id, 'Second canonical page.', 'Continue');
     fixture.db.prepare(`
-      INSERT INTO story_memory_pages
-        (page_id, story_id, content_hash, status, summary, delta_json)
-      VALUES (?, ?, 'hash', 'ready', 'Established event', '{}')
-    `).run(first.id, story.id);
+      INSERT INTO continuity_deltas
+        (revision_id, story_id, content_hash, status, schema_version, summary, delta_json)
+      SELECT canonical_revision_id, ?, 'hash', 'ready', 2, 'Established event', '{}'
+        FROM pages WHERE id = ?
+    `).run(story.id, first.id);
     fixture.db.prepare(`
       INSERT INTO story_previews (story_id, expected_page, raw_content) VALUES (?, 3, 'Speculative prose')
     `).run(story.id);
@@ -83,7 +84,11 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       continuity_recalculated: false,
     });
     expect(copyedit.body.display_revision_id).not.toBe(firstBefore.display_revision_id);
-    expect(fixture.db.prepare('SELECT summary FROM story_memory_pages WHERE page_id = ?').get(first.id).summary)
+    expect(fixture.db.prepare(`
+      SELECT delta.summary FROM continuity_deltas delta
+      JOIN pages page ON page.canonical_revision_id = delta.revision_id
+      WHERE page.id = ?
+    `).get(first.id).summary)
       .toBe('Established event');
     expect(fixture.db.prepare('SELECT content FROM page_revisions WHERE id = ?').get(firstBefore.canonical_revision_id).content)
       .toBe('First canonical page.');
@@ -126,10 +131,11 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     const pages = [];
     for (let index = 1; index <= 4; index += 1) pages.push(await addPage(fixture.app, story.id, `Page ${index}.`));
     fixture.db.prepare(`
-      INSERT INTO story_memory_pages
-        (page_id, story_id, content_hash, status, summary, delta_json)
-      VALUES (?, ?, 'hash', 'ready', 'Third page event', '{}')
-    `).run(pages[2].id, story.id);
+      INSERT INTO continuity_deltas
+        (revision_id, story_id, content_hash, status, schema_version, summary, delta_json)
+      SELECT canonical_revision_id, ?, 'hash', 'ready', 2, 'Third page event', '{}'
+        FROM pages WHERE id = ?
+    `).run(story.id, pages[2].id);
 
     const truncated = await request(fixture.app)
       .delete(`/api/stories/${story.id}/pages?after=2`)
@@ -147,7 +153,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       available: true,
       reason: null,
     });
-    expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM story_pages WHERE story_id = ?').get(story.id).c).toBe(2);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(story.id).c).toBe(2);
     expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM page_revisions WHERE page_id IN (?, ?)')
       .get(pages[2].id, pages[3].id).c).toBe(0);
 
@@ -156,9 +162,13 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       .send({ undo_token: truncated.body.undo.token })
       .expect(200);
     expect(restored.body).toMatchObject({ restored: 2, restored_range: { first: 3, last: 4 } });
-    expect(fixture.db.prepare('SELECT id FROM story_pages WHERE story_id = ? ORDER BY page_number').all(story.id)
+    expect(fixture.db.prepare('SELECT id FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(story.id)
       .map((row) => row.id)).toEqual(pages.map((page) => page.id));
-    expect(fixture.db.prepare('SELECT summary FROM story_memory_pages WHERE page_id = ?').get(pages[2].id).summary)
+    expect(fixture.db.prepare(`
+      SELECT delta.summary FROM continuity_deltas delta
+      JOIN pages page ON page.canonical_revision_id = delta.revision_id
+      WHERE page.id = ?
+    `).get(pages[2].id).summary)
       .toBe('Third page event');
     expect(fixture.db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     expect(fixture.db.prepare('SELECT status FROM recovery_suffixes WHERE id = ?').get(truncated.body.recovery.id).status)
@@ -192,10 +202,10 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       .get(`/api/stories/${story.id}/recoveries/${truncated.body.recovery.id}/export`)
       .expect(200);
     expect(exported.body).toMatchObject({ format: 'ink-morrow-recovery-suffix', version: 1 });
-    expect(exported.body.payload.pages[0].content).toBe('Recoverable suffix.');
+    expect(exported.body.payload.revisions.some((revision) => revision.content === 'Recoverable suffix.')).toBe(true);
     expect(exported.body.payload.undo_sha256).toBeUndefined();
 
-    const activeBefore = fixture.db.prepare('SELECT id, content FROM story_pages WHERE story_id = ? ORDER BY page_number')
+    const activeBefore = fixture.db.prepare('SELECT id, content FROM manuscript_pages WHERE story_id = ? ORDER BY page_number')
       .all(story.id);
     current = new Date('2030-01-03T00:00:00.000Z');
     const listed = await request(fixture.app).get(`/api/stories/${story.id}/recoveries`).expect(200);
@@ -205,7 +215,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       .get(truncated.body.recovery.id).payload_json);
     expect(expiredPayload).toMatchObject({ expired: true, page_count: 1 });
     expect(expiredPayload.pages).toBeUndefined();
-    expect(fixture.db.prepare('SELECT id, content FROM story_pages WHERE story_id = ? ORDER BY page_number')
+    expect(fixture.db.prepare('SELECT id, content FROM manuscript_pages WHERE story_id = ? ORDER BY page_number')
       .all(story.id)).toEqual(activeBefore);
   });
 
@@ -219,7 +229,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     };
 
     for (let step = 0; step < 24; step += 1) {
-      const live = fixture.db.prepare('SELECT * FROM story_pages WHERE story_id = ? ORDER BY page_number').all(story.id);
+      const live = fixture.db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(story.id);
       const choice = Math.floor(random() * 4);
       if (choice === 0 || live.length < 2) {
         await addPage(fixture.app, story.id, `Appended ${step}.`);
@@ -247,7 +257,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
       const rows = fixture.db.prepare(`
         SELECT sp.page_number, p.id, p.canonical_revision_id, p.display_revision_id,
                canonical.page_id AS canonical_owner, display.page_id AS display_owner
-          FROM story_pages sp
+          FROM manuscript_pages sp
           JOIN pages p ON p.id = sp.id
           JOIN page_revisions canonical ON canonical.id = p.canonical_revision_id
           JOIN page_revisions display ON display.id = p.display_revision_id

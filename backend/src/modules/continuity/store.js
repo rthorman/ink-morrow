@@ -514,7 +514,7 @@ function createContinuityStore(db) {
       FROM continuity_deltas delta
       JOIN page_revisions revision ON revision.id = delta.revision_id
       JOIN pages page ON page.id = revision.page_id AND page.canonical_revision_id = delta.revision_id
-      JOIN story_pages story_page ON story_page.id = page.id
+      JOIN manuscript_pages story_page ON story_page.id = page.id
   `;
 
   function memoryRows(storyId, { throughPageNumber = null, afterPageNumber = 0, excludePageIds = [] } = {}) {
@@ -560,7 +560,7 @@ function createContinuityStore(db) {
       const expectedPrior = db.prepare(`
         SELECT COUNT(*) AS count FROM continuity_deltas delta
         JOIN pages page ON page.canonical_revision_id = delta.revision_id
-        JOIN story_pages story_page ON story_page.id = page.id
+        JOIN manuscript_pages story_page ON story_page.id = page.id
         WHERE delta.story_id = ? AND delta.status = 'ready' AND story_page.page_number < ?
       `).get(storyId, start).count;
       if (Number(prior.delta_count) !== Number(expectedPrior)) ledger = null;
@@ -588,7 +588,7 @@ function createContinuityStore(db) {
          AND revision_id <> COALESCE((
            SELECT delta.revision_id FROM continuity_deltas delta
            JOIN pages page ON page.canonical_revision_id = delta.revision_id
-           JOIN story_pages story_page ON story_page.id = page.id
+           JOIN manuscript_pages story_page ON story_page.id = page.id
            WHERE delta.story_id = ? AND delta.status = 'ready'
            ORDER BY story_page.page_number DESC LIMIT 1
          ), '')
@@ -619,7 +619,7 @@ function createContinuityStore(db) {
     if (excluded.size) {
       const marks = [...excluded].map(() => '?').join(', ');
       excludedBefore = Boolean(db.prepare(`
-        SELECT COUNT(*) AS count FROM story_pages
+        SELECT COUNT(*) AS count FROM manuscript_pages
         WHERE story_id = ? AND page_number <= ? AND id IN (${marks})
       `).get(storyId, throughPageNumber, ...excluded).count);
     }
@@ -856,16 +856,11 @@ function createContinuityStore(db) {
   function coverage(story) {
     const pages = db.prepare(`
       SELECT story_page.id, story_page.page_number, story_page.continuity_cost_usd,
-             page.canonical_revision_id AS revision_id,
-             COALESCE(delta.status, legacy.status) AS status,
-             COALESCE(delta.error, legacy.error) AS error
-      FROM story_pages story_page
-      LEFT JOIN pages page ON page.id = story_page.id
-      LEFT JOIN page_revisions revision ON revision.id = page.canonical_revision_id
-      LEFT JOIN continuity_deltas delta ON delta.revision_id = page.canonical_revision_id
-      LEFT JOIN story_memory_pages legacy ON legacy.page_id = story_page.id
-      WHERE story_page.story_id = ? AND story_page.image_media_type IS NULL
-        AND TRIM(COALESCE(revision.content, story_page.content)) <> ''
+             story_page.canonical_revision_id AS revision_id,
+             story_page.continuity_status AS status,
+             story_page.continuity_error AS error
+      FROM manuscript_pages story_page
+      WHERE story_page.story_id = ? AND TRIM(story_page.content) <> ''
       ORDER BY story_page.page_number
     `).all(story.id);
     return {
@@ -886,14 +881,9 @@ function createContinuityStore(db) {
   function coverageSummary(story) {
     const row = db.prepare(`
       SELECT COUNT(*) AS total,
-             COALESCE(SUM(CASE WHEN COALESCE(delta.status, legacy.status) = 'ready' THEN 1 ELSE 0 END), 0) AS ready
-      FROM story_pages story_page
-      LEFT JOIN pages page ON page.id = story_page.id
-      LEFT JOIN page_revisions revision ON revision.id = page.canonical_revision_id
-      LEFT JOIN continuity_deltas delta ON delta.revision_id = page.canonical_revision_id
-      LEFT JOIN story_memory_pages legacy ON legacy.page_id = story_page.id
-      WHERE story_page.story_id = ? AND story_page.image_media_type IS NULL
-        AND TRIM(COALESCE(revision.content, story_page.content)) <> ''
+             COALESCE(SUM(CASE WHEN continuity_status = 'ready' THEN 1 ELSE 0 END), 0) AS ready
+      FROM manuscript_pages
+      WHERE story_id = ? AND TRIM(content) <> ''
     `).get(story.id);
     return { total: Number(row.total) || 0, ready: Number(row.ready) || 0 };
   }
@@ -918,7 +908,7 @@ function createContinuityStore(db) {
       SELECT story_page.*, page.canonical_revision_id AS revision_id, page.display_revision_id,
              revision.content AS canonical_content, revision.direction AS canonical_direction,
              revision.created_at AS revision_created_at
-      FROM story_pages story_page
+      FROM manuscript_pages story_page
       JOIN pages page ON page.id = story_page.id
       JOIN page_revisions revision ON revision.id = page.canonical_revision_id
       WHERE story_page.id = ?
@@ -946,33 +936,10 @@ function createContinuityStore(db) {
         content_hash = excluded.content_hash, summary = NULL, delta_json = NULL,
         provider_result_json = NULL, error_code = NULL, error = NULL, updated_at = CURRENT_TIMESTAMP
     `).run(page.revision_id, page.story_id, CONTINUITY_SCHEMA_VERSION, hash);
-    db.prepare(`
-      INSERT INTO story_memory_pages (page_id, story_id, content_hash, status, schema_version, updated_at)
-      VALUES (?, ?, ?, 'pending', ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(page_id) DO UPDATE SET content_hash = excluded.content_hash, status = 'pending',
-        schema_version = excluded.schema_version, summary = NULL, delta_json = NULL,
-        error = NULL, updated_at = CURRENT_TIMESTAMP
-    `).run(page.id, page.story_id, hash, CONTINUITY_SCHEMA_VERSION);
     db.prepare('DELETE FROM continuity_search WHERE revision_id = ?').run(page.revision_id);
-    db.prepare('DELETE FROM story_memory_search WHERE page_id = ?').run(page.id);
     try { db.prepare('DELETE FROM continuity_search_fts WHERE revision_id = ?').run(page.revision_id); } catch { /* fallback */ }
-    try { db.prepare('DELETE FROM story_memory_fts WHERE page_id = ?').run(page.id); } catch { /* fallback */ }
     invalidateFrom(page.story_id, page.page_number);
     return { hash, page };
-  }
-
-  function addPageSpend(page, result) {
-    const current = canonicalPage(page.id);
-    if (!current || current.revision_id !== page.revision_id) return;
-    const prompt = Number(result?.usage?.prompt_tokens) || 0;
-    const completion = Number(result?.usage?.completion_tokens) || 0;
-    const cost = typeof result?.cost_usd === 'number' && Number.isFinite(result.cost_usd) ? result.cost_usd : 0;
-    db.prepare(`
-      UPDATE story_pages SET continuity_model = COALESCE(?, continuity_model),
-        continuity_prompt_tokens = COALESCE(continuity_prompt_tokens, 0) + ?,
-        continuity_completion_tokens = COALESCE(continuity_completion_tokens, 0) + ?,
-        continuity_cost_usd = COALESCE(continuity_cost_usd, 0) + ? WHERE id = ?
-    `).run(result?.model || null, prompt, completion, cost, page.id);
   }
 
   function searchText(delta) {
@@ -990,39 +957,20 @@ function createContinuityStore(db) {
     const providerResult = JSON.stringify({ model: result.model || null, usage: result.usage || null, billed_attempts: result.billed_attempts || 0 });
     db.exec('BEGIN');
     try {
-      addPageSpend(page, result);
       db.prepare(`
         UPDATE continuity_deltas SET status = 'ready', schema_version = ?, content_hash = ?,
-          summary = ?, delta_json = ?, provider_result_json = ?, spend_usd = ?, model = ?,
-          prompt_tokens = ?, completion_tokens = ?, error_code = NULL, error = NULL,
+          summary = ?, delta_json = ?, provider_result_json = ?, spend_usd = spend_usd + ?, model = ?,
+          prompt_tokens = COALESCE(prompt_tokens, 0) + COALESCE(?, 0),
+          completion_tokens = COALESCE(completion_tokens, 0) + COALESCE(?, 0), error_code = NULL, error = NULL,
           updated_at = CURRENT_TIMESTAMP WHERE revision_id = ?
       `).run(delta.schema_version || CONTINUITY_SCHEMA_VERSION, hash, delta.summary, JSON.stringify(delta),
         providerResult, typeof result.cost_usd === 'number' ? result.cost_usd : 0, result.model || null,
         result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null, page.revision_id);
-      if (canonicalPage(page.id)?.revision_id === page.revision_id) {
-        db.prepare(`
-          UPDATE story_memory_pages SET status = 'ready', schema_version = ?, content_hash = ?,
-            summary = ?, delta_json = ?, model = ?, prompt_tokens = ?, completion_tokens = ?,
-            cost_usd = ?, error = NULL, updated_at = CURRENT_TIMESTAMP WHERE page_id = ?
-        `).run(delta.schema_version || CONTINUITY_SCHEMA_VERSION, hash, delta.summary, JSON.stringify(delta),
-          result.model || null, result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null,
-          typeof result.cost_usd === 'number' ? result.cost_usd : 0, page.id);
-      }
       db.prepare('INSERT OR REPLACE INTO continuity_search (revision_id, story_id, content) VALUES (?, ?, ?)')
         .run(page.revision_id, page.story_id, indexed);
-      if (canonicalPage(page.id)?.revision_id === page.revision_id) {
-        db.prepare('INSERT OR REPLACE INTO story_memory_search (page_id, story_id, content) VALUES (?, ?, ?)')
-          .run(page.id, page.story_id, indexed);
-      }
       try {
         db.prepare('DELETE FROM continuity_search_fts WHERE revision_id = ?').run(page.revision_id);
         db.prepare('INSERT INTO continuity_search_fts (revision_id, story_id, content) VALUES (?, ?, ?)').run(page.revision_id, page.story_id, indexed);
-      } catch { /* fallback */ }
-      try {
-        if (canonicalPage(page.id)?.revision_id === page.revision_id) {
-          db.prepare('DELETE FROM story_memory_fts WHERE page_id = ?').run(page.id);
-          db.prepare('INSERT INTO story_memory_fts (page_id, story_id, content) VALUES (?, ?, ?)').run(page.id, page.story_id, indexed);
-        }
       } catch { /* fallback */ }
       rebuildFrom(page.story_id, page.page_number);
       db.exec('COMMIT');
@@ -1034,25 +982,17 @@ function createContinuityStore(db) {
     const message = text(error?.message || error, 1000) || 'Continuity extraction failed';
     db.exec('BEGIN');
     try {
-      addPageSpend(page, result);
       db.prepare(`
         UPDATE continuity_deltas SET status = 'failed', schema_version = ?, content_hash = ?,
-          provider_result_json = ?, spend_usd = ?, model = ?, prompt_tokens = ?, completion_tokens = ?,
+          provider_result_json = ?, spend_usd = spend_usd + ?, model = ?,
+          prompt_tokens = COALESCE(prompt_tokens, 0) + COALESCE(?, 0),
+          completion_tokens = COALESCE(completion_tokens, 0) + COALESCE(?, 0),
           error_code = ?, error = ?, updated_at = CURRENT_TIMESTAMP WHERE revision_id = ?
       `).run(CONTINUITY_SCHEMA_VERSION, hash,
         JSON.stringify({ model: result.model || null, usage: result.usage || null, billed_attempts: result.billed_attempts || 0 }),
         typeof result.cost_usd === 'number' ? result.cost_usd : 0, result.model || null,
         result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null,
         error?.code || 'EXTRACTION_FAILED', message, page.revision_id);
-      if (canonicalPage(page.id)?.revision_id === page.revision_id) {
-        db.prepare(`
-          UPDATE story_memory_pages SET status = 'failed', schema_version = ?, content_hash = ?,
-            model = ?, prompt_tokens = ?, completion_tokens = ?, cost_usd = ?, error = ?,
-            updated_at = CURRENT_TIMESTAMP WHERE page_id = ?
-        `).run(CONTINUITY_SCHEMA_VERSION, hash, result.model || null,
-          result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null,
-          typeof result.cost_usd === 'number' ? result.cost_usd : 0, message, page.id);
-      }
       db.prepare('DELETE FROM continuity_search WHERE revision_id = ?').run(page.revision_id);
       rebuildFrom(page.story_id, page.page_number);
       db.exec('COMMIT');
@@ -1080,10 +1020,7 @@ function createContinuityStore(db) {
       db.prepare('DELETE FROM continuity_projection_checkpoints WHERE story_id = ?').run(storyId);
       db.prepare('DELETE FROM continuity_search WHERE story_id = ?').run(storyId);
       db.prepare('DELETE FROM continuity_deltas WHERE story_id = ?').run(storyId);
-      db.prepare('DELETE FROM story_memory_search WHERE story_id = ?').run(storyId);
-      db.prepare('DELETE FROM story_memory_pages WHERE story_id = ?').run(storyId);
       try { db.prepare('DELETE FROM continuity_search_fts WHERE story_id = ?').run(storyId); } catch { /* fallback */ }
-      try { db.prepare('DELETE FROM story_memory_fts WHERE story_id = ?').run(storyId); } catch { /* fallback */ }
       db.exec('COMMIT');
     } catch (error) { db.exec('ROLLBACK'); throw error; }
   }
@@ -1109,7 +1046,7 @@ function createContinuityStore(db) {
       const revisionId = strictString(item.page_revision_id, `${path}.page_revision_id`, { max: 100 });
       const owned = db.prepare(`
         SELECT story_page.page_number, revision.content FROM page_revisions revision
-        JOIN story_pages story_page ON story_page.id = revision.page_id
+        JOIN manuscript_pages story_page ON story_page.id = revision.page_id
         WHERE revision.id = ? AND story_page.story_id = ?
       `).get(revisionId, story.id);
       if (!owned) schemaFailure(`${path}.page_revision_id`, 'does not belong to this story');
@@ -1152,7 +1089,7 @@ function createContinuityStore(db) {
     for (const evidence of correction.evidence || []) {
       const row = db.prepare(`
         SELECT story_page.page_number FROM page_revisions revision
-        JOIN story_pages story_page ON story_page.id = revision.page_id
+        JOIN manuscript_pages story_page ON story_page.id = revision.page_id
         WHERE revision.id = ? AND story_page.story_id = ?
       `).get(evidence.page_revision_id, story.id);
       anchorPage = Math.max(anchorPage, Number(row?.page_number) || 0);
@@ -1163,7 +1100,7 @@ function createContinuityStore(db) {
     const candidates = db.prepare(`
       SELECT story_page.id AS page_id, story_page.page_number, page.canonical_revision_id,
              page.display_revision_id, display.content AS display_content, delta.delta_json
-      FROM story_pages story_page JOIN pages page ON page.id = story_page.id
+      FROM manuscript_pages story_page JOIN pages page ON page.id = story_page.id
       JOIN page_revisions display ON display.id = page.display_revision_id
       LEFT JOIN continuity_deltas delta ON delta.revision_id = page.canonical_revision_id
       WHERE story_page.story_id = ? AND story_page.page_number > ? ORDER BY story_page.page_number
@@ -1336,7 +1273,7 @@ function createContinuityStore(db) {
         SELECT f.revision_id, f.content, revision.page_id, story_page.page_number
         FROM continuity_search_fts f JOIN page_revisions revision ON revision.id = f.revision_id
         JOIN pages page ON page.canonical_revision_id = f.revision_id
-        JOIN story_pages story_page ON story_page.id = page.id
+        JOIN manuscript_pages story_page ON story_page.id = page.id
         WHERE f.story_id = ? AND continuity_search_fts MATCH ?
         ORDER BY bm25(continuity_search_fts) LIMIT ?
       `).all(storyId, match, Math.max(boundedLimit * 2, 12));
@@ -1346,7 +1283,7 @@ function createContinuityStore(db) {
         SELECT search.revision_id, search.content, revision.page_id, story_page.page_number
         FROM continuity_search search JOIN page_revisions revision ON revision.id = search.revision_id
         JOIN pages page ON page.canonical_revision_id = search.revision_id
-        JOIN story_pages story_page ON story_page.id = page.id
+        JOIN manuscript_pages story_page ON story_page.id = page.id
         WHERE search.story_id = ? AND (${clauses}) LIMIT ?
       `).all(storyId, ...tokens.map((token) => `%${token}%`), Math.max(boundedLimit * 2, 12));
     }
