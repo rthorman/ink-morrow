@@ -134,7 +134,7 @@ describe('page-provenanced continuity ledger', () => {
     expect(clerkRequest.response_format.json_schema.schema.properties.character_updates).toBeUndefined();
     expect(clerkRequest.max_tokens).toBe(4000);
     expect(clerkRequest.provider).toEqual({ require_parameters: true });
-    expect(clerkRequest.reasoning).toEqual({ effort: 'none' });
+    expect(clerkRequest.reasoning).toEqual({ max_tokens: 0 });
     expect(clerkRequest.messages[0].content).toContain('plans, desires, hypothetical language');
 
     const view = await request(app).get(`/api/stories/${story.id}/continuity`).expect(200);
@@ -334,7 +334,7 @@ describe('page-provenanced continuity ledger', () => {
     expect(axios.post.mock.calls[0][1].provider).toEqual({ require_parameters: true });
     expect(axios.post.mock.calls[1][1].response_format).toEqual({ type: 'json_object' });
     expect(axios.post.mock.calls[1][1].provider).toEqual({ require_parameters: true });
-    expect(axios.post.mock.calls[1][1].reasoning).toEqual({ effort: 'none' });
+    expect(axios.post.mock.calls[1][1].reasoning).toEqual({ max_tokens: 0 });
   });
 
   it.each([404, 422])('uses strict plain JSON when structured-output routing returns %i', async (status) => {

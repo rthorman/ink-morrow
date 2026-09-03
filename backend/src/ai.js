@@ -347,17 +347,17 @@ async function computeCostUsd(cfg, model, usage, onCatalogue = null) {
  */
 async function chatCompletion(
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts } = {}
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts } = {}
 ) {
   return chatCompletionWithConfig(aiConfig(), messages, {
-    temperature, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts,
+    temperature, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts,
   });
 }
 
 async function chatCompletionWithConfig(
   cfg,
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, quality, responseFormat, requireParameters, maxBillableAttempts } = {},
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts } = {},
   onCatalogue = null
 ) {
   if (!cfg.apiKey) {
@@ -368,6 +368,9 @@ async function chatCompletionWithConfig(
   const useModel = (typeof model === 'string' && model.trim()) || cfg.model;
   const useReasoningEffort = ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].includes(reasoningEffort)
     ? reasoningEffort
+    : null;
+  const useReasoningMaxTokens = Number.isInteger(reasoningMaxTokens) && reasoningMaxTokens >= 0
+    ? Math.min(reasoningMaxTokens, 128000)
     : null;
   let useMaxTokens = Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(Math.round(maxTokens), 16000) : cfg.maxTokens;
   if (useReasoningEffort && useReasoningEffort !== 'none') {
@@ -421,7 +424,9 @@ async function chatCompletionWithConfig(
           messages: attemptMessages,
           temperature,
           max_tokens: useMaxTokens,
-          ...(useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
+          ...(useReasoningMaxTokens !== null
+            ? { reasoning: { max_tokens: useReasoningMaxTokens } }
+            : useReasoningEffort ? { reasoning: { effort: useReasoningEffort } } : {}),
           ...(responseFormat ? { response_format: responseFormat } : {}),
           ...(requireParameters ? { provider: { require_parameters: true } } : {}),
         },

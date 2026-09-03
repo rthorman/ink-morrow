@@ -560,10 +560,11 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
             model: modelOverride || undefined,
             temperature: 0.1,
             maxTokens: 4000,
-            // Memory extraction needs a bounded JSON answer, not hidden chain
-            // of thought. Reasoning-enabled models can otherwise spend the
-            // output budget before emitting visible content.
-            reasoningEffort: 'none',
+            // Gemini 2.5 uses a numeric thinking budget. Sending the generic
+            // effort "none" can be mapped to a non-zero minimum and consume
+            // the entire completion before the JSON answer. A zero budget is
+            // the provider-supported way to reserve the output for memory.
+            reasoningMaxTokens: 0,
             maxBillableAttempts: 1,
             ...format,
           });
