@@ -33,6 +33,32 @@ function memory() {
 }
 
 describe('PR13 Codex', () => {
+  it('clears stale records and disables authoring actions while entry is loading', async () => {
+    let resolveMemory;
+    const memoryResponse = new Promise((resolve) => { resolveMemory = resolve; });
+    mockFetch([
+      { match: '/stories/s1/continuity/templates', response: jsonResponse(200, { templates: [] }) },
+      { match: '/stories/s1/campaign-state', response: jsonResponse(200, { entries: [], kinds: [] }) },
+      { match: '/stories/s1/continuity', response: memoryResponse },
+    ]);
+    const fw = await loadScript();
+    fw.__setStoryState({ currentStory: STORY, storyPages: [] });
+
+    const entering = fw.enterCodex({ storyId: 's1' });
+    expect(document.getElementById('codexSection').getAttribute('aria-busy')).toBe('true');
+    expect(document.getElementById('codexRenameBtn').disabled).toBe(true);
+    expect(document.getElementById('codexCampaignAdd').disabled).toBe(true);
+    expect(document.getElementById('codexFoundations').textContent).toBe('');
+    document.getElementById('codexRenameBtn').click();
+    expect(document.querySelector('.dialog-manager:not([hidden])')).toBeNull();
+
+    resolveMemory(jsonResponse(200, { continuity: memory() }));
+    await entering;
+    expect(document.getElementById('codexSection').getAttribute('aria-busy')).toBe('false');
+    expect(document.getElementById('codexRenameBtn').disabled).toBe(false);
+    expect(document.getElementById('codexCampaignAdd').disabled).toBe(false);
+  });
+
   it('separates foundations and bounded remembered canon with page evidence links', async () => {
     const fetchMock = mockFetch([
       { match: '/stories/s1/continuity/templates', response: jsonResponse(200, { templates: [] }) },
@@ -113,7 +139,7 @@ describe('PR13 Codex', () => {
 
     const fields = document.querySelectorAll('.codex-template__change input');
     fields[0].checked = true;
-    document.querySelector('.codex-template__form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    fields[0].closest('form').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
     const importCall = fetchMock.mock.calls.find(([url]) => url.includes('/templates/world/w1/import'));
     expect(JSON.parse(importCall[1].body).fields).toEqual(['name']);

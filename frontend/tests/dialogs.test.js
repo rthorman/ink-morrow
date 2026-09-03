@@ -150,6 +150,45 @@ describe('Shared dialog manager', () => {
     fw.dialogs.close(true);
     expect(document.documentElement.style.overflow).toBe('');
   });
+
+  it('makes a slow async action visibly busy and prevents duplicate submission or free close', async () => {
+    let resolveAction;
+    let calls = 0;
+    fw.dialogs.openDialog({
+      title: 'Review export',
+      body: 'Choose what leaves this machine.',
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary' },
+        {
+          label: 'Review export',
+          pendingLabel: 'Reviewing export…',
+          className: 'btn-primary',
+          onClick: () => {
+            calls += 1;
+            return new Promise((resolve) => { resolveAction = resolve; });
+          },
+        },
+      ],
+    });
+    const panel = dialogEl().querySelector('.dialog-manager__panel');
+    const review = buttons().find((button) => button.textContent === 'Review export');
+    review.click();
+
+    expect(calls).toBe(1);
+    expect(panel.getAttribute('aria-busy')).toBe('true');
+    expect(review.textContent).toBe('Reviewing export…');
+    expect(buttons().every((button) => button.disabled)).toBe(true);
+    review.click();
+    press('Escape');
+    expect(calls).toBe(1);
+    expect(dialogEl().hidden).toBe(false);
+
+    resolveAction();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(panel.hasAttribute('aria-busy')).toBe(false);
+    expect(review.textContent).toBe('Review export');
+    expect(buttons().every((button) => !button.disabled)).toBe(true);
+  });
 });
 
 describe('Paid review (structured grammar)', () => {

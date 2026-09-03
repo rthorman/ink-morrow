@@ -24,6 +24,49 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
   let revealedShareId = null;
   let pollTimer = null;
   let loadToken = 0;
+  let loading = false;
+
+  function setStatus(message) {
+    const status = document.getElementById('gateStatus');
+    if (status) status.textContent = message;
+  }
+
+  function syncEntryControls() {
+    const unavailable = loading || !activeStoryId;
+    const section = document.getElementById('gateSection');
+    if (section) section.setAttribute('aria-busy', loading ? 'true' : 'false');
+    const backup = document.getElementById('gateBackupBtn');
+    if (backup) backup.disabled = unavailable;
+    for (const control of document.querySelectorAll('#gatePublicationForm input, #gatePublicationForm textarea, #gatePublicationForm button')) {
+      control.disabled = unavailable;
+    }
+    const expiry = document.getElementById('gateShareExpiry');
+    if (expiry) expiry.disabled = unavailable;
+    const createShare = document.getElementById('gateCreateShareBtn');
+    if (createShare) createShare.disabled = unavailable || !currentSnapshot;
+  }
+
+  function clearStoryView({ clearJob = false } = {}) {
+    assets = [];
+    placements = [];
+    currentShares = [];
+    currentSnapshot = null;
+    revealedShareId = null;
+    document.getElementById('gateArtList')?.replaceChildren();
+    document.getElementById('gateShareList')?.replaceChildren();
+    const reveal = document.getElementById('gateShareReveal');
+    if (reveal) reveal.hidden = true;
+    const shareUrl = document.getElementById('gateShareUrl');
+    if (shareUrl) shareUrl.value = '';
+    const hint = document.getElementById('gateShareHint');
+    if (hint) hint.textContent = 'Review a publication snapshot first.';
+    if (clearJob) {
+      stopPolling();
+      currentJob = null;
+      const job = document.getElementById('gateJob');
+      if (job) job.hidden = true;
+    }
+  }
 
   function stopPolling() {
     if (pollTimer) clearTimeout(pollTimer);
@@ -130,6 +173,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
 
   async function reviewPublication(event) {
     event?.preventDefault();
+    if (loading) return undefined;
     const story = state.data.currentStory;
     if (!story || story.id !== activeStoryId) return showError('Choose this manuscript again before publishing.');
     const formats = selectedFormats();
@@ -244,6 +288,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
   }
 
   async function createShare() {
+    if (loading) return undefined;
     if (!currentSnapshot) return showError('Review a publication snapshot before creating a reading-copy link.');
     const button = document.getElementById('gateCreateShareBtn');
     if (button) button.disabled = true;
@@ -314,8 +359,18 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
   async function enter(params = {}) {
     if (!params.storyId) return;
     const token = ++loadToken;
+    const changedStory = Boolean(activeStoryId && activeStoryId !== params.storyId);
+    activeStoryId = null;
+    loading = true;
+    clearStoryView({ clearJob: changedStory });
+    syncEntryControls();
+    setStatus('Opening publication assets and reading-copy links…');
     const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
+    if (token !== loadToken) return;
     if (!story) {
+      loading = false;
+      syncEntryControls();
+      setStatus('That manuscript could not be found.');
       showError('That manuscript could not be found.');
       routeController.navigate('library-stories');
       return;
@@ -333,8 +388,16 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
       currentShares = shareListing.shares || [];
       renderArt();
       renderShares();
+      loading = false;
+      syncEntryControls();
+      setStatus('Publication and sharing tools are ready for this manuscript.');
     } catch (error) {
-      if (token === loadToken) showError(error.message);
+      if (token === loadToken) {
+        loading = false;
+        syncEntryControls();
+        setStatus(`Gate could not load: ${error.message}`);
+        showError(error.message);
+      }
     }
   }
 
@@ -347,6 +410,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     document.getElementById('gateRetryJobBtn')?.addEventListener('click', retryJob);
     document.getElementById('gateCreateShareBtn')?.addEventListener('click', createShare);
     document.getElementById('gateCopyShareBtn')?.addEventListener('click', copyShare);
+    syncEntryControls();
   }
 
   function reset() {
@@ -360,6 +424,7 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     currentSnapshot = null;
     currentShares = [];
     revealedShareId = null;
+    loading = false;
     document.getElementById('gateArtList')?.replaceChildren();
     const job = document.getElementById('gateJob');
     if (job) job.hidden = true;
@@ -368,6 +433,8 @@ export function createGate({ api, state, notify, features, dialogs, router }) {
     const reveal = document.getElementById('gateShareReveal');
     if (reveal) reveal.hidden = true;
     document.getElementById('gateShareList')?.replaceChildren();
+    syncEntryControls();
+    setStatus('Choose a manuscript to prepare exports and reading copies.');
   }
 
   return {

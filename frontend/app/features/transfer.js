@@ -180,7 +180,7 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
       actions: [
         { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: () => dialogs.close(true) },
         {
-          label: 'Review export', className: 'btn-primary', onClick: async () => {
+          label: 'Review export', pendingLabel: 'Reviewing export…', className: 'btn-primary', onClick: async () => {
             const id = entitySelect.value;
             if (scope.value !== 'full' && !id) {
               showError(`Choose a ${scope.value} to export.`);
@@ -404,13 +404,13 @@ export function createTransfer({ api, state, notify, features, dialogs }) {
       onFreeClose: freeClose,
       actions: [
         {
-          label: 'Cancel import', className: 'btn-secondary', autofocus: true, onClick: async () => {
+          label: 'Cancel import', pendingLabel: 'Cancelling import…', className: 'btn-secondary', autofocus: true, onClick: async () => {
             await cancelImport(review.token);
             dialogs.close(true);
           },
         },
         {
-          label: 'Import archive', className: 'btn-primary', onClick: async () => {
+          label: 'Import archive', pendingLabel: 'Importing archive…', className: 'btn-primary', onClick: async () => {
             const resolutions = {};
             for (const select of collisions.querySelectorAll('[data-resolution]')) resolutions[select.dataset.resolution] = select.value;
             for (const button of document.querySelectorAll('.dialog-manager__actions button')) button.disabled = true;

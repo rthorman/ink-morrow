@@ -17,6 +17,7 @@ function createDialogManager() {
   let dirtyCheck = null; // () => boolean, "closing would discard work"
   let closing = false;
   let lastSpec = null; // the open dialog's spec, for dirty-guard recovery
+  let pendingAction = null; // async action token; blocks duplicate clicks/free close
   let paidConsentForSession = false; // private-mode fallback if storage rejects writes
 
   function hasPaidConsent() {
@@ -101,6 +102,7 @@ function createDialogManager() {
   function openDialog({ title, body, actions = [], dirty = null, variant = '', labelledBy = 'dialog-manager-title', onFreeClose = null }) {
     if (overlay && !overlay.hidden) close(true); // one modal at a time
     closing = false;
+    pendingAction = null;
     const el = ensureOverlay();
     opener = document.activeElement;
     dirtyCheck = dirty;
@@ -131,8 +133,34 @@ function createDialogManager() {
       btn.textContent = action.label;
       if (action.disabled) btn.disabled = true;
       btn.addEventListener('click', () => {
-        if (action.onClick) action.onClick(close);
-        else close();
+        if (pendingAction) return;
+        const spec = lastSpec;
+        const actionButtons = [...actionsEl.querySelectorAll('button')];
+        const disabledBefore = actionButtons.map((button) => button.disabled);
+        const labelBefore = btn.textContent;
+        const result = action.onClick ? action.onClick(close) : close();
+        if (!result || typeof result.then !== 'function' || el.hidden || lastSpec !== spec) return;
+
+        const token = {};
+        pendingAction = token;
+        panel.setAttribute('aria-busy', 'true');
+        actionButtons.forEach((button) => { button.disabled = true; });
+        btn.textContent = action.pendingLabel || `${labelBefore}…`;
+
+        const finish = () => {
+          if (pendingAction !== token) return;
+          pendingAction = null;
+          if (lastSpec !== spec || el.hidden) return;
+          panel.removeAttribute('aria-busy');
+          actionButtons.forEach((button, index) => { button.disabled = disabledBefore[index]; });
+          btn.textContent = labelBefore;
+        };
+        Promise.resolve(result).then(finish, (error) => {
+          finish();
+          // Preserve the browser's visible diagnostics for an unexpected
+          // unhandled action error after restoring the dialog controls.
+          console.error(error);
+        });
       });
       if (action.autofocus) autofocusEl = btn;
       actionsEl.appendChild(btn);
@@ -153,6 +181,7 @@ function createDialogManager() {
   }
 
   function requestClose() {
+    if (pendingAction) return;
     if (dirtyCheck && dirtyCheck()) {
       // Dirty drafts ask before going anywhere - backdrop and Escape follow
       // the same rule as the cancel button. Declining re-opens the draft
@@ -173,12 +202,15 @@ function createDialogManager() {
 
   function close(force = false) {
     if (!overlay || overlay.hidden || closing) return;
+    if (!force && pendingAction) return;
     if (!force && dirtyCheck && dirtyCheck()) {
       requestClose();
       return;
     }
     closing = true;
     overlay.hidden = true;
+    pendingAction = null;
+    overlay.querySelector('.dialog-manager__panel')?.removeAttribute('aria-busy');
     dirtyCheck = null;
     // Escape/backdrop (not a button) closes a promise-based dialog: its
     // caller treats that as a deliberate "no", never a hung promise.

@@ -60,6 +60,32 @@ function safeRecovery() {
 }
 
 describe('PR12 Chronicle', () => {
+  it('clears stale structure and disables structural actions while entry is loading', async () => {
+    let resolveHierarchy;
+    const hierarchyResponse = new Promise((resolve) => { resolveHierarchy = resolve; });
+    const fetchMock = mockFetch([
+      { match: '/stories/s1/hierarchy', response: hierarchyResponse },
+      { match: '/stories/s1/recoveries', response: jsonResponse(200, { recoveries: [] }) },
+    ]);
+    const fw = await loadScript();
+    fw.__setStoryState({ currentStory: STORY, storyPages: [] });
+
+    const entering = fw.enterChronicle({ storyId: 's1' });
+    expect(document.getElementById('chronicleSection').getAttribute('aria-busy')).toBe('true');
+    expect(document.getElementById('chronicleAddVolume').disabled).toBe(true);
+    expect(document.getElementById('chronicleAddChapter').disabled).toBe(true);
+    expect(document.getElementById('chroniclePageJumpBtn').disabled).toBe(true);
+    expect(document.getElementById('chronicleSummary').textContent).toBe('');
+    document.getElementById('chronicleAddVolume').click();
+    expect(document.querySelector('.dialog-manager:not([hidden])')).toBeNull();
+
+    resolveHierarchy(jsonResponse(200, { hierarchy: outline(3) }));
+    await entering;
+    expect(document.getElementById('chronicleSection').getAttribute('aria-busy')).toBe('false');
+    expect(document.getElementById('chronicleAddVolume').disabled).toBe(false);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/hierarchy'))).toHaveLength(1);
+  });
+
   it('renders a bounded page window with publication, memory, art, scene, and tail markers', async () => {
     const fetchMock = mockFetch([
       { match: '/stories/s1/hierarchy', response: jsonResponse(200, { hierarchy: outline() }) },

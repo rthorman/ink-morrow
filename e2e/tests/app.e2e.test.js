@@ -741,6 +741,7 @@ test.describe('Ink Morrow UI', () => {
     await expect(page.locator('.gate-card--backup')).toContainText('Full fidelity');
     await expect(page.locator('.gate-card--publication')).toContainText('Reading copy');
     await expect(page.locator('#gateCreateShareBtn')).toBeDisabled();
+    await expect(page.locator('#gateReviewPublicationBtn')).toBeEnabled();
     await page.fill('#gatePublicationAuthor', 'E2E Author');
     await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
 
@@ -774,6 +775,7 @@ test.describe('Ink Morrow UI', () => {
     const csrf = await page.evaluate(async () => (await (await fetch('/api/auth/status')).json()).csrf_token);
 
     await page.goto(`/#/gate/${story.id}`);
+    await expect(page.locator('#gateReviewPublicationBtn')).toBeEnabled();
     await page.locator('#gatePublicationForm').evaluate((form) => form.requestSubmit());
     const dialog = page.locator('.dialog-manager');
     await expect(dialog).toBeVisible();

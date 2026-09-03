@@ -146,4 +146,48 @@ describe('PR 16 Gate', () => {
     expect(document.getElementById('gateShareList').textContent).toContain('revoked');
     expect(fetch.mock.calls.some(([url]) => /provider|models|completion|generate/.test(String(url)))).toBe(false);
   });
+
+  it('invalidates the previous manuscript snapshot while a different Gate is loading', async () => {
+    const fw = await loadScript();
+    fw.__setStoryState(STORY);
+    await fw.enterGate({ storyId: 's1' });
+    document.getElementById('gatePublicationForm').requestSubmit();
+    await tick();
+    expect(document.getElementById('gateCreateShareBtn').disabled).toBe(false);
+
+    let resolveAssets;
+    let resolveShares;
+    global.fetch = jest.fn((url) => {
+      const target = String(url);
+      if (target.endsWith('/stories/s2/assets')) {
+        return new Promise((resolve) => { resolveAssets = () => resolve(jsonResponse(200, { assets: [], placements: [] })); });
+      }
+      if (target.includes('/publication-shares?story_id=s2')) {
+        return new Promise((resolve) => { resolveShares = () => resolve(jsonResponse(200, { shares: [] })); });
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    fw.__setStoryState({
+      currentStory: { ...STORY.currentStory, id: 's2', title: 'Second Gate Tale' },
+      storyPages: [],
+    });
+
+    const entering = fw.enterGate({ storyId: 's2' });
+    expect(document.getElementById('gateSection').getAttribute('aria-busy')).toBe('true');
+    expect(document.getElementById('gateBackupBtn').disabled).toBe(true);
+    expect(document.getElementById('gateReviewPublicationBtn').disabled).toBe(true);
+    expect(document.getElementById('gateCreateShareBtn').disabled).toBe(true);
+    expect(document.getElementById('gateShareReveal').hidden).toBe(true);
+    expect(document.getElementById('gateStatus').textContent).toContain('Opening publication assets');
+
+    await tick();
+    resolveAssets();
+    resolveShares();
+    await entering;
+    expect(document.getElementById('gateSection').getAttribute('aria-busy')).toBe('false');
+    expect(document.getElementById('gatePublicationTitle').value).toBe('Second Gate Tale');
+    expect(document.getElementById('gateReviewPublicationBtn').disabled).toBe(false);
+    expect(document.getElementById('gateCreateShareBtn').disabled).toBe(true);
+    expect(fetch.mock.calls.some(([url]) => String(url).endsWith('/publications/snap1/shares'))).toBe(false);
+  });
 });

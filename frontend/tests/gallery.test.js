@@ -115,6 +115,8 @@ describe('PR 14 unified Gallery', () => {
     expect(paint.disabled).toBe(true);
     expect(paint.textContent).toBe('Loading pages…');
     expect(paint.getAttribute('aria-busy')).toBe('true');
+    expect(document.getElementById('galleryUploadBtn').disabled).toBe(true);
+    expect(document.getElementById('gallerySection').getAttribute('aria-busy')).toBe('true');
     paint.click();
     expect(document.querySelector('.dialog-manager:not([hidden])')).toBeNull();
 
@@ -123,6 +125,8 @@ describe('PR 14 unified Gallery', () => {
     expect(paint.disabled).toBe(false);
     expect(paint.textContent).toBe('Paint with AI');
     expect(paint.getAttribute('aria-busy')).toBe('false');
+    expect(document.getElementById('galleryUploadBtn').disabled).toBe(false);
+    expect(document.getElementById('gallerySection').getAttribute('aria-busy')).toBe('false');
     paint.click();
     expect(document.querySelector('.dialog-manager__title').textContent).toBe('Paint with AI');
   });

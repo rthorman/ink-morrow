@@ -30,10 +30,22 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   function syncPaintButton() {
     const button = document.getElementById('galleryPaintBtn');
-    if (!button) return;
-    button.disabled = loading || !activeStoryId || !anchors.length;
-    button.textContent = loading ? 'Loading pages…' : 'Paint with AI';
-    button.setAttribute('aria-busy', loading ? 'true' : 'false');
+    if (button) {
+      button.disabled = loading || !activeStoryId || !anchors.length;
+      button.textContent = loading ? 'Loading pages…' : 'Paint with AI';
+      button.setAttribute('aria-busy', loading ? 'true' : 'false');
+    }
+    const upload = document.getElementById('galleryUploadBtn');
+    if (upload) upload.disabled = loading || !activeStoryId;
+    const input = document.getElementById('galleryUploadInput');
+    if (input) input.disabled = loading || !activeStoryId;
+    if (loading) {
+      for (const control of document.querySelectorAll('#galleryGrid button, #galleryGrid input, #galleryGrid select')) {
+        control.disabled = true;
+      }
+    }
+    const section = document.getElementById('gallerySection');
+    if (section) section.setAttribute('aria-busy', loading ? 'true' : 'false');
   }
 
   function placementLabel(placement) {
@@ -387,10 +399,19 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
     // The router paints Gallery before this async entry finishes. Disable the
     // trigger synchronously so a previous manuscript's anchors can never make
     // it look actionable during the transition.
+    const token = ++loadToken;
+    activeStoryId = null;
     loading = true;
+    assets = [];
+    placements = [];
     anchors = [];
+    selectedReferences.clear();
+    features.imagery.setAssetReferences([]);
+    document.getElementById('galleryGrid')?.replaceChildren();
     syncPaintButton();
+    setStatus('Opening normalized images and stable placement anchors…');
     const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
+    if (token !== loadToken) return;
     if (!story) {
       activeStoryId = null;
       loading = false;
