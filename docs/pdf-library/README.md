@@ -66,3 +66,25 @@ technical books use Markdown sources plus the shared theme. All six books are
 declared in [`books.mjs`](books.mjs), rendered through the same
 [`render.mjs`](render.mjs) entry point, published together in
 [`docs/pdf/`](../pdf/), and covered by the same freshness manifest and QA pass.
+
+## User Guide scope
+
+The existing published User Guide is the baseline for tone, visual direction,
+task coverage, safety language, and information architecture. Its historical
+page count is **not** a target or maximum. The guide may become substantially
+larger whenever the current feature set needs more room for readable examples,
+screens, explanations, or complete workflows.
+
+Every release-level User Guide must include end-to-end example journeys that:
+
+1. use no optional AI or provider-backed features;
+2. use the complete applicable feature set together; and
+3. use logical subsets for recognizable goals, such as AI-assisted drafting,
+   continuity-led revision, or illustration and publication of existing prose.
+
+Each journey states its goal, prerequisites, enabled features, deliberately
+unused features, ordered actions, provider/cost boundary, and final preservation
+or delivery step. Do not shorten or remove those journeys to match an older PDF.
+
+The current 4.1 User Guide is accepted at **exactly 35 A4 pages**. Treat that as
+this edition's render acceptance criterion, not as a ceiling for future releases.
