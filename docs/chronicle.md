@@ -39,8 +39,10 @@ confirmation names the exact empty structure affected. Chronicle offers no
 arbitrary historical reorder.
 
 Any chapter may add optional scene metadata without making scene planning a
-requirement. Removing a scene ungroups its pages and cannot delete prose,
-revisions, art, or continuity. See [Optional scenes](scenes.md).
+requirement. Removing an unplayed scene ungroups its pages and cannot delete
+prose, revisions, art, or continuity. A scene with Play working history is
+retained. **Open Play** enters its separate contract-and-transcript workspace.
+See [Optional scenes](scenes.md) and [Play sessions](play.md).
 
 ## Recovery
 

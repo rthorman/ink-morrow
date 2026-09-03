@@ -25,6 +25,9 @@ describe('Settings defaults and persistence', () => {
     expect(document.getElementById('costTicker').hidden).toBe(false);
     expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--im-prose-family')).toContain('Literata');
+    const manual = document.querySelector('#settingsSection a[href="/user-manual.pdf"]');
+    expect(manual?.textContent).toBe('Download User Manual');
+    expect(manual?.hasAttribute('download')).toBe(true);
   });
 
   it('toggles persist to localStorage and apply immediately', async () => {

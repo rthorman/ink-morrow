@@ -66,6 +66,23 @@ const SCENE_FIELDS = [
   'created_at', 'updated_at',
 ];
 const SCENE_PAGE_FIELDS = ['scene_id', 'page_id', 'created_at'];
+const PLAY_SESSION_FIELDS = [
+  'id', 'scene_id', 'ordinal', 'status', 'participants_json',
+  'scribe_initiative', 'challenge', 'pacing', 'consequences',
+  'allow_character_death', 'suggestions', 'player_interiority', 'notes',
+  'created_at', 'updated_at', 'ended_at',
+];
+const PLAY_TURN_FIELDS = [
+  'id', 'session_id', 'ordinal', 'speaker', 'input_kind', 'character_id',
+  'content', 'source', 'model', 'prompt_tokens', 'completion_tokens',
+  'cost_usd', 'cost_known', 'billed_attempts', 'idempotency_key',
+  'request_hash', 'created_at',
+];
+const PLAY_AI_REQUEST_FIELDS = [
+  'session_id', 'idempotency_key', 'request_hash', 'contract_json', 'owner_turn_id',
+  'response_turn_id', 'status', 'spend_usd', 'cost_known', 'billed_attempts',
+  'error_code', 'error_message', 'created_at', 'updated_at', 'finished_at',
+];
 const HIERARCHY_PAGE_FIELDS = [
   'id', 'chapter_id', 'ordinal', 'canonical_revision_id',
   'display_revision_id', 'created_at', 'updated_at',
@@ -262,6 +279,22 @@ function scenePageRecord(row) {
   return pick(row, SCENE_PAGE_FIELDS);
 }
 
+function playSessionRecord(row) {
+  const record = pick(row, PLAY_SESSION_FIELDS);
+  record.participants_json = parseJson(record.participants_json, []);
+  return record;
+}
+
+function playTurnRecord(row) {
+  return pick(row, PLAY_TURN_FIELDS);
+}
+
+function playAiRequestRecord(row) {
+  const record = pick(row, PLAY_AI_REQUEST_FIELDS);
+  record.contract_json = parseJson(record.contract_json, null);
+  return record;
+}
+
 function hierarchyPageRecord(row) {
   return pick(row, HIERARCHY_PAGE_FIELDS);
 }
@@ -399,6 +432,9 @@ function semanticEntity(kind, bundle, options = {}) {
     if (!scenePagesByScene.has(membership.scene_id)) scenePagesByScene.set(membership.scene_id, []);
     scenePagesByScene.get(membership.scene_id).push(pageNumberById.get(membership.page_id) || null);
   }
+  const sceneIndexById = new Map((hierarchy.scenes || []).map((scene, index) => [scene.id, index + 1]));
+  const sessionIndexById = new Map((bundle.play_sessions || []).map((session, index) => [session.id, index + 1]));
+  const turnIndexById = new Map((bundle.play_turns || []).map((turn, index) => [turn.id, index + 1]));
   const semanticHierarchy = (hierarchy.volumes || [])
     .slice()
     .sort((a, b) => a.ordinal - b.ordinal)
@@ -505,6 +541,24 @@ function semanticEntity(kind, bundle, options = {}) {
       without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
     author_canon_revisions: (bundle.author_canon_revisions || []).map((row) =>
       without(row, ['id', 'entry_id', 'created_at'])),
+    play_sessions: (bundle.play_sessions || []).map((row) => ({
+      ...without(row, ['id', 'scene_id', 'created_at', 'updated_at', 'ended_at']),
+      scene: sceneIndexById.get(row.scene_id) || null,
+    })),
+    play_turns: (bundle.play_turns || []).map((row) => ({
+      ...without(row, ['id', 'session_id', 'idempotency_key', 'request_hash', 'created_at']),
+      session: sessionIndexById.get(row.session_id) || null,
+    })),
+    play_ai_requests: (bundle.play_ai_requests || []).map((row) => ({
+      ...without(row, [
+        'session_id', 'idempotency_key', 'request_hash', 'contract_json', 'owner_turn_id',
+        'response_turn_id', 'created_at', 'updated_at', 'finished_at',
+      ]),
+      session: sessionIndexById.get(row.session_id) || null,
+      owner_turn: turnIndexById.get(row.owner_turn_id) || null,
+      response_turn: turnIndexById.get(row.response_turn_id) || null,
+      contract: row.contract_json,
+    })),
     writing_operations: (bundle.writing_operations || []).map((row) => {
       const request = parseJson(row.request_json, {});
       if (request?.page_id) request.page_number = pageNumberById.get(request.page_id) || null;
@@ -603,6 +657,9 @@ module.exports = {
   CHAPTER_FIELDS,
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
+  PLAY_SESSION_FIELDS,
+  PLAY_TURN_FIELDS,
+  PLAY_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -636,6 +693,9 @@ module.exports = {
   chapterRecord,
   sceneRecord,
   scenePageRecord,
+  playSessionRecord,
+  playTurnRecord,
+  playAiRequestRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,

@@ -324,10 +324,23 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       const edit = node('button', 'btn btn-secondary', 'Edit scene');
       edit.type = 'button';
       edit.addEventListener('click', () => openSceneDialog(chapter, scene));
-      const remove = node('button', 'btn btn-danger', 'Remove scene');
-      remove.type = 'button';
+    const remove = node('button', 'btn btn-danger', scene.play_session_count
+      ? 'Play history preserved'
+      : 'Remove scene');
+    remove.type = 'button';
+    remove.disabled = Boolean(scene.play_session_count);
+    if (scene.play_session_count) {
+      remove.title = 'Scenes with Play transcripts cannot be removed.';
+    } else {
       remove.addEventListener('click', () => deleteScene(scene));
-      actions.append(edit, remove);
+    }
+      const play = node('button', 'btn btn-primary', 'Open Play');
+      play.type = 'button';
+      play.addEventListener('click', () => routeController.navigate('play', {
+        storyId: activeStoryId,
+        sceneId: scene.id,
+      }));
+      actions.append(play, edit, remove);
       heading.appendChild(actions);
       card.appendChild(heading);
       const range = scene.page_range
@@ -495,7 +508,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     addScene.type = 'button';
     addScene.addEventListener('click', () => openSceneDialog(chapter));
     actions.appendChild(addScene);
-    if (isActive && chapter.pages.length === 0 && volume.chapters.length > 1) {
+    if (isActive && chapter.pages.length === 0 && !chapter.scenes?.length && volume.chapters.length > 1) {
       const remove = node('button', 'btn btn-danger', 'Remove empty chapter');
       remove.type = 'button';
       remove.addEventListener('click', () => deleteChapter(chapter));
@@ -513,6 +526,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     details.setAttribute('role', 'treeitem');
     details.setAttribute('aria-level', '1');
     const pageCount = volume.chapters.reduce((sum, chapter) => sum + chapter.pages.length, 0);
+    const sceneCount = volume.chapters.reduce((sum, chapter) => sum + (chapter.scenes?.length || 0), 0);
     const containsFocus = volume.chapters.some((chapter) =>
       chapter.pages.some((page) => page.display_number === focusPage));
     const isActive = hierarchy.summary.active_tail?.volume_id === volume.id;
@@ -525,7 +539,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     rename.type = 'button';
     rename.addEventListener('click', () => renameVolume(volume));
     actions.appendChild(rename);
-    if (isActive && pageCount === 0 && hierarchy.volumes.length > 1) {
+    if (isActive && pageCount === 0 && sceneCount === 0 && hierarchy.volumes.length > 1) {
       const remove = node('button', 'btn btn-danger', 'Remove empty volume');
       remove.type = 'button';
       remove.addEventListener('click', () => deleteVolume(volume));

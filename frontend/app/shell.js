@@ -42,6 +42,7 @@ export function createShell({ api, notify }) {
   const WORKSPACE_BUTTON = {
     desk: 'writeBtn',
     chronicle: 'chronicleBtn',
+    play: 'chronicleBtn',
     codex: 'codexBtn',
     gallery: 'galleryBtn',
     gate: 'gateBtn',

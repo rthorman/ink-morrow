@@ -203,6 +203,22 @@ function buildDom() {
         <button class="workspace-back-to-desk">Return to Desk</button>
         <div id="chronicleOutline" role="tree"></div><div id="chronicleRecoveries"></div>
       </section>
+      <section id="playSection" class="content-section">
+        <span data-workspace-story></span><h2 id="playTitle">Play <span id="playSceneName"></span></h2><p id="playStatus"></p>
+        <button id="playBackBtn" type="button">Return to Chronicle</button><select id="playSessionSelect"></select><button id="playNewSessionBtn" type="button">New Session Zero</button>
+        <section id="playContractPanel"><h3 id="playContractTitle"></h3><form id="playContractForm"><div id="playParticipants"></div>
+          <select id="playInitiative"><option value="low">Low</option><option value="balanced">Balanced</option><option value="high">High</option></select>
+          <select id="playChallenge"><option value="gentle">Gentle</option><option value="balanced">Balanced</option><option value="harsh">Harsh</option></select>
+          <select id="playPacing"><option value="reflective">Reflective</option><option value="balanced">Balanced</option><option value="brisk">Brisk</option></select>
+          <select id="playConsequences"><option value="guarded">Guarded</option><option value="meaningful">Meaningful</option><option value="severe">Severe</option></select>
+          <select id="playSuggestions"><option value="off">Off</option><option value="on_request">When requested</option><option value="proactive">Proactive</option></select>
+          <select id="playInteriority"><option value="owner_only">Owner only</option><option value="sensory_only">Sensory</option><option value="shared">Shared</option></select>
+          <input id="playAllowDeath" type="checkbox"><textarea id="playContractNotes"></textarea><button id="playContractCancel" type="button">Cancel editing</button><button id="playContractSave" type="submit">Start play session</button>
+        </form></section>
+        <section id="playSessionPanel"><button id="playEditContract" type="button">Edit Session Zero</button><button id="playEndSession" type="button">End session</button><div id="playContractSummary"></div><ol id="playTranscript"></ol>
+          <form id="playComposer"><select id="playTurnKind"><option value="act">Act</option><option value="say">Say</option><option value="ask">Ask</option><option value="direct">Direct</option></select><select id="playTurnCharacter"><option value="">Owner / director</option></select><textarea id="playTurnContent"></textarea><button id="playRecordTurn" type="button">Record only</button><button id="playSendTurn" type="submit">Send to Scribe</button></form>
+        </section>
+      </section>
       <section id="codexSection" class="content-section">
         <span data-workspace-story></span><p id="codexStatus"></p>
         <div><h3 id="codexManuscriptName">No manuscript selected</h3><button id="codexRenameBtn" type="button">Rename manuscript</button></div>
@@ -234,6 +250,7 @@ function buildDom() {
         <button class="workspace-back-to-desk">Return to Desk</button>
       </section>
       <section id="settingsSection" class="content-section">
+        <a href="/user-manual.pdf" download="Ink-Morrow-User-Manual.pdf">Download User Manual</a>
         <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
         <details class="settings-group" open><summary><h3>Writing AI</h3><span id="writingAiSummary" class="settings-group__summary"></span></summary>
           <p id="currentModel" class="current-model"></p>

@@ -130,6 +130,15 @@ export function createAuthGate({ auth }) {
     return button;
   }
 
+  function manualLink() {
+    const link = document.createElement('a');
+    link.className = 'btn btn-secondary auth-manual';
+    link.href = '/user-manual.pdf';
+    link.download = 'Ink-Morrow-User-Manual.pdf';
+    link.textContent = 'Download User Manual';
+    return link;
+  }
+
   function renderSetup() {
     const { surface, formSide } = panelBase(
       'Seal your scriptorium',
@@ -189,7 +198,7 @@ export function createAuthGate({ auth }) {
         submit.textContent = 'Set password and enter';
       }
     });
-    formSide.append(hint, form);
+    formSide.append(hint, form, manualLink());
     root.replaceChildren(surface);
     queueMicrotask(() => code.focus());
   }
@@ -226,7 +235,7 @@ export function createAuthGate({ auth }) {
         submit.textContent = 'Unlock';
       }
     });
-    formSide.append(form);
+    formSide.append(form, manualLink());
     root.replaceChildren(surface);
     queueMicrotask(() => password.focus());
   }
@@ -239,7 +248,7 @@ export function createAuthGate({ auth }) {
     const retry = submitButton('Try again');
     retry.type = 'button';
     retry.addEventListener('click', () => refresh());
-    formSide.append(retry);
+    formSide.append(retry, manualLink());
     root.replaceChildren(surface);
   }
 

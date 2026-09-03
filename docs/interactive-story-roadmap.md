@@ -32,12 +32,16 @@ roleplay, mechanics, or AI review into required setup.
 
 ### 1. Optional Scene and Session foundation
 
+Status: **implemented**
+
 Add chapter-owned Scene records with planning/play mode, status, viewpoint,
 location, story time, purpose, stakes, and optional contiguous page grouping.
 Chronicle owns scene planning. Deleting a scene ungroups pages and never
 deletes prose. Existing manuscripts receive no guessed or automatic scenes.
 
 ### 2. Play contracts and session turns
+
+Status: **implemented**
 
 Add an opt-in Play surface for a scene. Session Zero records participant
 control (owner, Scribe, or shared), Scribe initiative, challenge, pacing,
@@ -46,6 +50,8 @@ limits. Inputs distinguish Act, Say, Ask, and Direct. Raw turns remain working
 history until explicitly shaped into prose.
 
 ### 3. Living campaign state
+
+Status: **next**
 
 Extend the continuity model with relationship changes, promises and debts,
 knowledge boundaries, secrets and witnesses, NPC goals, factions, quests,

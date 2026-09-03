@@ -44,8 +44,11 @@ function createSceneStore(db, { hierarchy }) {
     if (!row) return null;
     const scene = row;
     const pages = scenePages(scene.id);
+    const playSessionCount = db.prepare('SELECT COUNT(*) AS value FROM play_sessions WHERE scene_id = ?')
+      .get(scene.id).value;
     return {
       ...scene,
+      play_session_count: Number(playSessionCount) || 0,
       page_ids: pages.map((page) => page.id),
       page_range: pages.length ? {
         first: pages[0].display_number,
@@ -195,6 +198,9 @@ function createSceneStore(db, { hierarchy }) {
   function remove(storyId, sceneId) {
     const existing = get(storyId, sceneId);
     if (!existing) return null;
+    if (db.prepare('SELECT 1 FROM play_sessions WHERE scene_id = ? LIMIT 1').get(sceneId)) {
+      throw conflict('A scene with Play history cannot be removed. Its transcript is preserved as working history.');
+    }
     let pagesUngrouped = 0;
     hierarchy.inImmediateTransaction(() => {
       pagesUngrouped = db.prepare('SELECT COUNT(*) AS value FROM scene_pages WHERE scene_id = ?')

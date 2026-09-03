@@ -17,6 +17,9 @@ const {
   CHAPTER_FIELDS,
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
+  PLAY_SESSION_FIELDS,
+  PLAY_TURN_FIELDS,
+  PLAY_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -509,6 +512,7 @@ function createTransferService({
     const maps = {
       world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), scene: new Map(), page: new Map(), revision: new Map(),
+      playSession: new Map(), playTurn: new Map(),
       scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
@@ -583,6 +587,12 @@ function createTransferService({
       }
       for (const binding of entity.bundle.scribe_bindings || []) {
         maps.scribeBinding.set(binding.id, action.action === 'copy' ? randomUUID() : binding.id);
+      }
+      for (const session of entity.bundle.play_sessions || []) {
+        maps.playSession.set(session.id, action.action === 'copy' ? randomUUID() : session.id);
+      }
+      for (const turn of entity.bundle.play_turns || []) {
+        maps.playTurn.set(turn.id, action.action === 'copy' ? randomUUID() : turn.id);
       }
       const targetStoryId = maps.story.get(entity.id);
       for (const asset of entity.bundle.art_assets || []) {
@@ -847,6 +857,45 @@ function createTransferService({
           .run(chapterId, volumeId, 'Chapter I');
         const insertPage = db.prepare('INSERT INTO pages (id, chapter_id, ordinal) VALUES (?, ?, ?)');
         importedPages.forEach((page, index) => insertPage.run(page.id, chapterId, index + 1));
+      }
+      for (const sessionSource of entity.bundle.play_sessions || []) {
+        insertOrUpdate(db, 'play_sessions', {
+          ...sessionSource,
+          id: maps.playSession.get(sessionSource.id),
+          scene_id: maps.scene.get(sessionSource.scene_id),
+          participants_json: JSON.stringify((sessionSource.participants_json || []).map((participant) => ({
+            ...participant,
+            character_id: characterMap.get(participant.character_id),
+          }))),
+        }, PLAY_SESSION_FIELDS);
+      }
+      for (const turnSource of entity.bundle.play_turns || []) {
+        insertOrUpdate(db, 'play_turns', {
+          ...turnSource,
+          id: maps.playTurn.get(turnSource.id),
+          session_id: maps.playSession.get(turnSource.session_id),
+          character_id: turnSource.character_id ? characterMap.get(turnSource.character_id) : null,
+        }, PLAY_TURN_FIELDS);
+      }
+      const playImportedAt = new Date().toISOString();
+      for (const requestSource of entity.bundle.play_ai_requests || []) {
+        const interrupted = requestSource.status === 'in_flight';
+        insertOrReplace(db, 'play_ai_requests', {
+          ...requestSource,
+          session_id: maps.playSession.get(requestSource.session_id),
+          owner_turn_id: maps.playTurn.get(requestSource.owner_turn_id),
+          response_turn_id: requestSource.response_turn_id
+            ? maps.playTurn.get(requestSource.response_turn_id)
+            : null,
+          contract_json: JSON.stringify(mapObjectIds(requestSource.contract_json, characterMap)),
+          status: interrupted ? 'failed' : requestSource.status,
+          error_code: interrupted ? 'RESTART_INTERRUPTED' : requestSource.error_code,
+          error_message: interrupted
+            ? 'The archived Scribe reply was interrupted before import. Retry explicitly.'
+            : requestSource.error_message,
+          updated_at: interrupted ? playImportedAt : requestSource.updated_at,
+          finished_at: interrupted ? playImportedAt : requestSource.finished_at,
+        }, PLAY_AI_REQUEST_FIELDS);
       }
       if (entity.bundle.revisions?.length && entity.bundle.hierarchy) {
         const hierarchyPageById = new Map(entity.bundle.hierarchy.pages.map((page) => [page.id, page]));

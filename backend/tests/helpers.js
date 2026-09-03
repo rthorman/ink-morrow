@@ -50,6 +50,9 @@ function resetDb(db) {
     DELETE FROM assets;
     DELETE FROM legacy_art_pages;
     DELETE FROM recovery_suffixes;
+    DELETE FROM play_ai_requests;
+    DELETE FROM play_turns;
+    DELETE FROM play_sessions;
     DELETE FROM continuity_issues;
     DELETE FROM continuity_corrections;
     DELETE FROM continuity_projection_checkpoints;

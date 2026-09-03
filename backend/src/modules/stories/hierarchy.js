@@ -375,7 +375,12 @@ function createHierarchyStore(db) {
           FROM pages p JOIN chapters c ON c.id = p.chapter_id
          WHERE c.volume_id = ?
       `).get(volumeId).value;
-      if (pages > 0) throw conflict('A nonempty volume cannot be deleted.');
+      const scenes = db.prepare(`
+        SELECT COUNT(*) AS value FROM scenes scene
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        WHERE chapter.volume_id = ?
+      `).get(volumeId).value;
+      if (pages > 0 || scenes > 0) throw conflict('A volume containing pages or scenes cannot be deleted.');
       db.prepare('DELETE FROM volumes WHERE id = ?').run(volumeId);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
       return true;
@@ -394,7 +399,8 @@ function createHierarchyStore(db) {
       const count = db.prepare('SELECT COUNT(*) AS value FROM chapters WHERE volume_id = ?').get(volume.id).value;
       if (count <= 1) throw conflict('A volume must retain at least one chapter.');
       const pages = db.prepare('SELECT COUNT(*) AS value FROM pages WHERE chapter_id = ?').get(chapterId).value;
-      if (pages > 0) throw conflict('A nonempty chapter cannot be deleted.');
+      const scenes = db.prepare('SELECT COUNT(*) AS value FROM scenes WHERE chapter_id = ?').get(chapterId).value;
+      if (pages > 0 || scenes > 0) throw conflict('A chapter containing pages or scenes cannot be deleted.');
       db.prepare('DELETE FROM chapters WHERE id = ?').run(chapterId);
       db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(storyId);
       return true;

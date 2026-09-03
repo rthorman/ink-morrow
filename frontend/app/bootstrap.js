@@ -32,6 +32,7 @@ import { createSettings } from './features/settings.js';
 import { createTransfer } from './features/transfer.js';
 import { createAiDrafts } from './features/ai-drafts.js';
 import { createChronicle } from './features/chronicle.js';
+import { createPlay } from './features/play.js';
 import { createCodex } from './features/codex.js';
 import { createGallery } from './features/gallery.js';
 import { createGate } from './features/gate.js';
@@ -83,6 +84,7 @@ export function initApp() {
   features.audiobook = createAudiobook({ api, state, notify, shell, features, dialogs });
   features.aiDrafts = createAiDrafts({ api, state, notify, features, dialogs });
   features.chronicle = createChronicle({ api, state, notify, features, dialogs, router: null });
+  features.play = createPlay({ api, state, notify, features, dialogs, router: null });
   features.codex = createCodex({ api, state, notify, features, dialogs, router: null });
   features.gallery = createGallery({ api, state, notify, features, dialogs, shell, router: null });
   features.gate = createGate({ api, state, notify, features, dialogs, router: null });
@@ -94,11 +96,12 @@ export function initApp() {
   window.__imLiveBoot = bootToken;
   let lastRoute = null;
   let routeTransitionToken = 0; // stale async gate results must not render
-  const WORKSPACE_DESTINATIONS = new Set(['desk', 'chronicle', 'codex', 'gallery', 'gate']);
+  const WORKSPACE_DESTINATIONS = new Set(['desk', 'chronicle', 'play', 'codex', 'gallery', 'gate']);
   const SECTION_FOR = {
     home: 'home',
     desk: 'write',
     chronicle: 'chronicle',
+    play: 'play',
     codex: 'codex',
     gallery: 'gallery',
     gate: 'gate',
@@ -144,6 +147,8 @@ export function initApp() {
     if (route.name === 'tribe') features.scribes.loadScribes();
     if (route.name === 'chronicle') {
       features.chronicle.enter(route.params).then(syncManuscriptShell);
+    } else if (route.name === 'play') {
+      features.play.enter(route.params).then(syncManuscriptShell);
     } else if (route.name === 'codex') {
       features.codex.enter(route.params).then(syncManuscriptShell);
     } else if (route.name === 'gallery') {
@@ -186,6 +191,7 @@ export function initApp() {
   features.bookshelf.router = router;
   features.write.router = router;
   features.chronicle.setRouter(router);
+  features.play.setRouter(router);
   features.codex.setRouter(router);
   features.gallery.setRouter(router);
   features.gate.setRouter(router);
@@ -239,6 +245,7 @@ export function initApp() {
   features.transfer.init();
   features.manuscriptStart.init();
   features.chronicle.init();
+  features.play.init();
   features.codex.init();
   features.gallery.init();
   features.gate.init();
@@ -288,6 +295,7 @@ export function initApp() {
     shell.stopDiskBanner();
     features.generation.resetForStoryChange();
     features.chronicle.reset();
+    features.play.reset();
     features.codex.reset();
     features.gallery.reset();
     features.gate.reset();
@@ -347,7 +355,7 @@ export const fw = buildFacade(context);
 function buildFacade(ctx) {
   if (!ctx) return null;
   const { api, state, notify, shell, features } = ctx;
-  const { worlds, characters, scribes, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, codex, gallery, gate } = features;
+  const { worlds, characters, scribes, stories, storyEditor, bookshelf, write, generation, narration, imagery, audiobook, settings, transfer, aiDrafts, chronicle, play, codex, gallery, gate } = features;
   const { dialogs, auth, authGate } = ctx;
   return {
     initApp,
@@ -399,6 +407,8 @@ function buildFacade(ctx) {
     renderPublicationJob: gate.renderJob,
     revealChroniclePage: chronicle.revealPage,
     restoreChronicleRecovery: chronicle.restoreRecovery,
+    enterPlay: play.enter,
+    renderPlay: play.render,
     loadCodex: codex.load,
     enterCodex: codex.enter,
     renderCodex: codex.render,

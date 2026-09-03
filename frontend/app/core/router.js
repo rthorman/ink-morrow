@@ -6,6 +6,7 @@
 //   #/library
 //   #/desk[/<storyId>[/page/<pageNumber>]]
 //   #/(chronicle|codex|gallery|gate)/<storyId>
+//   #/play/<storyId>/<sceneId>
 //   #/library/stories
 //   #/library/bookshelf
 //   #/worlds
@@ -22,6 +23,7 @@ const ROUTES = [
   { name: 'desk-story', pattern: /^\/(?:desk|write)\/([^/]+)$/ },
   { name: 'desk-page', pattern: /^\/(?:desk|write)\/([^/]+)\/page\/(\d+)$/ },
   { name: 'chronicle-story', pattern: /^\/chronicle\/([^/]+)$/ },
+  { name: 'play-scene', pattern: /^\/play\/([^/]+)\/([^/]+)$/ },
   { name: 'codex-story', pattern: /^\/codex\/([^/]+)$/ },
   { name: 'gallery-story', pattern: /^\/gallery\/([^/]+)$/ },
   { name: 'gate-story', pattern: /^\/gate\/([^/]+)$/ },
@@ -41,6 +43,7 @@ export function parseHash(hash) {
     if (match) {
       if (route.name === 'desk-story') return { name: 'desk', params: { storyId: match[1] } };
       if (route.name === 'desk-page') return { name: 'desk', params: { storyId: match[1], pageNumber: Number(match[2]) } };
+      if (route.name === 'play-scene') return { name: 'play', params: { storyId: match[1], sceneId: match[2] } };
       if (route.name.endsWith('-story')) {
         return { name: route.name.slice(0, -6), params: { storyId: match[1] } };
       }
@@ -63,6 +66,8 @@ export function formatHash(name, params = {}) {
     case 'gallery':
     case 'gate':
       return params.storyId ? `#/${name}/${params.storyId}` : '#/desk';
+    case 'play':
+      return params.storyId && params.sceneId ? `#/play/${params.storyId}/${params.sceneId}` : '#/chronicle';
     case 'library-stories': return '#/library/stories';
     case 'library-bookshelf': return '#/library/bookshelf';
     case 'worlds': return '#/worlds';
