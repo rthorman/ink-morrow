@@ -226,10 +226,12 @@ function buildDom() {
         <button id="codexFoundationsTab" role="tab" aria-selected="true">Foundations</button>
         <button id="codexCanonTab" role="tab" aria-selected="false">Remembered canon</button>
         <button id="codexCorrectionsTab" role="tab" aria-selected="false">Author canon</button>
+        <button id="codexCampaignTab" role="tab" aria-selected="false">Campaign</button>
         <button class="workspace-back-to-desk">Return to Desk</button>
-        <section id="codexFoundationsPanel"><div id="codexFoundations"></div><div id="codexTemplateUpdates"></div></section>
+        <section id="codexFoundationsPanel"><div id="codexScribe"></div><div id="codexFoundations"></div><div id="codexTemplateUpdates"></div></section>
         <section id="codexCanonPanel" hidden><div id="codexCoverage"></div><input id="codexSearch"><div id="codexCanon"></div></section>
         <section id="codexCorrectionsPanel" hidden><div id="codexAuthorCanon"></div><div id="codexCorrectionActions"></div><div id="codexCorrections"></div><div id="codexIssues"></div><div id="codexImpactSummary"></div></section>
+        <section id="codexCampaignPanel" hidden><button id="codexCampaignAdd" type="button">Add state</button><div id="codexCampaignState"></div></section>
       </section>
       <section id="gallerySection" class="content-section"><span data-workspace-story></span><p id="galleryStatus"></p>
         <button id="galleryPaintBtn" class="btn btn-primary">Paint with AI</button><button id="galleryUploadBtn" class="btn btn-primary">Upload an image</button>
@@ -237,6 +239,7 @@ function buildDom() {
         <div id="galleryReferenceSummary"></div><div id="galleryGrid"></div>
       </section>
       <section id="gateSection" class="content-section"><span data-workspace-story></span>
+        <p id="gateStatus" role="status"></p>
         <button id="gateBackupBtn">Review project backup</button>
         <form id="gatePublicationForm"><input id="gatePublicationTitle"><input id="gatePublicationAuthor"><input id="gatePublicationLanguage" value="en">
           <textarea id="gateFrontMatter"></textarea><textarea id="gateBackMatter"></textarea>

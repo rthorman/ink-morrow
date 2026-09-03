@@ -42,6 +42,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   let continuity = null;
   let templates = [];
   let loadToken = 0;
+  let loading = false;
   let facts = [];
   let boundScribe = null;
   let campaign = { entries: [], kinds: [] };
@@ -59,6 +60,27 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   function setStatus(text) {
     const status = document.getElementById('codexStatus');
     if (status) status.textContent = text;
+  }
+
+  function clearView() {
+    continuity = null;
+    templates = [];
+    facts = [];
+    campaign = { entries: [], kinds: [] };
+    for (const id of ['codexScribe', 'codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrectionActions', 'codexCorrections', 'codexIssues', 'codexImpactSummary', 'codexCampaignState']) {
+      const target = document.getElementById(id);
+      if (target) target.textContent = '';
+    }
+  }
+
+  function syncEntryControls() {
+    const unavailable = loading || !activeStoryId || !continuity;
+    const section = document.getElementById('codexSection');
+    if (section) section.setAttribute('aria-busy', loading ? 'true' : 'false');
+    for (const id of ['codexRenameBtn', 'codexFoundationsTab', 'codexCanonTab', 'codexCorrectionsTab', 'codexCampaignTab', 'codexSearch', 'codexCampaignAdd']) {
+      const control = document.getElementById(id);
+      if (control) control.disabled = unavailable;
+    }
   }
 
   function pageNumberForRevision(revisionId) {
@@ -873,6 +895,9 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
 
   async function load(storyId) {
     const token = ++loadToken;
+    loading = true;
+    clearView();
+    syncEntryControls();
     setStatus('Opening manuscript-local foundations and bounded continuity records…');
     try {
       const [memory, review, campaignState] = await Promise.all([
@@ -883,16 +908,21 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
       if (token !== loadToken || activeStoryId !== storyId) return;
       continuity = memory.continuity;
       templates = review.templates || [];
-      campaign = campaignState;
+      campaign = {
+        entries: campaignState?.entries || [],
+        kinds: campaignState?.kinds || [],
+      };
       const name = document.getElementById('codexManuscriptName');
       if (name) name.textContent = state.data.stories.find((item) => item.id === storyId)?.title || 'Selected manuscript';
       render();
+      loading = false;
+      syncEntryControls();
       setStatus(`${continuity.coverage.ready} of ${continuity.coverage.total} committed text pages remembered. Prose stays on the Desk.`);
     } catch (error) {
       if (token !== loadToken) return;
-      continuity = null;
-      templates = [];
-      render();
+      clearView();
+      loading = false;
+      syncEntryControls();
       setStatus(`Codex could not load: ${error.message}`);
       showError(error.message);
     }
@@ -900,8 +930,21 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
 
   async function enter(params = {}) {
     if (!params.storyId) return;
+    const token = ++loadToken;
+    activeStoryId = null;
+    boundScribe = null;
+    loading = true;
+    clearView();
+    const name = document.getElementById('codexManuscriptName');
+    if (name) name.textContent = 'Loading manuscript…';
+    syncEntryControls();
+    setStatus('Opening manuscript-local foundations and bounded continuity records…');
     const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
+    if (token !== loadToken) return;
     if (!story) {
+      loading = false;
+      if (name) name.textContent = 'No manuscript selected';
+      syncEntryControls();
       showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
@@ -918,22 +961,18 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     document.getElementById('codexSearch')?.addEventListener('input', applyFilter);
     document.getElementById('codexRenameBtn')?.addEventListener('click', openRename);
     document.getElementById('codexCampaignAdd')?.addEventListener('click', () => openCampaignEditor());
+    syncEntryControls();
   }
 
   function reset() {
     loadToken++;
     activeStoryId = null;
-    continuity = null;
-    templates = [];
-    facts = [];
+    loading = false;
     boundScribe = null;
-    campaign = { entries: [], kinds: [] };
-    for (const id of ['codexScribe', 'codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary', 'codexCampaignState']) {
-      const target = document.getElementById(id);
-      if (target) target.textContent = '';
-    }
+    clearView();
     const name = document.getElementById('codexManuscriptName');
     if (name) name.textContent = 'No manuscript selected';
+    syncEntryControls();
     setStatus('Choose a manuscript to inspect its foundations and remembered canon.');
   }
 

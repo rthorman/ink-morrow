@@ -34,6 +34,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   let recoveries = [];
   let activeStoryId = null;
   let loadToken = 0;
+  let loading = false;
   const pageOffsets = new Map();
   let revealNumber = null;
   let routeController = router;
@@ -66,6 +67,23 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   function setStatus(text) {
     const status = document.getElementById('chronicleStatus');
     if (status) status.textContent = text;
+  }
+
+  function syncEntryControls() {
+    const unavailable = loading || !activeStoryId || !hierarchy;
+    const section = document.getElementById('chronicleSection');
+    if (section) section.setAttribute('aria-busy', loading ? 'true' : 'false');
+    for (const id of ['chroniclePageJump', 'chroniclePageJumpBtn', 'chronicleAddChapter', 'chronicleAddVolume']) {
+      const control = document.getElementById(id);
+      if (control) control.disabled = unavailable;
+    }
+  }
+
+  function clearView() {
+    for (const id of ['chronicleSummary', 'chronicleOutline', 'chronicleRecoveries']) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = '';
+    }
   }
 
   function summaryItem(value, label) {
@@ -388,6 +406,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   }
 
   function addVolume() {
+    if (loading || !activeStoryId || !hierarchy) return;
     const ordinal = (hierarchy?.summary?.volume_count || 0) + 1;
     openTitleDialog({
       title: 'Begin a new volume at the active tail',
@@ -402,6 +421,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   }
 
   function addChapter() {
+    if (loading || !activeStoryId || !hierarchy) return;
     const volume = hierarchy?.volumes?.at(-1);
     if (!volume) return;
     const ordinal = volume.chapters.length + 1;
@@ -664,6 +684,11 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
 
   async function load(storyId) {
     const token = ++loadToken;
+    loading = true;
+    hierarchy = null;
+    recoveries = [];
+    clearView();
+    syncEntryControls();
     setStatus('Opening the bounded hierarchy and recovery ledger...');
     try {
       const [outline, recoveryResult] = await Promise.all([
@@ -673,7 +698,9 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       if (token !== loadToken || activeStoryId !== storyId) return;
       hierarchy = outline.hierarchy;
       recoveries = recoveryResult.recoveries || [];
+      loading = false;
       render();
+      syncEntryControls();
       const count = hierarchy.summary.page_count;
       const sceneCount = hierarchy.summary.scene_count || 0;
       setStatus(`${count} narrative ${count === 1 ? 'page' : 'pages'} and ${sceneCount} optional ${sceneCount === 1 ? 'scene' : 'scenes'} in publication order. Only short excerpts are loaded here.`);
@@ -681,7 +708,9 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       if (token !== loadToken) return;
       hierarchy = null;
       recoveries = [];
+      loading = false;
       render();
+      syncEntryControls();
       setStatus(`Chronicle could not load: ${error.message}`);
       showError(error.message);
     }
@@ -689,8 +718,20 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
 
   async function enter(params = {}) {
     if (!params.storyId) return;
+    const token = ++loadToken;
+    activeStoryId = null;
+    loading = true;
+    hierarchy = null;
+    recoveries = [];
+    pageOffsets.clear();
+    clearView();
+    syncEntryControls();
+    setStatus('Opening the bounded hierarchy and recovery ledger...');
     const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
+    if (token !== loadToken) return;
     if (!story) {
+      loading = false;
+      syncEntryControls();
       showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
@@ -701,6 +742,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
   }
 
   function revealPage() {
+    if (loading || !hierarchy) return;
     const input = document.getElementById('chroniclePageJump');
     const number = Number.parseInt(input?.value, 10);
     const total = hierarchy?.summary?.page_count || 0;
@@ -730,6 +772,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     });
     document.getElementById('chronicleAddVolume')?.addEventListener('click', addVolume);
     document.getElementById('chronicleAddChapter')?.addEventListener('click', addChapter);
+    syncEntryControls();
   }
 
   function reset() {
@@ -737,11 +780,10 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     activeStoryId = null;
     hierarchy = null;
     recoveries = [];
+    loading = false;
     pageOffsets.clear();
-    for (const id of ['chronicleSummary', 'chronicleOutline', 'chronicleRecoveries']) {
-      const element = document.getElementById(id);
-      if (element) element.textContent = '';
-    }
+    clearView();
+    syncEntryControls();
     setStatus('Choose a manuscript to inspect its structure and recovery history.');
   }
 
