@@ -666,6 +666,10 @@ describe('portable archives and backups', () => {
       .send({ kind: 'act', character_id: lead.id, content: 'I listen once more before crossing.' }).expect(201)).body.turn;
     await request(source.app).put(`/api/stories/${story.id}/play-sessions/${session.id}/branches/${forked.selected_branch_id}/successor`)
       .send({ turn_id: alternativeTurn.id }).expect(200);
+    const oracle = (await request(source.app).post(`/api/stories/${story.id}/solo-tools`)
+      .send({ kind: 'oracle', name: 'Threshold oracle', config: { chance: 65 } }).expect(201)).body.tool;
+    const frozenResult = (await request(source.app).post(`/api/stories/${story.id}/play-sessions/${session.id}/tool-results`)
+      .send({ tool_id: oracle.id, input: { chance: 65 } }).expect(201)).body.record;
 
     const { bytes } = await downloadPlan(source.app, {
       scope: 'story', id: story.id, include_visuals: false,
@@ -683,6 +687,8 @@ describe('portable archives and backups', () => {
     expect(bundle.play_branches).toHaveLength(2);
     expect(bundle.play_branches[1]).toMatchObject({ name: 'Listen twice', fork_turn_id: ownerTurn.id, selected_successor_turn_id: alternativeTurn.id });
     expect(bundle.play_ai_requests).toHaveLength(1);
+    expect(bundle.solo_tools[0]).toMatchObject({ id: oracle.id, kind: 'oracle', config_json: { chance: 65 } });
+    expect(bundle.play_tool_records[0]).toMatchObject({ id: frozenResult.id, tool_id: oracle.id, branch_id: forked.selected_branch_id });
     expect(bundle.campaign_entries).toHaveLength(1);
     expect(bundle.campaign_revisions[0]).toMatchObject({ entry_id: campaignEntry.id, source_id: ownerTurn.id });
     expect(bundle.campaign_ai_requests).toHaveLength(1);
@@ -705,6 +711,10 @@ describe('portable archives and backups', () => {
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM play_branches WHERE session_id = ?').get(importedSession.id).c).toBe(2);
     expect(destination.db.prepare('SELECT status, spend_usd, billed_attempts FROM play_ai_requests WHERE session_id = ?')
       .get(importedSession.id)).toEqual({ status: 'failed', spend_usd: 0.003, billed_attempts: 1 });
+    expect(destination.db.prepare('SELECT name, kind FROM solo_tools WHERE story_id = ?').get(story.id))
+      .toEqual({ name: 'Threshold oracle', kind: 'oracle' });
+    expect(destination.db.prepare('SELECT summary FROM play_tool_records WHERE session_id = ?').get(importedSession.id).summary)
+      .toBe(frozenResult.summary);
     const importedCampaign = destination.db.prepare('SELECT * FROM campaign_entries WHERE story_id = ?').get(story.id);
     expect(importedCampaign).toMatchObject({ kind: 'knowledge_boundary', status: 'active' });
     const importedCampaignRevision = destination.db.prepare('SELECT * FROM campaign_entry_revisions WHERE entry_id = ?').get(importedCampaign.id);

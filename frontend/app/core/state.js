@@ -6,7 +6,6 @@
 const SETTINGS_KEY = 'im-settings';
 export const DEFAULT_SETTINGS = Object.freeze({
   model: null,
-  scriptoriumBg: false,
   costTicker: true,
   storyFont: 'literata',
   wordsPerPage: 400,
@@ -34,7 +33,13 @@ export const STORY_FONTS = {
 export function loadSettings() {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
-    if (raw) return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    if (raw) {
+      const stored = JSON.parse(raw);
+      const clean = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
+        .map(([key, fallback]) => [key, Object.hasOwn(stored, key) ? stored[key] : fallback]));
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(clean)); } catch { /* keep clean settings in memory */ }
+      return clean;
+    }
   } catch {
     // private mode / corrupt value - fall back to defaults
   }
@@ -92,10 +97,6 @@ export function createSharedState() {
   }
 
   function applySettings() {
-    const write = document.getElementById('writeSection');
-    if (write) write.classList.toggle('scriptorium-bg', Boolean(settings.scriptoriumBg));
-    const bgToggle = document.getElementById('scriptoriumBgToggle');
-    if (bgToggle) bgToggle.checked = Boolean(settings.scriptoriumBg);
     const tickerToggle = document.getElementById('costTickerToggle');
     if (tickerToggle) tickerToggle.checked = Boolean(settings.costTicker);
     const font = STORY_FONTS[settings.storyFont] || STORY_FONTS.literata;

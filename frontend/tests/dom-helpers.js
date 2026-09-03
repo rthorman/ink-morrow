@@ -215,7 +215,8 @@ function buildDom() {
           <select id="playInteriority"><option value="owner_only">Owner only</option><option value="sensory_only">Sensory</option><option value="shared">Shared</option></select>
           <input id="playAllowDeath" type="checkbox"><textarea id="playContractNotes"></textarea><button id="playContractCancel" type="button">Cancel editing</button><button id="playContractSave" type="submit">Start play session</button>
         </form></section>
-        <section id="playSessionPanel"><button id="playEditContract" type="button">Edit Session Zero</button><button id="playEndSession" type="button">End session</button><div id="playContractSummary"></div><ol id="playTranscript"></ol>
+        <section id="playSessionPanel"><button id="playEditContract" type="button">Edit Session Zero</button><button id="playEndSession" type="button">End session</button><div id="playContractSummary"></div>
+          <button id="playToolNew" type="button">New tool</button><select id="playToolSelect"></select><div id="playToolRunner"></div><div id="playToolRecords"></div><ol id="playTranscript"></ol>
           <form id="playComposer"><select id="playTurnKind"><option value="act">Act</option><option value="say">Say</option><option value="ask">Ask</option><option value="direct">Direct</option></select><select id="playTurnCharacter"><option value="">Owner / director</option></select><textarea id="playTurnContent"></textarea><button id="playRecordTurn" type="button">Record only</button><button id="playSendTurn" type="submit">Send to Scribe</button></form>
         </section>
       </section>
@@ -269,7 +270,6 @@ function buildDom() {
         <details class="settings-group" open><summary><h3>Reading appearance</h3><span id="readingSummary" class="settings-group__summary"></span></summary>
           <div id="fontList" class="font-list"></div>
           <select id="fontSizeSelect"><option value="16">Small</option><option value="18">Medium</option><option value="20">Large</option><option value="22">Extra large</option></select>
-          <input type="checkbox" id="scriptoriumBgToggle">
         </details>
         <details class="settings-group" open><summary><h3>Costs &amp; storage</h3></summary>
           <input type="checkbox" id="costTickerToggle" checked>

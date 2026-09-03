@@ -46,9 +46,15 @@ function createSceneStore(db, { hierarchy }) {
     const pages = scenePages(scene.id);
     const playSessionCount = db.prepare('SELECT COUNT(*) AS value FROM play_sessions WHERE scene_id = ?')
       .get(scene.id).value;
+    const toolRecordCount = db.prepare('SELECT COUNT(*) AS value FROM play_tool_records WHERE scene_id = ?')
+      .get(scene.id).value;
+    const latestToolRecord = db.prepare(`SELECT summary, tool_name, created_at FROM play_tool_records
+      WHERE scene_id = ? ORDER BY created_at DESC, ordinal DESC LIMIT 1`).get(scene.id) || null;
     return {
       ...scene,
       play_session_count: Number(playSessionCount) || 0,
+      tool_record_count: Number(toolRecordCount) || 0,
+      latest_tool_record: latestToolRecord,
       page_ids: pages.map((page) => page.id),
       page_range: pages.length ? {
         first: pages[0].display_number,

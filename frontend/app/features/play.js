@@ -3,6 +3,7 @@
 
 import { chooseWorkspaceStory } from '../core/story-context.js';
 import { ROUGH_TEXT_CALL_ESTIMATE } from '../core/cost.js';
+import { createSoloTools } from './solo-tools.js';
 
 function node(tag, className = '', text = '') {
   const element = document.createElement(tag);
@@ -36,6 +37,10 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   let proposals = [];
   let suggestionKey = null;
   let proseRequestKey = null;
+  const soloTools = createSoloTools({
+    api, notify, dialogs,
+    getContext: () => ({ storyId: activeStoryId, scene, session }),
+  });
 
   const byId = (id) => document.getElementById(id);
   const setStatus = (message) => { if (byId('playStatus')) byId('playStatus').textContent = message; };
@@ -279,6 +284,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   async function loadSession(id) {
     const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${id}`);
     session = result.session;
+    await soloTools.load();
   }
 
   function forkFrom(turn) {
@@ -293,7 +299,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
           close(true);
           try {
             const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/branches`, 'POST', { fork_turn_id: turn.id, name: input.value.trim() });
-            session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; render(); showSuccess('Alternate path created. Earlier turns remain shared and immutable.');
+            session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; await soloTools.load(); render(); showSuccess('Alternate path created. Earlier turns remain shared and immutable.');
           } catch (error) { showError(error.message); }
         } },
       ],
@@ -362,6 +368,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     const selected = preferredId || result.active?.id || sessions[0]?.id || null;
     session = null;
     if (selected) await loadSession(selected);
+    else soloTools.reset();
     render();
   }
 
@@ -549,12 +556,13 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   }
 
   function init() {
+    soloTools.init();
     byId('playBackBtn')?.addEventListener('click', () => routeController.navigate('chronicle', { storyId: activeStoryId }));
     byId('playContractForm')?.addEventListener('submit', saveContract);
     byId('playContractCancel')?.addEventListener('click', () => { editingContract = false; render(); });
     byId('playEditContract')?.addEventListener('click', () => { editingContract = true; render(); });
     byId('playEndSession')?.addEventListener('click', endSession);
-    byId('playNewSessionBtn')?.addEventListener('click', () => { session = null; editingContract = false; render(); });
+    byId('playNewSessionBtn')?.addEventListener('click', () => { session = null; editingContract = false; soloTools.reset(); render(); });
     byId('playSessionSelect')?.addEventListener('change', async (event) => {
       if (!event.target.value) return;
       try { await loadSession(event.target.value); editingContract = false; retryRequest = null; proseRequestKey = null; render(); }
@@ -563,7 +571,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     byId('playBranchSelect')?.addEventListener('change', async (event) => {
       try {
         const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/branch`, 'PUT', { branch_id: event.target.value });
-        session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; render();
+        session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; await soloTools.load(); render();
       } catch (error) { showError(error.message); }
     });
     byId('playPrepareProse')?.addEventListener('click', prepareProse);
@@ -588,6 +596,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     proposals = [];
     suggestionKey = null;
     proseRequestKey = null;
+    soloTools.reset();
     for (const id of ['playParticipants', 'playContractSummary', 'playTranscript']) {
       if (byId(id)) byId(id).textContent = '';
     }

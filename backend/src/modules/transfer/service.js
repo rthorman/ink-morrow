@@ -21,6 +21,8 @@ const {
   PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  SOLO_TOOL_FIELDS,
+  PLAY_TOOL_RECORD_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
   CAMPAIGN_REVISION_FIELDS,
   CAMPAIGN_AI_REQUEST_FIELDS,
@@ -517,6 +519,7 @@ function createTransferService({
       world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), scene: new Map(), page: new Map(), revision: new Map(),
       playSession: new Map(), playBranch: new Map(), playTurn: new Map(), campaignEntry: new Map(), campaignRevision: new Map(), campaignRequest: new Map(),
+      soloTool: new Map(), toolRecord: new Map(),
       scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
@@ -599,6 +602,8 @@ function createTransferService({
       for (const turn of entity.bundle.play_turns || []) {
         maps.playTurn.set(turn.id, action.action === 'copy' ? randomUUID() : turn.id);
       }
+      for (const tool of entity.bundle.solo_tools || []) maps.soloTool.set(tool.id, action.action === 'copy' ? randomUUID() : tool.id);
+      for (const record of entity.bundle.play_tool_records || []) maps.toolRecord.set(record.id, action.action === 'copy' ? randomUUID() : record.id);
       for (const entry of entity.bundle.campaign_entries || []) maps.campaignEntry.set(entry.id, action.action === 'copy' ? randomUUID() : entry.id);
       for (const revision of entity.bundle.campaign_revisions || []) maps.campaignRevision.set(revision.id, action.action === 'copy' ? randomUUID() : revision.id);
       for (const request of entity.bundle.campaign_ai_requests || []) maps.campaignRequest.set(request.id, action.action === 'copy' ? randomUUID() : request.id);
@@ -878,6 +883,15 @@ function createTransferService({
           selected_branch_id: null,
         }, PLAY_SESSION_FIELDS);
       }
+      for (const toolSource of entity.bundle.solo_tools || []) {
+        insertOrUpdate(db, 'solo_tools', {
+          ...toolSource,
+          id: maps.soloTool.get(toolSource.id),
+          story_id: storyId,
+          config_json: JSON.stringify(toolSource.config_json),
+          state_json: JSON.stringify(toolSource.state_json),
+        }, SOLO_TOOL_FIELDS);
+      }
       const legacyRootBySession = new Map();
       const branchSources = entity.bundle.play_branches || [];
       if (!branchSources.length) {
@@ -931,6 +945,19 @@ function createTransferService({
           updated_at: interrupted ? playImportedAt : requestSource.updated_at,
           finished_at: interrupted ? playImportedAt : requestSource.finished_at,
         }, PLAY_AI_REQUEST_FIELDS);
+      }
+      for (const recordSource of entity.bundle.play_tool_records || []) {
+        insertOrReplace(db, 'play_tool_records', {
+          ...recordSource,
+          id: maps.toolRecord.get(recordSource.id),
+          story_id: storyId,
+          scene_id: maps.scene.get(recordSource.scene_id),
+          session_id: maps.playSession.get(recordSource.session_id),
+          branch_id: maps.playBranch.get(recordSource.branch_id),
+          tool_id: recordSource.tool_id ? maps.soloTool.get(recordSource.tool_id) : null,
+          input_json: JSON.stringify(recordSource.input_json),
+          result_json: JSON.stringify(recordSource.result_json),
+        }, PLAY_TOOL_RECORD_FIELDS);
       }
       for (const entrySource of entity.bundle.campaign_entries || []) {
         insertOrUpdate(db, 'campaign_entries', { ...entrySource, id: maps.campaignEntry.get(entrySource.id), story_id: storyId }, CAMPAIGN_ENTRY_FIELDS);

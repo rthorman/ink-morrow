@@ -1858,6 +1858,53 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 18,
+    name: 'deterministic solo tools',
+    checksumSource: `Reusable system-neutral tools keep explicit state. Frozen branch-aware records contain only results produced by local application code.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE solo_tools (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          kind TEXT NOT NULL CHECK (kind IN ('dice', 'oracle', 'table', 'deck', 'fields', 'clock')),
+          name TEXT NOT NULL CHECK (length(trim(name)) > 0 AND length(name) <= 200),
+          config_json TEXT NOT NULL,
+          state_json TEXT NOT NULL,
+          active INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (story_id, ordinal)
+        );
+        CREATE TABLE play_tool_records (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          scene_id TEXT NOT NULL REFERENCES scenes (id) ON DELETE CASCADE,
+          session_id TEXT NOT NULL REFERENCES play_sessions (id) ON DELETE CASCADE,
+          branch_id TEXT NOT NULL REFERENCES play_branches (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          after_turn_ordinal INTEGER NOT NULL CHECK (after_turn_ordinal >= 0),
+          tool_id TEXT REFERENCES solo_tools (id) ON DELETE SET NULL,
+          tool_kind TEXT NOT NULL CHECK (tool_kind IN ('dice', 'oracle', 'table', 'deck', 'fields', 'clock')),
+          tool_name TEXT NOT NULL CHECK (length(trim(tool_name)) > 0),
+          input_json TEXT NOT NULL,
+          result_json TEXT NOT NULL,
+          summary TEXT NOT NULL CHECK (length(trim(summary)) > 0 AND length(summary) <= 2000),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (session_id, ordinal)
+        );
+        CREATE INDEX idx_solo_tools_story_order ON solo_tools (story_id, active, ordinal);
+        CREATE INDEX idx_play_tool_records_scene_order ON play_tool_records (scene_id, session_id, ordinal);
+        CREATE INDEX idx_play_tool_records_branch_order ON play_tool_records (branch_id, after_turn_ordinal, ordinal);
+        CREATE TRIGGER play_tool_records_frozen
+        BEFORE UPDATE ON play_tool_records
+        BEGIN
+          SELECT RAISE(ABORT, 'Committed solo-tool results are immutable');
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

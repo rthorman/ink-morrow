@@ -595,6 +595,18 @@
                         <div class="play-actions"><button id="playSuggestState" class="btn btn-secondary" type="button">Suggest state with AI</button></div>
                         <div id="playSuggestions" class="play-suggestions" aria-live="polite"></div>
                     </details>
+                    <details id="playToolsPanel" class="play-recap play-tools" open>
+                        <summary>Solo tools · local, no AI</summary>
+                        <p class="setting-hint">Roll dice, ask an oracle, draw from tables or decks, and commit fields or clocks. Results are frozen working-history records on the selected path. The Scribe may interpret them but cannot roll or change them.</p>
+                        <div class="play-tools__bar">
+                            <label for="playToolSelect">Tool</label>
+                            <select id="playToolSelect"><option value="">No tools yet</option></select>
+                            <button id="playToolNew" class="btn btn-secondary" type="button">New tool</button>
+                        </div>
+                        <div id="playToolRunner" class="play-tool-runner"></div>
+                        <h4>Frozen results on this path</h4>
+                        <div id="playToolRecords" class="play-tool-records" aria-live="polite"></div>
+                    </details>
                     <ol id="playTranscript" class="play-transcript"></ol>
                     <form id="playComposer" class="play-composer">
                         <div class="play-composer__controls">
@@ -801,10 +813,6 @@
                         <option value="20">Large (20px)</option>
                         <option value="22">Extra large (22px)</option>
                     </select>
-                    <label class="toggle-row" for="scriptoriumBgToggle">
-                        <input type="checkbox" id="scriptoriumBgToggle">
-                        <span>Toned-down scriptorium artwork behind the writing page</span>
-                    </label>
                 </details>
 
                 <details class="create-form settings-group" open>

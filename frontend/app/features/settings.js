@@ -116,8 +116,8 @@ export function createSettings({ api, state, notify, shell }) {
     if (!label) return;
     const entry = selectedModelEntry();
     label.textContent = state.settings.model
-      ? `Selected: ${state.settings.model}`
-      : entry ? `Server default: ${entry.id}` : 'Using the server default model';
+      ? `In use: ${entry?.name || state.settings.model} (${state.settings.model}) · chosen on this device`
+      : entry ? `In use: ${entry.name || entry.id} (${entry.id}) · server default` : 'Using the server default model (catalogue not loaded)';
   }
 
   function renderModelList() {
@@ -139,16 +139,18 @@ export function createSettings({ api, state, notify, shell }) {
       return;
     }
 
+    const activeId = selectedModelEntry()?.id || state.settings.model;
     filtered.forEach((m) => {
       const item = document.createElement('button');
       item.type = 'button';
-      item.className = 'model-item' + (state.settings.model === m.id ? ' selected' : '');
+      const inUse = activeId === m.id;
+      item.className = 'model-item' + (inUse ? ' selected' : '');
       item.setAttribute('role', 'option');
-      item.setAttribute('aria-selected', state.settings.model === m.id ? 'true' : 'false');
+      item.setAttribute('aria-selected', inUse ? 'true' : 'false');
 
       const name = document.createElement('span');
       name.className = 'model-item__name';
-      name.textContent = m.name || m.id;
+      name.textContent = `${m.name || m.id}${inUse ? ' · in use' : ''}`;
       const id = document.createElement('span');
       id.className = 'model-item__id';
       id.textContent = m.id;
@@ -340,8 +342,6 @@ export function createSettings({ api, state, notify, shell }) {
         state.setSetting('reasoningEffort', reasoningSelect.value || null);
       });
     }
-    const bgToggle = document.getElementById('scriptoriumBgToggle');
-    if (bgToggle) bgToggle.addEventListener('change', () => state.setSetting('scriptoriumBg', bgToggle.checked));
     const tickerToggle = document.getElementById('costTickerToggle');
     if (tickerToggle) tickerToggle.addEventListener('change', () => state.setSetting('costTicker', tickerToggle.checked));
     const wordsInput = document.getElementById('wordsPerPageInput');

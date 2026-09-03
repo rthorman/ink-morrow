@@ -93,6 +93,31 @@ If the selected path or endpoint changes while the provider is working, the
 paid response is accounted but rejected as stale. A retry key replays the
 same preparation rather than buying it twice.
 
+## Deterministic solo tools
+
+The open Play session contains a **Solo tools · local, no AI** panel. Tools are
+reusable within the manuscript and entirely optional:
+
+- dice accept bounded notation such as `d20`, `2d6+1`, or `3d8-2`;
+- likelihood oracles roll percentile dice against an explicit 1–99% chance
+  and report yes/no plus exceptional results;
+- weighted tables choose from owner-written outcomes and weights;
+- decks draw without replacement and never reset themselves;
+- user-defined fields commit owner-written tracker values; and
+- progress clocks have 2–20 segments and explicit one-segment changes.
+
+Creating, editing, running, resetting, or archiving one of these tools makes
+no provider request and costs nothing. Each committed outcome becomes an
+immutable result on the selected Play path. A fork excludes results committed
+after its fork turn; Chronicle shows the recent frozen result history for the
+scene, including the session and path names. Archiving a reusable tool
+never removes its existing records.
+
+The next Scribe response and Play-to-Prose request may receive recent recorded
+results with their position, tool name, kind, and summary. The prompt calls
+them immutable: the Scribe may interpret an outcome in the fiction but may
+not roll, reroll, replace, or silently modify it.
+
 ## API
 
 - `GET/POST /api/stories/:storyId/scenes/:sceneId/play-sessions`
@@ -104,6 +129,10 @@ same preparation rather than buying it twice.
 - `PUT /api/stories/:storyId/play-sessions/:sessionId/branch`
 - `PUT /api/stories/:storyId/play-sessions/:sessionId/branches/:branchId/successor`
 - `POST /api/stories/:storyId/play-sessions/:sessionId/prepare-prose`
+- `GET/POST /api/stories/:storyId/solo-tools`
+- `PUT/DELETE /api/stories/:storyId/solo-tools/:toolId`
+- `GET /api/stories/:storyId/scenes/:sceneId/tool-results`
+- `GET/POST /api/stories/:storyId/play-sessions/:sessionId/tool-results`
 - `GET /api/stories/:storyId/scenes/:sceneId/recap`
 - `POST /api/stories/:storyId/scenes/:sceneId/campaign-suggestions`
 
@@ -115,7 +144,9 @@ authoritative transport value.
 
 When an `.inkmorrow` export includes **working history**, it preserves Session
 Zero contracts, turns, and provider-attempt accounting while remapping scene,
-session, turn, and character identities on copy import. An imported in-flight
+session, branch, turn, tool, frozen-result, and character identities on copy
+import. Tool definitions and current local state always travel with the
+manuscript; frozen results require **working history**. An imported in-flight
 attempt becomes `RESTART_INTERRUPTED`. Exports without working history contain
 no Play transcript. Credentials, login state, and paid-consent state never
 travel.

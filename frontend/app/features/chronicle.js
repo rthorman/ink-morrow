@@ -311,6 +311,26 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     );
   }
 
+  async function openToolRecords(scene) {
+    try {
+      const result = await apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/tool-results`);
+      const body = node('div', 'play-tool-records');
+      for (const record of (result.records || []).slice().reverse()) {
+        const item = node('article', 'play-tool-record');
+        item.append(
+          node('p', 'play-turn__meta', `Session ${record.session_ordinal} · ${record.branch_name} · ${record.tool_name} · ${readableDate(record.created_at)}`),
+          node('strong', '', record.summary),
+        );
+        body.append(item);
+      }
+      dialogs.openDialog({
+        title: `Frozen tool results · ${scene.title}`,
+        body,
+        actions: [{ label: 'Close', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) }],
+      });
+    } catch (error) { showError(error.message); }
+  }
+
   function renderScenes(chapter, body) {
     if (!chapter.scenes?.length) return;
     const section = node('section', 'chronicle-scenes');
@@ -340,7 +360,12 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
         storyId: activeStoryId,
         sceneId: scene.id,
       }));
-      actions.append(play, edit, remove);
+      actions.append(play);
+      if (scene.tool_record_count) {
+        const records = node('button', 'btn btn-secondary', `Tool results (${scene.tool_record_count})`);
+        records.type = 'button'; records.addEventListener('click', () => openToolRecords(scene)); actions.append(records);
+      }
+      actions.append(edit, remove);
       heading.appendChild(actions);
       card.appendChild(heading);
       const range = scene.page_range
@@ -355,6 +380,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       }
       if (scene.purpose) card.appendChild(node('p', '', scene.purpose));
       if (scene.stakes) card.appendChild(node('p', 'setting-hint', `Stakes: ${scene.stakes}`));
+      if (scene.latest_tool_record) card.appendChild(node('p', 'setting-hint', `Latest local result: ${scene.latest_tool_record.summary}`));
       list.appendChild(card);
     }
     section.appendChild(list);
