@@ -74,7 +74,7 @@ function buildDom() {
               <textarea id="startImportProse"></textarea>
               <select id="startImportMode"><option value="headings">Headings</option><option value="single">Single</option></select>
             </div>
-            <div id="manuscriptStartHintWrap"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
+            <div id="manuscriptStartHintWrap" class="context-hint"><p id="manuscriptStartHint"></p><button id="manuscriptStartHintDismiss" type="button">Dismiss hint</button></div>
             <details id="startFoundations">
               <select id="startWorld"><option value="">No world</option></select>
               <select id="startScribe"><option value="">No Scribe</option></select>
@@ -142,6 +142,16 @@ function buildDom() {
         <div id="charactersList" class="items-grid"></div>
       </section>
       <section id="tribeSection" class="content-section">
+        <button id="scribeNewBtn" type="button" aria-expanded="false">New Scribe</button>
+        <div id="scribeCreateWrap" hidden>
+          <form id="scribeForm">
+            <input id="scribeName" type="text">
+            <div id="scribeFocusAreas"></div>
+            <button type="submit">Create and paint</button>
+            <button id="scribeNoImageBtn" type="submit">Create without image</button>
+            <button id="scribeAiBtn" type="button">Design with AI…</button>
+          </form>
+        </div>
         <div id="scribesList" class="items-grid"></div>
       </section>
       <section id="librarySection" class="content-section">

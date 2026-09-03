@@ -3,6 +3,7 @@
 // craft rather than a named-author imitation.
 
 import { approxCostText, estimatePageCost } from '../core/cost.js';
+import { beginButtonBusy } from '../core/dom.js';
 import { wireModal } from '../core/dialogs.js';
 import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
 
@@ -29,6 +30,7 @@ export function createScribes({ api, state, notify, catalogPoll, entityCard, fea
   let editingId = null;
   let editorSnapshot = null;
   let reviewing = false;
+  let aiOperationRunning = false;
 
   const idFor = (prefix, key) => `${prefix}${FIELD_SUFFIX[key]}`;
   const formElement = (prefix, key) => document.getElementById(idFor(prefix, key));
@@ -255,7 +257,7 @@ export function createScribes({ api, state, notify, catalogPoll, entityCard, fea
   }
 
   async function designWithAi() {
-    if (reviewing) return;
+    if (reviewing || aiOperationRunning) return;
     const seed = values('scribe');
     const estimate = estimatePageCost({
       models: state.modelsCache, model: state.settings.model, wordsPerPage: 450,
@@ -277,6 +279,8 @@ export function createScribes({ api, state, notify, catalogPoll, entityCard, fea
     });
     reviewing = false;
     if (!yes) return;
+    aiOperationRunning = true;
+    const restoreButton = beginButtonBusy(document.getElementById('scribeAiBtn'), 'The Scribe is designing…');
     try {
       const result = await apiCall('/ai/scribe', 'POST', {
         ...seed, length: 'medium', ...(state.settings.model ? { model: state.settings.model } : {}),
@@ -287,6 +291,9 @@ export function createScribes({ api, state, notify, catalogPoll, entityCard, fea
     } catch (error) {
       state.addSessionCost(error.costUsd);
       showError(error.message);
+    } finally {
+      aiOperationRunning = false;
+      restoreButton();
     }
   }
 

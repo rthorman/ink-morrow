@@ -225,6 +225,10 @@
   border-left: 4px solid var(--im-gold-700);
 }
 
+.context-hint[hidden] {
+  display: none;
+}
+
 .context-hint p {
   margin: 0;
 }

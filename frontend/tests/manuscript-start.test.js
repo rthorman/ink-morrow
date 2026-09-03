@@ -1,5 +1,6 @@
 'use strict';
 
+import { readFileSync } from 'node:fs';
 import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
 
 const STORY = {
@@ -144,5 +145,63 @@ describe('PR10 Library manuscript start', () => {
 
     expect(document.getElementById('startProviderSetup').hidden).toBe(false);
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/ai/foundations')).toBe(false);
+  });
+
+  it('visibly dismisses a path hint and remembers that choice for the session', () => {
+    const style = document.createElement('style');
+    style.textContent = [
+      readFileSync(new URL('../styles/base.css', import.meta.url), 'utf8'),
+      readFileSync(new URL('../styles/features/home.css', import.meta.url), 'utf8'),
+    ].join('\n');
+    document.head.appendChild(style);
+
+    document.getElementById('heroStartBtn').click();
+    const hint = document.getElementById('manuscriptStartHintWrap');
+    expect(getComputedStyle(hint).display).toBe('flex');
+
+    document.getElementById('manuscriptStartHintDismiss').click();
+    expect(hint.hidden).toBe(true);
+    expect(getComputedStyle(hint).display).toBe('none');
+    expect(JSON.parse(window.sessionStorage.getItem('im-manuscript-start-hints-v1'))).toContain('manual');
+
+    document.getElementById('manuscriptStartCancel').click();
+    document.getElementById('heroStartBtn').click();
+    expect(hint.hidden).toBe(true);
+  });
+
+  it('shows a disabled busy button while AI drafts Foundations and restores it afterwards', async () => {
+    let finishDraft;
+    fetchMock.mockImplementation((url, options = {}) => {
+      if (url === '/api/providers') {
+        return Promise.resolve(jsonResponse(200, {
+          profiles: [], roles: [{ role: 'scribe', status: 'available', model_id: 'model' }],
+        }));
+      }
+      if (url === '/api/ai/foundations' && options.method === 'POST') {
+        return new Promise((resolve) => { finishDraft = () => resolve(jsonResponse(200, { foundations: {} })); });
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+
+    document.getElementById('heroStartBtn').click();
+    const button = document.getElementById('startDraftFoundationsBtn');
+    const originalLabel = button.textContent;
+    button.click();
+    for (let i = 0; i < 4; i++) await flush();
+    const confirm = [...document.querySelectorAll('.dialog-manager button')]
+      .find((item) => item.textContent.includes('Draft Foundations'));
+    confirm.click();
+    await flush();
+
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.textContent).toContain('drafting');
+
+    finishDraft();
+    await flush();
+    await flush();
+    expect(button.disabled).toBe(false);
+    expect(button.hasAttribute('aria-busy')).toBe(false);
+    expect(button.textContent).toBe(originalLabel);
   });
 });

@@ -2,6 +2,7 @@
 // AI is optional, reviewed, and configured only when the author asks for it.
 
 import { approxCostText } from '../core/cost.js';
+import { beginButtonBusy } from '../core/dom.js';
 import { IMAGE_COST_ESTIMATE } from '../components/entity-card.js';
 
 const START_DRAFT_KEY = 'im-manuscript-start-draft-v1';
@@ -28,6 +29,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
   let stage = 1;
   let creating = false;
   let reviewing = false;
+  let draftingFoundations = false;
 
   const el = (id) => document.getElementById(id);
 
@@ -388,7 +390,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
   }
 
   async function draftFoundations() {
-    if (reviewing) return;
+    if (reviewing || draftingFoundations) return;
     const status = el('manuscriptStartStatus');
     try {
       if (!(await providerReady())) {
@@ -416,6 +418,8 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     });
     reviewing = false;
     if (!yes) return;
+    draftingFoundations = true;
+    const restoreButton = beginButtonBusy(el('startDraftFoundationsBtn'), 'The Scribe is drafting…');
     try {
       const response = await apiCall('/ai/foundations', 'POST', {
         premise: el('startSeedPremise').value,
@@ -431,6 +435,9 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
     } catch (error) {
       showError(error.message);
       if (status) status.textContent = error.message;
+    } finally {
+      draftingFoundations = false;
+      restoreButton();
     }
   }
 
