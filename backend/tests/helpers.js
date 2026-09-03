@@ -54,11 +54,13 @@ function resetDb(db) {
     DELETE FROM campaign_entry_revisions;
     DELETE FROM campaign_entries;
     DELETE FROM play_ai_requests;
+    DELETE FROM play_tool_records;
     UPDATE play_sessions SET selected_branch_id = NULL;
     UPDATE play_branches SET parent_branch_id = NULL, fork_turn_id = NULL, selected_successor_turn_id = NULL;
     DELETE FROM play_turns;
     DELETE FROM play_branches;
     DELETE FROM play_sessions;
+    DELETE FROM solo_tools;
     DELETE FROM continuity_issues;
     DELETE FROM continuity_corrections;
     DELETE FROM continuity_projection_checkpoints;

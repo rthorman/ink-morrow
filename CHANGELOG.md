@@ -8,6 +8,11 @@ validation.
 
 ### Added
 
+- Optional deterministic solo-RPG tools now provide local dice notation,
+  likelihood oracles, weighted tables, draw-without-replacement decks,
+  user-defined fields, and progress clocks. Frozen results follow Play paths,
+  appear in Chronicle, and may be interpreted—but never rolled—by the Scribe.
+
 - Play sessions can fork from an exact immutable turn into named alternate
   paths. Selecting a path or successor remains noncanonical working history;
   an explicitly reviewed Play-to-Prose request creates only a prepared page,
@@ -32,6 +37,11 @@ validation.
   membership without making it part of canonical prose.
 
 ### Fixed
+
+- Settings now marks the resolved writing model actually in use, including
+  the named server-default model, both in the summary and model catalogue.
+- Removed the toned-down artwork-behind-the-writing-page option, its Desk CSS,
+  and its retired browser/archive setting.
 
 - Scenes with Play transcripts, and their parent structure, can no longer be
   removed through an apparently empty-container action.

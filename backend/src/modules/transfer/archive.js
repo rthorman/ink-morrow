@@ -31,6 +31,8 @@ const {
   PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  SOLO_TOOL_FIELDS,
+  PLAY_TOOL_RECORD_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
   CAMPAIGN_REVISION_FIELDS,
   CAMPAIGN_AI_REQUEST_FIELDS,
@@ -56,6 +58,7 @@ const {
 const { hashFile, httpError } = require('./planner');
 const { hashDocument, validatePublicationDocument } = require('../publication/document');
 const { ENUMS: SCRIBE_ENUMS, FOCUS_AREAS: SCRIBE_FOCUS_AREAS } = require('../scribes/store');
+const { validateConfig: validateSoloConfig, KINDS: SOLO_KINDS } = require('../play/solo-tools');
 
 const DEFAULT_LIMITS = Object.freeze({
   maxArchiveBytes: 20 * 1024 * 1024 * 1024,
@@ -295,6 +298,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
         'author_canon_revisions', 'writing_operations',
         'play_sessions', 'play_branches', 'play_turns', 'play_ai_requests',
+        'solo_tools', 'play_tool_records',
         'campaign_entries', 'campaign_revisions', 'campaign_ai_requests',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
         'publication_snapshots', 'scribe_bindings']
@@ -633,6 +637,75 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       throw httpError('Story archive play request crosses a session boundary');
     }
     playRequestKeys.add(key);
+  }
+  const soloTools = bundle.solo_tools || [];
+  const playToolRecords = bundle.play_tool_records || [];
+  if (databaseSchemaVersion >= 18 && (!Array.isArray(bundle.solo_tools) || !Array.isArray(bundle.play_tool_records))) {
+    throw httpError('Schema-18 story archive is missing deterministic solo-tool collections');
+  }
+  if (!Array.isArray(soloTools) || !Array.isArray(playToolRecords)) throw httpError('Story archive contains invalid solo-tool collections');
+  const soloToolIds = new Set();
+  for (const [index, tool] of soloTools.entries()) {
+    assertKnown(tool, SOLO_TOOL_FIELDS, 'Solo tool');
+    if (!tool || !validId(tool.id) || tool.story_id !== bundle.record.id || soloToolIds.has(tool.id) ||
+        tool.ordinal !== index + 1 || !SOLO_KINDS.includes(tool.kind) || typeof tool.name !== 'string' ||
+        !tool.name.trim() || tool.name.length > 200 || ![0, 1].includes(tool.active) ||
+        !tool.config_json || typeof tool.config_json !== 'object' || Array.isArray(tool.config_json) ||
+        !tool.state_json || typeof tool.state_json !== 'object' || Array.isArray(tool.state_json) ||
+        JSON.stringify(tool.config_json).length > 100000 || JSON.stringify(tool.state_json).length > 100000) {
+      throw httpError('Story archive contains an invalid solo tool');
+    }
+    try { validateSoloConfig(tool.kind, tool.config_json); }
+    catch { throw httpError('Story archive contains an invalid solo-tool configuration'); }
+    if (tool.kind === 'deck') {
+      const remaining = tool.state_json.remaining;
+      if (!Array.isArray(remaining) || new Set(remaining).size !== remaining.length ||
+          remaining.some((card) => !Number.isSafeInteger(card) || card < 0 || card >= tool.config_json.cards.length)) {
+        throw httpError('Story archive contains invalid deck state');
+      }
+    }
+    if (tool.kind === 'fields') {
+      const values = tool.state_json.values;
+      const names = new Set(tool.config_json.fields.map((field) => field.name));
+      if (!values || typeof values !== 'object' || Array.isArray(values) ||
+          Object.entries(values).some(([name, value]) => !names.has(name) || typeof value !== 'string' || value.length > 500)) {
+        throw httpError('Story archive contains invalid user-field state');
+      }
+    }
+    if (tool.kind === 'clock' && (!Number.isSafeInteger(tool.state_json.current) ||
+        tool.state_json.current < 0 || tool.state_json.current > tool.config_json.segments)) {
+      throw httpError('Story archive contains invalid progress-clock state');
+    }
+    soloToolIds.add(tool.id);
+  }
+  const toolRecordIds = new Set();
+  const toolRecordOrdinals = new Map();
+  for (const record of playToolRecords) {
+    assertKnown(record, PLAY_TOOL_RECORD_FIELDS, 'Solo-tool result');
+    const session = playSessions.find((item) => item.id === record?.session_id);
+    const branch = playBranches.find((item) => item.id === record?.branch_id);
+    const tool = record?.tool_id ? soloTools.find((item) => item.id === record.tool_id) : null;
+    const maxTurn = Math.max(0, ...playTurns.filter((turn) => turn.session_id === record?.session_id).map((turn) => turn.ordinal));
+    if (!record || !validId(record.id) || toolRecordIds.has(record.id) || record.story_id !== bundle.record.id ||
+        !sceneIds.has(record.scene_id) || !session || session.scene_id !== record.scene_id || !branch ||
+        branch.session_id !== record.session_id || !Number.isSafeInteger(record.ordinal) || record.ordinal < 1 ||
+        !Number.isSafeInteger(record.after_turn_ordinal) || record.after_turn_ordinal < 0 || record.after_turn_ordinal > maxTurn ||
+        (record.tool_id !== null && record.tool_id !== undefined && !soloToolIds.has(record.tool_id)) ||
+        !SOLO_KINDS.includes(record.tool_kind) || (tool && tool.kind !== record.tool_kind) ||
+        typeof record.tool_name !== 'string' || !record.tool_name.trim() || record.tool_name.length > 200 ||
+        !record.input_json || typeof record.input_json !== 'object' || Array.isArray(record.input_json) ||
+        !record.result_json || typeof record.result_json !== 'object' || Array.isArray(record.result_json) ||
+        JSON.stringify(record.input_json).length > 100000 || JSON.stringify(record.result_json).length > 100000 ||
+        typeof record.summary !== 'string' || !record.summary.trim() || record.summary.length > 2000) {
+      throw httpError('Story archive contains an invalid frozen solo-tool result');
+    }
+    if (!toolRecordOrdinals.has(record.session_id)) toolRecordOrdinals.set(record.session_id, []);
+    toolRecordOrdinals.get(record.session_id).push(record.ordinal);
+    toolRecordIds.add(record.id);
+  }
+  for (const ordinals of toolRecordOrdinals.values()) {
+    ordinals.sort((left, right) => left - right);
+    if (ordinals.some((ordinal, index) => ordinal !== index + 1)) throw httpError('Solo-tool result ordinals must be contiguous');
   }
   const campaignEntries = bundle.campaign_entries || [];
   const campaignRevisions = bundle.campaign_revisions || [];

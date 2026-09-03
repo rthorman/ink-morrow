@@ -19,11 +19,10 @@ describe('Settings defaults and persistence', () => {
     mockFetch();
   });
 
-  it('defaults: server model, no scriptorium bg, ticker on', async () => {
+  it('defaults to the server model and global cost ticker', async () => {
     const fw = await loadScript();
-    expect(fw.state().settings).toEqual({ model: null, scriptoriumBg: false, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null, reasoningEffort: null, storyFontSize: 18, sceneRenderQuality: 'low_1k' });
+    expect(fw.state().settings).toEqual({ model: null, costTicker: true, storyFont: 'literata', wordsPerPage: 400, narrationModel: null, narrationVoice: null, reasoningEffort: null, storyFontSize: 18, sceneRenderQuality: 'low_1k' });
     expect(document.getElementById('costTicker').hidden).toBe(false);
-    expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(false);
     expect(document.documentElement.style.getPropertyValue('--im-prose-family')).toContain('Literata');
     const manual = document.querySelector('#settingsSection a[href="/user-manual.pdf"]');
     expect(manual?.textContent).toBe('Download User Manual');
@@ -38,11 +37,14 @@ describe('Settings defaults and persistence', () => {
     expect(fw.state().settings.costTicker).toBe(false);
     expect(document.getElementById('costTicker').hidden).toBe(true);
     expect(JSON.parse(window.localStorage.getItem('im-settings')).costTicker).toBe(false);
+  });
 
-    document.getElementById('scriptoriumBgToggle').checked = true;
-    document.getElementById('scriptoriumBgToggle').dispatchEvent(new Event('change'));
-    expect(fw.state().settings.scriptoriumBg).toBe(true);
-    expect(document.getElementById('writeSection').classList.contains('scriptorium-bg')).toBe(true);
+  it('drops the retired writing-background key from stored settings', async () => {
+    window.localStorage.setItem('im-settings', JSON.stringify({ scriptoriumBg: true, costTicker: false }));
+    const fw = await loadScript();
+    expect(fw.state().settings.scriptoriumBg).toBeUndefined();
+    expect(fw.state().settings.costTicker).toBe(false);
+    expect(JSON.parse(window.localStorage.getItem('im-settings')).scriptoriumBg).toBeUndefined();
   });
 });
 
@@ -62,6 +64,7 @@ describe('Model picker', () => {
     expect(items[0].textContent).toContain('≈$0.0039 per 400-word writing page');
     expect(items[0].textContent).not.toContain('/1M');
     expect(items[0].textContent).toContain('128k ctx');
+    expect(items[0].getAttribute('aria-selected')).toBe('false');
 
     document.getElementById('modelSearch').value = 'other';
     fw.renderModelList();
@@ -334,7 +337,8 @@ describe('Reasoning level selector', () => {
     fw.renderModelList();
 
     expect(fw.state().settings.model).toBeNull();
-    expect(document.getElementById('currentModel').textContent).toBe('Server default: z-ai/glm-5.3');
+    expect(document.getElementById('currentModel').textContent).toBe('In use: GLM 5.3 (z-ai/glm-5.3) · server default');
+    expect(document.querySelector('.model-item[aria-selected="true"]')?.textContent).toContain('z-ai/glm-5.3');
     expect(document.getElementById('reasoningBlock').hidden).toBe(false);
     expect([...document.getElementById('reasoningSelect').options].map((option) => option.value)).toEqual([
       'max', 'high', 'low',

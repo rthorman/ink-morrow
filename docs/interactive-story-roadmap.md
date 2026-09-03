@@ -72,6 +72,8 @@ only through the normal reviewed writing transaction.
 
 ### 5. Deterministic solo-RPG tools
 
+Status: **implemented**
+
 Provide system-neutral dice notation, likelihood oracles, weighted tables,
 decks, user-defined fields, and progress clocks. Committed results are frozen
 in Chronicle. The Scribe may interpret a recorded result but cannot roll,

@@ -37,6 +37,8 @@ function handlers(extra = []) {
     { match: (url, options) => url === '/api/stories/s1/scenes' && options.method === 'GET', response: jsonResponse(200, { scenes: [SCENE] }) },
     { match: (url, options) => url === '/api/stories/s1/scenes/scene-1/play-sessions' && options.method === 'GET', response: jsonResponse(200, { sessions: [{ ...SESSION, turns: undefined }], active: SESSION }) },
     { match: (url, options) => url === '/api/stories/s1/play-sessions/ps1' && options.method === 'GET', response: jsonResponse(200, { session: SESSION }) },
+    { match: (url, options) => url === '/api/stories/s1/solo-tools' && options.method === 'GET', response: jsonResponse(200, { tools: [] }) },
+    { match: (url, options) => url === '/api/stories/s1/play-sessions/ps1/tool-results' && options.method === 'GET', response: jsonResponse(200, { records: [] }) },
   ];
 }
 
@@ -103,5 +105,33 @@ describe('optional Play workspace', () => {
     for (let attempt = 0; attempt < 20 && document.getElementById('playSendTurn').disabled; attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 5));
     }
+  });
+
+  it('runs a solo tool locally without opening paid review', async () => {
+    const tool = { id: 'tool-1', name: 'Risk', kind: 'dice', config: { notation: '2d6+1' }, state: {}, active: true };
+    const fetchMock = mockFetch(handlers([
+      { match: (url, options) => url === '/api/stories/s1/solo-tools' && options.method === 'GET', response: jsonResponse(200, { tools: [tool] }) },
+      {
+        match: (url, options) => url === '/api/stories/s1/play-sessions/ps1/tool-results' && options.method === 'POST',
+        response: jsonResponse(201, { tool, record: { id: 'result-1', tool_name: 'Risk', tool_kind: 'dice', after_turn_ordinal: 1, summary: '2d6+1 → 4, 5 + 1 = 10' } }),
+      },
+    ]));
+    const fw = await loadScript();
+    fw.__setStoryState({ currentStory: STORY, storyPages: [] });
+    await fw.enterPlay({ storyId: 's1', sceneId: 'scene-1' });
+
+    const roll = [...document.querySelectorAll('#playToolRunner button')].find((button) => button.textContent === 'Roll and record');
+    expect(roll).toBeTruthy();
+    roll.click();
+    for (let attempt = 0; attempt < 20 && !fetchMock.mock.calls.some(([url, options]) => url.endsWith('/tool-results') && options.method === 'POST'); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    const call = fetchMock.mock.calls.find(([url, options]) => url.endsWith('/tool-results') && options.method === 'POST');
+    expect(JSON.parse(call[1].body)).toEqual({ tool_id: 'tool-1', input: { notation: '2d6+1' } });
+    for (let attempt = 0; attempt < 20 && !document.getElementById('playToolRecords').textContent.includes('= 10'); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    expect(document.getElementById('playToolRecords').textContent).toContain('= 10');
+    expect(document.querySelector('.dialog-manager')?.hidden ?? true).toBe(true);
   });
 });

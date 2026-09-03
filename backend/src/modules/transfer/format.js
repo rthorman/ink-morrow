@@ -87,6 +87,15 @@ const PLAY_AI_REQUEST_FIELDS = [
   'response_turn_id', 'status', 'spend_usd', 'cost_known', 'billed_attempts',
   'error_code', 'error_message', 'created_at', 'updated_at', 'finished_at',
 ];
+const SOLO_TOOL_FIELDS = [
+  'id', 'story_id', 'ordinal', 'kind', 'name', 'config_json', 'state_json',
+  'active', 'created_at', 'updated_at',
+];
+const PLAY_TOOL_RECORD_FIELDS = [
+  'id', 'story_id', 'scene_id', 'session_id', 'branch_id', 'ordinal',
+  'after_turn_ordinal', 'tool_id', 'tool_kind', 'tool_name', 'input_json',
+  'result_json', 'summary', 'created_at',
+];
 const CAMPAIGN_ENTRY_FIELDS = ['id', 'story_id', 'kind', 'status', 'created_at', 'updated_at'];
 const CAMPAIGN_REVISION_FIELDS = [
   'id', 'entry_id', 'revision_number', 'title', 'details_json', 'subject_character_id',
@@ -312,6 +321,20 @@ function playAiRequestRecord(row) {
   return record;
 }
 
+function soloToolRecord(row) {
+  const record = pick(row, SOLO_TOOL_FIELDS);
+  record.config_json = parseJson(record.config_json, {});
+  record.state_json = parseJson(record.state_json, {});
+  return record;
+}
+
+function playToolRecord(row) {
+  const record = pick(row, PLAY_TOOL_RECORD_FIELDS);
+  record.input_json = parseJson(record.input_json, {});
+  record.result_json = parseJson(record.result_json, {});
+  return record;
+}
+
 function campaignEntryRecord(row) { return pick(row, CAMPAIGN_ENTRY_FIELDS); }
 function campaignRevisionRecord(row, { includeWorkingHistory } = {}) {
   const record = pick(row, CAMPAIGN_REVISION_FIELDS);
@@ -471,6 +494,7 @@ function semanticEntity(kind, bundle, options = {}) {
   const sessionIndexById = new Map((bundle.play_sessions || []).map((session, index) => [session.id, index + 1]));
   const branchIndexById = new Map((bundle.play_branches || []).map((branch, index) => [branch.id, index + 1]));
   const turnIndexById = new Map((bundle.play_turns || []).map((turn, index) => [turn.id, index + 1]));
+  const toolIndexById = new Map((bundle.solo_tools || []).map((tool, index) => [tool.id, index + 1]));
   const campaignIndexById = new Map((bundle.campaign_entries || []).map((entry, index) => [entry.id, index + 1]));
   const semanticHierarchy = (hierarchy.volumes || [])
     .slice()
@@ -611,6 +635,20 @@ function semanticEntity(kind, bundle, options = {}) {
       response_turn: turnIndexById.get(row.response_turn_id) || null,
       contract: row.contract_json,
     })),
+    solo_tools: (bundle.solo_tools || []).map((row) => ({
+      ...without(row, ['id', 'story_id', 'created_at', 'updated_at']),
+      config: row.config_json,
+      state: row.state_json,
+    })),
+    play_tool_records: (bundle.play_tool_records || []).map((row) => ({
+      ...without(row, ['id', 'story_id', 'scene_id', 'session_id', 'branch_id', 'tool_id', 'created_at']),
+      scene: sceneIndexById.get(row.scene_id) || null,
+      session: sessionIndexById.get(row.session_id) || null,
+      branch: branchIndexById.get(row.branch_id) || null,
+      tool: toolIndexById.get(row.tool_id) || null,
+      input: row.input_json,
+      result: row.result_json,
+    })),
     writing_operations: (bundle.writing_operations || []).map((row) => {
       const request = parseJson(row.request_json, {});
       if (request?.page_id) request.page_number = pageNumberById.get(request.page_id) || null;
@@ -653,7 +691,7 @@ function semanticHash(kind, bundle, options) {
 }
 
 const ALLOWED_SETTING_KEYS = new Set([
-  'model', 'scriptoriumBg', 'costTicker', 'storyFont', 'wordsPerPage',
+  'model', 'costTicker', 'storyFont', 'wordsPerPage',
   'narrationModel', 'narrationVoice', 'reasoningEffort', 'storyFontSize',
   'sceneRenderQuality',
 ]);
@@ -671,7 +709,7 @@ function sanitizeSettings(input) {
   for (const key of ALLOWED_SETTING_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(input, key)) continue;
     const value = input[key];
-    if (key === 'scriptoriumBg' || key === 'costTicker') clean[key] = Boolean(value);
+    if (key === 'costTicker') clean[key] = Boolean(value);
     else if (key === 'wordsPerPage') clean[key] = Math.min(2000, Math.max(50, parseInt(value, 10) || 400));
     else if (key === 'storyFontSize') clean[key] = Math.min(24, Math.max(14, parseInt(value, 10) || 18));
     else if (key === 'storyFont' && STORY_FONTS.has(value)) clean[key] = value;
@@ -713,6 +751,8 @@ module.exports = {
   PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  SOLO_TOOL_FIELDS,
+  PLAY_TOOL_RECORD_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
   CAMPAIGN_REVISION_FIELDS,
   CAMPAIGN_AI_REQUEST_FIELDS,
@@ -753,6 +793,8 @@ module.exports = {
   playBranchRecord,
   playTurnRecord,
   playAiRequestRecord,
+  soloToolRecord,
+  playToolRecord,
   campaignEntryRecord,
   campaignRevisionRecord,
   campaignAiRequestRecord,

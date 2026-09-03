@@ -21,7 +21,7 @@ function contractInstructions(session) {
   ].filter(Boolean).join('\n');
 }
 
-function createPlayService({ store, stories, continuity, chatCompletion, transactions = null }) {
+function createPlayService({ store, stories, continuity, chatCompletion, transactions = null, soloTools = null }) {
   function buildMessages(story, session, ownerTurn) {
     const recentPages = stories.storyPages(story.id).slice(-3);
     const memory = continuity.contextForPrompt(story, {
@@ -42,6 +42,12 @@ function createPlayService({ store, stories, continuity, chatCompletion, transac
       kind: turn.input_kind,
       character_id: turn.character_id,
       content: clipped(turn.content, 1500),
+    }));
+    const toolRecords = (soloTools?.listForPath(story.id, session.id) || []).slice(-20).map((record) => ({
+      after_turn: record.after_turn_ordinal,
+      tool: record.tool_name,
+      kind: record.tool_kind,
+      result: record.summary,
     }));
     const scribe = stories.storyWithMeta(story).scribe;
     const scribeCraft = scribe ? {
@@ -100,6 +106,7 @@ function createPlayService({ store, stories, continuity, chatCompletion, transac
             : '',
           recentPages.length ? `RECENT MANUSCRIPT EXCERPTS (context only; do not rewrite):\n${recentPages.map((page) => clipped(page.content, 1600)).join('\n---\n')}` : '',
           scribeCraft ? `BOUND SCRIBE CRAFT PROFILE:\n${JSON.stringify(scribeCraft)}` : '',
+          toolRecords.length ? `RECORDED LOCAL TOOL RESULTS (immutable; interpret if relevant, never reroll or alter):\n${JSON.stringify(toolRecords)}` : '',
           `SESSION TRANSCRIPT:\n${JSON.stringify(turns)}`,
           `Respond now to owner turn ${ownerTurn.ordinal} (${ownerTurn.input_kind}).`,
         ].filter(Boolean).join('\n\n'),
@@ -167,6 +174,9 @@ function createPlayService({ store, stories, continuity, chatCompletion, transac
     const selectedPath = session.turns.slice(0, selectedIndex + 1);
     const omittedTurns = Math.max(0, selectedPath.length - 60);
     const turns = selectedPath.slice(-60);
+    const toolRecords = (soloTools?.listForPath(story.id, session.id) || [])
+      .filter((record) => record.after_turn_ordinal < turns.at(-1).ordinal)
+      .slice(-30);
     const recentPages = stories.storyPages(story.id).slice(-3);
     const memory = continuity.contextForPrompt(story, {
       userInput: turns.map((turn) => turn.content).join('\n').slice(-6000),
@@ -197,6 +207,7 @@ function createPlayService({ store, stories, continuity, chatCompletion, transac
           memory.relevant?.length ? `RELEVANT REMEMBERED CANON: ${clipped(JSON.stringify(memory.relevant), 7000)}` : '',
           recentPages.length ? `RECENT MANUSCRIPT PROSE: ${recentPages.map((page) => clipped(page.content, 1500)).join('\n---\n')}` : '',
           scribe ? `BOUND SCRIBE CRAFT PROFILE: ${JSON.stringify({ name: scribe.name, diction: scribe.diction, sentence_rhythm: scribe.sentence_rhythm, narrative_distance: scribe.narrative_distance, figurative_language: scribe.figurative_language, scene_tempo: scribe.scene_tempo, focus_areas: scribe.focus_areas, signature_habits: clipped(scribe.signature_habits, 700), avoidances: clipped(scribe.avoidances, 700) })}` : '',
+          toolRecords.length ? `RECORDED LOCAL TOOL RESULTS (preserve; never reroll or alter): ${JSON.stringify(toolRecords.map((record) => ({ after_turn: record.after_turn_ordinal, tool: record.tool_name, kind: record.tool_kind, result: record.summary })))}` : '',
           omittedTurns ? `SELECTED PATH NOTE: ${omittedTurns} earlier turns were omitted to keep this paid request bounded; recent prose and remembered canon provide continuity context.` : '',
           `SELECTED PLAY PATH: ${JSON.stringify(turns.map((turn) => ({ speaker: turn.speaker, kind: turn.input_kind, character_id: turn.character_id, content: clipped(turn.content, 2000) })))}`,
         ].filter(Boolean).join('\n\n') },

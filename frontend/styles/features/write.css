@@ -354,64 +354,6 @@
   display: none;
 }
 
-/* ------------------------------------------------------------------ scriptorium writing background */
-
-/* Optional toned-down scriptorium art behind the writing desk. The art sits
-   under heavy ink, is desaturated and never captures pointer events; the
-   prose surface stays opaque so readability is unchanged. */
-#writeSection.scriptorium-bg {
-  position: relative;
-  isolation: isolate;
-  border-radius: var(--im-radius-md);
-  padding: clamp(10px, 1.5vw, 18px);
-  margin: calc(clamp(10px, 1.5vw, 18px) * -1);
-}
-
-#writeSection.scriptorium-bg::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: inherit;
-  background:
-    linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
-    url('../../brand/hero-scriptorium-tablet-landscape.webp') center / cover no-repeat;
-  filter: saturate(0.65);
-  pointer-events: none;
-}
-
-/* Brand art may live around the Desk, never behind running manuscript text. */
-#writeSection.scriptorium-bg .story-content {
-  background: var(--surface-manuscript);
-  border-color: rgb(224 197 132 / 0.62);
-}
-
-@media (min-width: 1200px) {
-  #writeSection.scriptorium-bg::before {
-    background:
-      linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
-      url('../../brand/hero-scriptorium-desktop.webp') center / cover no-repeat;
-  }
-}
-
-/* Tablet portrait gets the dedicated portrait composition, not the
-   landscape scene cropped thin. */
-@media (min-width: 768px) and (max-width: 1199px) and (orientation: portrait) {
-  #writeSection.scriptorium-bg::before {
-    background:
-      linear-gradient(180deg, rgb(9 6 13 / 0.86), rgb(9 6 13 / 0.92)),
-      url('../../brand/hero-scriptorium-tablet-portrait.webp') center / cover no-repeat;
-  }
-}
-
-@media (max-width: 767px) {
-  #writeSection.scriptorium-bg::before {
-    background:
-      linear-gradient(180deg, rgb(9 6 13 / 0.88), rgb(9 6 13 / 0.94)),
-      url('../../brand/vesper-quill.webp') top center / cover no-repeat;
-  }
-}
-
 /* ------------------------------------------------------------------ past-page bar + read-only */
 
 .past-page-bar {

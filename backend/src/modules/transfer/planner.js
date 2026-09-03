@@ -30,6 +30,8 @@ const {
   playBranchRecord,
   playTurnRecord,
   playAiRequestRecord,
+  soloToolRecord,
+  playToolRecord,
   campaignEntryRecord,
   campaignRevisionRecord,
   campaignAiRequestRecord,
@@ -366,6 +368,12 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
           ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal, request.created_at
         `).all(id).map(playAiRequestRecord)
       : [];
+    const soloTools = db.prepare('SELECT * FROM solo_tools WHERE story_id = ? ORDER BY ordinal').all(id).map(soloToolRecord);
+    const playToolRecords = options.includeWorkingHistory
+      ? db.prepare(`SELECT record.* FROM play_tool_records record
+          JOIN play_sessions session ON session.id = record.session_id
+          WHERE record.story_id = ? ORDER BY session.ordinal, record.ordinal`).all(id).map(playToolRecord)
+      : [];
     const campaignEntries = db.prepare('SELECT * FROM campaign_entries WHERE story_id = ? ORDER BY created_at, id')
       .all(id).map(campaignEntryRecord);
     const campaignRevisions = db.prepare(`SELECT revision.* FROM campaign_entry_revisions revision
@@ -434,6 +442,8 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         play_branches: playBranches,
         play_turns: playTurns,
         play_ai_requests: playAiRequests,
+        solo_tools: soloTools,
+        play_tool_records: playToolRecords,
         campaign_entries: campaignEntries,
         campaign_revisions: campaignRevisions,
         campaign_ai_requests: campaignAiRequests,
