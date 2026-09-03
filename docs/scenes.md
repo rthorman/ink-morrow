@@ -13,9 +13,10 @@ range of pages in its chapter or remain empty while planned.
 
 Page membership is held separately from the canonical page row. Grouping or
 ungrouping therefore changes no prose, page ordinal, revision pointer,
-continuity evidence, art placement, or publication output. Deleting a scene
-deletes only the container and its memberships; its pages become ordinary
-ungrouped pages.
+continuity evidence, art placement, or publication output. A scene without
+Play history can be deleted; its pages become ordinary ungrouped pages. Once
+a scene owns a Play transcript, Ink Morrow preserves that working history and
+refuses deletion of the scene or an otherwise-empty parent chapter/volume.
 
 ## API
 
@@ -37,9 +38,11 @@ normal publication order and show a scene marker where applicable. The Desk's
 compact context line names the current page's scene without adding a second
 reader or changing the writing controls.
 
-No scene action calls an AI provider. Existing prose scene-break markers stay
-valid and are not automatically converted. Future detection may offer a
-preview, but it must never create records without owner approval.
+Planning and grouping actions call no AI provider. **Open Play** enters the
+optional Session Zero and transcript workspace; only the separately reviewed
+**Send to Scribe** action can call a provider. Existing prose scene-break
+markers stay valid and are not automatically converted. See
+[Play sessions](play.md).
 
 ## Recovery and portability
 
@@ -48,3 +51,7 @@ identity remapping during copy import. Truncation recovery records membership
 for removed pages and restores it when the scene still exists. If the scene
 was deliberately removed while the recovery waited, prose restores safely as
 ungrouped pages.
+
+When **working history** is included, archives also carry Play contracts,
+turns, and provider-attempt accounting. Without that option, those private
+transcripts are deliberately omitted.

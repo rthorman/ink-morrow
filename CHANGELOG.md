@@ -8,6 +8,12 @@ validation.
 
 ### Added
 
+- Opt-in Play sessions now begin with a complete Session Zero control contract
+  and record Act, Say, Ask, Direct, and Scribe turns as working history outside
+  manuscript prose. Manual turns are free; paid replies are reviewed,
+  idempotent, bounded, and fully accounted.
+- The shipped User Manual is now directly downloadable before login and from
+  the top of Settings, without an internet connection.
 - Optional chapter-owned scenes can hold planning/play metadata and group a
   contiguous page range in Chronicle. Manuscripts without scenes remain
   unchanged, and removing a scene only ungroups its pages.
@@ -16,6 +22,8 @@ validation.
 
 ### Fixed
 
+- Scenes with Play transcripts, and their parent structure, can no longer be
+  removed through an apparently empty-container action.
 - Re-running `setup.sh` now updates existing dependency trees instead of
   deleting them. Exact `npm ci` replacement requires the explicit `--clean`
   flag, reports every affected path, and refuses linked `node_modules` paths.

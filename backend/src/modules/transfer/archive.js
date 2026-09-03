@@ -27,6 +27,9 @@ const {
   CHAPTER_FIELDS,
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
+  PLAY_SESSION_FIELDS,
+  PLAY_TURN_FIELDS,
+  PLAY_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -287,6 +290,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
         'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
         'author_canon_revisions', 'writing_operations',
+        'play_sessions', 'play_turns', 'play_ai_requests',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
         'publication_snapshots', 'scribe_bindings']
     : meta.kind === 'scribe' ? ['record', 'revisions'] : ['record'], `${meta.kind} bundle`);
@@ -391,6 +395,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     throw httpError('Story archive is missing its manuscript hierarchy');
   }
   const hierarchyPageById = new Map();
+  const sceneIds = new Set();
   if (hierarchy) {
     assertKnown(hierarchy, ['volumes', 'chapters', 'scenes', 'scene_pages', 'pages'], 'Story hierarchy');
     if (!Array.isArray(hierarchy.volumes) || !Array.isArray(hierarchy.chapters) || !Array.isArray(hierarchy.pages) ||
@@ -433,7 +438,6 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       assertContiguous(chapters, 'Story chapter');
     }
 
-    const sceneIds = new Set();
     const sceneById = new Map();
     const scenesByChapter = new Map([...chapterIds].map((id) => [id, []]));
     for (const scene of hierarchy.scenes || []) {
@@ -490,6 +494,109 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         throw httpError('Story scene pages must form one contiguous chapter range');
       }
     }
+  }
+  const playSessions = bundle.play_sessions || [];
+  const playTurns = bundle.play_turns || [];
+  const playAiRequests = bundle.play_ai_requests || [];
+  if (databaseSchemaVersion >= 15 &&
+      (!Array.isArray(bundle.play_sessions) || !Array.isArray(bundle.play_turns) ||
+       !Array.isArray(bundle.play_ai_requests))) {
+    throw httpError('Schema-15 story archive is missing optional play history collections');
+  }
+  if (!Array.isArray(playSessions) || !Array.isArray(playTurns) || !Array.isArray(playAiRequests)) {
+    throw httpError('Story archive contains invalid play history collections');
+  }
+  const playSessionIds = new Set();
+  const playOrdinals = new Map();
+  for (const session of playSessions) {
+    assertKnown(session, PLAY_SESSION_FIELDS, 'Play session');
+    const participants = session && session.participants_json;
+    if (!session || !validId(session.id) || !sceneIds.has(session.scene_id) ||
+        playSessionIds.has(session.id) || !Number.isSafeInteger(session.ordinal) || session.ordinal < 1 ||
+        !['active', 'ended'].includes(session.status) || !Array.isArray(participants) ||
+        participants.length !== castIds.size ||
+        participants.some((participant) => !participant || !castIds.has(participant.character_id) ||
+          !['owner', 'scribe', 'shared'].includes(participant.controller) ||
+          typeof participant.name !== 'string' || participant.name.length > 300 ||
+          !['mc', 'supporting', 'background'].includes(participant.role)) ||
+        new Set(participants.map((participant) => participant.character_id)).size !== participants.length ||
+        !['low', 'balanced', 'high'].includes(session.scribe_initiative) ||
+        !['gentle', 'balanced', 'harsh'].includes(session.challenge) ||
+        !['reflective', 'balanced', 'brisk'].includes(session.pacing) ||
+        !['guarded', 'meaningful', 'severe'].includes(session.consequences) ||
+        ![0, 1].includes(session.allow_character_death) ||
+        !['off', 'on_request', 'proactive'].includes(session.suggestions) ||
+        !['owner_only', 'sensory_only', 'shared'].includes(session.player_interiority) ||
+        !boundedText(session.notes, 4000)) {
+      throw httpError('Story archive contains an invalid play session');
+    }
+    const key = session.scene_id;
+    if (!playOrdinals.has(key)) playOrdinals.set(key, []);
+    playOrdinals.get(key).push(session.ordinal);
+    playSessionIds.add(session.id);
+  }
+  for (const ordinals of playOrdinals.values()) {
+    ordinals.sort((left, right) => left - right);
+    if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
+      throw httpError('Play session ordinals must be contiguous');
+    }
+  }
+  const playTurnIds = new Set();
+  const playTurnOrdinals = new Map();
+  for (const turn of playTurns) {
+    assertKnown(turn, PLAY_TURN_FIELDS, 'Play turn');
+    if (!turn || !validId(turn.id) || !playSessionIds.has(turn.session_id) || playTurnIds.has(turn.id) ||
+        !Number.isSafeInteger(turn.ordinal) || turn.ordinal < 1 ||
+        !['owner', 'scribe', 'system'].includes(turn.speaker) ||
+        !['act', 'say', 'ask', 'direct', 'response', 'note'].includes(turn.input_kind) ||
+        (turn.character_id !== null && turn.character_id !== undefined && !castIds.has(turn.character_id)) ||
+        typeof turn.content !== 'string' || !turn.content.trim() || turn.content.length > 20000 ||
+        !['author', 'ai', 'system'].includes(turn.source) ||
+        ![0, 1].includes(turn.cost_known) || !Number.isSafeInteger(turn.billed_attempts) || turn.billed_attempts < 0 ||
+        (turn.cost_usd !== null && turn.cost_usd !== undefined && (!Number.isFinite(turn.cost_usd) || turn.cost_usd < 0)) ||
+        (turn.idempotency_key !== null && turn.idempotency_key !== undefined &&
+          (typeof turn.idempotency_key !== 'string' || !turn.idempotency_key.trim() || turn.idempotency_key.length > 300)) ||
+        (turn.request_hash !== null && turn.request_hash !== undefined && !/^[a-f0-9]{64}$/.test(turn.request_hash))) {
+      throw httpError('Story archive contains an invalid play turn');
+    }
+    if (!playTurnOrdinals.has(turn.session_id)) playTurnOrdinals.set(turn.session_id, []);
+    playTurnOrdinals.get(turn.session_id).push(turn.ordinal);
+    playTurnIds.add(turn.id);
+  }
+  for (const ordinals of playTurnOrdinals.values()) {
+    ordinals.sort((left, right) => left - right);
+    if (ordinals.some((ordinal, index) => ordinal !== index + 1)) {
+      throw httpError('Play turn ordinals must be contiguous');
+    }
+  }
+  const playRequestKeys = new Set();
+  for (const request of playAiRequests) {
+    assertKnown(request, PLAY_AI_REQUEST_FIELDS, 'Play AI request');
+    const key = request && `${request.session_id}:${request.idempotency_key}`;
+    if (!request || !playSessionIds.has(request.session_id) || playRequestKeys.has(key) ||
+        typeof request.idempotency_key !== 'string' || !request.idempotency_key.trim() || request.idempotency_key.length > 300 ||
+        typeof request.request_hash !== 'string' || !/^[a-f0-9]{64}$/.test(request.request_hash) ||
+        !request.contract_json || typeof request.contract_json !== 'object' || Array.isArray(request.contract_json) ||
+        JSON.stringify(request.contract_json).length > 20000 ||
+        !playTurnIds.has(request.owner_turn_id) ||
+        (request.response_turn_id !== null && request.response_turn_id !== undefined && !playTurnIds.has(request.response_turn_id)) ||
+        !['in_flight', 'succeeded', 'failed'].includes(request.status) ||
+        !Number.isFinite(request.spend_usd) || request.spend_usd < 0 ||
+        ![0, 1].includes(request.cost_known) ||
+        !Number.isSafeInteger(request.billed_attempts) || request.billed_attempts < 0 ||
+        !boundedText(request.error_code, 100) || !boundedText(request.error_message, 2000)) {
+      throw httpError('Story archive contains an invalid play AI request');
+    }
+    const owner = playTurns.find((turn) => turn.id === request.owner_turn_id);
+    const response = request.response_turn_id
+      ? playTurns.find((turn) => turn.id === request.response_turn_id)
+      : null;
+    if (owner?.session_id !== request.session_id || owner?.speaker !== 'owner' ||
+        (response && (response.session_id !== request.session_id || response.speaker !== 'scribe')) ||
+        (request.status === 'succeeded' && !response)) {
+      throw httpError('Story archive play request crosses a session boundary');
+    }
+    playRequestKeys.add(key);
   }
   if (databaseSchemaVersion >= 3 && !Array.isArray(bundle.revisions)) {
     throw httpError('Story archive is missing immutable page revisions');

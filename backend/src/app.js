@@ -20,6 +20,9 @@ const { createScribeStore } = require('./modules/scribes/store');
 const { createScribeRouter } = require('./modules/scribes/routes');
 const { createStoriesStore } = require('./modules/stories/store');
 const { createStoriesRouter } = require('./modules/stories/routes');
+const { createPlayStore } = require('./modules/play/store');
+const { createPlayService } = require('./modules/play/service');
+const { createPlayRouter } = require('./modules/play/routes');
 const { createContinuityStore } = require('./modules/continuity/store');
 const { createContinuityService } = require('./modules/continuity/service');
 const { createContinuityRouter } = require('./modules/continuity/routes');
@@ -101,6 +104,13 @@ function createApp(
     lockAll: providers.lockAll,
   });
   app.use(createAuthRouter({ auth }));
+  // The manual is deliberately public: a locked-out owner may need its setup,
+  // recovery, and network guidance before they can authenticate.
+  app.get('/user-manual.pdf', (req, res) => {
+    const manualPath = path.join(__dirname, '../../docs/pdf/Ink-Morrow-4.0-User-Guide.pdf');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.download(manualPath, 'Ink-Morrow-User-Manual.pdf');
+  });
   // The public reader is the sole unauthenticated API seam. It accepts a
   // capability in an Authorization header, never in a logged path or query.
   // The service is assigned before createApp returns and the closure prevents
@@ -133,6 +143,7 @@ function createApp(
     recoveryRetentionDays,
     clock,
   });
+  const playStore = createPlayStore(db, { stories });
   const ai = createAiClient({ providers });
   app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
   const { generateImage, describeImageProvider } = createImageClient({ providers });
@@ -142,6 +153,12 @@ function createApp(
   const continuityStore = createContinuityStore(db);
   const continuity = createContinuityService({
     db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
+  });
+  const play = createPlayService({
+    store: playStore,
+    stories,
+    continuity,
+    chatCompletion: ai.chatCompletion,
   });
   const writing = createWritingService({ db, catalog, scribes, stories, continuity, chatCompletion: ai.chatCompletion });
   const writingTransactions = createWritingTransactions({
@@ -229,6 +246,7 @@ function createApp(
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.locals.writingTransactions = writingTransactions;
+  app.locals.playStore = playStore;
   app.locals.artStore = artStore;
   app.locals.publications = publications;
   app.locals.publicationJobs = publicationJobs;
@@ -242,6 +260,7 @@ function createApp(
   app.use(createStoriesRouter({
     store: stories, imageStore, artStore, imageQueue, audio, transactions: writingTransactions,
   }));
+  app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));

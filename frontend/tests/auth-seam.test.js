@@ -14,6 +14,7 @@ describe('single-owner authentication gate', () => {
     expect(fw.auth.mode).toBe('single-owner');
     expect(document.body.classList.contains('im-gated')).toBe(true);
     expect(document.getElementById('authSetupForm')).not.toBeNull();
+    expect(document.querySelector('.auth-manual')?.getAttribute('href')).toBe('/user-manual.pdf');
     expect(document.getElementById('authSetupCode').autocomplete).toBe('one-time-code');
     expect(document.getElementById('authNewPassword').autocomplete).toBe('new-password');
     const passwordToggle = document.querySelector('[aria-controls="authNewPassword"]');

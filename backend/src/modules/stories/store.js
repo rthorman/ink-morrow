@@ -65,7 +65,16 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
       ).get(story.id).s +
       db.prepare(
         "SELECT COALESCE(SUM(spend_usd), 0) AS s FROM assets WHERE story_id = ? AND status = 'ready' AND source = 'ai-generated'"
-      ).get(story.id).s,
+      ).get(story.id).s +
+      db.prepare(`
+        SELECT COALESCE(SUM(request.spend_usd), 0) AS s
+          FROM play_ai_requests request
+          JOIN play_sessions session ON session.id = request.session_id
+          JOIN scenes scene ON scene.id = session.scene_id
+          JOIN chapters chapter ON chapter.id = scene.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id
+         WHERE volume.story_id = ?
+      `).get(story.id).s,
     scribe: scribes?.forStory(story.id) || null,
   });
 

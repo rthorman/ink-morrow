@@ -26,6 +26,9 @@ const {
   chapterRecord,
   sceneRecord,
   scenePageRecord,
+  playSessionRecord,
+  playTurnRecord,
+  playAiRequestRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,
@@ -321,6 +324,38 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
       ? db.prepare('SELECT * FROM writing_operations WHERE story_id = ? ORDER BY sequence').all(id)
         .map(writingOperationRecord)
       : [];
+    const playSessions = options.includeWorkingHistory
+      ? db.prepare(`
+          SELECT session.* FROM play_sessions session
+          JOIN scenes scene ON scene.id = session.scene_id
+          JOIN chapters chapter ON chapter.id = scene.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE volume.story_id = ?
+          ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal
+        `).all(id).map(playSessionRecord)
+      : [];
+    const playTurns = options.includeWorkingHistory
+      ? db.prepare(`
+          SELECT turn.* FROM play_turns turn
+          JOIN play_sessions session ON session.id = turn.session_id
+          JOIN scenes scene ON scene.id = session.scene_id
+          JOIN chapters chapter ON chapter.id = scene.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE volume.story_id = ?
+          ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal, turn.ordinal
+        `).all(id).map(playTurnRecord)
+      : [];
+    const playAiRequests = options.includeWorkingHistory
+      ? db.prepare(`
+          SELECT request.* FROM play_ai_requests request
+          JOIN play_sessions session ON session.id = request.session_id
+          JOIN scenes scene ON scene.id = session.scene_id
+          JOIN chapters chapter ON chapter.id = scene.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE volume.story_id = ?
+          ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal, request.created_at
+        `).all(id).map(playAiRequestRecord)
+      : [];
     const preparedPage = options.includeWorkingHistory
       ? (() => {
           const value = db.prepare('SELECT * FROM prepared_pages WHERE story_id = ?').get(id);
@@ -376,6 +411,9 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         author_canon_entries: authorCanonEntries,
         author_canon_revisions: authorCanonRevisions,
         writing_operations: writingOperations,
+        play_sessions: playSessions,
+        play_turns: playTurns,
+        play_ai_requests: playAiRequests,
         prepared_page: preparedPage,
         preview,
         audiobook,

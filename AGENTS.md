@@ -384,8 +384,10 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   non-goal for current `main`; the archived 4.0 decision record stays intact.
 - Schema 14 scenes are optional chapter-owned working structure. They may
   group one contiguous page range or remain empty. Creating, editing, or
-  deleting a scene never changes prose, revision pointers, page order,
-  continuity evidence, art placement, or publication. Delete ungroups pages.
+  deleting an unplayed scene never changes prose, revision pointers, page
+  order, continuity evidence, art placement, or publication. Delete ungroups
+  pages. A scene with Play history, and an otherwise-empty parent containing
+  it, cannot be removed through structural cleanup.
 - Existing manuscripts are never backfilled with guessed scenes. Chronicle
   owns scene management; Desk only names a current page's scene in its compact
   context. Scene operations make no provider request.
@@ -393,6 +395,17 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   on copy. Truncation recovery restores membership only when the scene still
   exists; prose remains safely restorable without it. Full behavior:
   `docs/scenes.md`.
+- Schema 15 Play is an optional scene sub-workspace. Session Zero snapshots
+  control for every cast member plus pacing, challenge, consequences/death,
+  suggestions, interiority, initiative, and notes. Owner-controlled decisions,
+  speech, thoughts, and completed actions are an absolute provider boundary.
+- Act/Say/Ask/Direct owner turns and Scribe responses are immutable working
+  history, never prose or canon. Record-only is AI-free; Send to Scribe uses
+  paid review, a required idempotency key, one in-flight reply, bounded context
+  and retries, and complete known/unknown spend accounting. Restart reconciles
+  in-flight work to failure. Working-history archives preserve contracts,
+  turns, and attempt accounting; ordinary portable exports omit them. Full
+  behavior: `docs/play.md`.
 
 ## Testing
 

@@ -1658,6 +1658,94 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 15,
+    name: 'optional scene play sessions',
+    checksumSource: `Opt-in Session Zero contracts and immutable author/Scribe turns remain working history outside canonical manuscript prose; paid requests retain the exact contract snapshot.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE play_sessions (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          scene_id TEXT NOT NULL REFERENCES scenes (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'ended')),
+          participants_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(participants_json)),
+          scribe_initiative TEXT NOT NULL DEFAULT 'balanced'
+            CHECK (scribe_initiative IN ('low', 'balanced', 'high')),
+          challenge TEXT NOT NULL DEFAULT 'balanced'
+            CHECK (challenge IN ('gentle', 'balanced', 'harsh')),
+          pacing TEXT NOT NULL DEFAULT 'balanced'
+            CHECK (pacing IN ('reflective', 'balanced', 'brisk')),
+          consequences TEXT NOT NULL DEFAULT 'meaningful'
+            CHECK (consequences IN ('guarded', 'meaningful', 'severe')),
+          allow_character_death INTEGER NOT NULL DEFAULT 0
+            CHECK (allow_character_death IN (0, 1)),
+          suggestions TEXT NOT NULL DEFAULT 'on_request'
+            CHECK (suggestions IN ('off', 'on_request', 'proactive')),
+          player_interiority TEXT NOT NULL DEFAULT 'owner_only'
+            CHECK (player_interiority IN ('owner_only', 'sensory_only', 'shared')),
+          notes TEXT CHECK (notes IS NULL OR length(notes) <= 4000),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          ended_at TEXT,
+          UNIQUE (scene_id, ordinal)
+        );
+
+        CREATE UNIQUE INDEX idx_play_sessions_one_active
+          ON play_sessions (scene_id) WHERE status = 'active';
+        CREATE INDEX idx_play_sessions_scene_order
+          ON play_sessions (scene_id, ordinal);
+
+        CREATE TABLE play_turns (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          session_id TEXT NOT NULL REFERENCES play_sessions (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          speaker TEXT NOT NULL CHECK (speaker IN ('owner', 'scribe', 'system')),
+          input_kind TEXT NOT NULL CHECK (input_kind IN ('act', 'say', 'ask', 'direct', 'response', 'note')),
+          character_id TEXT,
+          content TEXT NOT NULL CHECK (length(trim(content)) > 0 AND length(content) <= 20000),
+          source TEXT NOT NULL CHECK (source IN ('author', 'ai', 'system')),
+          model TEXT,
+          prompt_tokens INTEGER CHECK (prompt_tokens IS NULL OR prompt_tokens >= 0),
+          completion_tokens INTEGER CHECK (completion_tokens IS NULL OR completion_tokens >= 0),
+          cost_usd REAL CHECK (cost_usd IS NULL OR cost_usd >= 0),
+          cost_known INTEGER NOT NULL DEFAULT 1 CHECK (cost_known IN (0, 1)),
+          billed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (billed_attempts >= 0),
+          idempotency_key TEXT CHECK (idempotency_key IS NULL OR length(idempotency_key) <= 300),
+          request_hash TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (session_id, ordinal)
+        );
+
+        CREATE UNIQUE INDEX idx_play_turns_request_key
+          ON play_turns (session_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
+        CREATE INDEX idx_play_turns_session_order
+          ON play_turns (session_id, ordinal);
+
+        CREATE TABLE play_ai_requests (
+          session_id TEXT NOT NULL REFERENCES play_sessions (id) ON DELETE CASCADE,
+          idempotency_key TEXT NOT NULL CHECK (length(trim(idempotency_key)) > 0 AND length(idempotency_key) <= 300),
+          request_hash TEXT NOT NULL,
+          contract_json TEXT NOT NULL CHECK (json_valid(contract_json)),
+          owner_turn_id TEXT NOT NULL REFERENCES play_turns (id) ON DELETE CASCADE,
+          response_turn_id TEXT REFERENCES play_turns (id) ON DELETE SET NULL,
+          status TEXT NOT NULL CHECK (status IN ('in_flight', 'succeeded', 'failed')),
+          spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+          cost_known INTEGER NOT NULL DEFAULT 1 CHECK (cost_known IN (0, 1)),
+          billed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (billed_attempts >= 0),
+          error_code TEXT,
+          error_message TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          finished_at TEXT,
+          PRIMARY KEY (session_id, idempotency_key)
+        );
+
+        CREATE UNIQUE INDEX idx_play_ai_one_in_flight
+          ON play_ai_requests (session_id) WHERE status = 'in_flight';
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

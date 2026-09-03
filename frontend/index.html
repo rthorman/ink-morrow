@@ -18,6 +18,7 @@
     <link rel="stylesheet" href="styles/features/library.css">
     <link rel="stylesheet" href="styles/features/write.css">
     <link rel="stylesheet" href="styles/features/chronicle.css">
+    <link rel="stylesheet" href="styles/features/play.css">
     <link rel="stylesheet" href="styles/features/codex.css">
     <link rel="stylesheet" href="styles/features/gallery.css">
     <link rel="stylesheet" href="styles/features/gate.css">
@@ -544,6 +545,58 @@
                 </section>
             </section>
 
+            <section id="playSection" class="content-section play-room" aria-labelledby="playTitle">
+                <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
+                <h2 id="playTitle">Play <span id="playSceneName">&mdash; choose a scene in Chronicle</span></h2>
+                <p id="playStatus" class="setting-hint" role="status" aria-live="polite">Play is optional working history. Nothing here becomes manuscript prose by itself.</p>
+                <div class="play-toolbar">
+                    <button id="playBackBtn" class="btn btn-secondary" type="button">Return to Chronicle</button>
+                    <label for="playSessionSelect">Session</label>
+                    <select id="playSessionSelect" disabled><option value="">No sessions yet</option></select>
+                    <button id="playNewSessionBtn" class="btn btn-secondary" type="button" hidden>New Session Zero</button>
+                </div>
+
+                <section id="playContractPanel" class="play-panel" aria-labelledby="playContractTitle">
+                    <div class="play-panel__head">
+                        <div><p class="hero__kicker">Session Zero</p><h3 id="playContractTitle">Set the table contract</h3></div>
+                        <p>Assign control explicitly. Defaults are only suggestions and remain editable.</p>
+                    </div>
+                    <form id="playContractForm" class="play-contract">
+                        <fieldset><legend>Who controls whom</legend><div id="playParticipants" class="play-participants"></div></fieldset>
+                        <div class="play-contract__grid">
+                            <label>Scribe initiative<select id="playInitiative"><option value="low">Low</option><option value="balanced" selected>Balanced</option><option value="high">High</option></select></label>
+                            <label>Challenge<select id="playChallenge"><option value="gentle">Gentle</option><option value="balanced" selected>Balanced</option><option value="harsh">Harsh</option></select></label>
+                            <label>Pacing<select id="playPacing"><option value="reflective">Reflective</option><option value="balanced" selected>Balanced</option><option value="brisk">Brisk</option></select></label>
+                            <label>Consequences<select id="playConsequences"><option value="guarded">Guarded</option><option value="meaningful" selected>Meaningful</option><option value="severe">Severe</option></select></label>
+                            <label>Suggestions<select id="playSuggestions"><option value="off">Off</option><option value="on_request" selected>When requested</option><option value="proactive">Proactive</option></select></label>
+                            <label>Player interiority<select id="playInteriority"><option value="owner_only" selected>Owner only</option><option value="sensory_only">Scribe may describe sensation</option><option value="shared">Shared interiority</option></select></label>
+                        </div>
+                        <label class="play-check"><input id="playAllowDeath" type="checkbox"> Character death is explicitly allowed</label>
+                        <label>Additional table limits <span class="field-optional">optional</span><textarea id="playContractNotes" maxlength="4000" rows="3" placeholder="Lines, veils, rules conventions, or other limits…"></textarea></label>
+                        <div class="play-actions"><button id="playContractCancel" class="btn btn-secondary" type="button" hidden>Cancel editing</button><button id="playContractSave" class="btn btn-primary" type="submit">Start play session</button></div>
+                    </form>
+                </section>
+
+                <section id="playSessionPanel" class="play-panel" aria-labelledby="playTranscriptTitle" hidden>
+                    <div class="play-panel__head">
+                        <div><p class="hero__kicker">Working history</p><h3 id="playTranscriptTitle">Session transcript</h3></div>
+                        <div class="play-actions"><button id="playEditContract" class="btn btn-secondary" type="button">Edit Session Zero</button><button id="playEndSession" class="btn btn-secondary" type="button">End session</button></div>
+                    </div>
+                    <div id="playContractSummary" class="play-contract-summary"></div>
+                    <ol id="playTranscript" class="play-transcript"></ol>
+                    <form id="playComposer" class="play-composer">
+                        <div class="play-composer__controls">
+                            <label>Turn type<select id="playTurnKind"><option value="act">Act</option><option value="say">Say</option><option value="ask">Ask</option><option value="direct">Direct</option></select></label>
+                            <label>Speaking or acting as<select id="playTurnCharacter"><option value="">Owner / director</option></select></label>
+                        </div>
+                        <label for="playTurnContent">Your turn</label>
+                        <textarea id="playTurnContent" maxlength="20000" rows="5" placeholder="Act, speak, ask the Scribe, or direct the scene…"></textarea>
+                        <p class="setting-hint">Record only is free. Send to Scribe makes one paid text-generation request and still does not create manuscript prose.</p>
+                        <div class="play-actions"><button id="playRecordTurn" class="btn btn-secondary" type="button">Record only</button><button id="playSendTurn" class="btn btn-primary" type="submit">Send to Scribe</button></div>
+                    </form>
+                </section>
+            </section>
+
             <section id="codexSection" class="content-section codex" aria-labelledby="codexTitle">
                 <p class="workspace-empty__eyebrow" data-workspace-story>No manuscript selected</p>
                 <h2 id="codexTitle">Codex <span>&mdash; what the manuscript remembers</span></h2>
@@ -682,6 +735,7 @@
             <!-- Settings Section -->
             <section id="settingsSection" class="content-section" aria-label="Settings">
                 <h2>Settings</h2>
+                <p><a class="btn btn-secondary" href="/user-manual.pdf" download="Ink-Morrow-User-Manual.pdf">Download User Manual</a></p>
                 <p class="setting-hint">Preferences save on this device immediately.</p>
                 <p id="settingsSaved" class="settings-saved" role="status" aria-live="polite"></p>
 

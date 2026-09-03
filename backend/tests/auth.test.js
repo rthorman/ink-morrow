@@ -15,6 +15,11 @@ afterEach(() => close());
 describe('single-owner authentication', () => {
   it('starts sealed and rejects protected requests before parsing their bodies', async () => {
     await request(app).get('/api/auth/status').expect(200, { state: 'setup-required' });
+    await request(app)
+      .get('/user-manual.pdf')
+      .expect('Content-Type', /application\/pdf/)
+      .expect('Content-Disposition', /Ink-Morrow-User-Manual\.pdf/)
+      .expect(200);
     const blocked = await request(app)
       .post('/api/worlds')
       .set('Content-Type', 'application/json')

@@ -621,6 +621,80 @@ describe('portable archives and backups', () => {
     expect(promoted.body.page.cost_usd).toBe(0.004);
   });
 
+  it('round-trips optional Play contracts, turns, and failed request accounting as working history', async () => {
+    const lead = await createCharacter(source.app, null, { name: 'Mara Vale' });
+    const story = await createStory(source.app, null, [
+      { id: lead.id, role: 'mc', relation: 'self', state: null },
+    ], { title: 'Play Archive' });
+    const chapter = story.hierarchy.volumes[0].chapters[0];
+    const scene = (await request(source.app)
+      .post(`/api/stories/${story.id}/chapters/${chapter.id}/scenes`)
+      .send({ title: 'At the threshold', mode: 'play', viewpoint_character_id: lead.id })
+      .expect(201)).body.scene;
+    const session = (await request(source.app)
+      .post(`/api/stories/${story.id}/scenes/${scene.id}/play-sessions`)
+      .send({
+        participants: [{ character_id: lead.id, controller: 'owner' }],
+        scribe_initiative: 'balanced', challenge: 'gentle', pacing: 'reflective',
+        consequences: 'guarded', allow_character_death: false,
+        suggestions: 'on_request', player_interiority: 'owner_only',
+      }).expect(201)).body.session;
+    const ownerTurn = (await request(source.app)
+      .post(`/api/stories/${story.id}/play-sessions/${session.id}/turns`)
+      .set('Idempotency-Key', 'portable-owner-turn')
+      .send({ kind: 'act', character_id: lead.id, content: 'I listen at the threshold.' })
+      .expect(201)).body.turn;
+    source.db.prepare(`
+      INSERT INTO play_ai_requests
+        (session_id, idempotency_key, request_hash, contract_json, owner_turn_id, status,
+         spend_usd, cost_known, billed_attempts, error_code, error_message, finished_at)
+      VALUES (?, 'portable-failed-reply', ?, ?, ?, 'failed', 0.003, 1, 1,
+              'PROVIDER_FAILED', 'The provider declined the reply.', CURRENT_TIMESTAMP)
+    `).run(session.id, 'b'.repeat(64), JSON.stringify({ participants: session.participants }), ownerTurn.id);
+
+    const { bytes } = await downloadPlan(source.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const entries = await readZipEntries(bytes);
+    const manifest = JSON.parse(entries.get('manifest.json').toString('utf8'));
+    const storyMeta = manifest.entities.find((entity) => entity.kind === 'story');
+    const bundle = JSON.parse(entries.get(storyMeta.path).toString('utf8'));
+    expect(bundle.play_sessions).toHaveLength(1);
+    expect(bundle.play_sessions[0].participants_json[0]).toMatchObject({
+      character_id: lead.id, controller: 'owner', name: 'Mara Vale', role: 'mc',
+    });
+    expect(bundle.play_turns).toHaveLength(1);
+    expect(bundle.play_ai_requests).toHaveLength(1);
+
+    const reviewed = await preflight(destination.app, bytes).expect(200);
+    await request(destination.app)
+      .post(`/api/transfers/imports/${reviewed.body.token}/commit`)
+      .send({ mode: 'merge' })
+      .expect(200);
+    const importedSession = destination.db.prepare(`
+      SELECT session.* FROM play_sessions session
+      JOIN scenes scene ON scene.id = session.scene_id
+      JOIN chapters chapter ON chapter.id = scene.chapter_id
+      JOIN volumes volume ON volume.id = chapter.volume_id
+      WHERE volume.story_id = ?
+    `).get(story.id);
+    expect(JSON.parse(importedSession.participants_json)[0].character_id).toBe(lead.id);
+    expect(destination.db.prepare('SELECT content FROM play_turns WHERE session_id = ?').get(importedSession.id).content)
+      .toBe('I listen at the threshold.');
+    expect(destination.db.prepare('SELECT status, spend_usd, billed_attempts FROM play_ai_requests WHERE session_id = ?')
+      .get(importedSession.id)).toEqual({ status: 'failed', spend_usd: 0.003, billed_attempts: 1 });
+
+    const restored = await downloadPlan(destination.app, {
+      scope: 'story', id: story.id, include_visuals: false,
+      include_audio: false, include_working_history: true,
+    });
+    const restoredEntries = await readZipEntries(restored.bytes);
+    const restoredManifest = JSON.parse(restoredEntries.get('manifest.json').toString('utf8'));
+    expect(restoredManifest.entities.find((entity) => entity.kind === 'story').semantic_sha256)
+      .toBe(storyMeta.semantic_sha256);
+  });
+
   it('upgrades a schema-1 4.0 kernel archive to the default hierarchy on import', async () => {
     const story = await createStory(source.app, null, [], { title: 'Kernel Archive' });
     const page = await addPage(source.app, story.id, 'Compatibility prose.');
