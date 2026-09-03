@@ -1816,6 +1816,48 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 17,
+    name: 'alternate Play branches',
+    checksumSource: `Play branches form immutable ancestry from exact turns. Selection remains noncanonical; Play-to-Prose uses the ordinary prepared-page transaction.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE play_branches (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          session_id TEXT NOT NULL REFERENCES play_sessions (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          name TEXT NOT NULL CHECK (length(trim(name)) > 0 AND length(name) <= 200),
+          parent_branch_id TEXT REFERENCES play_branches (id) ON DELETE CASCADE,
+          fork_turn_id TEXT REFERENCES play_turns (id) ON DELETE CASCADE,
+          selected_successor_turn_id TEXT REFERENCES play_turns (id) ON DELETE SET NULL,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (session_id, ordinal)
+        );
+        ALTER TABLE play_sessions ADD COLUMN selected_branch_id TEXT REFERENCES play_branches (id) ON DELETE SET NULL;
+        ALTER TABLE play_turns ADD COLUMN branch_id TEXT REFERENCES play_branches (id) ON DELETE CASCADE;
+      `);
+      const sessions = db.prepare('SELECT id FROM play_sessions ORDER BY created_at, id').all();
+      for (const session of sessions) {
+        const branchId = `${session.id}-main`;
+        db.prepare("INSERT INTO play_branches (id, session_id, ordinal, name) VALUES (?, ?, 1, 'Main path')")
+          .run(branchId, session.id);
+        db.prepare('UPDATE play_turns SET branch_id = ? WHERE session_id = ?').run(branchId, session.id);
+        db.prepare('UPDATE play_sessions SET selected_branch_id = ? WHERE id = ?').run(branchId, session.id);
+      }
+      db.exec(`
+        CREATE INDEX idx_play_branches_session_order ON play_branches (session_id, ordinal);
+        CREATE INDEX idx_play_turns_branch_order ON play_turns (branch_id, ordinal);
+        CREATE TRIGGER play_turn_branch_owner_insert
+        BEFORE INSERT ON play_turns WHEN NEW.branch_id IS NOT NULL
+        BEGIN
+          SELECT CASE WHEN NOT EXISTS (
+            SELECT 1 FROM play_branches branch
+             WHERE branch.id = NEW.branch_id AND branch.session_id = NEW.session_id
+          ) THEN RAISE(ABORT, 'Play turn branch belongs to another session') END;
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

@@ -68,6 +68,31 @@ proposals only: each needs a separate **Add to campaign state** action. Every
 accepted proposal keeps its source Play turn; the local server verifies that
 the model's evidence quotation occurs exactly in that turn.
 
+## Alternate paths and Play into Prose
+
+Every session begins on a Main path. **Fork from here** creates a named child
+path at an exact immutable turn; the shared ancestry is read through that turn
+and neither it nor the abandoned successor is copied or changed. The Path
+picker changes only which working-history path is shown and receives new
+turns. Forking again from shared ancestry makes a sibling at that exact turn,
+so later history from either path cannot leak into the new one.
+
+On the current path, **Select as successor** marks the precise endpoint the
+owner wants to keep. This is an explicit local review and still creates no
+canon. **Shape selected path into prose** has a separate paid review and sends
+up to the 60 most recent turns of the selected path through that endpoint,
+plus the Session Zero contract, compact world and cast memory, relevant
+remembered canon, recent manuscript prose, the bound Scribe profile, and
+manuscript/scene framing. This bound avoids an unexpectedly large provider
+request; remembered canon and recent prose carry earlier context.
+The returned prose becomes the manuscript's one prepared page. It remains
+server-side and noncanonical until the owner returns to the Desk and accepts
+the ordinary **Use prepared page** review. The original paths stay intact.
+
+If the selected path or endpoint changes while the provider is working, the
+paid response is accounted but rejected as stale. A retry key replays the
+same preparation rather than buying it twice.
+
 ## API
 
 - `GET/POST /api/stories/:storyId/scenes/:sceneId/play-sessions`
@@ -75,6 +100,10 @@ the model's evidence quotation occurs exactly in that turn.
 - `POST /api/stories/:storyId/play-sessions/:sessionId/turns`
 - `POST /api/stories/:storyId/play-sessions/:sessionId/replies`
 - `POST /api/stories/:storyId/play-sessions/:sessionId/end`
+- `POST /api/stories/:storyId/play-sessions/:sessionId/branches`
+- `PUT /api/stories/:storyId/play-sessions/:sessionId/branch`
+- `PUT /api/stories/:storyId/play-sessions/:sessionId/branches/:branchId/successor`
+- `POST /api/stories/:storyId/play-sessions/:sessionId/prepare-prose`
 - `GET /api/stories/:storyId/scenes/:sceneId/recap`
 - `POST /api/stories/:storyId/scenes/:sceneId/campaign-suggestions`
 

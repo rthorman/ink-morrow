@@ -18,6 +18,7 @@ const {
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
   PLAY_SESSION_FIELDS,
+  PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
@@ -515,7 +516,7 @@ function createTransferService({
     const maps = {
       world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), scene: new Map(), page: new Map(), revision: new Map(),
-      playSession: new Map(), playTurn: new Map(), campaignEntry: new Map(), campaignRevision: new Map(), campaignRequest: new Map(),
+      playSession: new Map(), playBranch: new Map(), playTurn: new Map(), campaignEntry: new Map(), campaignRevision: new Map(), campaignRequest: new Map(),
       scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
@@ -594,6 +595,7 @@ function createTransferService({
       for (const session of entity.bundle.play_sessions || []) {
         maps.playSession.set(session.id, action.action === 'copy' ? randomUUID() : session.id);
       }
+      for (const branch of entity.bundle.play_branches || []) maps.playBranch.set(branch.id, action.action === 'copy' ? randomUUID() : branch.id);
       for (const turn of entity.bundle.play_turns || []) {
         maps.playTurn.set(turn.id, action.action === 'copy' ? randomUUID() : turn.id);
       }
@@ -873,7 +875,22 @@ function createTransferService({
             ...participant,
             character_id: characterMap.get(participant.character_id),
           }))),
+          selected_branch_id: null,
         }, PLAY_SESSION_FIELDS);
+      }
+      const legacyRootBySession = new Map();
+      const branchSources = entity.bundle.play_branches || [];
+      if (!branchSources.length) {
+        for (const sessionSource of entity.bundle.play_sessions || []) {
+          const id = `${maps.playSession.get(sessionSource.id)}-main`;
+          legacyRootBySession.set(sessionSource.id, id);
+          insertOrUpdate(db, 'play_branches', { id, session_id: maps.playSession.get(sessionSource.id), ordinal: 1, name: 'Main path', parent_branch_id: null, fork_turn_id: null, selected_successor_turn_id: null }, PLAY_BRANCH_FIELDS);
+        }
+      } else {
+        for (const branchSource of branchSources) insertOrUpdate(db, 'play_branches', {
+          ...branchSource, id: maps.playBranch.get(branchSource.id), session_id: maps.playSession.get(branchSource.session_id),
+          parent_branch_id: null, fork_turn_id: null, selected_successor_turn_id: null,
+        }, PLAY_BRANCH_FIELDS);
       }
       for (const turnSource of entity.bundle.play_turns || []) {
         insertOrUpdate(db, 'play_turns', {
@@ -881,7 +898,19 @@ function createTransferService({
           id: maps.playTurn.get(turnSource.id),
           session_id: maps.playSession.get(turnSource.session_id),
           character_id: turnSource.character_id ? characterMap.get(turnSource.character_id) : null,
+          branch_id: turnSource.branch_id ? maps.playBranch.get(turnSource.branch_id) : legacyRootBySession.get(turnSource.session_id),
         }, PLAY_TURN_FIELDS);
+      }
+      for (const branchSource of branchSources) {
+        db.prepare(`UPDATE play_branches SET parent_branch_id = ?, fork_turn_id = ?, selected_successor_turn_id = ? WHERE id = ?`)
+          .run(branchSource.parent_branch_id ? maps.playBranch.get(branchSource.parent_branch_id) : null,
+            branchSource.fork_turn_id ? maps.playTurn.get(branchSource.fork_turn_id) : null,
+            branchSource.selected_successor_turn_id ? maps.playTurn.get(branchSource.selected_successor_turn_id) : null,
+            maps.playBranch.get(branchSource.id));
+      }
+      for (const sessionSource of entity.bundle.play_sessions || []) {
+        db.prepare('UPDATE play_sessions SET selected_branch_id = ? WHERE id = ?')
+          .run(sessionSource.selected_branch_id ? maps.playBranch.get(sessionSource.selected_branch_id) : legacyRootBySession.get(sessionSource.id), maps.playSession.get(sessionSource.id));
       }
       const playImportedAt = new Date().toISOString();
       for (const requestSource of entity.bundle.play_ai_requests || []) {

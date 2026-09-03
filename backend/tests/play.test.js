@@ -164,4 +164,52 @@ describe('optional scene play sessions', () => {
     expect(fixture.db.prepare('SELECT status, error_code FROM play_ai_requests WHERE session_id = ?').get(session.id))
       .toEqual({ status: 'failed', error_code: 'PLAY_PROVIDER_FAILED' });
   });
+
+  it('forks immutable turn history and prepares only an explicitly selected successor as noncanonical prose', async () => {
+    process.env.OPENROUTER_API_KEY = 'test-key';
+    const parts = await setupScene();
+    const session = await startSession(parts);
+    const first = (await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'act', character_id: parts.lead.id, content: 'I descend to the first landing.' }).expect(201)).body.turn;
+    const abandoned = (await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'say', character_id: parts.lead.id, content: 'I call into the dark.' }).expect(201)).body.turn;
+    const forked = (await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branches`)
+      .send({ fork_turn_id: first.id, name: 'Take the silent stair' }).expect(201)).body.session;
+    expect(forked.turns.map((turn) => turn.id)).toEqual([first.id]);
+    expect(forked.branches).toHaveLength(2);
+    const branchId = forked.selected_branch_id;
+    const alternative = (await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'act', character_id: parts.lead.id, content: 'I take the silent stair instead.' }).expect(201)).body.turn;
+    expect(alternative.branch_id).toBe(branchId);
+    await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branches`)
+      .send({ fork_turn_id: first.id, name: 'Reconsider at the landing' }).expect(201)
+      .expect(({ body }) => {
+        expect(body.session.turns.map((turn) => turn.id)).toEqual([first.id]);
+        expect(body.session.branches.find((branch) => branch.id === body.session.selected_branch_id).parent_branch_id)
+          .toBe(session.selected_branch_id);
+      });
+    await request(fixture.app).put(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branch`)
+      .send({ branch_id: branchId }).expect(200);
+    let selected = (await request(fixture.app)
+      .put(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branches/${branchId}/successor`)
+      .send({ turn_id: alternative.id }).expect(200)).body.session;
+    expect(selected.branches.find((branch) => branch.id === branchId).selected_successor_turn_id).toBe(alternative.id);
+    await request(fixture.app).put(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branch`)
+      .send({ branch_id: session.selected_branch_id }).expect(200)
+      .expect(({ body }) => expect(body.session.turns.map((turn) => turn.id)).toEqual([first.id, abandoned.id]));
+    await request(fixture.app).put(`/api/stories/${parts.story.id}/play-sessions/${session.id}/branch`)
+      .send({ branch_id: branchId }).expect(200);
+
+    axios.post.mockResolvedValue({ data: { choices: [{ message: { content: 'Mara descended to the first landing and listened until the last bronze echo faded. Instead of calling into the dark, she chose the silent stair, placed one careful hand against the cold wall, and vanished below.' } }] } });
+    const prepared = await request(fixture.app).post(`/api/stories/${parts.story.id}/play-sessions/${session.id}/prepare-prose`)
+      .set('Idempotency-Key', 'play-prose-1').send({ words: 100 }).expect(201);
+    expect(prepared.body.preview.expected_page).toBe(1);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(parts.story.id).c).toBe(0);
+    expect(fixture.db.prepare('SELECT content FROM prepared_pages WHERE story_id = ?').get(parts.story.id).content).toMatch(/silent stair/i);
+    const sent = axios.post.mock.calls[0][1].messages[1].content;
+    expect(sent).toContain('I take the silent stair instead.');
+    expect(sent).not.toContain('I call into the dark.');
+    await request(fixture.app).delete(`/api/stories/${parts.story.id}`).expect(204);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM play_branches').get().c).toBe(0);
+  });
 });

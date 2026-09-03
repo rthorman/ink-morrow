@@ -660,6 +660,12 @@ describe('portable archives and backups', () => {
        spend_usd, cost_known, billed_attempts, finished_at)
       VALUES ('portable-campaign-request', ?, ?, 'portable-campaign', ?, 'succeeded', '[]', 0.002, 1, 1, CURRENT_TIMESTAMP)`)
       .run(story.id, scene.id, 'c'.repeat(64));
+    const forked = (await request(source.app).post(`/api/stories/${story.id}/play-sessions/${session.id}/branches`)
+      .send({ fork_turn_id: ownerTurn.id, name: 'Listen twice' }).expect(201)).body.session;
+    const alternativeTurn = (await request(source.app).post(`/api/stories/${story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'act', character_id: lead.id, content: 'I listen once more before crossing.' }).expect(201)).body.turn;
+    await request(source.app).put(`/api/stories/${story.id}/play-sessions/${session.id}/branches/${forked.selected_branch_id}/successor`)
+      .send({ turn_id: alternativeTurn.id }).expect(200);
 
     const { bytes } = await downloadPlan(source.app, {
       scope: 'story', id: story.id, include_visuals: false,
@@ -673,7 +679,9 @@ describe('portable archives and backups', () => {
     expect(bundle.play_sessions[0].participants_json[0]).toMatchObject({
       character_id: lead.id, controller: 'owner', name: 'Mara Vale', role: 'mc',
     });
-    expect(bundle.play_turns).toHaveLength(1);
+    expect(bundle.play_turns).toHaveLength(2);
+    expect(bundle.play_branches).toHaveLength(2);
+    expect(bundle.play_branches[1]).toMatchObject({ name: 'Listen twice', fork_turn_id: ownerTurn.id, selected_successor_turn_id: alternativeTurn.id });
     expect(bundle.play_ai_requests).toHaveLength(1);
     expect(bundle.campaign_entries).toHaveLength(1);
     expect(bundle.campaign_revisions[0]).toMatchObject({ entry_id: campaignEntry.id, source_id: ownerTurn.id });
@@ -692,8 +700,9 @@ describe('portable archives and backups', () => {
       WHERE volume.story_id = ?
     `).get(story.id);
     expect(JSON.parse(importedSession.participants_json)[0].character_id).toBe(lead.id);
-    expect(destination.db.prepare('SELECT content FROM play_turns WHERE session_id = ?').get(importedSession.id).content)
-      .toBe('I listen at the threshold.');
+    expect(destination.db.prepare('SELECT content FROM play_turns WHERE session_id = ? ORDER BY ordinal').all(importedSession.id).map((row) => row.content))
+      .toEqual(['I listen at the threshold.', 'I listen once more before crossing.']);
+    expect(destination.db.prepare('SELECT COUNT(*) AS c FROM play_branches WHERE session_id = ?').get(importedSession.id).c).toBe(2);
     expect(destination.db.prepare('SELECT status, spend_usd, billed_attempts FROM play_ai_requests WHERE session_id = ?')
       .get(importedSession.id)).toEqual({ status: 'failed', spend_usd: 0.003, billed_attempts: 1 });
     const importedCampaign = destination.db.prepare('SELECT * FROM campaign_entries WHERE story_id = ?').get(story.id);

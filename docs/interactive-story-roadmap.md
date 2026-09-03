@@ -62,6 +62,8 @@ history.
 
 ### 4. Alternate histories and Play into Prose
 
+Status: **implemented**
+
 Allow a session to fork from an immutable turn while keeping every fork
 noncanonical. The owner may select one successor through an explicit review.
 Play into Prose asks a Scribe to shape selected session turns into a prepared

@@ -55,6 +55,12 @@ describe('living campaign state', () => {
       scribe_initiative: 'balanced', challenge: 'balanced', pacing: 'balanced', consequences: 'meaningful',
       allow_character_death: false, suggestions: 'on_request', player_interiority: 'owner_only',
     }).expect(201)).body.session;
+    const root = (await request(fixture.app).post(`/api/stories/${p.story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'act', character_id: p.lead.id, content: 'I reach the fork in the road.' }).expect(201)).body.turn;
+    await request(fixture.app).post(`/api/stories/${p.story.id}/play-sessions/${session.id}/turns`)
+      .send({ kind: 'say', character_id: p.lead.id, content: 'Abandoned timeline: I refuse Bell.' }).expect(201);
+    await request(fixture.app).post(`/api/stories/${p.story.id}/play-sessions/${session.id}/branches`)
+      .send({ fork_turn_id: root.id, name: 'Keep the promise' }).expect(201);
     const turn = (await request(fixture.app).post(`/api/stories/${p.story.id}/play-sessions/${session.id}/turns`)
       .send({ kind: 'say', character_id: p.lead.id, content: 'I promise Bell I will return before dawn.' }).expect(201)).body.turn;
     axios.post.mockResolvedValue({ data: { choices: [{ message: { content: JSON.stringify({ proposals: [{
@@ -69,6 +75,7 @@ describe('living campaign state', () => {
     const replay = await request(fixture.app).post(endpoint).set('Idempotency-Key', 'state-1').send({}).expect(200);
     expect(replay.body.reused).toBe(true);
     expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(axios.post.mock.calls[0][1].messages[1].content).not.toContain('Abandoned timeline');
     await request(fixture.app).post(`/api/stories/${p.story.id}/campaign-state`).send(first.body.proposals[0]).expect(201);
     const recap = (await request(fixture.app).get(`/api/stories/${p.story.id}/scenes/${p.scene.id}/recap`).expect(200)).body.recap;
     expect(recap.entries[0]).toMatchObject({ title: 'Return before dawn', priority: 0, source: { id: turn.id } });

@@ -157,13 +157,7 @@ function createApp(
   const continuity = createContinuityService({
     db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
   });
-  const play = createPlayService({
-    store: playStore,
-    stories,
-    continuity,
-    chatCompletion: ai.chatCompletion,
-  });
-  const campaign = createCampaignStore(db, { stories, continuity });
+  const campaign = createCampaignStore(db, { stories, continuity, playStore });
   const campaignService = createCampaignService({ campaign, chatCompletion: ai.chatCompletion });
   const writing = createWritingService({ db, catalog, scribes, stories, continuity, chatCompletion: ai.chatCompletion });
   const writingTransactions = createWritingTransactions({
@@ -176,6 +170,10 @@ function createApp(
     ...(writerLeaseMs === undefined ? {} : { leaseMs: writerLeaseMs }),
     ...(autoSuccessorEnabled === undefined ? {} : { autoSuccessorEnabled }),
     logger: providerSafeLogger,
+  });
+  const play = createPlayService({
+    store: playStore, stories, continuity, chatCompletion: ai.chatCompletion,
+    transactions: writingTransactions,
   });
   const imageStore = createImageStore(imageDir);
   const artStore = createArtStore({

@@ -35,6 +35,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   let recap = { entries: [], omitted: 0 };
   let proposals = [];
   let suggestionKey = null;
+  let proseRequestKey = null;
 
   const byId = (id) => document.getElementById(id);
   const setStatus = (message) => { if (byId('playStatus')) byId('playStatus').textContent = message; };
@@ -138,6 +139,18 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     select.value = session?.id || sessions[0].id;
   }
 
+  function renderBranchPicker() {
+    const select = byId('playBranchSelect');
+    if (!select) return;
+    select.textContent = '';
+    for (const branch of session?.branches || []) {
+      const option = document.createElement('option'); option.value = branch.id;
+      option.textContent = `${branch.ordinal}. ${branch.name}${branch.selected_successor_turn_id ? ' · successor selected' : ''}`;
+      option.selected = branch.id === session.selected_branch_id; select.append(option);
+    }
+    select.disabled = busy || !session || (session.branches || []).length < 2;
+  }
+
   function renderContractSummary() {
     const target = byId('playContractSummary');
     if (!session) { target.textContent = ''; return; }
@@ -168,6 +181,18 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
       const who = turn.speaker === 'scribe' ? 'Scribe' : characterName(turn.character_id);
       item.appendChild(node('p', 'play-turn__meta', `${turn.ordinal} · ${who} · ${sentence(turn.input_kind)}`));
       item.appendChild(node('p', 'play-turn__content', turn.content));
+      if (session) {
+        const actions = node('div', 'play-actions play-turn__actions');
+        if (session.status === 'active') {
+          const fork = node('button', 'btn btn-secondary', 'Fork from here'); fork.type = 'button'; fork.disabled = busy;
+          fork.addEventListener('click', () => forkFrom(turn)); actions.append(fork);
+        }
+        if (turn.branch_id === session.selected_branch_id) {
+          const choose = node('button', 'btn btn-secondary', 'Select as successor'); choose.type = 'button'; choose.disabled = busy;
+          choose.addEventListener('click', () => selectSuccessor(turn)); actions.append(choose);
+        }
+        item.append(actions);
+      }
       target.appendChild(item);
     }
     target.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
@@ -226,6 +251,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   function render() {
     if (byId('playSceneName')) byId('playSceneName').textContent = scene ? `— ${scene.title}` : '— scene unavailable';
     renderSessionPicker();
+    renderBranchPicker();
     const showContract = !session || editingContract;
     byId('playContractPanel').hidden = !showContract;
     byId('playSessionPanel').hidden = !session;
@@ -239,6 +265,8 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     renderTranscript();
     renderRecap();
     renderComposer();
+    const selectedBranch = session?.branches?.find((branch) => branch.id === session.selected_branch_id);
+    if (byId('playPrepareProse')) byId('playPrepareProse').disabled = busy || !selectedBranch?.selected_successor_turn_id;
     if (session) {
       setStatus(session.status === 'active'
         ? `Session ${session.ordinal} is active. Turns are working history, not manuscript canon.`
@@ -251,6 +279,77 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   async function loadSession(id) {
     const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${id}`);
     session = result.session;
+  }
+
+  function forkFrom(turn) {
+    const body = node('div', 'codex-correction-form');
+    const label = node('label', '', 'Path name'); const input = document.createElement('input'); input.maxLength = 200;
+    input.value = `Alternative after turn ${turn.ordinal}`; label.append(input); body.append(label);
+    dialogs.openDialog({ title: `Fork from turn ${turn.ordinal}?`, body,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        { label: 'Create alternate path', className: 'btn-primary', onClick: async (close) => {
+          if (!input.value.trim()) { input.setCustomValidity('Name this path.'); input.reportValidity(); return; }
+          close(true);
+          try {
+            const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/branches`, 'POST', { fork_turn_id: turn.id, name: input.value.trim() });
+            session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; render(); showSuccess('Alternate path created. Earlier turns remain shared and immutable.');
+          } catch (error) { showError(error.message); }
+        } },
+      ],
+    });
+  }
+
+  function selectSuccessor(turn) {
+    dialogs.openDialog({
+      title: `Select turn ${turn.ordinal} as this path’s successor?`,
+      body: 'This marks the endpoint to shape into prose. It does not create canon, alter another path, or call AI.',
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        { label: 'Select successor', className: 'btn-primary', onClick: async (close) => {
+          close(true);
+          try {
+            const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/branches/${session.selected_branch_id}/successor`, 'PUT', { turn_id: turn.id });
+            session = result.session; proseRequestKey = null; render(); showSuccess('Successor selected. This path is still working history, not manuscript canon.');
+          } catch (error) { showError(error.message); }
+        } },
+      ],
+    });
+  }
+
+  async function prepareProse() {
+    const branch = session?.branches?.find((item) => item.id === session.selected_branch_id);
+    if (!branch?.selected_successor_turn_id || busy) return;
+    const estimate = ROUGH_TEXT_CALL_ESTIMATE;
+    const approved = await dialogs.confirmPaid({
+      title: 'Shape this selected Play path into prose?',
+      review: {
+        action: 'Create one prepared manuscript page from the selected path endpoint.',
+        object: `path “${branch.name}” in scene “${scene.title}”`, model: state.settings.model || 'server default writing model',
+        quantity: 'one prepared page (up to two billed attempts if the first is unusable)',
+        sends: 'up to 60 recent turns of the selected path through its chosen successor, Session Zero contract, compact world/cast memory, relevant remembered canon, recent manuscript prose, the bound Scribe profile, and manuscript/scene titles',
+        estimate, maximum: estimate * 2,
+        note: 'The result stays server-side as a prepared page. Only the normal Desk review/Use prepared page action can commit it to canon.',
+      }, confirmLabel: 'Prepare prose',
+    });
+    if (!approved) return;
+    busy = true; render();
+    try {
+      proseRequestKey ||= requestKey().replace('play:', 'play-prose:');
+      const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/prepare-prose`, 'POST', {
+        idempotency_key: proseRequestKey, words: state.settings.wordsPerPage,
+        ...(state.settings.model ? { model: state.settings.model } : {}),
+        ...(state.settings.reasoningEffort ? { reasoning_effort: state.settings.reasoningEffort } : {}),
+      });
+      if (!result.reused) state.addSessionCost(result.preview?.cost_usd);
+      proseRequestKey = null;
+      await features.write.loadStoryPages();
+      showSuccess('The selected path is prepared as prose on the Desk; it is not canon until you use it.');
+      routeController.navigate('desk', { storyId: activeStoryId });
+    } catch (error) {
+      if (typeof error.costUsd === 'number') state.addSessionCost(error.costUsd);
+      showError(error.message);
+    } finally { busy = false; render(); }
   }
 
   async function reload(preferredId = null) {
@@ -342,6 +441,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
         ? await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/contract`, 'PUT', contractPayload())
         : await apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/play-sessions`, 'POST', contractPayload());
       session = result.session;
+      proseRequestKey = null;
       editingContract = false;
       await reload(session.id);
       showSuccess(session.ordinal === 1 && session.turn_count === 0 ? 'Session Zero saved. The scene is ready to play.' : 'Session Zero updated for future turns.');
@@ -408,6 +508,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
       retryRequest = null;
       proposals = [];
       suggestionKey = null;
+      proseRequestKey = null;
       byId('playTurnContent').value = '';
       await reload(session.id);
       showSuccess(sendToScribe ? 'The Scribe answered in working history.' : 'Turn recorded without calling AI.');
@@ -456,9 +557,16 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     byId('playNewSessionBtn')?.addEventListener('click', () => { session = null; editingContract = false; render(); });
     byId('playSessionSelect')?.addEventListener('change', async (event) => {
       if (!event.target.value) return;
-      try { await loadSession(event.target.value); editingContract = false; retryRequest = null; render(); }
+      try { await loadSession(event.target.value); editingContract = false; retryRequest = null; proseRequestKey = null; render(); }
       catch (error) { showError(error.message); }
     });
+    byId('playBranchSelect')?.addEventListener('change', async (event) => {
+      try {
+        const result = await apiCall(`/stories/${activeStoryId}/play-sessions/${session.id}/branch`, 'PUT', { branch_id: event.target.value });
+        session = result.session; proposals = []; suggestionKey = null; proseRequestKey = null; render();
+      } catch (error) { showError(error.message); }
+    });
+    byId('playPrepareProse')?.addEventListener('click', prepareProse);
     byId('playRecordTurn')?.addEventListener('click', () => submitTurn(false));
     byId('playComposer')?.addEventListener('submit', (event) => { event.preventDefault(); submitTurn(true); });
     byId('playTurnContent')?.addEventListener('input', () => {
@@ -479,6 +587,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     recap = { entries: [], omitted: 0 };
     proposals = [];
     suggestionKey = null;
+    proseRequestKey = null;
     for (const id of ['playParticipants', 'playContractSummary', 'playTranscript']) {
       if (byId(id)) byId(id).textContent = '';
     }

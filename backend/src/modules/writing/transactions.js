@@ -495,11 +495,11 @@ function createWritingTransactions({
     `).run(stableJson(provider), provider.cost_usd ?? 0, provider.billed_attempts, timestamp, timestamp, operation.id);
   }
 
-  async function prepare({ story, key, writerSessionId, generation }) {
-    const request = { generation };
+  async function prepare({ story, key, writerSessionId, generation, direction = 'Continue the story.', requestContext = null, completePage = null }) {
+    const request = { generation, direction, ...(requestContext ? { context: requestContext } : {}) };
     const begun = beginProviderOperation({
       storyId: story.id, key, kind: 'prepare', writerSessionId, request,
-      generation: { ...generation, direction: 'Continue the story.' },
+      generation: { ...generation, direction },
     });
     if (begun.replay) return begun.replay;
     if (begun.joining) return { preview: null, preparation: begun.joining, pending: true };
@@ -508,12 +508,9 @@ function createWritingTransactions({
     let result;
     let prose;
     try {
-      result = await writing.completePage({
-        story,
-        userInput: 'Continue the story.',
-        wordTarget: generation.words,
-        modelOverride: generation.model,
-        reasoningEffort: generation.reasoning_effort,
+      result = completePage ? await completePage() : await writing.completePage({
+        story, userInput: direction, wordTarget: generation.words,
+        modelOverride: generation.model, reasoningEffort: generation.reasoning_effort,
       });
       prose = writing.consumeStoryText(result.content);
     } catch (error) {

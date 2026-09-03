@@ -27,6 +27,7 @@ const {
   sceneRecord,
   scenePageRecord,
   playSessionRecord,
+  playBranchRecord,
   playTurnRecord,
   playAiRequestRecord,
   campaignEntryRecord,
@@ -348,6 +349,12 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
           ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal, turn.ordinal
         `).all(id).map(playTurnRecord)
       : [];
+    const playBranches = options.includeWorkingHistory
+      ? db.prepare(`SELECT branch.* FROM play_branches branch JOIN play_sessions session ON session.id = branch.session_id
+          JOIN scenes scene ON scene.id = session.scene_id JOIN chapters chapter ON chapter.id = scene.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id WHERE volume.story_id = ?
+          ORDER BY session.ordinal, branch.ordinal`).all(id).map(playBranchRecord)
+      : [];
     const playAiRequests = options.includeWorkingHistory
       ? db.prepare(`
           SELECT request.* FROM play_ai_requests request
@@ -424,6 +431,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         author_canon_revisions: authorCanonRevisions,
         writing_operations: writingOperations,
         play_sessions: playSessions,
+        play_branches: playBranches,
         play_turns: playTurns,
         play_ai_requests: playAiRequests,
         campaign_entries: campaignEntries,
