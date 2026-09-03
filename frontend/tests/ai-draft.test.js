@@ -102,6 +102,34 @@ describe('AI world drafts', () => {
     const draftCall = fetchMock.mock.calls.find((c) => c[0].includes('/api/ai/world'));
     expect(JSON.parse(draftCall[1].body).variant).toBe(2);
   });
+
+  it('announces and disables the draft action while the provider is working', async () => {
+    let finishDraft;
+    fetchMock.mockImplementation((url, options) => {
+      if (url.includes('/api/ai/world') && options?.method === 'POST') {
+        return new Promise((resolve) => { finishDraft = () => resolve(jsonResponse(200, { world: AI_WORLD, cost_usd: 0 })); });
+      }
+      return Promise.resolve(jsonResponse(200, { worlds: [] }));
+    });
+    fw.openAiDraft('world');
+    const initialButton = [...document.querySelectorAll('#aiDraftBody button')]
+      .find((button) => button.textContent.includes('Ask the scribe'));
+    initialButton.click();
+    expect(await paidReview('confirm')).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const busyButton = document.querySelector('#aiDraftBody .btn-primary');
+    expect(busyButton.disabled).toBe(true);
+    expect(busyButton.getAttribute('aria-busy')).toBe('true');
+    expect(busyButton.textContent).toContain('drafting');
+
+    finishDraft();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const restored = [...document.querySelectorAll('#aiDraftBody button')]
+      .find((button) => button.textContent.includes('Regenerate'));
+    expect(restored.disabled).toBe(false);
+    expect(restored.getAttribute('aria-busy')).toBe('false');
+  });
 });
 
 describe('AI character drafts', () => {

@@ -16,6 +16,13 @@ body {
   background-attachment: fixed;
 }
 
+/* The HTML hidden state must win over component layout declarations such as
+   display:flex/grid. Without this contract a dismissed or inactive control can
+   remain visibly painted even though it is correctly hidden from the DOM API. */
+[hidden] {
+  display: none !important;
+}
+
 .container {
   max-width: var(--im-content-max);
   margin: 0 auto;

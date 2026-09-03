@@ -5,6 +5,26 @@ export function byId(id) {
   return document.getElementById(id);
 }
 
+// Give every potentially slow button operation the same visible and
+// assistive-technology state, while reliably restoring the button on failure.
+export function beginButtonBusy(button, label) {
+  if (!button) return () => {};
+  const previous = {
+    disabled: button.disabled,
+    label: button.textContent,
+    ariaBusy: button.getAttribute('aria-busy'),
+  };
+  button.disabled = true;
+  button.textContent = label;
+  button.setAttribute('aria-busy', 'true');
+  return () => {
+    button.disabled = previous.disabled;
+    button.textContent = previous.label;
+    if (previous.ariaBusy === null) button.removeAttribute('aria-busy');
+    else button.setAttribute('aria-busy', previous.ariaBusy);
+  };
+}
+
 // el('button', { type: 'button', className: 'x', onClick: fn }, [children])
 export function el(tag, props = {}, children = []) {
   const node = document.createElement(tag);

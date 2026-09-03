@@ -1,6 +1,6 @@
 'use strict';
 
-import { loadScript, mockFetch, jsonResponse } from './dom-helpers.js';
+import { loadScript, mockFetch, jsonResponse, paidReview } from './dom-helpers.js';
 
 const SCRIBE = {
   id: 'scribe-1', entity_kind: 'catgirl', name: 'Morrow Bell',
@@ -26,4 +26,34 @@ describe('The Tribe UI', () => {
     expect(document.getElementById('scribesList').textContent).toContain('Adult catgirl · revision 1');
     expect(document.getElementById('scribesList').textContent).toContain('ornate diction');
   }, 20000);
+
+  it('shows a disabled progress label while AI designs a Scribe', async () => {
+    let finishDraft;
+    const fetchMock = mockFetch();
+    fetchMock.mockImplementation((url, options = {}) => {
+      if (url === '/api/ai/scribe' && options.method === 'POST') {
+        return new Promise((resolve) => {
+          finishDraft = () => resolve(jsonResponse(200, { scribe: SCRIBE, cost_usd: 0.001 }));
+        });
+      }
+      return Promise.resolve(jsonResponse(200, { scribes: [], worlds: [], characters: [], stories: [] }));
+    });
+    await loadScript();
+    const button = document.getElementById('scribeAiBtn');
+    const originalLabel = button.textContent;
+    button.click();
+    expect(await paidReview('confirm')).toBe(true);
+    await flush();
+
+    expect(button.disabled).toBe(true);
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect(button.textContent).toContain('designing');
+
+    finishDraft();
+    await flush();
+    await flush();
+    expect(button.disabled).toBe(false);
+    expect(button.hasAttribute('aria-busy')).toBe(false);
+    expect(button.textContent).toBe(originalLabel);
+  });
 });

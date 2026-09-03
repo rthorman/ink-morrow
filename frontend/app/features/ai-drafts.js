@@ -240,6 +240,7 @@ export function createAiDrafts({ api, state, notify, features, dialogs }) {
     generateBtn.type = 'button';
     generateBtn.className = 'btn btn-primary';
     generateBtn.disabled = aiDraft.generating;
+    generateBtn.setAttribute('aria-busy', String(aiDraft.generating));
     generateBtn.textContent = aiDraft.generating
       ? 'The scribe is drafting…'
       : aiDraft.data
