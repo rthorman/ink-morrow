@@ -306,7 +306,7 @@ test.describe('Ink Morrow UI', () => {
     });
   });
 
-  test('settings: model picker with cost, scriptorium background, cost ticker', async ({ page }) => {
+  test('settings: active model, per-page cost, reasoning, typography, and cost ticker', async ({ page }) => {
     await page.route('**/api/models', (route) =>
       route.fulfill({
         json: {
@@ -330,6 +330,7 @@ test.describe('Ink Morrow UI', () => {
 
     await page.locator('#settingsBtn').click();
     await expect(page.locator('#settingsSection')).toHaveClass(/active/);
+    await expect(page.locator('#currentModel')).toContainText('GLM 5.1 (z-ai/glm-5.1) · server default');
 
     // The server default is a reasoning model, so its real effort ladder is
     // visible before the user explicitly chooses another model.
@@ -359,10 +360,11 @@ test.describe('Ink Morrow UI', () => {
     await page.selectOption('#reasoningSelect', 'low');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('im-settings')).reasoningEffort)).toBe('low');
 
-    // Scriptorium background toggle applies on the writing page
-    await page.locator('#scriptoriumBgToggle').check();
+    // Return to the writing page; the retired decorative-background setting
+    // is deliberately absent while the global cost ticker remains available.
+    await expect(page.locator('#scriptoriumBgToggle')).toHaveCount(0);
     await page.locator('#writeBtn').click();
-    await expect(page.locator('#writeSection')).toHaveClass(/scriptorium-bg/);
+    await expect(page.locator('#writeSection')).not.toHaveClass(/scriptorium-bg/);
 
     // Cost ticker is visible by default
     await expect(page.locator('#costTicker')).toBeVisible();
