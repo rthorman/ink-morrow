@@ -333,9 +333,21 @@
 }
 
 .shell-cost {
-  min-height: 1.45rem;
-  margin: 0 0 0.35rem;
-  padding-inline: clamp(0.2rem, 1.5vw, 0.75rem);
+  position: fixed;
+  z-index: 34;
+  right: max(8px, env(safe-area-inset-right));
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 0.25rem 0.55rem;
+  pointer-events: none;
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
+  background: rgb(16 10 22 / 0.94);
+  box-shadow: var(--im-shadow-raised);
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .shell-cost { bottom: 10px; }
 }
 
 .cost-ticker[hidden] {
