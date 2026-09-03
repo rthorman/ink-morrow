@@ -51,7 +51,7 @@ history until explicitly shaped into prose.
 
 ### 3. Living campaign state
 
-Status: **next**
+Status: **implemented**
 
 Extend the continuity model with relationship changes, promises and debts,
 knowledge boundaries, secrets and witnesses, NPC goals, factions, quests,

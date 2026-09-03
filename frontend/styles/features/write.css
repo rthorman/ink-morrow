@@ -325,12 +325,17 @@
 /* ------------------------------------------------------------------ cost ticker */
 
 .cost-ticker {
-  margin-top: 10px;
   text-align: right;
   font-family: var(--im-font-mono);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   color: var(--im-gold-300);
+}
+
+.shell-cost {
+  min-height: 1.45rem;
+  margin: 0 0 0.35rem;
+  padding-inline: clamp(0.2rem, 1.5vw, 0.75rem);
 }
 
 .cost-ticker[hidden] {

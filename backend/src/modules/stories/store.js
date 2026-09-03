@@ -74,7 +74,9 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
           JOIN chapters chapter ON chapter.id = scene.chapter_id
           JOIN volumes volume ON volume.id = chapter.volume_id
          WHERE volume.story_id = ?
-      `).get(story.id).s,
+      `).get(story.id).s +
+      db.prepare('SELECT COALESCE(SUM(spend_usd), 0) AS s FROM campaign_ai_requests WHERE story_id = ?')
+        .get(story.id).s,
     scribe: scribes?.forStory(story.id) || null,
   });
 

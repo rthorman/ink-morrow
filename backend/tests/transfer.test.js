@@ -651,6 +651,15 @@ describe('portable archives and backups', () => {
       VALUES (?, 'portable-failed-reply', ?, ?, ?, 'failed', 0.003, 1, 1,
               'PROVIDER_FAILED', 'The provider declined the reply.', CURRENT_TIMESTAMP)
     `).run(session.id, 'b'.repeat(64), JSON.stringify({ participants: session.participants }), ownerTurn.id);
+    const campaignEntry = (await request(source.app).post(`/api/stories/${story.id}/campaign-state`).send({
+      kind: 'knowledge_boundary', title: 'Mara heard the threshold', details: { summary: 'She heard scratching beyond it.' },
+      subject_character_id: lead.id, source_type: 'play_turn', source_id: ownerTurn.id,
+    }).expect(201)).body.entry;
+    source.db.prepare(`INSERT INTO campaign_ai_requests
+      (id, story_id, scene_id, idempotency_key, request_hash, status, result_json,
+       spend_usd, cost_known, billed_attempts, finished_at)
+      VALUES ('portable-campaign-request', ?, ?, 'portable-campaign', ?, 'succeeded', '[]', 0.002, 1, 1, CURRENT_TIMESTAMP)`)
+      .run(story.id, scene.id, 'c'.repeat(64));
 
     const { bytes } = await downloadPlan(source.app, {
       scope: 'story', id: story.id, include_visuals: false,
@@ -666,6 +675,9 @@ describe('portable archives and backups', () => {
     });
     expect(bundle.play_turns).toHaveLength(1);
     expect(bundle.play_ai_requests).toHaveLength(1);
+    expect(bundle.campaign_entries).toHaveLength(1);
+    expect(bundle.campaign_revisions[0]).toMatchObject({ entry_id: campaignEntry.id, source_id: ownerTurn.id });
+    expect(bundle.campaign_ai_requests).toHaveLength(1);
 
     const reviewed = await preflight(destination.app, bytes).expect(200);
     await request(destination.app)
@@ -684,6 +696,11 @@ describe('portable archives and backups', () => {
       .toBe('I listen at the threshold.');
     expect(destination.db.prepare('SELECT status, spend_usd, billed_attempts FROM play_ai_requests WHERE session_id = ?')
       .get(importedSession.id)).toEqual({ status: 'failed', spend_usd: 0.003, billed_attempts: 1 });
+    const importedCampaign = destination.db.prepare('SELECT * FROM campaign_entries WHERE story_id = ?').get(story.id);
+    expect(importedCampaign).toMatchObject({ kind: 'knowledge_boundary', status: 'active' });
+    const importedCampaignRevision = destination.db.prepare('SELECT * FROM campaign_entry_revisions WHERE entry_id = ?').get(importedCampaign.id);
+    expect(importedCampaignRevision.source_id).toBe(destination.db.prepare('SELECT id FROM play_turns WHERE session_id = ?').get(importedSession.id).id);
+    expect(destination.db.prepare('SELECT spend_usd FROM campaign_ai_requests WHERE story_id = ?').get(story.id).spend_usd).toBe(0.002);
 
     const restored = await downloadPlan(destination.app, {
       scope: 'story', id: story.id, include_visuals: false,

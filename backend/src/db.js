@@ -1746,6 +1746,76 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 16,
+    name: 'living campaign state',
+    checksumSource: `Revisioned campaign entries unify owner-authored facts and source-linked page or Play evidence. Explicit idempotent AI proposal requests are durable and accounted without changing prose or continuity deltas.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE campaign_entries (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          kind TEXT NOT NULL CHECK (kind IN (
+            'relationship', 'promise', 'debt', 'knowledge_boundary', 'secret',
+            'npc_goal', 'faction', 'quest', 'condition', 'inventory',
+            'resource', 'world_time', 'deadline', 'clock'
+          )),
+          status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'retired')),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX idx_campaign_entries_story_kind
+          ON campaign_entries (story_id, status, kind, updated_at);
+
+        CREATE TABLE campaign_entry_revisions (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          entry_id TEXT NOT NULL REFERENCES campaign_entries (id) ON DELETE CASCADE,
+          revision_number INTEGER NOT NULL CHECK (revision_number > 0),
+          title TEXT NOT NULL CHECK (length(trim(title)) > 0 AND length(title) <= 300),
+          details_json TEXT NOT NULL CHECK (json_valid(details_json)),
+          subject_character_id TEXT,
+          related_character_id TEXT,
+          visibility TEXT NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'secret')),
+          known_by_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(known_by_json)),
+          witnesses_json TEXT NOT NULL DEFAULT '[]' CHECK (json_valid(witnesses_json)),
+          source_type TEXT NOT NULL CHECK (source_type IN ('author', 'page_revision', 'play_turn')),
+          source_id TEXT,
+          source_excerpt TEXT CHECK (source_excerpt IS NULL OR length(source_excerpt) <= 1200),
+          note TEXT CHECK (note IS NULL OR length(note) <= 2000),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (entry_id, revision_number)
+        );
+
+        CREATE INDEX idx_campaign_revisions_entry
+          ON campaign_entry_revisions (entry_id, revision_number);
+        CREATE INDEX idx_campaign_revisions_source
+          ON campaign_entry_revisions (source_type, source_id);
+
+        CREATE TABLE campaign_ai_requests (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          story_id TEXT NOT NULL REFERENCES stories (id) ON DELETE CASCADE,
+          scene_id TEXT NOT NULL REFERENCES scenes (id) ON DELETE CASCADE,
+          idempotency_key TEXT NOT NULL CHECK (length(trim(idempotency_key)) > 0 AND length(idempotency_key) <= 300),
+          request_hash TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('in_flight', 'succeeded', 'failed')),
+          result_json TEXT CHECK (result_json IS NULL OR json_valid(result_json)),
+          spend_usd REAL NOT NULL DEFAULT 0 CHECK (spend_usd >= 0),
+          cost_known INTEGER NOT NULL DEFAULT 1 CHECK (cost_known IN (0, 1)),
+          billed_attempts INTEGER NOT NULL DEFAULT 0 CHECK (billed_attempts >= 0),
+          error_code TEXT,
+          error_message TEXT,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          finished_at TEXT,
+          UNIQUE (story_id, idempotency_key)
+        );
+
+        CREATE UNIQUE INDEX idx_campaign_ai_one_in_flight
+          ON campaign_ai_requests (story_id) WHERE status = 'in_flight';
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

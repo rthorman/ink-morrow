@@ -23,6 +23,9 @@ const { createStoriesRouter } = require('./modules/stories/routes');
 const { createPlayStore } = require('./modules/play/store');
 const { createPlayService } = require('./modules/play/service');
 const { createPlayRouter } = require('./modules/play/routes');
+const { createCampaignStore } = require('./modules/campaign/store');
+const { createCampaignService } = require('./modules/campaign/service');
+const { createCampaignRouter } = require('./modules/campaign/routes');
 const { createContinuityStore } = require('./modules/continuity/store');
 const { createContinuityService } = require('./modules/continuity/service');
 const { createContinuityRouter } = require('./modules/continuity/routes');
@@ -160,6 +163,8 @@ function createApp(
     continuity,
     chatCompletion: ai.chatCompletion,
   });
+  const campaign = createCampaignStore(db, { stories, continuity });
+  const campaignService = createCampaignService({ campaign, chatCompletion: ai.chatCompletion });
   const writing = createWritingService({ db, catalog, scribes, stories, continuity, chatCompletion: ai.chatCompletion });
   const writingTransactions = createWritingTransactions({
     db,
@@ -247,6 +252,7 @@ function createApp(
   app.locals.releaseCapabilities = capabilities;
   app.locals.writingTransactions = writingTransactions;
   app.locals.playStore = playStore;
+  app.locals.campaign = campaign;
   app.locals.artStore = artStore;
   app.locals.publications = publications;
   app.locals.publicationJobs = publicationJobs;
@@ -261,6 +267,7 @@ function createApp(
     store: stories, imageStore, artStore, imageQueue, audio, transactions: writingTransactions,
   }));
   app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
+  app.use(createCampaignRouter({ stories, campaign, service: campaignService, transactions: writingTransactions }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));

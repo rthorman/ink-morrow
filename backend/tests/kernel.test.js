@@ -96,6 +96,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     for (const table of [
       'volumes', 'chapters', 'scenes', 'scene_pages', 'pages', 'page_revisions', 'prepared_pages',
       'play_sessions', 'play_turns', 'play_ai_requests',
+      'campaign_entries', 'campaign_entry_revisions', 'campaign_ai_requests',
       'writing_operations', 'continuity_deltas', 'continuity_corrections',
       'continuity_issues', 'continuity_search', 'continuity_projection_checkpoints',
       'template_snapshots', 'recovery_suffixes', 'assets',

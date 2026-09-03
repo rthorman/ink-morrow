@@ -30,6 +30,9 @@ const {
   PLAY_SESSION_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  CAMPAIGN_ENTRY_FIELDS,
+  CAMPAIGN_REVISION_FIELDS,
+  CAMPAIGN_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -291,6 +294,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
         'author_canon_revisions', 'writing_operations',
         'play_sessions', 'play_turns', 'play_ai_requests',
+        'campaign_entries', 'campaign_revisions', 'campaign_ai_requests',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
         'publication_snapshots', 'scribe_bindings']
     : meta.kind === 'scribe' ? ['record', 'revisions'] : ['record'], `${meta.kind} bundle`);
@@ -597,6 +601,48 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       throw httpError('Story archive play request crosses a session boundary');
     }
     playRequestKeys.add(key);
+  }
+  const campaignEntries = bundle.campaign_entries || [];
+  const campaignRevisions = bundle.campaign_revisions || [];
+  const campaignAiRequests = bundle.campaign_ai_requests || [];
+  if (databaseSchemaVersion >= 16 && (!Array.isArray(bundle.campaign_entries) ||
+      !Array.isArray(bundle.campaign_revisions) || !Array.isArray(bundle.campaign_ai_requests))) {
+    throw httpError('Schema-16 story archive is missing campaign state collections');
+  }
+  if (![campaignEntries, campaignRevisions, campaignAiRequests].every(Array.isArray)) throw httpError('Story archive contains invalid campaign state collections');
+  const campaignIds = new Set();
+  for (const entry of campaignEntries) {
+    assertKnown(entry, CAMPAIGN_ENTRY_FIELDS, 'Campaign entry');
+    if (!entry || !validId(entry.id) || entry.story_id !== meta.id || campaignIds.has(entry.id) ||
+        !['relationship','promise','debt','knowledge_boundary','secret','npc_goal','faction','quest','condition','inventory','resource','world_time','deadline','clock'].includes(entry.kind) ||
+        !['active','resolved','retired'].includes(entry.status)) throw httpError('Story archive contains an invalid campaign entry');
+    campaignIds.add(entry.id);
+  }
+  const campaignRevisionIds = new Set();
+  const campaignNumbers = new Map();
+  for (const revision of campaignRevisions) {
+    assertKnown(revision, CAMPAIGN_REVISION_FIELDS, 'Campaign revision');
+    if (!revision || !validId(revision.id) || campaignRevisionIds.has(revision.id) || !campaignIds.has(revision.entry_id) ||
+        !Number.isSafeInteger(revision.revision_number) || revision.revision_number < 1 || typeof revision.title !== 'string' || !revision.title.trim() || revision.title.length > 300 ||
+        !revision.details_json || typeof revision.details_json !== 'object' || !Array.isArray(revision.known_by_json) || !Array.isArray(revision.witnesses_json) ||
+        !['public','secret'].includes(revision.visibility) || !['author','page_revision','play_turn'].includes(revision.source_type) ||
+        [revision.subject_character_id, revision.related_character_id, ...revision.known_by_json, ...revision.witnesses_json].some((id) => id != null && !castIds.has(id)) ||
+        (revision.source_id != null && !validId(revision.source_id))) throw httpError('Story archive contains an invalid campaign revision');
+    campaignRevisionIds.add(revision.id);
+    if (!campaignNumbers.has(revision.entry_id)) campaignNumbers.set(revision.entry_id, []);
+    campaignNumbers.get(revision.entry_id).push(revision.revision_number);
+  }
+  for (const entryId of campaignIds) {
+    const numbers = (campaignNumbers.get(entryId) || []).sort((a, b) => a - b);
+    if (!numbers.length || numbers.some((number, index) => number !== index + 1)) throw httpError('Campaign revision numbers must be contiguous');
+  }
+  for (const request of campaignAiRequests) {
+    assertKnown(request, CAMPAIGN_AI_REQUEST_FIELDS, 'Campaign AI request');
+    if (!request || !validId(request.id) || request.story_id !== meta.id || !sceneIds.has(request.scene_id) ||
+        typeof request.idempotency_key !== 'string' || !/^[a-f0-9]{64}$/.test(request.request_hash) ||
+        !['in_flight','succeeded','failed'].includes(request.status) || !Number.isFinite(request.spend_usd) || request.spend_usd < 0 ||
+        ![0,1].includes(request.cost_known) || !Number.isSafeInteger(request.billed_attempts) || request.billed_attempts < 0 ||
+        (request.result_json != null && !Array.isArray(request.result_json))) throw httpError('Story archive contains an invalid campaign AI request');
   }
   if (databaseSchemaVersion >= 3 && !Array.isArray(bundle.revisions)) {
     throw httpError('Story archive is missing immutable page revisions');

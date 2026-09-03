@@ -29,6 +29,9 @@ const {
   playSessionRecord,
   playTurnRecord,
   playAiRequestRecord,
+  campaignEntryRecord,
+  campaignRevisionRecord,
+  campaignAiRequestRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,
@@ -356,6 +359,15 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
           ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, session.ordinal, request.created_at
         `).all(id).map(playAiRequestRecord)
       : [];
+    const campaignEntries = db.prepare('SELECT * FROM campaign_entries WHERE story_id = ? ORDER BY created_at, id')
+      .all(id).map(campaignEntryRecord);
+    const campaignRevisions = db.prepare(`SELECT revision.* FROM campaign_entry_revisions revision
+      JOIN campaign_entries entry ON entry.id = revision.entry_id
+      WHERE entry.story_id = ? ORDER BY entry.created_at, revision.revision_number`).all(id)
+      .map((row) => campaignRevisionRecord(row, options));
+    const campaignAiRequests = options.includeWorkingHistory
+      ? db.prepare('SELECT * FROM campaign_ai_requests WHERE story_id = ? ORDER BY created_at, id').all(id).map(campaignAiRequestRecord)
+      : [];
     const preparedPage = options.includeWorkingHistory
       ? (() => {
           const value = db.prepare('SELECT * FROM prepared_pages WHERE story_id = ?').get(id);
@@ -414,6 +426,9 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         play_sessions: playSessions,
         play_turns: playTurns,
         play_ai_requests: playAiRequests,
+        campaign_entries: campaignEntries,
+        campaign_revisions: campaignRevisions,
+        campaign_ai_requests: campaignAiRequests,
         prepared_page: preparedPage,
         preview,
         audiobook,

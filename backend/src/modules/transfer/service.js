@@ -20,6 +20,9 @@ const {
   PLAY_SESSION_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  CAMPAIGN_ENTRY_FIELDS,
+  CAMPAIGN_REVISION_FIELDS,
+  CAMPAIGN_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -512,7 +515,7 @@ function createTransferService({
     const maps = {
       world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
       volume: new Map(), chapter: new Map(), scene: new Map(), page: new Map(), revision: new Map(),
-      playSession: new Map(), playTurn: new Map(),
+      playSession: new Map(), playTurn: new Map(), campaignEntry: new Map(), campaignRevision: new Map(), campaignRequest: new Map(),
       scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
@@ -594,6 +597,9 @@ function createTransferService({
       for (const turn of entity.bundle.play_turns || []) {
         maps.playTurn.set(turn.id, action.action === 'copy' ? randomUUID() : turn.id);
       }
+      for (const entry of entity.bundle.campaign_entries || []) maps.campaignEntry.set(entry.id, action.action === 'copy' ? randomUUID() : entry.id);
+      for (const revision of entity.bundle.campaign_revisions || []) maps.campaignRevision.set(revision.id, action.action === 'copy' ? randomUUID() : revision.id);
+      for (const request of entity.bundle.campaign_ai_requests || []) maps.campaignRequest.set(request.id, action.action === 'copy' ? randomUUID() : request.id);
       const targetStoryId = maps.story.get(entity.id);
       for (const asset of entity.bundle.art_assets || []) {
         let id = asset.id;
@@ -896,6 +902,31 @@ function createTransferService({
           updated_at: interrupted ? playImportedAt : requestSource.updated_at,
           finished_at: interrupted ? playImportedAt : requestSource.finished_at,
         }, PLAY_AI_REQUEST_FIELDS);
+      }
+      for (const entrySource of entity.bundle.campaign_entries || []) {
+        insertOrUpdate(db, 'campaign_entries', { ...entrySource, id: maps.campaignEntry.get(entrySource.id), story_id: storyId }, CAMPAIGN_ENTRY_FIELDS);
+      }
+      for (const revisionSource of entity.bundle.campaign_revisions || []) {
+        insertOrReplace(db, 'campaign_entry_revisions', {
+          ...revisionSource, id: maps.campaignRevision.get(revisionSource.id), entry_id: maps.campaignEntry.get(revisionSource.entry_id),
+          details_json: JSON.stringify(mapObjectIds(revisionSource.details_json, characterMap)),
+          subject_character_id: revisionSource.subject_character_id ? characterMap.get(revisionSource.subject_character_id) : null,
+          related_character_id: revisionSource.related_character_id ? characterMap.get(revisionSource.related_character_id) : null,
+          known_by_json: JSON.stringify((revisionSource.known_by_json || []).map((id) => characterMap.get(id))),
+          witnesses_json: JSON.stringify((revisionSource.witnesses_json || []).map((id) => characterMap.get(id))),
+          source_id: revisionSource.source_type === 'play_turn' ? (maps.playTurn.get(revisionSource.source_id) || null)
+            : revisionSource.source_type === 'page_revision' ? (maps.revision.get(revisionSource.source_id) || null) : null,
+        }, CAMPAIGN_REVISION_FIELDS);
+      }
+      for (const requestSource of entity.bundle.campaign_ai_requests || []) {
+        const interrupted = requestSource.status === 'in_flight';
+        insertOrReplace(db, 'campaign_ai_requests', {
+          ...requestSource, id: maps.campaignRequest.get(requestSource.id), story_id: storyId,
+          scene_id: maps.scene.get(requestSource.scene_id), result_json: JSON.stringify(mapObjectIds(requestSource.result_json, new Map([...characterMap, ...maps.playTurn]))),
+          status: interrupted ? 'failed' : requestSource.status,
+          error_code: interrupted ? 'RESTART_INTERRUPTED' : requestSource.error_code,
+          error_message: interrupted ? 'The archived campaign suggestion was interrupted before import. Retry explicitly.' : requestSource.error_message,
+        }, CAMPAIGN_AI_REQUEST_FIELDS);
       }
       if (entity.bundle.revisions?.length && entity.bundle.hierarchy) {
         const hierarchyPageById = new Map(entity.bundle.hierarchy.pages.map((page) => [page.id, page]));

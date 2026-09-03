@@ -50,6 +50,9 @@ function resetDb(db) {
     DELETE FROM assets;
     DELETE FROM legacy_art_pages;
     DELETE FROM recovery_suffixes;
+    DELETE FROM campaign_ai_requests;
+    DELETE FROM campaign_entry_revisions;
+    DELETE FROM campaign_entries;
     DELETE FROM play_ai_requests;
     DELETE FROM play_turns;
     DELETE FROM play_sessions;

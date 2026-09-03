@@ -105,6 +105,40 @@
   margin-bottom: var(--im-space-3);
 }
 
+.play-recap {
+  margin-block: var(--im-space-3);
+  padding: var(--im-space-3);
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-md);
+}
+
+.play-recap > summary {
+  cursor: pointer;
+  color: var(--im-gold-300, var(--im-text));
+  font-weight: 750;
+}
+
+.play-recap__entries,
+.play-suggestions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: var(--im-space-2);
+  margin-block: var(--im-space-3);
+}
+
+.play-state {
+  padding: var(--im-space-2);
+  border: 1px solid var(--im-border);
+  border-left: 3px solid var(--im-purple-500, var(--im-gold-500));
+  border-radius: var(--im-radius-md);
+  background: var(--im-surface-2);
+}
+
+.play-state--p0 { border-left-color: var(--im-gold-500); }
+.play-state--p2 { opacity: 0.82; }
+.play-state--proposal { border-style: dashed; }
+.play-state :is(p, strong) { margin-block: 0 0.45rem; }
+
 .play-transcript {
   display: grid;
   gap: var(--im-space-3);
