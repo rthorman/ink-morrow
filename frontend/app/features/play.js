@@ -32,6 +32,9 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   let busy = false;
   let loadToken = 0;
   let retryRequest = null;
+  let recap = { entries: [], omitted: 0 };
+  let proposals = [];
+  let suggestionKey = null;
 
   const byId = (id) => document.getElementById(id);
   const setStatus = (message) => { if (byId('playStatus')) byId('playStatus').textContent = message; };
@@ -170,6 +173,32 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     target.lastElementChild?.scrollIntoView?.({ block: 'nearest' });
   }
 
+  function renderRecap() {
+    const target = byId('playRecap');
+    const suggestionTarget = byId('playSuggestions');
+    if (!target || !suggestionTarget) return;
+    target.textContent = '';
+    if (!recap.entries?.length) target.append(node('p', 'setting-hint', 'No durable campaign state has been recorded yet.'));
+    for (const entry of recap.entries || []) {
+      const item = node('article', `play-state play-state--p${entry.priority}`);
+      item.append(node('p', 'play-turn__meta', `${sentence(entry.kind)} · ${['Main', 'Supporting', 'Background'][entry.priority] || 'Supporting'} · ${entry.source?.label || 'owner record'}`));
+      item.append(node('strong', '', entry.title));
+      if (entry.details?.summary) item.append(node('p', '', entry.details.summary));
+      target.append(item);
+    }
+    if (recap.omitted) target.append(node('p', 'setting-hint', `${recap.omitted} lower-priority records are available in Codex → Campaign.`));
+    suggestionTarget.textContent = '';
+    for (const proposal of proposals) {
+      const item = node('article', 'play-state play-state--proposal');
+      item.append(node('p', 'play-turn__meta', `${sentence(proposal.kind)} · proposal, not canon`));
+      item.append(node('strong', '', proposal.title), node('p', '', proposal.details?.summary || ''));
+      const add = node('button', 'btn btn-primary', 'Add to campaign state'); add.type = 'button';
+      add.addEventListener('click', () => applyProposal(proposal, item)); item.append(add); suggestionTarget.append(item);
+    }
+    const suggest = byId('playSuggestState');
+    if (suggest) suggest.disabled = busy || !session?.turns?.length;
+  }
+
   function renderComposer() {
     const composer = byId('playComposer');
     const ended = !session || session.status !== 'active';
@@ -208,6 +237,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     }
     renderContractSummary();
     renderTranscript();
+    renderRecap();
     renderComposer();
     if (session) {
       setStatus(session.status === 'active'
@@ -224,12 +254,55 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
   }
 
   async function reload(preferredId = null) {
-    const result = await apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/play-sessions`);
+    const [result, recapResult] = await Promise.all([
+      apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/play-sessions`),
+      apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/recap`),
+    ]);
+    recap = recapResult.recap || { entries: [], omitted: 0 };
     sessions = result.sessions || [];
     const selected = preferredId || result.active?.id || sessions[0]?.id || null;
     session = null;
     if (selected) await loadSession(selected);
     render();
+  }
+
+  async function suggestState() {
+    if (busy || !session?.turns?.length) return;
+    const approved = await dialogs.confirmPaid({
+      title: 'Ask AI to propose campaign state?',
+      review: {
+        action: 'Inspect this scene’s Play transcript and propose durable state for your review.',
+        object: `scene “${scene.title}”`, model: state.settings.model || 'server default writing model',
+        quantity: 'one structured proposal set (up to two billed attempts if the first is unusable)',
+        sends: 'the scene transcript, compact current campaign state, cast names/roles, and manuscript/scene titles',
+        estimate: ROUGH_TEXT_CALL_ESTIMATE, maximum: ROUGH_TEXT_CALL_ESTIMATE * 2,
+        note: 'Nothing is applied automatically. Add proposals one by one after inspecting them.',
+      },
+      confirmLabel: 'Suggest campaign state',
+    });
+    if (!approved) return;
+    busy = true; suggestionKey ||= requestKey().replace('play:', 'campaign:'); render();
+    try {
+      const result = await apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/campaign-suggestions`, 'POST', {
+        idempotency_key: suggestionKey,
+        ...(state.settings.model ? { model: state.settings.model } : {}),
+        ...(state.settings.reasoningEffort ? { reasoning_effort: state.settings.reasoningEffort } : {}),
+      });
+      state.addCostForStory(activeStoryId, result.cost_usd); proposals = result.proposals || []; suggestionKey = null;
+      showSuccess(proposals.length ? 'Campaign proposals are ready for review.' : 'No durable state changes were found.');
+    } catch (error) {
+      if (typeof error.costUsd === 'number') state.addCostForStory(activeStoryId, error.costUsd);
+      showError(error.message);
+    } finally { busy = false; render(); }
+  }
+
+  async function applyProposal(proposal, item) {
+    try {
+      await apiCall(`/stories/${activeStoryId}/campaign-state`, 'POST', proposal);
+      proposals = proposals.filter((candidate) => candidate !== proposal);
+      const result = await apiCall(`/stories/${activeStoryId}/scenes/${scene.id}/recap`); recap = result.recap;
+      renderRecap(); showSuccess(`Added “${proposal.title}” to campaign state.`);
+    } catch (error) { showError(error.message); item?.scrollIntoView?.({ block: 'nearest' }); }
   }
 
   async function enter(params = {}) {
@@ -333,6 +406,8 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
       });
       if (sendToScribe) state.addCostForStory(activeStoryId, result.cost_usd);
       retryRequest = null;
+      proposals = [];
+      suggestionKey = null;
       byId('playTurnContent').value = '';
       await reload(session.id);
       showSuccess(sendToScribe ? 'The Scribe answered in working history.' : 'Turn recorded without calling AI.');
@@ -389,6 +464,7 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     byId('playTurnContent')?.addEventListener('input', () => {
       if (retryRequest && byId('playTurnContent').value.trim()) { retryRequest = null; renderComposer(); }
     });
+    byId('playSuggestState')?.addEventListener('click', suggestState);
   }
 
   function reset() {
@@ -400,6 +476,9 @@ export function createPlay({ api, state, notify, features, dialogs, router }) {
     editingContract = false;
     busy = false;
     retryRequest = null;
+    recap = { entries: [], omitted: 0 };
+    proposals = [];
+    suggestionKey = null;
     for (const id of ['playParticipants', 'playContractSummary', 'playTranscript']) {
       if (byId(id)) byId(id).textContent = '';
     }

@@ -83,6 +83,17 @@ const PLAY_AI_REQUEST_FIELDS = [
   'response_turn_id', 'status', 'spend_usd', 'cost_known', 'billed_attempts',
   'error_code', 'error_message', 'created_at', 'updated_at', 'finished_at',
 ];
+const CAMPAIGN_ENTRY_FIELDS = ['id', 'story_id', 'kind', 'status', 'created_at', 'updated_at'];
+const CAMPAIGN_REVISION_FIELDS = [
+  'id', 'entry_id', 'revision_number', 'title', 'details_json', 'subject_character_id',
+  'related_character_id', 'visibility', 'known_by_json', 'witnesses_json',
+  'source_type', 'source_id', 'source_excerpt', 'note', 'created_at',
+];
+const CAMPAIGN_AI_REQUEST_FIELDS = [
+  'id', 'story_id', 'scene_id', 'idempotency_key', 'request_hash', 'status',
+  'result_json', 'spend_usd', 'cost_known', 'billed_attempts', 'error_code',
+  'error_message', 'created_at', 'updated_at', 'finished_at',
+];
 const HIERARCHY_PAGE_FIELDS = [
   'id', 'chapter_id', 'ordinal', 'canonical_revision_id',
   'display_revision_id', 'created_at', 'updated_at',
@@ -295,6 +306,24 @@ function playAiRequestRecord(row) {
   return record;
 }
 
+function campaignEntryRecord(row) { return pick(row, CAMPAIGN_ENTRY_FIELDS); }
+function campaignRevisionRecord(row, { includeWorkingHistory } = {}) {
+  const record = pick(row, CAMPAIGN_REVISION_FIELDS);
+  record.details_json = parseJson(record.details_json, {});
+  record.known_by_json = parseJson(record.known_by_json, []);
+  record.witnesses_json = parseJson(record.witnesses_json, []);
+  if (!includeWorkingHistory && record.source_type === 'play_turn') {
+    record.source_id = null;
+    record.source_excerpt = null;
+  }
+  return record;
+}
+function campaignAiRequestRecord(row) {
+  const record = pick(row, CAMPAIGN_AI_REQUEST_FIELDS);
+  record.result_json = parseJson(record.result_json, null);
+  return record;
+}
+
 function hierarchyPageRecord(row) {
   return pick(row, HIERARCHY_PAGE_FIELDS);
 }
@@ -435,6 +464,7 @@ function semanticEntity(kind, bundle, options = {}) {
   const sceneIndexById = new Map((hierarchy.scenes || []).map((scene, index) => [scene.id, index + 1]));
   const sessionIndexById = new Map((bundle.play_sessions || []).map((session, index) => [session.id, index + 1]));
   const turnIndexById = new Map((bundle.play_turns || []).map((turn, index) => [turn.id, index + 1]));
+  const campaignIndexById = new Map((bundle.campaign_entries || []).map((entry, index) => [entry.id, index + 1]));
   const semanticHierarchy = (hierarchy.volumes || [])
     .slice()
     .sort((a, b) => a.ordinal - b.ordinal)
@@ -541,6 +571,13 @@ function semanticEntity(kind, bundle, options = {}) {
       without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
     author_canon_revisions: (bundle.author_canon_revisions || []).map((row) =>
       without(row, ['id', 'entry_id', 'created_at'])),
+    campaign_entries: (bundle.campaign_entries || []).map((row) =>
+      without(row, ['id', 'story_id', 'created_at', 'updated_at'])),
+    campaign_revisions: (bundle.campaign_revisions || []).map((row) => ({
+      ...without(row, ['id', 'entry_id', 'created_at']), entry: campaignIndexById.get(row.entry_id) || null,
+    })),
+    campaign_ai_requests: (bundle.campaign_ai_requests || []).map((row) =>
+      without(row, ['id', 'story_id', 'idempotency_key', 'request_hash', 'created_at', 'updated_at', 'finished_at'])),
     play_sessions: (bundle.play_sessions || []).map((row) => ({
       ...without(row, ['id', 'scene_id', 'created_at', 'updated_at', 'ended_at']),
       scene: sceneIndexById.get(row.scene_id) || null,
@@ -660,6 +697,9 @@ module.exports = {
   PLAY_SESSION_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
+  CAMPAIGN_ENTRY_FIELDS,
+  CAMPAIGN_REVISION_FIELDS,
+  CAMPAIGN_AI_REQUEST_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -696,6 +736,9 @@ module.exports = {
   playSessionRecord,
   playTurnRecord,
   playAiRequestRecord,
+  campaignEntryRecord,
+  campaignRevisionRecord,
+  campaignAiRequestRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,

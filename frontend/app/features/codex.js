@@ -44,6 +44,7 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   let loadToken = 0;
   let facts = [];
   let boundScribe = null;
+  let campaign = { entries: [], kinds: [] };
 
   function hasLead() {
     return Boolean(continuity?.characters?.some((character) => character.role === 'mc'));
@@ -726,8 +727,91 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     }
   }
 
+  function campaignCharacterName(id) {
+    if (!id) return '';
+    return state.data.currentStory?.characters?.find((member) => member.id === id)?.name || 'Cast member';
+  }
+
+  function renderCampaign() {
+    const target = document.getElementById('codexCampaignState');
+    if (!target) return;
+    target.textContent = '';
+    if (!campaign.entries.length) {
+      target.append(el('p', 'setting-hint', 'No campaign state yet. Add only what helps; scenes and play do not require it.'));
+      return;
+    }
+    for (const entry of campaign.entries) {
+      const card = el('article', 'codex-fact');
+      card.append(el('p', 'codex-fact__kind', `${labelOf(entry.kind)} · ${entry.status} · ${['Main', 'Supporting', 'Background'][entry.priority] || 'Supporting'}`));
+      card.append(el('h4', '', entry.title));
+      if (entry.details?.summary) card.append(el('p', 'codex-fact__value', entry.details.summary));
+      if (entry.details?.state) card.append(el('p', 'setting-hint', `State: ${entry.details.state}`));
+      const people = [entry.subject_character_id, entry.related_character_id].filter(Boolean).map(campaignCharacterName);
+      if (people.length) card.append(el('p', 'setting-hint', people.join(' → ')));
+      card.append(el('p', 'setting-hint', `${entry.visibility === 'secret' ? 'Secret' : 'Open'} · ${entry.source?.label || 'Owner record'}${entry.derived ? ' · projected from remembered canon' : ` · revision ${entry.revision_number}`}`));
+      if (!entry.derived) {
+        const actions = el('div', 'codex-author-actions');
+        const edit = el('button', 'btn btn-secondary', 'Edit'); edit.type = 'button'; edit.addEventListener('click', () => openCampaignEditor(entry));
+        const retire = el('button', 'btn btn-secondary', 'Retire'); retire.type = 'button'; retire.addEventListener('click', () => retireCampaignEntry(entry));
+        actions.append(edit, retire); card.append(actions);
+      }
+      target.append(card);
+    }
+  }
+
+  function field(label, control) {
+    const wrapper = el('label', '', label); wrapper.append(control); return wrapper;
+  }
+
+  function optionSelect(values, selected) {
+    const select = document.createElement('select');
+    for (const [value, label] of values) {
+      const option = document.createElement('option'); option.value = value; option.textContent = label; option.selected = value === selected; select.append(option);
+    }
+    return select;
+  }
+
+  function openCampaignEditor(entry = null) {
+    const body = el('div', 'codex-correction-form');
+    const kind = optionSelect((campaign.kinds || []).map((value) => [value, labelOf(value)]), entry?.kind || 'quest');
+    const title = document.createElement('input'); title.maxLength = 300; title.value = entry?.title || '';
+    const summary = document.createElement('textarea'); summary.maxLength = 1200; summary.rows = 4; summary.value = entry?.details?.summary || '';
+    const status = optionSelect([['active', 'Active'], ['resolved', 'Resolved']], entry?.status || 'active');
+    const visibility = optionSelect([['public', 'Open state'], ['secret', 'Secret state']], entry?.visibility || 'public');
+    const cast = [['', 'No specific cast member'], ...(state.data.currentStory?.characters || []).map((member) => [member.id, `${member.name} · ${member.role || 'supporting'}`])];
+    const subject = optionSelect(cast, entry?.subject_character_id || '');
+    body.append(field('Kind', kind), field('Title', title), field('Summary', summary), field('Status', status), field('Visibility', visibility), field('Primary cast member', subject));
+    dialogs.openDialog({
+      title: entry ? 'Revise campaign state' : 'Add campaign state', body,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', autofocus: true, onClick: (close) => close(true) },
+        { label: entry ? 'Save revision' : 'Add state', className: 'btn-primary', onClick: async (close) => {
+          if (!title.value.trim()) { title.setCustomValidity('Enter a title.'); title.reportValidity(); return; }
+          close(true);
+          try {
+            const path = entry ? `/stories/${activeStoryId}/campaign-state/${entry.id}` : `/stories/${activeStoryId}/campaign-state`;
+            await apiCall(path, entry ? 'PUT' : 'POST', {
+              kind: kind.value, title: title.value.trim(), details: { summary: summary.value.trim() || null },
+              status: status.value, visibility: visibility.value, subject_character_id: subject.value || null,
+              source_type: 'author',
+            });
+            const result = await apiCall(`/stories/${activeStoryId}/campaign-state`); campaign = result; renderCampaign();
+            showSuccess(entry ? 'Campaign state revised.' : 'Campaign state added.');
+          } catch (error) { showError(error.message); }
+        } },
+      ],
+    });
+  }
+
+  async function retireCampaignEntry(entry) {
+    try {
+      await apiCall(`/stories/${activeStoryId}/campaign-state/${entry.id}`, 'DELETE');
+      campaign = await apiCall(`/stories/${activeStoryId}/campaign-state`); renderCampaign(); showSuccess('Campaign state retired.');
+    } catch (error) { showError(error.message); }
+  }
+
   function selectTab(name) {
-    const map = { foundations: 'Foundations', canon: 'Canon', corrections: 'Corrections' };
+    const map = { foundations: 'Foundations', canon: 'Canon', corrections: 'Corrections', campaign: 'Campaign' };
     for (const [key, suffix] of Object.entries(map)) {
       const tab = document.getElementById(`codex${suffix}Tab`);
       const panel = document.getElementById(`codex${suffix}Panel`);
@@ -784,19 +868,22 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     renderCanon();
     renderAuthorCanon();
     renderCorrections();
+    renderCampaign();
   }
 
   async function load(storyId) {
     const token = ++loadToken;
     setStatus('Opening manuscript-local foundations and bounded continuity records…');
     try {
-      const [memory, review] = await Promise.all([
+      const [memory, review, campaignState] = await Promise.all([
         apiCall(`/stories/${storyId}/continuity`),
         apiCall(`/stories/${storyId}/continuity/templates`),
+        apiCall(`/stories/${storyId}/campaign-state`),
       ]);
       if (token !== loadToken || activeStoryId !== storyId) return;
       continuity = memory.continuity;
       templates = review.templates || [];
+      campaign = campaignState;
       const name = document.getElementById('codexManuscriptName');
       if (name) name.textContent = state.data.stories.find((item) => item.id === storyId)?.title || 'Selected manuscript';
       render();
@@ -825,11 +912,12 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
   }
 
   function init() {
-    for (const name of ['Foundations', 'Canon', 'Corrections']) {
+    for (const name of ['Foundations', 'Canon', 'Corrections', 'Campaign']) {
       document.getElementById(`codex${name}Tab`)?.addEventListener('click', () => selectTab(name.toLowerCase()));
     }
     document.getElementById('codexSearch')?.addEventListener('input', applyFilter);
     document.getElementById('codexRenameBtn')?.addEventListener('click', openRename);
+    document.getElementById('codexCampaignAdd')?.addEventListener('click', () => openCampaignEditor());
   }
 
   function reset() {
@@ -839,7 +927,8 @@ export function createCodex({ api, state, notify, features, dialogs, router }) {
     templates = [];
     facts = [];
     boundScribe = null;
-    for (const id of ['codexScribe', 'codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary']) {
+    campaign = { entries: [], kinds: [] };
+    for (const id of ['codexScribe', 'codexFoundations', 'codexTemplateUpdates', 'codexCoverage', 'codexCanon', 'codexAuthorCanon', 'codexCorrections', 'codexIssues', 'codexImpactSummary', 'codexCampaignState']) {
       const target = document.getElementById(id);
       if (target) target.textContent = '';
     }

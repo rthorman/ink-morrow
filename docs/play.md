@@ -54,6 +54,20 @@ A scene with Play history cannot be removed, nor can an apparently empty
 chapter or volume that contains it. Deleting the entire manuscript remains
 the explicit whole-project deletion boundary.
 
+## Campaign recap and proposals
+
+Play opens a bounded campaign recap above the transcript. It combines
+owner-authored campaign records with selected page-extracted continuity and
+orders them Main, supporting, then background. A centered manuscript keeps its
+Main Character as the perspective anchor even when the most recent turn does
+not name them. The complete editable ledger remains in **Codex → Campaign**.
+
+**Suggest state with AI** is optional and paid. Its review discloses the model,
+maximum attempts, estimate, and the exact categories sent. Returned items are
+proposals only: each needs a separate **Add to campaign state** action. Every
+accepted proposal keeps its source Play turn; the local server verifies that
+the model's evidence quotation occurs exactly in that turn.
+
 ## API
 
 - `GET/POST /api/stories/:storyId/scenes/:sceneId/play-sessions`
@@ -61,6 +75,8 @@ the explicit whole-project deletion boundary.
 - `POST /api/stories/:storyId/play-sessions/:sessionId/turns`
 - `POST /api/stories/:storyId/play-sessions/:sessionId/replies`
 - `POST /api/stories/:storyId/play-sessions/:sessionId/end`
+- `GET /api/stories/:storyId/scenes/:sceneId/recap`
+- `POST /api/stories/:storyId/scenes/:sceneId/campaign-suggestions`
 
 Paid reply requests require `Idempotency-Key`. The frontend also includes its
 generated key in the JSON body for review transparency; the header is the

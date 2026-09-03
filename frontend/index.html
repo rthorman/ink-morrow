@@ -48,6 +48,10 @@
             <p id="scribeStatus" class="scribe-status" aria-live="polite">The scribe waits, quill at the ready…</p>
         </header>
 
+        <div class="shell-cost" aria-label="AI spending">
+            <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Manuscript $0.0000</div>
+        </div>
+
         <nav class="main-nav" aria-label="Global">
             <button id="homeBtn" class="nav-btn active" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#library"></use></svg><span>Library</span></button>
             <button id="libraryBtn" class="nav-btn" type="button"><svg class="tab-rune" aria-hidden="true" focusable="false"><use href="brand/tab-symbols.svg#manuscripts"></use></svg><span>Manuscripts</span></button>
@@ -431,7 +435,6 @@
                     <div class="story-context" aria-label="Manuscript context">
                         <button id="storyNewBtn" class="btn btn-primary" type="button">New manuscript</button>
                         <span id="storyContextMode" class="story-context__mode" aria-live="polite"></span>
-                        <div id="costTicker" class="cost-ticker" aria-live="off">Session $0.0000 · Manuscript $0.0000</div>
                     </div>
 
                     <div class="story-reader">
@@ -583,6 +586,13 @@
                         <div class="play-actions"><button id="playEditContract" class="btn btn-secondary" type="button">Edit Session Zero</button><button id="playEndSession" class="btn btn-secondary" type="button">End session</button></div>
                     </div>
                     <div id="playContractSummary" class="play-contract-summary"></div>
+                    <details class="play-recap" open>
+                        <summary>Campaign recap</summary>
+                        <p class="setting-hint">Main-character state is shown first, followed by supporting and background state. This recap does not alter the manuscript.</p>
+                        <div id="playRecap" class="play-recap__entries"></div>
+                        <div class="play-actions"><button id="playSuggestState" class="btn btn-secondary" type="button">Suggest state with AI</button></div>
+                        <div id="playSuggestions" class="play-suggestions" aria-live="polite"></div>
+                    </details>
                     <ol id="playTranscript" class="play-transcript"></ol>
                     <form id="playComposer" class="play-composer">
                         <div class="play-composer__controls">
@@ -610,6 +620,7 @@
                         <button id="codexFoundationsTab" class="codex-tab" role="tab" aria-selected="true" aria-controls="codexFoundationsPanel" type="button">Foundations</button>
                         <button id="codexCanonTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCanonPanel" type="button">Remembered canon</button>
                         <button id="codexCorrectionsTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCorrectionsPanel" type="button">Author canon</button>
+                        <button id="codexCampaignTab" class="codex-tab" role="tab" aria-selected="false" aria-controls="codexCampaignPanel" type="button">Campaign</button>
                     </div>
                     <button class="btn btn-secondary workspace-back-to-desk" type="button">Return to Desk</button>
                 </div>
@@ -632,6 +643,13 @@
                     <div id="codexCorrections"></div>
                     <div id="codexIssues"></div>
                     <div id="codexImpactSummary" aria-live="polite"></div>
+                </section>
+                <section id="codexCampaignPanel" class="codex-panel" role="tabpanel" aria-labelledby="codexCampaignTab" hidden>
+                    <div class="codex-author-head">
+                        <div><h3>Living campaign state</h3><p>Optional, structured state for authoring and play. Extracted memory appears beside owner records without being rewritten.</p></div>
+                        <button id="codexCampaignAdd" class="btn btn-primary" type="button">Add state</button>
+                    </div>
+                    <div id="codexCampaignState" class="codex-grid"></div>
                 </section>
             </section>
 
@@ -791,7 +809,7 @@
                     <summary><h3>Costs &amp; storage</h3><span class="settings-group__summary">One approval, then quiet cost tracking</span></summary>
                     <label class="toggle-row" for="costTickerToggle">
                         <input type="checkbox" id="costTickerToggle" checked>
-                        <span>Session &amp; manuscript cost ticker on the writing page</span>
+                        <span>Session &amp; manuscript AI cost ticker throughout Ink Morrow</span>
                     </label>
                     <p class="setting-hint">After you approve one paid action, this device remembers your consent until its site data is cleared.</p>
                     <p class="setting-hint">Costs are approximate until the provider reports the authoritative number; the ticker is a running meter, not a guarantee.</p>

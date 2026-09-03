@@ -8,6 +8,13 @@ validation.
 
 ### Added
 
+- Optional living campaign state now keeps revisioned relationships, promises,
+  debts, knowledge boundaries, secrets, goals, factions, quests, conditions,
+  inventory, resources, time, deadlines, and clocks. Codex provides the owner
+  ledger; Play provides a bounded Main-first recap and explicitly reviewed AI
+  proposals that are never applied automatically.
+- The AI cost ticker now remains in the application shell across every private
+  surface rather than appearing only on the Desk.
 - Opt-in Play sessions now begin with a complete Session Zero control contract
   and record Act, Say, Ask, Direct, and Scribe turns as working history outside
   manuscript prose. Manual turns are free; paid replies are reviewed,

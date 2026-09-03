@@ -325,12 +325,29 @@
 /* ------------------------------------------------------------------ cost ticker */
 
 .cost-ticker {
-  margin-top: 10px;
   text-align: right;
   font-family: var(--im-font-mono);
   font-size: 0.8rem;
   letter-spacing: 0.04em;
   color: var(--im-gold-300);
+}
+
+.shell-cost {
+  position: fixed;
+  z-index: 34;
+  right: max(8px, env(safe-area-inset-right));
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  margin: 0;
+  padding: 0.25rem 0.55rem;
+  pointer-events: none;
+  border: 1px solid var(--im-border);
+  border-radius: var(--im-radius-sm);
+  background: rgb(16 10 22 / 0.94);
+  box-shadow: var(--im-shadow-raised);
+}
+
+@media (min-width: 900px) and (orientation: landscape) {
+  .shell-cost { bottom: 10px; }
 }
 
 .cost-ticker[hidden] {
