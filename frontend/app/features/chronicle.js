@@ -85,6 +85,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     target.append(
       summaryItem(String(summary.volume_count), summary.volume_count === 1 ? 'volume' : 'volumes'),
       summaryItem(String(summary.chapter_count), summary.chapter_count === 1 ? 'chapter' : 'chapters'),
+      summaryItem(String(summary.scene_count || 0), summary.scene_count === 1 ? 'optional scene' : 'optional scenes'),
       summaryItem(String(summary.page_count), summary.page_count === 1 ? 'narrative page' : 'narrative pages'),
       summaryItem(`${coverage.ready} of ${coverage.total}`, 'pages covered by memory'),
       summaryItem(String(summary.placed_art_count || 0), 'placed art records'),
@@ -164,6 +165,189 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     });
   }
 
+  function sceneField(form, labelText, { value = '', maxLength = 500, multiline = false } = {}) {
+    const label = node('label', 'form-field', labelText);
+    const field = document.createElement(multiline ? 'textarea' : 'input');
+    if (!multiline) field.type = 'text';
+    field.maxLength = maxLength;
+    field.value = value || '';
+    if (multiline) field.rows = 3;
+    label.appendChild(field);
+    form.appendChild(label);
+    return field;
+  }
+
+  function sceneSelect(form, labelText, options, value) {
+    const label = node('label', 'form-field', labelText);
+    const select = document.createElement('select');
+    for (const [optionValue, optionLabel] of options) {
+      const option = document.createElement('option');
+      option.value = optionValue;
+      option.textContent = optionLabel;
+      option.selected = optionValue === value;
+      select.appendChild(option);
+    }
+    label.appendChild(select);
+    form.appendChild(label);
+    return select;
+  }
+
+  function scenePageIds(chapter, first, last) {
+    if (first === '' && last === '') return [];
+    const start = Number.parseInt(first, 10);
+    const end = Number.parseInt(last, 10);
+    if (!Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start > end) return null;
+    const pages = chapter.pages.filter((page) => page.display_number >= start && page.display_number <= end);
+    if (pages.length !== end - start + 1) return null;
+    return pages.map((page) => page.id);
+  }
+
+  function openSceneDialog(chapter, scene = null) {
+    const form = node('form', 'scene-form');
+    form.addEventListener('submit', (event) => event.preventDefault());
+    form.appendChild(node('p', 'setting-hint',
+      'Scenes are optional. Leave the page range blank to plan ahead; ordinary pages never need to belong to one.'));
+    const title = sceneField(form, 'Scene name', { value: scene?.title, maxLength: 300 });
+    title.required = true;
+    const mode = sceneSelect(form, 'Working mode', [
+      ['author', 'Author — plan or write'],
+      ['play', 'Play — inhabit the scene'],
+      ['hybrid', 'Hybrid — move between both'],
+    ], scene?.mode || 'author');
+    const status = sceneSelect(form, 'Status', [
+      ['planned', 'Planned'], ['in_progress', 'In progress'], ['complete', 'Complete'],
+    ], scene?.status || 'planned');
+    const viewpointOptions = [['', 'No viewpoint assigned']];
+    const cast = state.data.currentStory?.characters || [];
+    for (const member of cast) {
+      const character = state.data.characters.find((candidate) => candidate.id === member.id);
+      viewpointOptions.push([member.id, character?.name || 'Unnamed cast member']);
+    }
+    const viewpoint = sceneSelect(form, 'Viewpoint or player character', viewpointOptions,
+      scene?.viewpoint_character_id || '');
+    const location = sceneField(form, 'Location', { value: scene?.location });
+    const storyTime = sceneField(form, 'Story time', { value: scene?.story_time });
+    const purpose = sceneField(form, 'Purpose', { value: scene?.purpose, maxLength: 4000, multiline: true });
+    const stakes = sceneField(form, 'Stakes', { value: scene?.stakes, maxLength: 4000, multiline: true });
+
+    const range = node('fieldset', 'scene-form__range');
+    range.appendChild(node('legend', '', 'Existing page range (optional)'));
+    const firstLabel = node('label', 'form-field', 'First narrative page');
+    const first = document.createElement('input');
+    first.type = 'number';
+    first.min = '1';
+    first.inputMode = 'numeric';
+    first.value = scene?.page_range?.first || '';
+    firstLabel.appendChild(first);
+    const lastLabel = node('label', 'form-field', 'Last narrative page');
+    const last = document.createElement('input');
+    last.type = 'number';
+    last.min = '1';
+    last.inputMode = 'numeric';
+    last.value = scene?.page_range?.last || '';
+    lastLabel.appendChild(last);
+    range.append(firstLabel, lastLabel);
+    form.appendChild(range);
+    const startingValues = JSON.stringify([...form.elements].map((element) => element.value));
+
+    dialogs.openDialog({
+      title: scene ? `Edit ${scene.title}` : `Add an optional scene to ${chapter.title}`,
+      body: form,
+      dirty: () => JSON.stringify([...form.elements].map((element) => element.value)) !== startingValues,
+      actions: [
+        { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
+        {
+          label: scene ? 'Save scene' : 'Add scene', className: 'btn-primary',
+          onClick: async (close) => {
+            const name = title.value.trim();
+            if (!name) {
+              title.setCustomValidity('Enter a scene name.');
+              title.reportValidity();
+              return;
+            }
+            const pageIds = scenePageIds(chapter, first.value, last.value);
+            if (!pageIds) {
+              first.setCustomValidity('Choose a complete page range inside this chapter, or leave both fields blank.');
+              first.reportValidity();
+              return;
+            }
+            first.setCustomValidity('');
+            close(true);
+            const payload = {
+              title: name,
+              mode: mode.value,
+              status: status.value,
+              viewpoint_character_id: viewpoint.value || null,
+              location: location.value,
+              story_time: storyTime.value,
+              purpose: purpose.value,
+              stakes: stakes.value,
+              page_ids: pageIds,
+            };
+            await mutate(
+              () => scene
+                ? apiCall(`/stories/${activeStoryId}/scenes/${scene.id}`, 'PUT', payload)
+                : apiCall(`/stories/${activeStoryId}/chapters/${chapter.id}/scenes`, 'POST', payload),
+              scene ? 'Scene updated. Prose and canon were not changed.' : 'Optional scene added. Prose and canon were not changed.',
+            );
+          },
+        },
+      ],
+    });
+  }
+
+  async function deleteScene(scene) {
+    const count = scene.page_range?.count || 0;
+    const yes = await dialogs.confirmDestructive({
+      title: `Remove scene "${scene.title}"?`,
+      body: count
+        ? `${count} grouped ${count === 1 ? 'page becomes' : 'pages become'} ordinary ungrouped prose. No page, revision, art, or remembered canon is deleted.`
+        : 'This removes the empty scene plan. No page, revision, art, or remembered canon is deleted.',
+      confirmLabel: 'Remove scene only',
+    });
+    if (yes) await mutate(
+      () => apiCall(`/stories/${activeStoryId}/scenes/${scene.id}`, 'DELETE'),
+      count ? 'Scene removed; its prose remains as ordinary pages.' : 'Empty scene plan removed.',
+    );
+  }
+
+  function renderScenes(chapter, body) {
+    if (!chapter.scenes?.length) return;
+    const section = node('section', 'chronicle-scenes');
+    section.appendChild(node('h4', '', 'Optional scenes'));
+    const list = node('div', 'chronicle-scenes__list');
+    for (const scene of chapter.scenes) {
+      const card = node('article', 'chronicle-scene');
+      const heading = node('div', 'chronicle-scene__heading');
+      heading.appendChild(node('h5', '', scene.title));
+      const actions = node('div', 'chronicle-node-actions');
+      const edit = node('button', 'btn btn-secondary', 'Edit scene');
+      edit.type = 'button';
+      edit.addEventListener('click', () => openSceneDialog(chapter, scene));
+      const remove = node('button', 'btn btn-danger', 'Remove scene');
+      remove.type = 'button';
+      remove.addEventListener('click', () => deleteScene(scene));
+      actions.append(edit, remove);
+      heading.appendChild(actions);
+      card.appendChild(heading);
+      const range = scene.page_range
+        ? (scene.page_range.first === scene.page_range.last
+          ? `Page ${scene.page_range.first}`
+          : `Pages ${scene.page_range.first}–${scene.page_range.last}`)
+        : 'Planned — no pages grouped yet';
+      card.appendChild(node('p', 'chronicle-scene__meta',
+        `${range} · ${scene.mode === 'play' ? 'Play' : scene.mode === 'hybrid' ? 'Hybrid' : 'Author'} · ${scene.status.replace('_', ' ')}`));
+      if (scene.location || scene.story_time) {
+        card.appendChild(node('p', '', [scene.location, scene.story_time].filter(Boolean).join(' · ')));
+      }
+      if (scene.purpose) card.appendChild(node('p', '', scene.purpose));
+      if (scene.stakes) card.appendChild(node('p', 'setting-hint', `Stakes: ${scene.stakes}`));
+      list.appendChild(card);
+    }
+    section.appendChild(list);
+    body.appendChild(section);
+  }
+
   function addVolume() {
     const ordinal = (hierarchy?.summary?.volume_count || 0) + 1;
     openTitleDialog({
@@ -233,6 +417,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     }
     if (page.art_count) group.appendChild(marker(`${page.art_count} placed art`));
     if (page.is_copyedited) group.appendChild(marker('Display copyedit'));
+    if (page.scene_title) group.appendChild(marker(`Scene: ${page.scene_title}`, 'scene'));
     if (page.has_scene_break) group.appendChild(marker('Scene break in preview'));
     return group;
   }
@@ -306,6 +491,10 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
     rename.type = 'button';
     rename.addEventListener('click', () => renameChapter(chapter));
     actions.appendChild(rename);
+    const addScene = node('button', 'btn btn-secondary', 'Add optional scene');
+    addScene.type = 'button';
+    addScene.addEventListener('click', () => openSceneDialog(chapter));
+    actions.appendChild(addScene);
     if (isActive && chapter.pages.length === 0 && volume.chapters.length > 1) {
       const remove = node('button', 'btn btn-danger', 'Remove empty chapter');
       remove.type = 'button';
@@ -313,6 +502,7 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       actions.appendChild(remove);
     }
     body.appendChild(actions);
+    renderScenes(chapter, body);
     renderPageWindow(chapter, body);
     details.appendChild(body);
     return details;
@@ -445,7 +635,8 @@ export function createChronicle({ api, state, notify, features, dialogs, router 
       recoveries = recoveryResult.recoveries || [];
       render();
       const count = hierarchy.summary.page_count;
-      setStatus(`${count} narrative ${count === 1 ? 'page' : 'pages'} in publication order. Only short excerpts are loaded here.`);
+      const sceneCount = hierarchy.summary.scene_count || 0;
+      setStatus(`${count} narrative ${count === 1 ? 'page' : 'pages'} and ${sceneCount} optional ${sceneCount === 1 ? 'scene' : 'scenes'} in publication order. Only short excerpts are loaded here.`);
     } catch (error) {
       if (token !== loadToken) return;
       hierarchy = null;

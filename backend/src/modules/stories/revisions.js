@@ -372,7 +372,7 @@ function createRevisionStore(db, {
     const placeholders = ids.map(() => '?').join(',');
     const select = (sql) => ids.length ? db.prepare(sql.replace('PAGE_IDS', placeholders)).all(...ids) : [];
     return {
-      version: 2,
+      version: 3,
       story_id: storyId,
       anchor_page_id: anchor.id,
       anchor_page_number: anchor.page_number,
@@ -381,6 +381,7 @@ function createRevisionStore(db, {
       undo_sha256: undoHash,
       undo_expires_at: undoExpiresAt,
       placements: select(`SELECT * FROM pages WHERE id IN (PAGE_IDS) ORDER BY rowid`),
+      scene_memberships: select(`SELECT * FROM scene_pages WHERE page_id IN (PAGE_IDS) ORDER BY page_id`),
       revisions: select(`SELECT * FROM page_revisions WHERE page_id IN (PAGE_IDS) ORDER BY created_at, rowid`),
       continuity_deltas: select(`SELECT * FROM continuity_deltas WHERE revision_id IN (
         SELECT id FROM page_revisions WHERE page_id IN (PAGE_IDS)
@@ -494,7 +495,7 @@ function createRevisionStore(db, {
         throw conflict('This recovery suffix has expired.', 'RECOVERY_EXPIRED');
       }
       const payload = parseJson(row.payload_json);
-      if (!payload || ![1, 2].includes(payload.version)) {
+      if (!payload || ![1, 2, 3].includes(payload.version)) {
         throw conflict('Recovery package is unreadable.', 'INVALID_RECOVERY');
       }
       if (undoToken) {
@@ -537,6 +538,20 @@ function createRevisionStore(db, {
           placement.display_revision_id,
           placement.updated_at,
           placement.id
+        );
+      }
+      // Scene grouping is noncanonical. Restore it when its optional scene
+      // still exists; if the author removed that scene while the suffix was
+      // recoverable, the prose returns safely as ordinary ungrouped pages.
+      const restoreSceneMembership = db.prepare(`
+        INSERT OR IGNORE INTO scene_pages (scene_id, page_id, created_at)
+        SELECT ?, ?, ?
+         WHERE EXISTS (SELECT 1 FROM scenes WHERE id = ?)
+      `);
+      for (const membership of payload.scene_memberships || []) {
+        restoreSceneMembership.run(
+          membership.scene_id, membership.page_id, membership.created_at,
+          membership.scene_id
         );
       }
       for (const delta of payload.continuity_deltas || []) {

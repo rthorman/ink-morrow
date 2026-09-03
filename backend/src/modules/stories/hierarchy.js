@@ -152,9 +152,23 @@ function createHierarchyStore(db) {
         JOIN volumes v ON v.id = c.volume_id
        WHERE v.story_id = ?
        ORDER BY v.ordinal, c.ordinal
-    `).all(storyId).map((chapter) => ({ ...chapter, pages: [] }));
+    `).all(storyId).map((chapter) => ({ ...chapter, scenes: [], pages: [] }));
     const chapterById = new Map(chapters.map((chapter) => [chapter.id, chapter]));
     for (const chapter of chapters) volumeById.get(chapter.volume_id)?.chapters.push(chapter);
+
+    const scenes = db.prepare(`
+      SELECT scene.id, scene.chapter_id, scene.ordinal, scene.title, scene.mode,
+             scene.status, scene.viewpoint_character_id, scene.location,
+             scene.story_time, scene.purpose, scene.stakes,
+             scene.created_at, scene.updated_at
+        FROM scenes scene
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+       WHERE volume.story_id = ?
+       ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, scene.id
+    `).all(storyId).map((scene) => ({ ...scene, page_ids: [], page_range: null }));
+    const sceneById = new Map(scenes.map((scene) => [scene.id, scene]));
+    for (const scene of scenes) chapterById.get(scene.chapter_id)?.scenes.push(scene);
 
     const pages = db.prepare(`
        SELECT p.id, p.chapter_id, p.ordinal, p.created_at, p.updated_at,
@@ -164,6 +178,8 @@ function createHierarchyStore(db) {
               delta.error AS continuity_error,
               delta.error_code AS continuity_error_code,
               delta.model AS continuity_model,
+              membership.scene_id, scene.title AS scene_title,
+              scene.mode AS scene_mode, scene.status AS scene_status,
              (SELECT COUNT(*)
                 FROM asset_placements placement
                WHERE placement.story_id = v.story_id AND placement.after_page_id = p.id) AS art_count
@@ -172,12 +188,14 @@ function createHierarchyStore(db) {
         JOIN volumes v ON v.id = c.volume_id
         LEFT JOIN page_revisions display_revision ON display_revision.id = p.display_revision_id
         LEFT JOIN continuity_deltas delta ON delta.revision_id = p.canonical_revision_id
+        LEFT JOIN scene_pages membership ON membership.page_id = p.id
+        LEFT JOIN scenes scene ON scene.id = membership.scene_id
        WHERE v.story_id = ?
        ORDER BY v.ordinal, c.ordinal, p.ordinal
     `).all(storyId);
     pages.forEach((page, index) => {
       const excerpt = String(page.excerpt || '');
-      chapterById.get(page.chapter_id)?.pages.push({
+      const projectedPage = {
         id: page.id,
         ordinal: page.ordinal,
         display_number: index + 1,
@@ -188,12 +206,27 @@ function createHierarchyStore(db) {
         continuity_error: page.continuity_error || null,
         continuity_error_code: page.continuity_error_code || null,
         continuity_model: page.continuity_model || null,
+        scene_id: page.scene_id || null,
+        scene_title: page.scene_title || null,
+        scene_mode: page.scene_mode || null,
+        scene_status: page.scene_status || null,
         art_count: Number(page.art_count) || 0,
         is_copyedited: Boolean(page.canonical_revision_id &&
           page.display_revision_id !== page.canonical_revision_id),
         created_at: page.created_at,
         updated_at: page.updated_at,
-      });
+      };
+      chapterById.get(page.chapter_id)?.pages.push(projectedPage);
+      const scene = page.scene_id ? sceneById.get(page.scene_id) : null;
+      if (scene) {
+        scene.page_ids.push(page.id);
+        if (!scene.page_range) {
+          scene.page_range = { first: index + 1, last: index + 1, count: 1 };
+        } else {
+          scene.page_range.last = index + 1;
+          scene.page_range.count += 1;
+        }
+      }
     });
 
     const activeVolume = volumes.at(-1) || null;
@@ -208,6 +241,7 @@ function createHierarchyStore(db) {
       summary: {
         volume_count: volumes.length,
         chapter_count: chapters.length,
+        scene_count: scenes.length,
         page_count: pages.length,
         continuity: { ready: readyCount, total: pages.length },
         placed_art_count: pages.reduce((sum, page) => sum + (Number(page.art_count) || 0), 0),
@@ -231,11 +265,15 @@ function createHierarchyStore(db) {
     const row = db.prepare(`
       SELECT projected.*, p.ordinal AS hierarchy_ordinal,
              c.id AS chapter_id, c.ordinal AS chapter_ordinal, c.title AS chapter_title,
-             v.id AS volume_id, v.ordinal AS volume_ordinal, v.title AS volume_title
+             v.id AS volume_id, v.ordinal AS volume_ordinal, v.title AS volume_title,
+             membership.scene_id, scene.title AS scene_title, scene.mode AS scene_mode,
+             scene.status AS scene_status
         FROM pages p
         JOIN chapters c ON c.id = p.chapter_id
         JOIN volumes v ON v.id = c.volume_id
         JOIN manuscript_pages projected ON projected.id = p.id AND projected.story_id = v.story_id
+        LEFT JOIN scene_pages membership ON membership.page_id = p.id
+        LEFT JOIN scenes scene ON scene.id = membership.scene_id
        WHERE v.story_id = ? AND p.id = ?
     `).get(storyId, pageId);
     if (!row) return null;
@@ -260,6 +298,9 @@ function createHierarchyStore(db) {
       position: {
         volume: { id: row.volume_id, ordinal: row.volume_ordinal, title: row.volume_title },
         chapter: { id: row.chapter_id, ordinal: row.chapter_ordinal, title: row.chapter_title },
+        scene: row.scene_id ? {
+          id: row.scene_id, title: row.scene_title, mode: row.scene_mode, status: row.scene_status,
+        } : null,
         ordinal: row.hierarchy_ordinal,
         display_number: row.page_number ?? null,
       },

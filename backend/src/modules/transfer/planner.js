@@ -24,6 +24,8 @@ const {
   pageRecord,
   volumeRecord,
   chapterRecord,
+  sceneRecord,
+  scenePageRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,
@@ -224,6 +226,22 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
         WHERE v.story_id = ?
         ORDER BY v.ordinal, c.ordinal
       `).all(id).map(chapterRecord),
+      scenes: db.prepare(`
+        SELECT scene.* FROM scenes scene
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+        WHERE volume.story_id = ?
+        ORDER BY volume.ordinal, chapter.ordinal, scene.ordinal, scene.id
+      `).all(id).map(sceneRecord),
+      scene_pages: db.prepare(`
+        SELECT membership.* FROM scene_pages membership
+        JOIN scenes scene ON scene.id = membership.scene_id
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+        JOIN pages page ON page.id = membership.page_id
+        WHERE volume.story_id = ?
+        ORDER BY volume.ordinal, chapter.ordinal, page.ordinal, page.id
+      `).all(id).map(scenePageRecord),
       pages: db.prepare(`
         SELECT p.* FROM pages p
         JOIN chapters c ON c.id = p.chapter_id

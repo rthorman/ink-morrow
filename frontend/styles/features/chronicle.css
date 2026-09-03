@@ -20,6 +20,7 @@
 .chronicle-panel,
 .chronicle-volume,
 .chronicle-chapter,
+.chronicle-scene,
 .chronicle-recovery {
   border: 1px solid var(--im-border);
   border-radius: var(--im-radius-md);
@@ -105,6 +106,7 @@
 }
 
 .chronicle-node-actions,
+.chronicle-scene__heading,
 .chronicle-page__markers,
 .chronicle-recovery__actions,
 .chronicle-window-controls {
@@ -112,6 +114,75 @@
   flex-wrap: wrap;
   gap: var(--im-space-2);
   align-items: center;
+}
+
+.chronicle-scenes {
+  display: grid;
+  gap: var(--im-space-2);
+  padding: var(--im-space-3);
+  border-left: 3px solid var(--im-purple-500, var(--im-gold-500));
+  background: color-mix(in srgb, var(--im-surface-1) 72%, transparent);
+}
+
+.chronicle-scenes h4,
+.chronicle-scene h5,
+.chronicle-scene p {
+  margin-block: 0;
+}
+
+.chronicle-scenes__list {
+  display: grid;
+  gap: var(--im-space-2);
+}
+
+.chronicle-scene {
+  padding: var(--im-space-3);
+}
+
+.chronicle-scene__heading {
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--im-space-3);
+}
+
+.chronicle-scene__meta {
+  color: var(--im-text-muted);
+  margin-top: 0.35rem !important;
+  text-transform: capitalize;
+}
+
+.chronicle-marker--scene {
+  border-color: var(--im-purple-500, var(--im-gold-500));
+  color: var(--im-purple-300, var(--im-gold-500));
+}
+
+.scene-form {
+  display: grid;
+  gap: var(--im-space-3);
+  text-align: left;
+}
+
+.scene-form .form-field {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 650;
+}
+
+.scene-form :is(input, select, textarea) {
+  inline-size: 100%;
+}
+
+.scene-form__range {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--im-space-2);
+  border: 1px solid var(--im-border);
+  padding: var(--im-space-3);
+}
+
+.scene-form__range legend {
+  padding-inline: 0.35rem;
+  font-weight: 700;
 }
 
 .chronicle-node-actions .btn,
@@ -217,6 +288,15 @@
 
   .chronicle-page__open {
     inline-size: 100%;
+  }
+
+  .scene-form__range {
+    grid-template-columns: 1fr;
+  }
+
+  .chronicle-scene__heading {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 

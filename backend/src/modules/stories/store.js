@@ -8,15 +8,38 @@ const { optionalText, asString, TONES } = require('../../core/validation');
 const { normalizeCast, validateCastPayload, parseCastJson } = require('./cast');
 const { createHierarchyStore } = require('./hierarchy');
 const { createRevisionStore } = require('./revisions');
+const { createSceneStore } = require('./scenes');
 
 function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDays, clock }) {
   const hierarchy = createHierarchyStore(db);
+  const scenes = createSceneStore(db, { hierarchy });
   const getStory = (id) => db.prepare('SELECT * FROM stories WHERE id = ?').get(id);
   const storyPages = (storyId) =>
-    db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(storyId);
+    db.prepare(`
+      SELECT projected.*, membership.scene_id, scene.title AS scene_title,
+             scene.mode AS scene_mode, scene.status AS scene_status
+        FROM manuscript_pages projected
+        LEFT JOIN scene_pages membership ON membership.page_id = projected.id
+        LEFT JOIN scenes scene ON scene.id = membership.scene_id
+       WHERE projected.story_id = ? ORDER BY projected.page_number
+    `).all(storyId);
   const getPageByNumber = (storyId, number) =>
-    db.prepare('SELECT * FROM manuscript_pages WHERE story_id = ? AND page_number = ?').get(storyId, number);
-  const getPageById = (id) => db.prepare('SELECT * FROM manuscript_pages WHERE id = ?').get(id);
+    db.prepare(`
+      SELECT projected.*, membership.scene_id, scene.title AS scene_title,
+             scene.mode AS scene_mode, scene.status AS scene_status
+        FROM manuscript_pages projected
+        LEFT JOIN scene_pages membership ON membership.page_id = projected.id
+        LEFT JOIN scenes scene ON scene.id = membership.scene_id
+       WHERE projected.story_id = ? AND projected.page_number = ?
+    `).get(storyId, number);
+  const getPageById = (id) => db.prepare(`
+    SELECT projected.*, membership.scene_id, scene.title AS scene_title,
+           scene.mode AS scene_mode, scene.status AS scene_status
+      FROM manuscript_pages projected
+      LEFT JOIN scene_pages membership ON membership.page_id = projected.id
+      LEFT JOIN scenes scene ON scene.id = membership.scene_id
+     WHERE projected.id = ?
+  `).get(id);
   // In-flight preview generation cannot be cancelled at the provider. Keep a
   // process-local context revision so a reply produced against an invalidated
   // story can be billed honestly without being allowed to resurrect itself in
@@ -29,6 +52,13 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
     characters: normalizeCast(JSON.parse(story.characters || '[]')),
     continuity_overrides: JSON.parse(story.continuity_overrides || '{}'),
     page_count: db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(story.id).c,
+    scene_count: db.prepare(`
+      SELECT COUNT(*) AS c
+        FROM scenes scene
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+       WHERE volume.story_id = ?
+    `).get(story.id).c,
     total_cost_usd:
       db.prepare(
         'SELECT COALESCE(SUM(COALESCE(cost_usd, 0) + COALESCE(continuity_cost_usd, 0)), 0) AS s FROM manuscript_pages WHERE story_id = ?'
@@ -91,6 +121,23 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
 
   function ensureWorldSnapshot(storyId, worldId) {
     if (worldId) insertWorldTemplateSnapshot.run(randomUUID(), storyId, worldId, storyId);
+  }
+
+  function syncSceneViewpoints(storyId, cast) {
+    const castIds = new Set((cast || []).map((entry) => typeof entry === 'string' ? entry : entry.id));
+    const rows = db.prepare(`
+      SELECT scene.id, scene.viewpoint_character_id
+        FROM scenes scene
+        JOIN chapters chapter ON chapter.id = scene.chapter_id
+        JOIN volumes volume ON volume.id = chapter.volume_id
+       WHERE volume.story_id = ? AND scene.viewpoint_character_id IS NOT NULL
+    `).all(storyId);
+    const clear = db.prepare(`
+      UPDATE scenes SET viewpoint_character_id = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+    `);
+    for (const row of rows) {
+      if (!castIds.has(row.viewpoint_character_id)) clear.run(row.id);
+    }
   }
 
   // -- speculative previews ------------------------------------------------
@@ -208,6 +255,7 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
       ).run(payload.title, payload.world_id, JSON.stringify(payload.cast), payload.tone, storyId);
       ensureCastSnapshots(storyId, payload.cast);
       ensureWorldSnapshot(storyId, payload.world_id);
+      syncSceneViewpoints(storyId, payload.cast);
       if (payload.scribe_changed) scribes?.bindStoryInTransaction(storyId, payload.scribe_id);
     });
     invalidatePreview(storyId);
@@ -332,6 +380,7 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
       const idOf = (entry) => (typeof entry === 'string' ? entry : entry && entry.id);
       if (cast.some((entry) => idOf(entry) === characterId)) {
         update.run(JSON.stringify(cast.filter((entry) => idOf(entry) !== characterId)), story.id);
+        syncSceneViewpoints(story.id, cast.filter((entry) => idOf(entry) !== characterId));
         invalidatePreview(story.id);
         db.prepare('UPDATE stories SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(story.id);
       }
@@ -348,6 +397,7 @@ function createStoriesStore(db, { getWorld, scribes = null, recoveryRetentionDay
     storyWithMeta,
     storyWithHierarchy,
     hierarchy,
+    scenes,
     revisions,
     upsertPreview,
     getPreview,

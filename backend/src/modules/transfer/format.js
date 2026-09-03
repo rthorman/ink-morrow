@@ -60,6 +60,12 @@ const VOLUME_FIELDS = [
 const CHAPTER_FIELDS = [
   'id', 'volume_id', 'ordinal', 'title', 'created_at', 'updated_at',
 ];
+const SCENE_FIELDS = [
+  'id', 'chapter_id', 'ordinal', 'title', 'mode', 'status',
+  'viewpoint_character_id', 'location', 'story_time', 'purpose', 'stakes',
+  'created_at', 'updated_at',
+];
+const SCENE_PAGE_FIELDS = ['scene_id', 'page_id', 'created_at'];
 const HIERARCHY_PAGE_FIELDS = [
   'id', 'chapter_id', 'ordinal', 'canonical_revision_id',
   'display_revision_id', 'created_at', 'updated_at',
@@ -248,6 +254,14 @@ function chapterRecord(row) {
   return pick(row, CHAPTER_FIELDS);
 }
 
+function sceneRecord(row) {
+  return pick(row, SCENE_FIELDS);
+}
+
+function scenePageRecord(row) {
+  return pick(row, SCENE_PAGE_FIELDS);
+}
+
 function hierarchyPageRecord(row) {
   return pick(row, HIERARCHY_PAGE_FIELDS);
 }
@@ -364,7 +378,7 @@ function semanticEntity(kind, bundle, options = {}) {
     };
   }
   const pageNumberById = new Map((bundle.pages || []).map((page) => [page.id, page.page_number]));
-  const hierarchy = bundle.hierarchy || { volumes: [], chapters: [], pages: [] };
+  const hierarchy = bundle.hierarchy || { volumes: [], chapters: [], scenes: [], scene_pages: [], pages: [] };
   const chaptersByVolume = new Map();
   for (const chapter of hierarchy.chapters || []) {
     if (!chaptersByVolume.has(chapter.volume_id)) chaptersByVolume.set(chapter.volume_id, []);
@@ -374,6 +388,16 @@ function semanticEntity(kind, bundle, options = {}) {
   for (const page of hierarchy.pages || []) {
     if (!hierarchyPagesByChapter.has(page.chapter_id)) hierarchyPagesByChapter.set(page.chapter_id, []);
     hierarchyPagesByChapter.get(page.chapter_id).push(page);
+  }
+  const scenesByChapter = new Map();
+  for (const scene of hierarchy.scenes || []) {
+    if (!scenesByChapter.has(scene.chapter_id)) scenesByChapter.set(scene.chapter_id, []);
+    scenesByChapter.get(scene.chapter_id).push(scene);
+  }
+  const scenePagesByScene = new Map();
+  for (const membership of hierarchy.scene_pages || []) {
+    if (!scenePagesByScene.has(membership.scene_id)) scenePagesByScene.set(membership.scene_id, []);
+    scenePagesByScene.get(membership.scene_id).push(pageNumberById.get(membership.page_id) || null);
   }
   const semanticHierarchy = (hierarchy.volumes || [])
     .slice()
@@ -391,6 +415,21 @@ function semanticEntity(kind, bundle, options = {}) {
             .slice()
             .sort((a, b) => a.ordinal - b.ordinal)
             .map((page) => pageNumberById.get(page.id) || null),
+          scenes: (scenesByChapter.get(chapter.id) || [])
+            .slice()
+            .sort((a, b) => a.ordinal - b.ordinal)
+            .map((scene) => ({
+              ordinal: scene.ordinal,
+              title: scene.title,
+              mode: scene.mode,
+              status: scene.status,
+              viewpoint_character_id: scene.viewpoint_character_id,
+              location: scene.location,
+              story_time: scene.story_time,
+              purpose: scene.purpose,
+              stakes: scene.stakes,
+              pages: (scenePagesByScene.get(scene.id) || []).slice().sort((a, b) => a - b),
+            })),
         })),
     }));
   const revisionsByPage = new Map();
@@ -562,6 +601,8 @@ module.exports = {
   PAGE_FIELDS,
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
+  SCENE_FIELDS,
+  SCENE_PAGE_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -593,6 +634,8 @@ module.exports = {
   pageRecord,
   volumeRecord,
   chapterRecord,
+  sceneRecord,
+  scenePageRecord,
   hierarchyPageRecord,
   revisionRecord,
   snapshotRecord,

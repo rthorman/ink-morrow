@@ -78,10 +78,11 @@ assets/
 count, SHA-256 digest, and semantic digest. The checked-in
 `archive-manifest-v2.schema.json` is the machine-readable field contract. Story
 JSON is an aggregate containing its story row, ordered volume/chapter/page
-hierarchy, immutable revision ancestry with canonical/display pointers,
-temporary ordered compatibility prose rows, story-local world/cast snapshots, continuity
-rows, optional redacted writing operations and prepared page, and optional
-ready-audiobook metadata. Schema-8 story aggregates additionally carry strict
+hierarchy, optional scene records and page memberships, immutable revision
+ancestry with canonical/display pointers, temporary ordered compatibility
+prose rows, story-local world/cast snapshots, continuity rows, optional
+redacted writing operations and prepared page, and optional ready-audiobook
+metadata. Schema-8 story aggregates additionally carry strict
 immutable publication snapshot documents and their verified semantic hashes,
 but never shares or capabilities. When visuals are included, schema-7 story aggregates
 also carry ready art-asset metadata and ordered placements anchored to stable
@@ -117,7 +118,18 @@ Each top-level entity receives one classification:
 
 “Identical” ignores timestamps, an entity's own primary ID, and story-page IDs (pages are compared in manuscript order), but retains dependency identities so differently linked graphs are not collapsed. It compares the meaningful fields, ordered manuscript, snapshots, continuity, optional working history, and every media file selected for this archive. If visuals or audio were deliberately left out, that omitted category does not create a collision.
 
-Ink Morrow does not perform field-level world/character merges or page-level story splices. A divergent story is kept, copied, or replaced as one manuscript. Copying generates new IDs for the entity, volumes, chapters, pages, revisions, writing operations, any prepared page, art assets, and art placements; every world, cast, story-local template, correction citation, continuity character/revision reference, operation result, override key, cover, art anchor, and audiobook reference is remapped as one dependency graph. Imported art receives fresh random local storage names and provider-reference consent resets to false. Imported prepared prose receives a fresh opaque identity and context fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED` rather than being resumed or guessed successful.
+Ink Morrow does not perform field-level world/character merges or page-level
+story splices. A divergent story is kept, copied, or replaced as one
+manuscript. Copying generates new IDs for the entity, volumes, chapters,
+optional scenes, pages, revisions, writing operations, any prepared page, art
+assets, and art placements; every world, cast, scene viewpoint and membership,
+story-local template, correction citation, continuity character/revision
+reference, operation result, override key, cover, art anchor, and audiobook
+reference is remapped as one dependency graph. Imported art receives fresh
+random local storage names and provider-reference consent resets to false.
+Imported prepared prose receives a fresh opaque identity and context
+fingerprint. An archived in-flight operation becomes `RESTART_INTERRUPTED`
+rather than being resumed or guessed successful.
 
 ## Merge and full restore
 

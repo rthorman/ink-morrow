@@ -377,6 +377,23 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   honest and offer JSON export rather than a silent merge. Full behavior:
   `docs/chronicle.md`.
 
+### 4.1 interactive Story programme
+
+- The owner approved the complete single-user authoring/roleplay programme in
+  `docs/interactive-story-roadmap.md`. It supersedes the 4.0 scene-entity
+  non-goal for current `main`; the archived 4.0 decision record stays intact.
+- Schema 14 scenes are optional chapter-owned working structure. They may
+  group one contiguous page range or remain empty. Creating, editing, or
+  deleting a scene never changes prose, revision pointers, page order,
+  continuity evidence, art placement, or publication. Delete ungroups pages.
+- Existing manuscripts are never backfilled with guessed scenes. Chronicle
+  owns scene management; Desk only names a current page's scene in its compact
+  context. Scene operations make no provider request.
+- `.inkmorrow` archives preserve scenes/memberships and remap their identities
+  on copy. Truncation recovery restores membership only when the scene still
+  exists; prose remains safely restorable without it. Full behavior:
+  `docs/scenes.md`.
+
 ## Testing
 
 - SETUP SAFETY: `bash setup.sh` updates an existing backend dependency tree in

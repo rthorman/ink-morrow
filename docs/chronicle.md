@@ -1,8 +1,9 @@
 # Chronicle
 
 Chronicle is the structure and recovery room for one selected manuscript. It
-uses the canonical Story -> Volume -> Chapter -> Page order and never creates a
-second timeline, scene entity, or reorder path.
+uses the canonical Story -> Volume -> Chapter -> Page order. It also owns
+optional scene planning; scenes group prose without becoming a second timeline
+or changing publication order.
 
 ## Bounded outline
 
@@ -13,17 +14,20 @@ chapter renders at most 80 page rows at once; previous/next windows and the
 page-number finder keep the 3,000-page fixture keyboard-navigable.
 
 Volume rows contain chapter rows and chapter rows contain narrative page rows.
-Scene-break characters remain visible when they fall inside the short excerpt,
-but they are never a row. Page actions deep-link to the Desk by publication
-number. Placed art is a count marker anchored to prose, not a numbered page.
+An optional scene card may group one contiguous range of those pages or remain
+empty while planned. Scene-break characters remain visible when they fall
+inside a short excerpt and are never automatically converted into data. Page
+actions deep-link to the Desk by publication number. Placed art is a count
+marker anchored to prose, not a numbered page.
 
 The summary and rows distinguish:
 
 - current active tail;
 - a prepared next page, which remains noncanonical;
 - ready, pending, or failed continuity coverage;
-- display-only copyedits; and
-- art placement counts.
+- display-only copyedits;
+- art placement counts; and
+- optional scene membership.
 
 ## Structure maintenance
 
@@ -33,6 +37,10 @@ renamed without changing its identity, page identity, prose revisions, or
 continuity evidence. Only empty active-tail containers expose removal, and the
 confirmation names the exact empty structure affected. Chronicle offers no
 arbitrary historical reorder.
+
+Any chapter may add optional scene metadata without making scene planning a
+requirement. Removing a scene ungroups its pages and cannot delete prose,
+revisions, art, or continuity. See [Optional scenes](scenes.md).
 
 ## Recovery
 
