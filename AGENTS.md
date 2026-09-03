@@ -8,6 +8,26 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 - AI via OpenRouter (key in backend/.env, see backend/.env.example); branding per InkMorrow-OpenCode-Branding/ in the repo root (frontend assets in frontend/brand/, WebP + SVG only — PNG masters stay in the package dir)
 - Dev server control: `~/bin/im-server {start|stop|restart|status}` (PID-file based) — never `pkill -f` a pattern; a command line containing the plain string anywhere in its argv self-matches and kills the shell (hung the tool twice). Use the helper.
 
+### Documentation library contract
+
+- The six-book PDF library in `docs/pdf-library/` is a shipped product surface,
+  not a release afterthought. When behavior changes, update every affected book
+  source and regenerate all six PDFs plus the freshness manifest together.
+- The previous User Guide is the content and visual baseline, not a page-count
+  specification. Its former 16-page and later 25-page forms must not constrain
+  the guide. Prefer complete, legible coverage over an arbitrary fixed length.
+- The requested 4.1 edition is exactly 35 A4 pages after rendering. This is the
+  acceptance target for that edition, not a permanent maximum for later guides.
+- The User Guide must explain the current feature set and include realistic,
+  end-to-end example journeys for (1) using no optional AI/provider features,
+  (2) using the complete Scriptorium feature set, and (3) using coherent
+  subsets suited to recognizable author goals. Journeys must identify what is
+  used, what is deliberately skipped, provider/cost implications, and the
+  resulting backup, publication, or sharing outcome.
+- Preserve the approved Ink Morrow visual system and the old PDF's successful
+  task-oriented explanations. Do not replace the guide with a feature dump or
+  compress new material merely to preserve an old page count.
+
 ### 4.0.0 release record (shipped on `main`)
 
 - The accepted alpha-to-beta contract and release evidence are archived at

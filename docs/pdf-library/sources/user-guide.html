@@ -200,7 +200,7 @@
     <div class="version">Ink Morrow 4.1.0 · September 2026</div>
   </section>
 
-  <section class="page" aria-labelledby="start-title">
+  <section class="page page--tight" aria-labelledby="start-title">
     <div class="running-head"><span class="brand">Ink Morrow 4.0</span><span class="section">Start here</span></div><div class="running-rule"></div>
     <div class="kicker">Before the first page</div>
     <h2 id="start-title">Know the shape of the Scriptorium</h2>
@@ -240,6 +240,7 @@
       <div class="toc-item"><span class="n">10</span><b>Quick reference</b><span class="p">19</span></div>
       <div class="toc-item"><span class="n">A</span><b>Lore of the Scriptorium</b><span class="p">20</span></div>
       <div class="toc-item"><span class="n">B</span><b>Choosing AI models</b><span class="p">21-25</span></div>
+      <div class="toc-item"><span class="n">11</span><b>Example user journeys</b><span class="p">26-35</span></div>
     </div>
     <div class="folio"><span><strong>USER GUIDE</strong> · 4.1</span><span>2</span></div>
   </section>
@@ -785,6 +786,206 @@ IMAGE_MODEL=x-ai/grok-imagine-image-2.0</pre>
     <ul class="source-links"><li><a href="https://openrouter.ai/docs/guides/features/structured-outputs">OpenRouter structured-output and strict-routing guide</a></li><li><a href="https://openrouter.ai/docs/guides/overview/models">OpenRouter model catalogue and capability guide</a></li><li><a href="https://openrouter.ai/docs/guides/overview/multimodal/image-generation">OpenRouter image-generation guide</a> and <a href="https://openrouter.ai/docs/guides/overview/multimodal/tts">speech guide</a></li><li><a href="https://arena.ai/leaderboard/text/creative-writing">Creative Writing Arena leaderboard</a></li></ul>
     <p class="small">Model availability, provider behavior, rankings, and prices change. This report was checked on <strong>2 September 2026</strong>. The live catalogue, paid-review estimate, recorded provider usage, and your own manuscript trials outrank this printed snapshot.</p>
     <div class="folio"><span><strong>ADDENDUM B</strong> · Recommended stack</span><span>25</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journeys-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Example journeys</span></div><div class="running-rule"></div>
+    <div class="kicker">11 · Choose only what serves the manuscript</div><h2 id="journeys-title">There is more than one honest path</h2>
+    <p class="dek">Ink Morrow's rooms are designed to work together, but they are not a compulsory checklist. Start from the outcome you need, then enable only the provider work and supporting tools that earn their place.</p>
+    <table class="decision-table">
+      <thead><tr><th>Journey</th><th>Uses</th><th>Deliberately skips</th><th>Best for</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Manual and local</strong></td><td>Library, Desk editing, Chronicle navigation, local uploads, Gate backup/export</td><td>Every provider-backed action</td><td>Maximum local control or working without a provider</td></tr>
+        <tr><td><strong>Complete Scriptorium</strong></td><td>Templates, Scribe, Archivist, revisions, Codex, Gallery, narration, publication, share, backup</td><td>Nothing applicable</td><td>Learning the complete integrated workflow</td></tr>
+        <tr><td><strong>AI co-writer</strong></td><td>Scribe, prepared pages, Archivist, Codex, revision</td><td>Generated art, narration, public sharing</td><td>Long-form drafting with bounded continuity</td></tr>
+        <tr><td><strong>Revision room</strong></td><td>Import, Chronicle, copyedit, return/recovery, Codex corrections, export</td><td>New prose generation, painting, narration</td><td>Editing an existing manuscript</td></tr>
+        <tr><td><strong>Illustrate and publish</strong></td><td>Import, Gallery upload/paint, placement, publication, optional share, backup</td><td>Scribe and automatic drafting</td><td>Finishing prose written elsewhere</td></tr>
+      </tbody>
+    </table>
+    <h3>Read journeys as patterns, not prescriptions</h3>
+    <div class="cols-2">
+      <div class="card"><h3>Provider boundary</h3><p>Each path distinguishes local actions from calls that send selected context, text, or images to the configured provider. A provider key never makes every feature mandatory.</p></div>
+      <div class="card"><h3>Safe ending</h3><p>Every path ends by preserving or deliberately delivering the work: a Gate archive, a publication export, a revoked/expiring share, and—before upgrades—a cold data-directory copy.</p></div>
+    </div>
+    <div class="callout good"><span class="label">A sound default</span>Begin with the smallest path that achieves the goal. Add a feature when its benefit is clear, review its cost and exposure boundary, and keep the manuscript usable if that feature is later unavailable.</div>
+    <div class="folio"><span><strong>11</strong> · Journey map</span><span>26</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-manual-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · Manual and local</span></div><div class="running-rule"></div>
+    <div class="kicker">11.1 · No optional AI or provider work</div><h2 id="journey-manual-title">Bring your own words; keep every step local</h2>
+    <p class="lead">Mara has a finished novella draft and wants Ink Morrow's structure, revision trail, art placement, and export tools without sending prose to an AI provider.</p>
+    <div class="callout"><span class="label">Prerequisite</span>A sealed local installation. No provider profile or API key is required for this journey.</div>
+    <ol class="steps">
+      <li><strong>Start in Library.</strong> Create a manuscript from manual prose or import the draft. Review detected volumes, chapters, scene breaks, title, and maturity before accepting the structure.</li>
+      <li><strong>Work at the Desk.</strong> Read and edit pages manually. Save deliberate copyedits; do not press provider-backed Write, Rewrite, or Read aloud controls.</li>
+      <li><strong>Organize in Chronicle.</strong> Rename volumes and chapters, move through stable pages, and inspect revision history. If a wrong turn removes a suffix, use the bounded recovery record rather than rebuilding by hand.</li>
+      <li><strong>Use art without AI.</strong> Upload owner-selected images in Gallery. Review normalization and metadata removal, add useful alt text, then place images before or after stable pages.</li>
+      <li><strong>Publish from Gate.</strong> Freeze the reviewed display prose and selected placed art into a publication snapshot. Export only the formats the recipient needs.</li>
+      <li><strong>Preserve the source.</strong> Download a full <code>.inkmorrow</code> archive. Before an upgrade, also stop the server and make a cold copy of the complete <code>DATA_DIR</code>.</li>
+    </ol>
+    <div class="cols-2">
+      <div class="card"><h3>Used</h3><p>Manual/import start, hierarchy, Desk editing, Chronicle history/recovery, local Gallery uploads, publication formats, portable backup.</p></div>
+      <div class="card"><h3>Skipped</h3><p>Scribe generation, prepared pages, AI foundation suggestions, Archivist extraction/repair, AI painting, narration, and public sharing.</p></div>
+    </div>
+    <div class="callout good"><span class="label">Provider and cost result</span>No provider request is made and no provider charge is incurred. Operating-system storage, backups, and exported files still need ordinary privacy protection.</div>
+    <div class="folio"><span><strong>11</strong> · No-feature journey</span><span>27</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-complete-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · Complete Scriptorium</span></div><div class="running-rule"></div>
+    <div class="kicker">11.2 · Use the complete applicable feature set</div><h2 id="journey-complete-title">Carry one story from spark to reader</h2>
+    <p class="lead">Ivo wants the full experience: reusable foundations, directed AI drafting, evidence-backed continuity, images, narration, publication, temporary sharing, and recoverable backups.</p>
+    <ol class="steps">
+      <li><strong>Secure the boundary.</strong> Set a hard upstream limit on a dedicated provider key. Configure and test the Scribe, Archivist, image, and Narrator roles; unlock the local vault if used.</li>
+      <li><strong>Build reusable foundations.</strong> Create a world and characters in Library, optionally asking AI to flesh out seeds and paint reference images. Edit every result before saving.</li>
+      <li><strong>Begin the manuscript.</strong> Choose world, cast shape, roles, maturity, and page target. Generate or write the opening, then confirm the frozen manuscript-local snapshots.</li>
+      <li><strong>Direct the writing loop.</strong> Commit a suitable prepared successor with an empty direction; type a direction when the next action must change. Read the paid review, watch the cost ticker, and rewrite only deliberately.</li>
+      <li><strong>Guard canon.</strong> Inspect Chronicle revisions and continuity status. In Codex, open quotations behind remembered facts, repair a failed page one at a time, apply explicit corrections, and review template differences field by field.</li>
+      <li><strong>Illuminate and listen.</strong> Upload or paint Gallery assets, grant reference permission only where intended, and place selected art. Audition narration, then create the sequential whole-manuscript MP3 audiobook.</li>
+      <li><strong>Bind and share.</strong> Review metadata, front/back matter, hierarchy, scene breaks, and art in Gate. Export selected formats from one snapshot; create an expiring HTTPS reading share and revoke it after review.</li>
+      <li><strong>Close safely.</strong> Finish jobs, download a full archive including selected visuals/audio/history, and make a cold data-directory copy before any upgrade.</li>
+    </ol>
+    <div class="callout warning"><span class="label">Complete does not mean automatic</span>Every provider result is a proposal or derived aid. The author approves prose, corrections, images, narration, publication contents, and sharing. Failed work remains specific and recoverable; it is never permission for an unbounded replay.</div>
+    <div class="folio"><span><strong>11</strong> · All-feature journey</span><span>28</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-writing-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · Co-writing and continuity</span></div><div class="running-rule"></div>
+    <div class="kicker">11.3 · Logical subset: prose first</div><h2 id="journey-writing-title">Use the Scribe and Archivist; leave production for later</h2>
+    <p class="lead">Nadia is drafting a long fantasy serial. Her immediate problem is producing strong pages without losing track of promises, injuries, possessions, goals, or relationships.</p>
+    <div class="cols-2">
+      <div class="card"><h3>Enable</h3><p>A quality-fit Scribe, a strict structured-output Archivist, reusable world/cast templates, prepared pages, Chronicle, Codex, and revision/recovery.</p></div>
+      <div class="card"><h3>Defer</h3><p>Image generation, audiobook creation, publication styling, and public shares. Gallery can remain empty until the prose stabilizes.</p></div>
+    </div>
+    <ol class="steps">
+      <li>Create the world and cast, edit their reusable sheets, and freeze the intended fields into the new manuscript.</li>
+      <li>Set a page target and direct the Scribe one narrative beat at a time. Use an empty direction only when the identified prepared page is already right.</li>
+      <li>After each committed page, let the Archivist create its evidence-linked continuity delta. A prepared but uncommitted page does not become canon or memory.</li>
+      <li>At chapter boundaries, open Codex and inspect current state, goals, threads, arc movement, and quotations. Correct a remembered fact explicitly instead of editing extracted evidence.</li>
+      <li>Use copyedit for display-only polish. Use tail rewrite for a new canonical version. Use Return manuscript only when intentionally abandoning everything later, and verify its exact range.</li>
+      <li>Make frequent full Gate archives. When a draft milestone is stable, export a simple DOCX or EPUB for private review; add production features in a later pass.</li>
+    </ol>
+    <h3>Why this subset is coherent</h3>
+    <p>Scribe and Archivist solve one connected problem: drafting new canon while maintaining bounded, page-provenanced memory. Gallery, narration, and public delivery do not improve that loop yet, so deferring them reduces cost, distraction, and provider exposure.</p>
+    <div class="callout"><span class="label">Cost boundary</span>Expect a Scribe call and a separate Archivist call for each committed AI page, plus any chosen retries or repairs. No image or speech charges occur in this path.</div>
+    <div class="folio"><span><strong>11</strong> · Logical subset</span><span>29</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-finish-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journeys · Revision and production</span></div><div class="running-rule"></div>
+    <div class="kicker">11.4-11.5 · Two more logical subsets</div><h2 id="journey-finish-title">Revise deeply—or finish visibly</h2>
+    <div class="cols-2">
+      <div class="card">
+        <h3>Revision room</h3>
+        <p><strong>Goal:</strong> edit a manuscript written elsewhere without asking AI to continue it.</p>
+        <ol><li>Import and verify hierarchy and scene breaks.</li><li>Navigate stable pages in Chronicle.</li><li>Use copyedit for polish; create canonical revisions only when story truth changes.</li><li>If continuity assistance is wanted, enable only the Archivist and build missing coverage page by page after reviewing cost and exposure.</li><li>Inspect evidence in Codex and record author corrections.</li><li>Export a review format and create a full Gate archive.</li></ol>
+        <p class="small"><strong>Skipped:</strong> Scribe drafting, prepared pages, painting, narration, and public sharing. <strong>Provider result:</strong> zero calls if continuity is kept manual; Archivist-only calls if explicitly enabled.</p>
+      </div>
+      <div class="card">
+        <h3>Illustrate and publish</h3>
+        <p><strong>Goal:</strong> turn approved prose into a visual, distributable edition.</p>
+        <ol><li>Import the final prose and verify structure.</li><li>Upload art locally or enable only the image role to paint selected pieces.</li><li>Add titles and alt text; place assets without changing canon.</li><li>Optionally enable only the Narrator, audition a full page, and build the MP3 sequentially.</li><li>Freeze one publication snapshot and render the required formats.</li><li>Optionally create a short-lived HTTPS share; revoke it after sign-off.</li><li>Archive the source, selected visuals, audio, and publication choices.</li></ol>
+        <p class="small"><strong>Skipped:</strong> Scribe drafting and automatic prepared prose. <strong>Provider result:</strong> only selected image and/or speech calls.</p>
+      </div>
+    </div>
+    <div class="callout warning"><span class="label">Do not confuse the outputs</span>A publication export is a reader/editor deliverable. A public share is a frozen capability-bearing reading copy. A <code>.inkmorrow</code> archive is a restoration/transfer object. Keep all three when the project needs all three.</div>
+    <h3>Make your own subset explicit</h3>
+    <p>Write down the immediate goal, rooms needed, provider roles enabled, data each role receives, expected charge, skipped features, and final preservation step. If the subset has no clear outcome—or no safe ending—it is probably accidental complexity rather than a workflow.</p>
+    <div class="folio"><span><strong>11</strong> · Logical subsets</span><span>30</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-first-week-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · First week</span></div><div class="running-rule"></div>
+    <div class="kicker">11.6 · Learn in layers</div><h2 id="journey-first-week-title">Reach a complete result before adding complexity</h2>
+    <p class="lead">Eli is new to self-hosting and AI-assisted writing. The goal is not to activate every switch on day one; it is to finish one small, recoverable story and understand what each added capability changes.</p>
+    <h3>Session one · Local confidence</h3>
+    <ol class="steps"><li>Install into a new 4.x data directory, set the owner passphrase, lock, unlock, and restart once.</li><li>Create a tiny manual manuscript, edit its opening, inspect it in Chronicle, upload one local image, and export a PDF.</li><li>Download a full Gate archive. This proves the useful local path before provider setup.</li></ol>
+    <h3>Session two · One bounded collaboration</h3>
+    <ol class="steps"><li>Create a dedicated provider key with a hard upstream limit; save it using the credential mode you understand.</li><li>Configure the Scribe and Archivist. Leave image and Narrator roles unused.</li><li>Give one explicit direction, review the estimate and context description, commit the page, then inspect the Archivist's quotation in Codex.</li></ol>
+    <h3>Session three · Production choices</h3>
+    <ol class="steps"><li>Try one image or one narration sample—not both—so its provider boundary and result stay obvious.</li><li>Compare a publication export with an expiring reading share. Revoke the share.</li><li>Create another full archive and explain, in your own words, how it differs from the reading copy and publication file.</li></ol>
+    <div class="cols-2"><div class="card"><h3>Success looks like</h3><p>One complete miniature manuscript, one tested restore object, and a clear understanding of which actions call a provider.</p></div><div class="card"><h3>Do not optimize yet</h3><p>Model shopping, elaborate reusable worlds, long audiobooks, and reference-heavy art can wait until the basic loop is predictable.</p></div></div>
+    <div class="folio"><span><strong>11</strong> · Onboarding journey</span><span>31</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-series-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · Long series</span></div><div class="running-rule"></div>
+    <div class="kicker">11.7 · Reuse globally; remember locally</div><h2 id="journey-series-title">Build a series without letting books rewrite each other</h2>
+    <p class="lead">Sana is writing several novels in one setting. Characters recur, but every manuscript must preserve the state in which its own story began.</p>
+    <ol class="steps">
+      <li><strong>Create reusable Library templates.</strong> Record the durable world and character foundations that should be available to more than one manuscript.</li>
+      <li><strong>Start book one.</strong> Select its cast and freeze manuscript-local snapshots. Treat later page-provenanced memory as book-one evidence, not as a silent edit to the reusable sheets.</li>
+      <li><strong>Let canon accumulate locally.</strong> Use Chronicle and Codex to track book-one conditions, possessions, goals, threads, and corrections.</li>
+      <li><strong>Update the reusable template deliberately.</strong> After deciding which development belongs to the series bible, edit the Library record. Existing manuscripts remain unchanged.</li>
+      <li><strong>Start book two from reviewed foundations.</strong> Select the current reusable templates, then edit book-two snapshots for its time jump, cast shape, or changed premise.</li>
+      <li><strong>Review later template differences field by field.</strong> Accept only fields appropriate to that manuscript. Never treat a global edit as permission to rewrite old canon.</li>
+      <li><strong>Back up per milestone.</strong> Name publication snapshots and external archive copies so book, edition, and date cannot be confused.</li>
+    </ol>
+    <table class="decision-table"><thead><tr><th>Layer</th><th>Question it answers</th><th>Change rule</th></tr></thead><tbody><tr><td>Library template</td><td>What can new manuscripts reuse?</td><td>Edit globally and deliberately.</td></tr><tr><td>Manuscript snapshot</td><td>What was true for this book's foundation?</td><td>Accept reviewed fields only.</td></tr><tr><td>Remembered canon</td><td>What did this book establish on its pages?</td><td>Derived from canonical revisions, with evidence.</td></tr><tr><td>Author correction</td><td>What does the author declare authoritative?</td><td>Record separately; never rewrite evidence.</td></tr></tbody></table>
+    <div class="callout"><span class="label">Useful subset</span>This journey benefits from templates, Chronicle, Codex, and archives whether prose is manual or AI-assisted. Illustration, narration, publication, and sharing remain independent per-book choices.</div>
+    <div class="folio"><span><strong>11</strong> · Series journey</span><span>32</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-recovery-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey · Recovery</span></div><div class="running-rule"></div>
+    <div class="kicker">11.8 · A wrong turn is not a reason to panic</div><h2 id="journey-recovery-title">Return canon, verify the boundary, and continue</h2>
+    <p class="lead">Tomas discovers that the last chapter rests on a false revelation. Ordinary copyediting cannot repair the plot; the manuscript must continue from an earlier canonical page.</p>
+    <ol class="steps">
+      <li><strong>Stop generating.</strong> Let any active request settle or cancel it through the visible control. Do not launch competing work.</li>
+      <li><strong>Make a safety archive.</strong> Export the current project, including working history if the abandoned path may be useful as reference.</li>
+      <li><strong>Open the surviving page in Chronicle.</strong> Confirm its stable identity, displayed revision, hierarchy position, and remembered facts.</li>
+      <li><strong>Choose Return manuscript to this page.</strong> Read the exact confirmation: affected volumes, chapters, narrative pages, prepared work, and recovery period.</li>
+      <li><strong>Verify the immediate result.</strong> The later suffix is absent from active canon, derived continuity reflects only surviving canonical revisions, and no new provider call was invented.</li>
+      <li><strong>Change course.</strong> Apply a correction if the surviving remembered state needs an explicit author override, then direct or manually write the new successor.</li>
+      <li><strong>Keep or restore.</strong> If the return was mistaken, use the one-use short undo while valid. Later restoration remains fingerprint-safe and refuses to merge after surviving canon diverges.</li>
+    </ol>
+    <div class="cols-2"><div class="card"><h3>If restoration is refused</h3><p>Do not force a merge. Export the recovery record as JSON, compare it outside active canon, and manually reuse only material the author still wants.</p></div><div class="card"><h3>If media was attached</h3><p>Recovery expiry removes only media owned by the expired suffix. Active canon and unrelated Gallery assets are not rewritten.</p></div></div>
+    <div class="callout warning"><span class="label">Copyedit is not time travel</span>A display-only copyedit keeps the canonical revision and its continuity evidence. Returning the manuscript removes later canon. Choose based on story truth, not on how large the text change appears.</div>
+    <div class="folio"><span><strong>11</strong> · Recovery journey</span><span>33</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-boundary-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey planner · Cost and privacy</span></div><div class="running-rule"></div>
+    <div class="kicker">11.9 · Decide before the click</div><h2 id="journey-boundary-title">Match each provider call to a benefit</h2>
+    <p class="dek">A feature is not merely “AI on” or “AI off.” Each role receives different material, produces a different artifact, and can be enabled or omitted independently.</p>
+    <table class="decision-table">
+      <thead><tr><th>Role/action</th><th>Typical material sent</th><th>Local result</th><th>Ask first</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Scribe</strong></td><td>Direction, recent prose, selected foundations and bounded canon</td><td>Proposed or prepared prose</td><td>Will this accelerate a page I intend to review now?</td></tr>
+        <tr><td><strong>Archivist</strong></td><td>Committed canonical page plus bounded context</td><td>Structured, quotation-backed continuity delta</td><td>Does this manuscript need machine-assisted memory?</td></tr>
+        <tr><td><strong>Foundation assist</strong></td><td>Seeds and selected descriptive fields</td><td>Editable world or character proposal</td><td>Would manual definition be clearer or safer?</td></tr>
+        <tr><td><strong>Image</strong></td><td>Prompt and explicitly selected, permitted references</td><td>Gallery asset</td><td>Is this image needed, and are references allowed to cross?</td></tr>
+        <tr><td><strong>Narrator</strong></td><td>Visible prose selected for speech</td><td>Page audio or sequential MP3 audiobook</td><td>Has a full-page voice sample passed?</td></tr>
+      </tbody>
+    </table>
+    <h3>Before enabling a role</h3>
+    <div class="cols-2"><ul class="checklist"><li>Dedicated credential has a hard upstream limit.</li><li>Exact model exists in the live catalogue.</li><li>Role compatibility was tested in Ink Morrow.</li><li>Sent data is appropriate for that provider.</li></ul><ul class="checklist"><li>Estimate and worst plausible retry count are understood.</li><li>Failure leaves a truthful, recoverable local state.</li><li>Result has a named human review step.</li><li>Workflow still has a preservation or delivery ending.</li></ul></div>
+    <div class="callout good"><span class="label">A valid decision can be “not now”</span>Leaving a provider role unconfigured is supported. Local reading, manual editing, organization, uploads, publication, and backup remain useful without it.</div>
+    <h3>Record the decision</h3><p class="mono">Goal: ______ &nbsp; Role: ______ &nbsp; Data sent: ______ &nbsp; Expected cost: ______<br>Human review: ______ &nbsp; Failure response: ______ &nbsp; Final backup/output: ______</p>
+    <div class="folio"><span><strong>11</strong> · Provider decision worksheet</span><span>34</span></div>
+  </section>
+
+  <section class="page page--tight" aria-labelledby="journey-plan-title">
+    <div class="running-head"><span class="brand">Ink Morrow 4.1</span><span class="section">Journey planner · Worksheet</span></div><div class="running-rule"></div>
+    <div class="kicker">11.10 · Design a path of your own</div><h2 id="journey-plan-title">One page from intention to safe ending</h2>
+    <p class="lead">Use this worksheet before a new manuscript phase, a large revision, an illustration pass, a public review, or an upgrade.</p>
+    <div class="cols-2">
+      <div>
+        <h3>1 · Name the outcome</h3><ul class="checklist"><li>Draft new canon</li><li>Revise existing prose</li><li>Repair or inspect continuity</li><li>Illustrate</li><li>Narrate</li><li>Publish or share</li><li>Transfer, restore, or upgrade</li></ul>
+        <h3>2 · Choose the rooms</h3><ul class="checklist"><li>Library</li><li>Desk</li><li>Chronicle</li><li>Codex</li><li>Gallery</li><li>Gate</li></ul>
+        <h3>3 · Choose provider roles</h3><ul class="checklist"><li>None</li><li>Scribe</li><li>Archivist</li><li>Foundation assist</li><li>Image</li><li>Narrator</li></ul>
+      </div>
+      <div>
+        <h3>4 · State what is skipped</h3><p>Unused rooms/features: ___________________________<br>Why they do not serve this outcome: ______________</p>
+        <h3>5 · Bound the work</h3><p>Manuscript/snapshot: _____________________________<br>Data crossing provider boundary: __________________<br>Upstream spending limit: __________________________<br>Human approval point: _____________________________</p>
+        <h3>6 · Define failure</h3><p>Truthful stopped state: ___________________________<br>Retry limit: _____________________________________<br>Recovery/export path: _____________________________</p>
+        <h3>7 · End safely</h3><ul class="checklist"><li>Full Gate archive downloaded</li><li>Publication formats opened and checked</li><li>Share expiry recorded and later revoked</li><li>Cold <code>DATA_DIR</code> copy made before upgrade</li></ul>
+      </div>
+    </div>
+    <div class="callout"><span class="label">Journey review</span>A coherent path has one named outcome, only the features that support it, an understood provider boundary, an explicit author decision, and a preserved result. If any one is missing, revise the path before spending money or changing canon.</div>
+    <div style="margin-top:7mm;text-align:center"><img src="../../../frontend/brand/ink-morrow-mark.svg" alt="Ink Morrow book-and-cat-ear mark" style="width:18mm;height:18mm"><h2 style="font-size:23pt;margin-top:2mm">Choose the tools. Keep the Story.</h2></div>
+    <div class="folio"><span><strong>11</strong> · Journey worksheet</span><span>35</span></div>
   </section>
 </main>
 </body>
