@@ -380,7 +380,7 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
   function updateStoryContextSummary() {
     const el = document.getElementById('storyContextMode');
     if (!el) return;
-    const { currentStory } = state.data;
+    const { currentStory, currentPage, storyPages } = state.data;
     if (!currentStory) {
       el.textContent = '';
       return;
@@ -393,10 +393,12 @@ export function createWrite({ api, state, notify, shell, features, dialogs }) {
       const character = state.data.characters.find((c) => c.id === lead.id);
       leadName = character ? character.name : null;
     }
+    const page = storyPages.find((candidate) => candidate.page_number === currentPage);
     el.textContent = [
       world ? world.name : 'Unbound world',
       leadName ? `Centered on ${leadName}` : 'Ensemble',
-    ].join(' · ');
+      page?.scene_title ? `Scene: ${page.scene_title}` : null,
+    ].filter(Boolean).join(' · ');
   }
 
   function setWritingEnabled(enabled) {

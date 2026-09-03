@@ -260,6 +260,17 @@ describe('portable archives and backups', () => {
       .post(`/api/stories/${story.id}/volumes/${volumeOne.id}/chapters`)
       .send({ title: 'Consequences' }).expect(201)).body.chapter;
     const secondPage = await addPage(source.app, story.id, 'The threshold closes.');
+    const openingScene = (await request(source.app)
+      .post(`/api/stories/${story.id}/chapters/${volumeOne.chapters[0].id}/scenes`)
+      .send({
+        title: 'The crossing', mode: 'hybrid', status: 'complete',
+        viewpoint_character_id: lead.id, location: 'The threshold',
+        purpose: 'Bring the visitor inside.', page_ids: [page.id],
+      }).expect(201)).body.scene;
+    const plannedScene = (await request(source.app)
+      .post(`/api/stories/${story.id}/chapters/${secondChapter.id}/scenes`)
+      .send({ title: 'Consequences gather', mode: 'author', status: 'planned' })
+      .expect(201)).body.scene;
     const secondVolume = (await request(source.app).post(`/api/stories/${story.id}/volumes`)
       .send({ title: 'Beyond', chapter_title: 'The Road' }).expect(201)).body.volume;
     const thirdPage = await addPage(source.app, story.id, 'The road begins.');
@@ -385,6 +396,25 @@ describe('portable archives and backups', () => {
       WHERE v.story_id = ? ORDER BY v.ordinal, c.ordinal, p.ordinal
     `).all(story.id).map((row) => row.id);
     expect(importedPlacements).toEqual([page.id, secondPage.id, thirdPage.id]);
+    expect(destination.db.prepare(`
+      SELECT id, chapter_id, ordinal, title, mode, status, viewpoint_character_id, location, purpose
+        FROM scenes
+       WHERE id IN (?, ?)
+       ORDER BY title
+    `).all(openingScene.id, plannedScene.id)).toEqual([
+      {
+        id: plannedScene.id, chapter_id: secondChapter.id, ordinal: 1,
+        title: 'Consequences gather', mode: 'author', status: 'planned',
+        viewpoint_character_id: null, location: null, purpose: null,
+      },
+      {
+        id: openingScene.id, chapter_id: volumeOne.chapters[0].id, ordinal: 1,
+        title: 'The crossing', mode: 'hybrid', status: 'complete',
+        viewpoint_character_id: lead.id, location: 'The threshold', purpose: 'Bring the visitor inside.',
+      },
+    ]);
+    expect(destination.db.prepare('SELECT scene_id, page_id FROM scene_pages').all())
+      .toEqual([{ scene_id: openingScene.id, page_id: page.id }]);
     expect(secondChapter.volume_id).toBe(volumeOne.id);
     expect(fs.existsSync(path.join(destination.imageDir, 'covers', `${story.id}.png`))).toBe(true);
     expect(destination.db.prepare('SELECT COUNT(*) AS c FROM audiobooks').get().c).toBe(0);
@@ -677,6 +707,18 @@ describe('portable archives and backups', () => {
       { id: character.id, role: 'mc', relation: 'self', state: null },
     ], { title: 'Graph Tale' });
     const page = await addPage(source.app, story.id, 'The hero changes.', 'Change them');
+    const sourceChapter = source.db.prepare(`
+      SELECT chapter.id FROM chapters chapter
+      JOIN volumes volume ON volume.id = chapter.volume_id
+      WHERE volume.story_id = ?
+    `).get(story.id);
+    const sourceScene = (await request(source.app)
+      .post(`/api/stories/${story.id}/chapters/${sourceChapter.id}/scenes`)
+      .send({
+        title: 'Graph scene', mode: 'hybrid', viewpoint_character_id: character.id,
+        page_ids: [page.id],
+      })
+      .expect(201)).body.scene;
     await request(source.app)
       .put(`/api/stories/${story.id}/pages/${page.id}/revisions`)
       .send({ content: 'The hero changes decisively.', direction: 'Strengthen the change' })
@@ -738,6 +780,18 @@ describe('portable archives and backups', () => {
     `).get(importedStory.id);
     expect(importedVolume.id).not.toBe(sourceVolume.id);
     expect(importedHierarchyPage).toMatchObject({ id: importedPage.id, volume_id: importedVolume.id });
+    const importedScene = destination.db.prepare(`
+      SELECT scene.* FROM scenes scene
+      JOIN chapters chapter ON chapter.id = scene.chapter_id
+      JOIN volumes volume ON volume.id = chapter.volume_id
+      WHERE volume.story_id = ?
+    `).get(importedStory.id);
+    expect(importedScene).toMatchObject({
+      title: 'Graph scene', viewpoint_character_id: importedCharacter.id,
+    });
+    expect(importedScene.id).not.toBe(sourceScene.id);
+    expect(destination.db.prepare('SELECT page_id FROM scene_pages WHERE scene_id = ?').get(importedScene.id).page_id)
+      .toBe(importedPage.id);
     const importedRevisions = destination.db.prepare('SELECT * FROM page_revisions WHERE page_id = ? ORDER BY created_at, rowid')
       .all(importedPage.id);
     expect(importedRevisions).toHaveLength(2);

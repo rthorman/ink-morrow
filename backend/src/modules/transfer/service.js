@@ -15,6 +15,8 @@ const {
   STORY_FIELDS,
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
+  SCENE_FIELDS,
+  SCENE_PAGE_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -506,7 +508,7 @@ function createTransferService({
 
     const maps = {
       world: new Map(), character: new Map(), scribe: new Map(), story: new Map(),
-      volume: new Map(), chapter: new Map(), page: new Map(), revision: new Map(),
+      volume: new Map(), chapter: new Map(), scene: new Map(), page: new Map(), revision: new Map(),
       scribeRevision: new Map(), scribeBinding: new Map(),
       asset: new Map(), placement: new Map(), assetStorage: new Map(),
     };
@@ -545,6 +547,17 @@ function createTransferService({
         `).get(id);
         if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
         maps.chapter.set(chapter.id, id);
+      }
+      for (const scene of entity.bundle.hierarchy?.scenes || []) {
+        let id = scene.id;
+        const existing = mode === 'replace_all' ? null : db.prepare(`
+          SELECT volume.story_id FROM scenes stored
+          JOIN chapters chapter ON chapter.id = stored.chapter_id
+          JOIN volumes volume ON volume.id = chapter.volume_id
+          WHERE stored.id = ?
+        `).get(id);
+        if (action.action === 'copy' || (existing && existing.story_id !== entity.id)) id = randomUUID();
+        maps.scene.set(scene.id, id);
       }
       for (const page of entity.bundle.pages) {
         let id = page.id;
@@ -796,6 +809,16 @@ function createTransferService({
             volume_id: maps.volume.get(chapterSource.volume_id),
           }, CHAPTER_FIELDS);
         }
+        for (const sceneSource of entity.bundle.hierarchy.scenes || []) {
+          insertOrUpdate(db, 'scenes', {
+            ...sceneSource,
+            id: maps.scene.get(sceneSource.id),
+            chapter_id: maps.chapter.get(sceneSource.chapter_id),
+            viewpoint_character_id: sceneSource.viewpoint_character_id
+              ? characterMap.get(sceneSource.viewpoint_character_id) || null
+              : null,
+          }, SCENE_FIELDS);
+        }
         for (const pageSource of entity.bundle.hierarchy.pages) {
           insertOrUpdate(db, 'pages', {
             ...pageSource,
@@ -804,6 +827,13 @@ function createTransferService({
             canonical_revision_id: null,
             display_revision_id: null,
           }, HIERARCHY_PAGE_FIELDS);
+        }
+        for (const membershipSource of entity.bundle.hierarchy.scene_pages || []) {
+          insertOrUpdate(db, 'scene_pages', {
+            ...membershipSource,
+            scene_id: maps.scene.get(membershipSource.scene_id),
+            page_id: maps.page.get(membershipSource.page_id),
+          }, SCENE_PAGE_FIELDS, 'page_id');
         }
       } else {
         // Schema-1 archives came from the kernel scaffold before hierarchy
@@ -985,7 +1015,7 @@ function createTransferService({
       }
       const combinedMap = new Map([
         ...maps.world, ...maps.character, ...maps.story, ...maps.volume,
-        ...maps.chapter, ...maps.page, ...maps.revision, ...maps.asset, ...maps.placement,
+        ...maps.chapter, ...maps.scene, ...maps.page, ...maps.revision, ...maps.asset, ...maps.placement,
       ]);
       for (const correctionSource of entity.bundle.corrections || []) {
         const subjectId = correctionSource.subject_id ? (combinedMap.get(correctionSource.subject_id) || correctionSource.subject_id) : null;

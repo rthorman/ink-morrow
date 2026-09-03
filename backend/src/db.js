@@ -1600,6 +1600,64 @@ const MIGRATIONS = Object.freeze([
       `);
     },
   }),
+  Object.freeze({
+    version: 14,
+    name: 'optional manuscript scenes',
+    checksumSource: `Scenes are optional chapter-owned planning and play containers; page membership is noncanonical and deleting a scene never deletes prose.`,
+    up(db) {
+      db.exec(`
+        CREATE TABLE scenes (
+          id TEXT PRIMARY KEY CHECK (length(trim(id)) > 0),
+          chapter_id TEXT NOT NULL REFERENCES chapters (id) ON DELETE CASCADE,
+          ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+          title TEXT NOT NULL CHECK (length(trim(title)) > 0 AND length(title) <= 300),
+          mode TEXT NOT NULL DEFAULT 'author'
+            CHECK (mode IN ('author', 'play', 'hybrid')),
+          status TEXT NOT NULL DEFAULT 'planned'
+            CHECK (status IN ('planned', 'in_progress', 'complete')),
+          viewpoint_character_id TEXT CHECK (
+            viewpoint_character_id IS NULL OR
+            (length(trim(viewpoint_character_id)) > 0 AND length(viewpoint_character_id) <= 200)
+          ),
+          location TEXT CHECK (location IS NULL OR length(location) <= 500),
+          story_time TEXT CHECK (story_time IS NULL OR length(story_time) <= 500),
+          purpose TEXT CHECK (purpose IS NULL OR length(purpose) <= 4000),
+          stakes TEXT CHECK (stakes IS NULL OR length(stakes) <= 4000),
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE (chapter_id, ordinal)
+        );
+
+        CREATE INDEX idx_scenes_chapter_order
+          ON scenes (chapter_id, ordinal);
+
+        CREATE TABLE scene_pages (
+          scene_id TEXT NOT NULL REFERENCES scenes (id) ON DELETE CASCADE,
+          page_id TEXT PRIMARY KEY REFERENCES pages (id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX idx_scene_pages_scene
+          ON scene_pages (scene_id, page_id);
+
+        CREATE TRIGGER scene_pages_same_chapter_insert
+        BEFORE INSERT ON scene_pages
+        WHEN (SELECT chapter_id FROM pages WHERE id = NEW.page_id)
+             IS NOT (SELECT chapter_id FROM scenes WHERE id = NEW.scene_id)
+        BEGIN
+          SELECT RAISE(ABORT, 'Scene pages must belong to the scene chapter');
+        END;
+
+        CREATE TRIGGER scene_pages_same_chapter_update
+        BEFORE UPDATE OF scene_id, page_id ON scene_pages
+        WHEN (SELECT chapter_id FROM pages WHERE id = NEW.page_id)
+             IS NOT (SELECT chapter_id FROM scenes WHERE id = NEW.scene_id)
+        BEGIN
+          SELECT RAISE(ABORT, 'Scene pages must belong to the scene chapter');
+        END;
+      `);
+    },
+  }),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

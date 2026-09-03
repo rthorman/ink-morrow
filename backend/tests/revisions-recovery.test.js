@@ -130,6 +130,15 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     const story = await createStory(fixture.app);
     const pages = [];
     for (let index = 1; index <= 4; index += 1) pages.push(await addPage(fixture.app, story.id, `Page ${index}.`));
+    const chapter = fixture.db.prepare(`
+      SELECT chapter.id FROM chapters chapter
+      JOIN volumes volume ON volume.id = chapter.volume_id
+      WHERE volume.story_id = ?
+    `).get(story.id);
+    const scene = (await request(fixture.app)
+      .post(`/api/stories/${story.id}/chapters/${chapter.id}/scenes`)
+      .send({ title: 'Recoverable scene', mode: 'play', page_ids: [pages[2].id, pages[3].id] })
+      .expect(201)).body.scene;
     fixture.db.prepare(`
       INSERT INTO continuity_deltas
         (revision_id, story_id, content_hash, status, schema_version, summary, delta_json)
@@ -156,6 +165,7 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM manuscript_pages WHERE story_id = ?').get(story.id).c).toBe(2);
     expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM page_revisions WHERE page_id IN (?, ?)')
       .get(pages[2].id, pages[3].id).c).toBe(0);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS c FROM scene_pages WHERE scene_id = ?').get(scene.id).c).toBe(0);
 
     const restored = await request(fixture.app)
       .post(`/api/stories/${story.id}/recoveries/${truncated.body.recovery.id}/undo`)
@@ -164,6 +174,8 @@ describe('PR 03 immutable revisions and truncation recovery', () => {
     expect(restored.body).toMatchObject({ restored: 2, restored_range: { first: 3, last: 4 } });
     expect(fixture.db.prepare('SELECT id FROM manuscript_pages WHERE story_id = ? ORDER BY page_number').all(story.id)
       .map((row) => row.id)).toEqual(pages.map((page) => page.id));
+    expect(fixture.db.prepare('SELECT page_id FROM scene_pages WHERE scene_id = ? ORDER BY page_id').all(scene.id)
+      .map((row) => row.page_id).sort()).toEqual([pages[2].id, pages[3].id].sort());
     expect(fixture.db.prepare(`
       SELECT delta.summary FROM continuity_deltas delta
       JOIN pages page ON page.canonical_revision_id = delta.revision_id

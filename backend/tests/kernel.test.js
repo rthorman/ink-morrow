@@ -94,7 +94,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     expect(db.prepare('PRAGMA quick_check').get().quick_check).toBe('ok');
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name));
     for (const table of [
-      'volumes', 'chapters', 'pages', 'page_revisions', 'prepared_pages',
+      'volumes', 'chapters', 'scenes', 'scene_pages', 'pages', 'page_revisions', 'prepared_pages',
       'writing_operations', 'continuity_deltas', 'continuity_corrections',
       'continuity_issues', 'continuity_search', 'continuity_projection_checkpoints',
       'template_snapshots', 'recovery_suffixes', 'assets',
@@ -282,7 +282,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     db.close();
 
     db = createDb(dbPath, { reconcileOperations: false });
-    expect(schemaIdentity(db).version).toBe(13);
+    expect(schemaIdentity(db).version).toBe(DATABASE_SCHEMA_VERSION);
     expect(db.prepare("SELECT title FROM stories WHERE id = 'story-12'").get())
       .toEqual({ title: 'Kept manuscript' });
     expect(db.prepare(`
@@ -303,6 +303,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     `).get()).toEqual({ summary: 'The page survived.' });
     expect(db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('story_pages', 'story_memory_pages')").all())
       .toEqual([]);
+    expect(db.prepare('SELECT COUNT(*) AS c FROM scenes').get().c).toBe(0);
     expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
     db.close();
   });

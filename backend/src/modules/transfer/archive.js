@@ -25,6 +25,8 @@ const {
   PAGE_FIELDS,
   VOLUME_FIELDS,
   CHAPTER_FIELDS,
+  SCENE_FIELDS,
+  SCENE_PAGE_FIELDS,
   HIERARCHY_PAGE_FIELDS,
   REVISION_FIELDS,
   SNAPSHOT_FIELDS,
@@ -390,8 +392,9 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   }
   const hierarchyPageById = new Map();
   if (hierarchy) {
-    assertKnown(hierarchy, ['volumes', 'chapters', 'pages'], 'Story hierarchy');
-    if (!Array.isArray(hierarchy.volumes) || !Array.isArray(hierarchy.chapters) || !Array.isArray(hierarchy.pages)) {
+    assertKnown(hierarchy, ['volumes', 'chapters', 'scenes', 'scene_pages', 'pages'], 'Story hierarchy');
+    if (!Array.isArray(hierarchy.volumes) || !Array.isArray(hierarchy.chapters) || !Array.isArray(hierarchy.pages) ||
+        (databaseSchemaVersion >= 14 && (!Array.isArray(hierarchy.scenes) || !Array.isArray(hierarchy.scene_pages)))) {
       throw httpError('Story archive contains an invalid manuscript hierarchy');
     }
     const assertContiguous = (items, label) => {
@@ -430,6 +433,30 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       assertContiguous(chapters, 'Story chapter');
     }
 
+    const sceneIds = new Set();
+    const sceneById = new Map();
+    const scenesByChapter = new Map([...chapterIds].map((id) => [id, []]));
+    for (const scene of hierarchy.scenes || []) {
+      assertKnown(scene, SCENE_FIELDS, 'Story scene');
+      if (!scene || !validId(scene.id) || !chapterIds.has(scene.chapter_id) || sceneIds.has(scene.id) ||
+          !Number.isSafeInteger(scene.ordinal) || scene.ordinal < 1 ||
+          typeof scene.title !== 'string' || !scene.title.trim() || scene.title.length > 300 ||
+          !['author', 'play', 'hybrid'].includes(scene.mode) ||
+          !['planned', 'in_progress', 'complete'].includes(scene.status) ||
+          (scene.viewpoint_character_id !== null && scene.viewpoint_character_id !== undefined &&
+            (!validId(scene.viewpoint_character_id) || !castIds.has(scene.viewpoint_character_id))) ||
+          !boundedText(scene.location, 500) || !boundedText(scene.story_time, 500) ||
+          !boundedText(scene.purpose, 4000) || !boundedText(scene.stakes, 4000)) {
+        throw httpError('Story archive contains an invalid scene');
+      }
+      sceneIds.add(scene.id);
+      sceneById.set(scene.id, scene);
+      scenesByChapter.get(scene.chapter_id).push(scene);
+    }
+    for (const scenes of scenesByChapter.values()) {
+      if (scenes.length) assertContiguous(scenes, 'Story scene');
+    }
+
     const hierarchyPageIds = new Set();
     const pagesByChapter = new Map([...chapterIds].map((id) => [id, []]));
     for (const page of hierarchy.pages) {
@@ -444,6 +471,25 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     }
     if (hierarchyPageIds.size !== pageIds.size) throw httpError('Story hierarchy does not contain every committed page exactly once');
     for (const pagesInChapter of pagesByChapter.values()) assertContiguous(pagesInChapter, 'Hierarchy page');
+
+    const scenePageIds = new Set();
+    const membershipsByScene = new Map([...sceneIds].map((id) => [id, []]));
+    for (const membership of hierarchy.scene_pages || []) {
+      assertKnown(membership, SCENE_PAGE_FIELDS, 'Scene page membership');
+      const scene = membership && sceneById.get(membership.scene_id);
+      const page = membership && hierarchyPageById.get(membership.page_id);
+      if (!scene || !page || scenePageIds.has(membership.page_id) || scene.chapter_id !== page.chapter_id) {
+        throw httpError('Story archive contains an invalid scene page membership');
+      }
+      scenePageIds.add(membership.page_id);
+      membershipsByScene.get(membership.scene_id).push(page);
+    }
+    for (const pagesInScene of membershipsByScene.values()) {
+      pagesInScene.sort((left, right) => left.ordinal - right.ordinal);
+      if (pagesInScene.some((page, index) => index > 0 && page.ordinal !== pagesInScene[index - 1].ordinal + 1)) {
+        throw httpError('Story scene pages must form one contiguous chapter range');
+      }
+    }
   }
   if (databaseSchemaVersion >= 3 && !Array.isArray(bundle.revisions)) {
     throw httpError('Story archive is missing immutable page revisions');

@@ -42,8 +42,66 @@ describe('PR 02 manuscript hierarchy', () => {
       page_id: null,
     });
     expect(fixture.db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'scenes'").get())
-      .toBeUndefined();
+      .toEqual({ name: 'scenes' });
     expect(fixture.db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
+  });
+
+  it('keeps scenes optional while grouping a contiguous page range without changing prose', async () => {
+    const story = await createStory(fixture.app, null, [], { title: 'Optional Scenes' });
+    const chapter = story.hierarchy.volumes[0].chapters[0];
+    const first = await addPage(fixture.app, story.id, 'First unaltered page.');
+    const second = await addPage(fixture.app, story.id, 'Second unaltered page.');
+    const third = await addPage(fixture.app, story.id, 'Third unaltered page.');
+
+    let hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
+    expect(hierarchy.summary.scene_count).toBe(0);
+    expect(hierarchy.volumes[0].chapters[0].scenes).toEqual([]);
+    expect((await request(fixture.app).get(`/api/stories/${story.id}/pages`).expect(200)).body.pages
+      .every((page) => page.scene_id === null)).toBe(true);
+
+    const created = (await request(fixture.app)
+      .post(`/api/stories/${story.id}/chapters/${chapter.id}/scenes`)
+      .send({
+        title: 'At the threshold', mode: 'hybrid', status: 'in_progress',
+        location: 'The north gate', story_time: 'Before dawn',
+        purpose: 'Force the choice.', stakes: 'The gate may close.',
+        page_ids: [first.id, second.id],
+      })
+      .expect(201)).body.scene;
+    expect(created).toMatchObject({
+      chapter_id: chapter.id,
+      ordinal: 1,
+      title: 'At the threshold',
+      mode: 'hybrid',
+      status: 'in_progress',
+      page_ids: [first.id, second.id],
+      page_range: { first: 1, last: 2, count: 2 },
+    });
+
+    hierarchy = (await request(fixture.app).get(`/api/stories/${story.id}/hierarchy`).expect(200)).body.hierarchy;
+    expect(hierarchy.summary.scene_count).toBe(1);
+    expect(hierarchy.volumes[0].chapters[0].pages.map((page) => page.scene_id))
+      .toEqual([created.id, created.id, null]);
+    expect((await request(fixture.app).get(`/api/stories/${story.id}/pages/${first.id}`).expect(200)).body.page.position.scene)
+      .toMatchObject({ id: created.id, title: 'At the threshold', mode: 'hybrid' });
+    expect(fixture.db.prepare('SELECT content FROM manuscript_pages WHERE id = ?').get(first.id).content)
+      .toBe('First unaltered page.');
+
+    await request(fixture.app).put(`/api/stories/${story.id}/scenes/${created.id}`)
+      .send({ title: 'Through the threshold', status: 'complete', page_ids: [second.id, third.id] })
+      .expect(200);
+    expect(fixture.db.prepare('SELECT page_id FROM scene_pages WHERE scene_id = ? ORDER BY page_id').all(created.id))
+      .toHaveLength(2);
+
+    await request(fixture.app).put(`/api/stories/${story.id}/scenes/${created.id}`)
+      .send({ page_ids: [first.id, third.id] })
+      .expect(409);
+
+    const removed = await request(fixture.app).delete(`/api/stories/${story.id}/scenes/${created.id}`).expect(200);
+    expect(removed.body).toMatchObject({ deleted: true, pages_ungrouped: 2 });
+    expect((await request(fixture.app).get(`/api/stories/${story.id}/pages`).expect(200)).body.pages
+      .map((page) => page.scene_id)).toEqual([null, null, null]);
+    expect(fixture.db.prepare('SELECT COUNT(*) AS value FROM pages').get().value).toBe(3);
   });
 
   it('keeps stable page identities across volumes, chapters, renames, and indexed neighbor reads', async () => {

@@ -18,11 +18,23 @@ function outline(pageCount = 161) {
     continuity_model: index === 2 ? 'google/gemini-2.5-flash-lite' : null,
     art_count: index === 8 ? 2 : 0,
     is_copyedited: index === 10,
+    scene_id: index === 4 ? 'scene-1' : null,
+    scene_title: index === 4 ? 'The quiet crossing' : null,
+    scene_mode: index === 4 ? 'hybrid' : null,
+    scene_status: index === 4 ? 'in_progress' : null,
   }));
+  const scenes = pageCount >= 5 ? [{
+    id: 'scene-1', chapter_id: 'c1', ordinal: 1, title: 'The quiet crossing',
+    mode: 'hybrid', status: 'in_progress', viewpoint_character_id: null,
+    location: 'The west stair', story_time: 'Midnight',
+    purpose: 'Cross without waking the house.', stakes: 'The bell may sound.',
+    page_ids: ['p5'], page_range: { first: 5, last: 5, count: 1 },
+  }] : [];
   return {
     summary: {
       volume_count: 1,
       chapter_count: 1,
+      scene_count: scenes.length,
       page_count: pageCount,
       continuity: { ready: Math.min(100, pageCount), total: pageCount },
       placed_art_count: 2,
@@ -30,7 +42,7 @@ function outline(pageCount = 161) {
       active_tail: { volume_id: 'v1', chapter_id: 'c1', page_id: `p${pageCount}` },
     },
     volumes: [{ id: 'v1', ordinal: 1, title: 'Volume I', chapters: [
-      { id: 'c1', ordinal: 1, title: 'Chapter I', pages },
+      { id: 'c1', ordinal: 1, title: 'Chapter I', scenes, pages },
     ] }],
   };
 }
@@ -66,6 +78,9 @@ describe('PR12 Chronicle', () => {
     expect(document.querySelectorAll('.chronicle-page')).toHaveLength(80);
     expect(document.getElementById('chronicleSummary').textContent).toContain('Page 162');
     expect(document.getElementById('chronicleOutline').textContent).toContain('Scene break in preview');
+    expect(document.getElementById('chronicleOutline').textContent).toContain('The quiet crossing');
+    expect(document.getElementById('chronicleOutline').textContent).toContain('Scene: The quiet crossing');
+    expect(document.getElementById('chronicleSummary').textContent).toContain('optional scene');
     expect(document.getElementById('chronicleOutline').textContent).toContain('2 placed art');
     expect(document.getElementById('chronicleStatus').textContent).toContain('Only short excerpts are loaded');
     expect(fetchMock.mock.calls.some(([url]) => url === '/api/stories/s1/pages')).toBe(false);
@@ -121,5 +136,46 @@ describe('PR12 Chronicle', () => {
     await restoring;
     const call = fetchMock.mock.calls.find(([url]) => url === '/api/stories/s1/recoveries/r-safe/restore');
     expect(call[1].method).toBe('POST');
+  });
+
+  it('creates an optional scene from a complete chapter page range without invoking AI', async () => {
+    const fetchMock = mockFetch([
+      {
+        match: (url, options) => url === '/api/stories/s1/chapters/c1/scenes' && options.method === 'POST',
+        response: jsonResponse(201, { scene: { id: 'scene-2' } }),
+      },
+      { match: '/stories/s1/hierarchy', response: jsonResponse(200, { hierarchy: outline(6) }) },
+      { match: '/stories/s1/recoveries', response: jsonResponse(200, { recoveries: [] }) },
+    ]);
+    const fw = await loadScript();
+    fw.__setStoryState({ currentStory: { ...STORY, page_count: 6 }, storyPages: [] });
+    await fw.enterChronicle({ storyId: 's1' });
+
+    [...document.querySelectorAll('button')].find((button) => button.textContent === 'Add optional scene').click();
+    const form = document.querySelector('.scene-form');
+    const directInputs = form.querySelectorAll(':scope > label input');
+    directInputs[0].value = 'A playable crossing';
+    directInputs[1].value = 'The west stair';
+    directInputs[2].value = 'Midnight';
+    const textareas = form.querySelectorAll('textarea');
+    textareas[0].value = 'Reach the locked gallery.';
+    textareas[1].value = 'The household may wake.';
+    const rangeInputs = form.querySelectorAll('.scene-form__range input');
+    rangeInputs[0].value = '5';
+    rangeInputs[1].value = '6';
+    document.querySelector('.dialog-manager .btn-primary').click();
+
+    for (let attempt = 0; attempt < 20 && !fetchMock.mock.calls.some(([url]) => url === '/api/stories/s1/chapters/c1/scenes'); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    const call = fetchMock.mock.calls.find(([url]) => url === '/api/stories/s1/chapters/c1/scenes');
+    expect(call[1].method).toBe('POST');
+    expect(JSON.parse(call[1].body)).toMatchObject({
+      title: 'A playable crossing', mode: 'author', status: 'planned',
+      location: 'The west stair', story_time: 'Midnight',
+      purpose: 'Reach the locked gallery.', stakes: 'The household may wake.',
+      page_ids: ['p5', 'p6'],
+    });
+    expect(fetchMock.mock.calls.some(([url]) => /openrouter|generate|preview/i.test(url))).toBe(false);
   });
 });

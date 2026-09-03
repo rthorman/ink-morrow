@@ -6,6 +6,14 @@ validation.
 
 ## Unreleased
 
+### Added
+
+- Optional chapter-owned scenes can hold planning/play metadata and group a
+  contiguous page range in Chronicle. Manuscripts without scenes remain
+  unchanged, and removing a scene only ungroups its pages.
+- Portable project archives and truncation recovery preserve optional scene
+  membership without making it part of canonical prose.
+
 ### Fixed
 
 - Re-running `setup.sh` now updates existing dependency trees instead of

@@ -199,6 +199,46 @@ function createStoriesRouter({ store, imageStore, artStore = null, imageQueue, a
     res.status(204).end();
   });
 
+  // -- Optional scenes ----------------------------------------------------
+
+  router.get('/api/stories/:id/scenes', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    res.json({ scenes: store.scenes.list(story.id) });
+  });
+
+  router.post('/api/stories/:id/chapters/:chapterId/scenes', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
+    const payload = store.scenes.validate(req.body, { create: true });
+    if (payload.error) return badRequest(res, payload.error);
+    const scene = store.scenes.create(story.id, req.params.chapterId, payload);
+    if (!scene) return notFound(res, 'Chapter not found');
+    res.status(201).json({ scene, hierarchy: store.hierarchy.buildHierarchy(story.id) });
+  });
+
+  router.put('/api/stories/:id/scenes/:sceneId', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    const existing = store.scenes.get(story.id, req.params.sceneId);
+    if (!existing) return notFound(res, 'Scene not found');
+    acquireWriter(req, story.id);
+    const payload = store.scenes.validate(req.body, { existing });
+    if (payload.error) return badRequest(res, payload.error);
+    const scene = store.scenes.update(story.id, existing.id, payload);
+    res.json({ scene, hierarchy: store.hierarchy.buildHierarchy(story.id) });
+  });
+
+  router.delete('/api/stories/:id/scenes/:sceneId', (req, res) => {
+    const story = store.getStory(req.params.id);
+    if (!story) return notFound(res, 'Story not found');
+    acquireWriter(req, story.id);
+    const result = store.scenes.remove(story.id, req.params.sceneId);
+    if (!result) return notFound(res, 'Scene not found');
+    res.json({ ...result, hierarchy: store.hierarchy.buildHierarchy(story.id) });
+  });
+
   // Stable-id page read. Legacy list/number routes remain until later PRs move
   // the frontend, while this response exposes durable hierarchy position and
   // indexed previous/next neighbors.
