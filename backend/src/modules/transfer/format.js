@@ -70,13 +70,17 @@ const PLAY_SESSION_FIELDS = [
   'id', 'scene_id', 'ordinal', 'status', 'participants_json',
   'scribe_initiative', 'challenge', 'pacing', 'consequences',
   'allow_character_death', 'suggestions', 'player_interiority', 'notes',
-  'created_at', 'updated_at', 'ended_at',
+  'created_at', 'updated_at', 'ended_at', 'selected_branch_id',
+];
+const PLAY_BRANCH_FIELDS = [
+  'id', 'session_id', 'ordinal', 'name', 'parent_branch_id', 'fork_turn_id',
+  'selected_successor_turn_id', 'created_at',
 ];
 const PLAY_TURN_FIELDS = [
   'id', 'session_id', 'ordinal', 'speaker', 'input_kind', 'character_id',
   'content', 'source', 'model', 'prompt_tokens', 'completion_tokens',
   'cost_usd', 'cost_known', 'billed_attempts', 'idempotency_key',
-  'request_hash', 'created_at',
+  'request_hash', 'created_at', 'branch_id',
 ];
 const PLAY_AI_REQUEST_FIELDS = [
   'session_id', 'idempotency_key', 'request_hash', 'contract_json', 'owner_turn_id',
@@ -296,6 +300,8 @@ function playSessionRecord(row) {
   return record;
 }
 
+function playBranchRecord(row) { return pick(row, PLAY_BRANCH_FIELDS); }
+
 function playTurnRecord(row) {
   return pick(row, PLAY_TURN_FIELDS);
 }
@@ -463,6 +469,7 @@ function semanticEntity(kind, bundle, options = {}) {
   }
   const sceneIndexById = new Map((hierarchy.scenes || []).map((scene, index) => [scene.id, index + 1]));
   const sessionIndexById = new Map((bundle.play_sessions || []).map((session, index) => [session.id, index + 1]));
+  const branchIndexById = new Map((bundle.play_branches || []).map((branch, index) => [branch.id, index + 1]));
   const turnIndexById = new Map((bundle.play_turns || []).map((turn, index) => [turn.id, index + 1]));
   const campaignIndexById = new Map((bundle.campaign_entries || []).map((entry, index) => [entry.id, index + 1]));
   const semanticHierarchy = (hierarchy.volumes || [])
@@ -582,9 +589,17 @@ function semanticEntity(kind, bundle, options = {}) {
       ...without(row, ['id', 'scene_id', 'created_at', 'updated_at', 'ended_at']),
       scene: sceneIndexById.get(row.scene_id) || null,
     })),
+    play_branches: (bundle.play_branches || []).map((row) => ({
+      ordinal: row.ordinal, name: row.name,
+      session: sessionIndexById.get(row.session_id) || null,
+      parent: branchIndexById.get(row.parent_branch_id) || null,
+      fork_turn: turnIndexById.get(row.fork_turn_id) || null,
+      selected_successor: turnIndexById.get(row.selected_successor_turn_id) || null,
+    })),
     play_turns: (bundle.play_turns || []).map((row) => ({
       ...without(row, ['id', 'session_id', 'idempotency_key', 'request_hash', 'created_at']),
       session: sessionIndexById.get(row.session_id) || null,
+      branch: branchIndexById.get(row.branch_id) || null,
     })),
     play_ai_requests: (bundle.play_ai_requests || []).map((row) => ({
       ...without(row, [
@@ -695,6 +710,7 @@ module.exports = {
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
   PLAY_SESSION_FIELDS,
+  PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
@@ -734,6 +750,7 @@ module.exports = {
   sceneRecord,
   scenePageRecord,
   playSessionRecord,
+  playBranchRecord,
   playTurnRecord,
   playAiRequestRecord,
   campaignEntryRecord,

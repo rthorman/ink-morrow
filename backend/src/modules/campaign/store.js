@@ -85,7 +85,7 @@ function validateDetails(value, existing = {}) {
   return result;
 }
 
-function createCampaignStore(db, { stories, continuity }) {
+function createCampaignStore(db, { stories, continuity, playStore }) {
   function storyOrNull(storyId) {
     return stories.getStory(storyId);
   }
@@ -381,12 +381,10 @@ function createCampaignStore(db, { stories, continuity }) {
       selected.push(entry);
       perTier.set(entry.priority, count + 1);
     }
-    const latest = db.prepare(`
-      SELECT turn.id, turn.ordinal, turn.speaker, turn.input_kind, turn.character_id,
-             substr(turn.content, 1, 500) AS content, session.ordinal AS session_ordinal
-        FROM play_turns turn JOIN play_sessions session ON session.id = turn.session_id
-       WHERE session.scene_id = ? ORDER BY session.ordinal DESC, turn.ordinal DESC LIMIT 8
-    `).all(sceneId).reverse();
+    const latest = selectedTurns(storyId, sceneId, 8).map((turn) => ({
+      ...turn,
+      content: String(turn.content || '').slice(0, 500),
+    }));
     return {
       entries: selected,
       omitted: Math.max(0, all.length - selected.length),
@@ -395,15 +393,18 @@ function createCampaignStore(db, { stories, continuity }) {
     };
   }
 
+  function selectedTurns(storyId, sceneId, limit) {
+    const sessions = playStore.listForScene(storyId, sceneId) || [];
+    return sessions.flatMap((session) => playStore.listTurns(session.id, session.selected_branch_id)
+      .map((turn) => ({ ...turn, session_ordinal: session.ordinal })))
+      .sort((left, right) => left.session_ordinal - right.session_ordinal || left.ordinal - right.ordinal)
+      .slice(-limit);
+  }
+
   function suggestionContext(storyId, sceneId) {
     const story = storyOrNull(storyId);
     if (!story || !stories.scenes.get(storyId, sceneId)) return null;
-    const turns = db.prepare(`
-      SELECT turn.id, turn.ordinal, turn.speaker, turn.input_kind, turn.character_id,
-             turn.content, session.ordinal AS session_ordinal
-        FROM play_turns turn JOIN play_sessions session ON session.id = turn.session_id
-       WHERE session.scene_id = ? ORDER BY session.ordinal DESC, turn.ordinal DESC LIMIT 60
-    `).all(sceneId).reverse();
+    const turns = selectedTurns(storyId, sceneId, 60);
     return { story, scene: stories.scenes.get(storyId, sceneId), turns, state: recap(storyId, sceneId) };
   }
 

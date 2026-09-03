@@ -415,6 +415,14 @@ Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
   Core state/revisions always archive; transcript evidence and AI request
   history require working-history export. Full behavior:
   `docs/campaign-state.md`.
+- Schema 17 Play branches are named immutable ancestry over exact fork turns;
+  no branch is manuscript canon. One selected successor per branch defines
+  the bounded endpoint for an explicit Play-to-Prose request. That request
+  uses the durable writing-operation/idempotency/lease state machine and may
+  create only the ordinary single prepared page. Canon changes only through
+  the existing Desk promotion review. Working-history archives preserve and
+  remap branch/session/turn cycles; older Play archives import into a generated
+  Main path. Full behavior: `docs/play.md`.
 
 ## Testing
 

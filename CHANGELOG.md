@@ -8,6 +8,10 @@ validation.
 
 ### Added
 
+- Play sessions can fork from an exact immutable turn into named alternate
+  paths. Selecting a path or successor remains noncanonical working history;
+  an explicitly reviewed Play-to-Prose request creates only a prepared page,
+  which still needs the ordinary Desk commit review.
 - Optional living campaign state now keeps revisioned relationships, promises,
   debts, knowledge boundaries, secrets, goals, factions, quests, conditions,
   inventory, resources, time, deadlines, and clocks. Codex provides the owner

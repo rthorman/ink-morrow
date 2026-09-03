@@ -556,6 +556,8 @@
                     <button id="playBackBtn" class="btn btn-secondary" type="button">Return to Chronicle</button>
                     <label for="playSessionSelect">Session</label>
                     <select id="playSessionSelect" disabled><option value="">No sessions yet</option></select>
+                    <label for="playBranchSelect">Path</label>
+                    <select id="playBranchSelect" disabled><option value="">Main path</option></select>
                     <button id="playNewSessionBtn" class="btn btn-secondary" type="button" hidden>New Session Zero</button>
                 </div>
 
@@ -583,7 +585,7 @@
                 <section id="playSessionPanel" class="play-panel" aria-labelledby="playTranscriptTitle" hidden>
                     <div class="play-panel__head">
                         <div><p class="hero__kicker">Working history</p><h3 id="playTranscriptTitle">Session transcript</h3></div>
-                        <div class="play-actions"><button id="playEditContract" class="btn btn-secondary" type="button">Edit Session Zero</button><button id="playEndSession" class="btn btn-secondary" type="button">End session</button></div>
+                        <div class="play-actions"><button id="playPrepareProse" class="btn btn-primary" type="button" disabled>Shape selected path into prose</button><button id="playEditContract" class="btn btn-secondary" type="button">Edit Session Zero</button><button id="playEndSession" class="btn btn-secondary" type="button">End session</button></div>
                     </div>
                     <div id="playContractSummary" class="play-contract-summary"></div>
                     <details class="play-recap" open>

@@ -95,7 +95,7 @@ describe('Ink Morrow 4.0 kernel', () => {
     const tables = new Set(db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((row) => row.name));
     for (const table of [
       'volumes', 'chapters', 'scenes', 'scene_pages', 'pages', 'page_revisions', 'prepared_pages',
-      'play_sessions', 'play_turns', 'play_ai_requests',
+      'play_sessions', 'play_branches', 'play_turns', 'play_ai_requests',
       'campaign_entries', 'campaign_entry_revisions', 'campaign_ai_requests',
       'writing_operations', 'continuity_deltas', 'continuity_corrections',
       'continuity_issues', 'continuity_search', 'continuity_projection_checkpoints',

@@ -28,6 +28,7 @@ const {
   SCENE_FIELDS,
   SCENE_PAGE_FIELDS,
   PLAY_SESSION_FIELDS,
+  PLAY_BRANCH_FIELDS,
   PLAY_TURN_FIELDS,
   PLAY_AI_REQUEST_FIELDS,
   CAMPAIGN_ENTRY_FIELDS,
@@ -293,7 +294,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     ? ['record', 'hierarchy', 'pages', 'revisions', 'snapshots', 'template_snapshots',
         'memory', 'continuity_deltas', 'corrections', 'author_canon_entries',
         'author_canon_revisions', 'writing_operations',
-        'play_sessions', 'play_turns', 'play_ai_requests',
+        'play_sessions', 'play_branches', 'play_turns', 'play_ai_requests',
         'campaign_entries', 'campaign_revisions', 'campaign_ai_requests',
         'prepared_page', 'preview', 'audiobook', 'art_assets', 'asset_placements',
         'publication_snapshots', 'scribe_bindings']
@@ -500,6 +501,7 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
     }
   }
   const playSessions = bundle.play_sessions || [];
+  const playBranches = bundle.play_branches || [];
   const playTurns = bundle.play_turns || [];
   const playAiRequests = bundle.play_ai_requests || [];
   if (databaseSchemaVersion >= 15 &&
@@ -510,6 +512,8 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
   if (!Array.isArray(playSessions) || !Array.isArray(playTurns) || !Array.isArray(playAiRequests)) {
     throw httpError('Story archive contains invalid play history collections');
   }
+  if (databaseSchemaVersion >= 17 && !Array.isArray(bundle.play_branches)) throw httpError('Schema-17 story archive is missing Play branches');
+  if (!Array.isArray(playBranches)) throw httpError('Story archive contains invalid Play branches');
   const playSessionIds = new Set();
   const playOrdinals = new Map();
   for (const session of playSessions) {
@@ -545,6 +549,24 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
       throw httpError('Play session ordinals must be contiguous');
     }
   }
+  const playBranchIds = new Set();
+  const branchesBySession = new Map();
+  for (const branch of playBranches) {
+    assertKnown(branch, PLAY_BRANCH_FIELDS, 'Play branch');
+    if (!branch || !validId(branch.id) || !playSessionIds.has(branch.session_id) || playBranchIds.has(branch.id) ||
+        !Number.isSafeInteger(branch.ordinal) || branch.ordinal < 1 || typeof branch.name !== 'string' || !branch.name.trim() || branch.name.length > 200) {
+      throw httpError('Story archive contains an invalid Play branch');
+    }
+    playBranchIds.add(branch.id);
+    if (!branchesBySession.has(branch.session_id)) branchesBySession.set(branch.session_id, []);
+    branchesBySession.get(branch.session_id).push(branch);
+  }
+  for (const session of playSessions) {
+    const branches = (branchesBySession.get(session.id) || []).sort((a, b) => a.ordinal - b.ordinal);
+    if (databaseSchemaVersion >= 17 && (!branches.length || branches.some((branch, index) => branch.ordinal !== index + 1) || !playBranchIds.has(session.selected_branch_id))) {
+      throw httpError('Play branch ordinals or selected path are invalid');
+    }
+  }
   const playTurnIds = new Set();
   const playTurnOrdinals = new Map();
   for (const turn of playTurns) {
@@ -560,12 +582,22 @@ function validateBundle(meta, bundle, { databaseSchemaVersion = DATABASE_SCHEMA_
         (turn.cost_usd !== null && turn.cost_usd !== undefined && (!Number.isFinite(turn.cost_usd) || turn.cost_usd < 0)) ||
         (turn.idempotency_key !== null && turn.idempotency_key !== undefined &&
           (typeof turn.idempotency_key !== 'string' || !turn.idempotency_key.trim() || turn.idempotency_key.length > 300)) ||
-        (turn.request_hash !== null && turn.request_hash !== undefined && !/^[a-f0-9]{64}$/.test(turn.request_hash))) {
+        (turn.request_hash !== null && turn.request_hash !== undefined && !/^[a-f0-9]{64}$/.test(turn.request_hash)) ||
+        (databaseSchemaVersion >= 17 && !playBranchIds.has(turn.branch_id))) {
       throw httpError('Story archive contains an invalid play turn');
     }
     if (!playTurnOrdinals.has(turn.session_id)) playTurnOrdinals.set(turn.session_id, []);
     playTurnOrdinals.get(turn.session_id).push(turn.ordinal);
     playTurnIds.add(turn.id);
+  }
+  for (const branch of playBranches) {
+    const parent = branch.parent_branch_id ? playBranches.find((item) => item.id === branch.parent_branch_id) : null;
+    const fork = branch.fork_turn_id ? playTurns.find((item) => item.id === branch.fork_turn_id) : null;
+    const successor = branch.selected_successor_turn_id ? playTurns.find((item) => item.id === branch.selected_successor_turn_id) : null;
+    if ((branch.parent_branch_id && (!parent || parent.session_id !== branch.session_id)) ||
+        (branch.fork_turn_id && (!fork || fork.session_id !== branch.session_id)) ||
+        (branch.selected_successor_turn_id && (!successor || successor.branch_id !== branch.id)) ||
+        Boolean(branch.parent_branch_id) !== Boolean(branch.fork_turn_id)) throw httpError('Play branch ancestry crosses a session or path boundary');
   }
   for (const ordinals of playTurnOrdinals.values()) {
     ordinals.sort((left, right) => left - right);

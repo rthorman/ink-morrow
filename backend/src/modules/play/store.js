@@ -91,8 +91,10 @@ function createPlayStore(db, { stories }) {
       created_at: row.created_at,
       updated_at: row.updated_at,
       ended_at: row.ended_at,
+      selected_branch_id: row.selected_branch_id || null,
     };
-    if (turns) value.turns = listTurns(row.id);
+    value.branches = listBranches(row.id);
+    if (turns) value.turns = listTurns(row.id, row.selected_branch_id);
     return value;
   }
 
@@ -138,13 +140,46 @@ function createPlayStore(db, { stories }) {
     `).all(sceneId, storyId).map(publicSession);
   }
 
-  function listTurns(sessionId) {
-    return db.prepare(`
+  function listBranches(sessionId) {
+    return db.prepare(`SELECT branch.*,
+      (SELECT COUNT(*) FROM play_turns turn WHERE turn.branch_id = branch.id) AS own_turn_count,
+      (SELECT MAX(ordinal) FROM play_turns turn WHERE turn.branch_id = branch.id) AS tip_ordinal
+      FROM play_branches branch WHERE branch.session_id = ? ORDER BY branch.ordinal`).all(sessionId);
+  }
+
+  function selectedBranch(sessionId, branchId = null) {
+    if (branchId) return db.prepare('SELECT * FROM play_branches WHERE id = ? AND session_id = ?').get(branchId, sessionId) || null;
+    return db.prepare(`SELECT branch.* FROM play_sessions session JOIN play_branches branch
+      ON branch.id = session.selected_branch_id WHERE session.id = ?`).get(sessionId) ||
+      db.prepare('SELECT * FROM play_branches WHERE session_id = ? ORDER BY ordinal LIMIT 1').get(sessionId) || null;
+  }
+
+  function listTurns(sessionId, branchId = null) {
+    let branch = selectedBranch(sessionId, branchId);
+    if (!branch) return [];
+    const chain = [];
+    while (branch) {
+      chain.unshift(branch);
+      branch = branch.parent_branch_id
+        ? db.prepare('SELECT * FROM play_branches WHERE id = ? AND session_id = ?').get(branch.parent_branch_id, sessionId)
+        : null;
+      if (chain.length > 100) throw problem('Play branch ancestry is too deep.', 409, 'PLAY_BRANCH_DEPTH');
+    }
+    const rows = [];
+    for (let index = 0; index < chain.length; index++) {
+      const current = chain[index];
+      const cutoff = chain[index + 1]?.fork_turn_id
+        ? db.prepare('SELECT ordinal FROM play_turns WHERE id = ? AND session_id = ?').get(chain[index + 1].fork_turn_id, sessionId)?.ordinal
+        : null;
+      rows.push(...db.prepare(`
       SELECT id, session_id, ordinal, speaker, input_kind, character_id,
              content, source, model, prompt_tokens, completion_tokens,
-             cost_usd, cost_known, billed_attempts, created_at
-        FROM play_turns WHERE session_id = ? ORDER BY ordinal
-    `).all(sessionId).map((turn) => ({ ...turn, cost_known: Boolean(turn.cost_known) }));
+             cost_usd, cost_known, billed_attempts, created_at, branch_id
+        FROM play_turns WHERE session_id = ? AND branch_id = ?
+          AND (? IS NULL OR ordinal <= ?) ORDER BY ordinal
+      `).all(sessionId, current.id, cutoff, cutoff));
+    }
+    return rows.map((turn) => ({ ...turn, cost_known: Boolean(turn.cost_known) }));
   }
 
   function validateContract(body, storyId, existing = null) {
@@ -225,6 +260,9 @@ function createPlayStore(db, { stories }) {
         contract.challenge, contract.pacing, contract.consequences,
         contract.allow_character_death ? 1 : 0, contract.suggestions,
         contract.player_interiority, contract.notes);
+      const branchId = `${id}-main`;
+      db.prepare("INSERT INTO play_branches (id, session_id, ordinal, name) VALUES (?, ?, 1, 'Main path')").run(branchId, id);
+      db.prepare('UPDATE play_sessions SET selected_branch_id = ? WHERE id = ?').run(branchId, id);
     });
     return get(storyId, id, { turns: true });
   }
@@ -281,21 +319,64 @@ function createPlayStore(db, { stories }) {
       .get(sessionId).n;
   }
 
+  function createBranch(storyId, sessionId, forkTurnId, name) {
+    const session = get(storyId, sessionId, { turns: true });
+    if (!session) return null;
+    assertWritable(sessionId);
+    const visible = new Map(session.turns.map((turn) => [turn.id, turn]));
+    if (!visible.has(forkTurnId)) throw problem('Choose a turn on the current path.', 400, 'PLAY_FORK_TURN_INVALID');
+    const cleanName = optionalText(name, { max: 200 });
+    if (!cleanName) throw problem('Branch name must be non-empty text of at most 200 characters.', 400, 'PLAY_BRANCH_NAME_INVALID');
+    const forkTurn = visible.get(forkTurnId);
+    const id = randomUUID();
+    inImmediate(() => {
+      const ordinal = db.prepare('SELECT COALESCE(MAX(ordinal), 0) + 1 AS n FROM play_branches WHERE session_id = ?').get(sessionId).n;
+      db.prepare(`INSERT INTO play_branches (id, session_id, ordinal, name, parent_branch_id, fork_turn_id)
+        VALUES (?, ?, ?, ?, ?, ?)`).run(id, sessionId, ordinal, cleanName, forkTurn.branch_id, forkTurnId);
+      db.prepare('UPDATE play_sessions SET selected_branch_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id, sessionId);
+    });
+    return get(storyId, sessionId, { turns: true });
+  }
+
+  function chooseBranch(storyId, sessionId, branchId) {
+    if (!rawSession(storyId, sessionId)) return null;
+    assertNoReply(sessionId);
+    if (!selectedBranch(sessionId, branchId)) throw problem('That branch does not belong to this session.', 404, 'PLAY_BRANCH_NOT_FOUND');
+    db.prepare('UPDATE play_sessions SET selected_branch_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(branchId, sessionId);
+    return get(storyId, sessionId, { turns: true });
+  }
+
+  function selectSuccessor(storyId, sessionId, branchId, turnId) {
+    if (!rawSession(storyId, sessionId)) return null;
+    assertNoReply(sessionId);
+    const branch = selectedBranch(sessionId, branchId);
+    const turn = branch && db.prepare('SELECT * FROM play_turns WHERE id = ? AND session_id = ? AND branch_id = ?').get(turnId, sessionId, branchId);
+    if (!branch || !turn) throw problem('Select a successor turn written on that branch.', 400, 'PLAY_SUCCESSOR_INVALID');
+    db.prepare('UPDATE play_branches SET selected_successor_turn_id = ? WHERE id = ?').run(turnId, branchId);
+    return get(storyId, sessionId, { turns: true });
+  }
+
   function insertOwnerTurn(sessionId, turn, idempotencyKey, requestHash) {
     const id = randomUUID();
+    const branch = selectedBranch(sessionId);
+    if (!branch) throw problem('This session has no active path.', 409, 'PLAY_BRANCH_MISSING');
     db.prepare(`
       INSERT INTO play_turns
         (id, session_id, ordinal, speaker, input_kind, character_id, content,
-         source, idempotency_key, request_hash)
-      VALUES (?, ?, ?, 'owner', ?, ?, ?, 'author', ?, ?)
+         source, idempotency_key, request_hash, branch_id)
+      VALUES (?, ?, ?, 'owner', ?, ?, ?, 'author', ?, ?, ?)
     `).run(id, sessionId, nextOrdinal(sessionId), turn.kind, turn.character_id,
-      turn.content, idempotencyKey, requestHash);
+      turn.content, idempotencyKey, requestHash, branch.id);
     return db.prepare('SELECT * FROM play_turns WHERE id = ?').get(id);
   }
 
   function assertWritable(sessionId) {
     const row = db.prepare('SELECT status FROM play_sessions WHERE id = ?').get(sessionId);
     if (!row || row.status !== 'active') throw problem('An ended session is read-only.', 409, 'PLAY_SESSION_ENDED');
+    assertNoReply(sessionId);
+  }
+
+  function assertNoReply(sessionId) {
     if (db.prepare("SELECT 1 FROM play_ai_requests WHERE session_id = ? AND status = 'in_flight'").get(sessionId)) {
       throw problem('The Scribe is already answering this session.', 409, 'PLAY_REPLY_IN_FLIGHT');
     }
@@ -337,7 +418,7 @@ function createPlayStore(db, { stories }) {
             responseTurn: db.prepare('SELECT * FROM play_turns WHERE id = ?').get(existing.response_turn_id),
           };
         }
-        const latest = db.prepare('SELECT id FROM play_turns WHERE session_id = ? ORDER BY ordinal DESC LIMIT 1').get(sessionId);
+        const latest = listTurns(sessionId).at(-1);
         if (latest?.id !== existing.owner_turn_id) {
           throw problem('Newer turns exist. Send a new request instead of retrying this older prompt.', 409, 'PLAY_RETRY_STALE');
         }
@@ -369,7 +450,7 @@ function createPlayStore(db, { stories }) {
          WHERE session_id = ? AND idempotency_key = ? AND status = 'in_flight'
       `).get(sessionId, idempotencyKey);
       const session = rawSession(storyId, sessionId);
-      const latest = db.prepare('SELECT id FROM play_turns WHERE session_id = ? ORDER BY ordinal DESC LIMIT 1').get(sessionId);
+      const latest = listTurns(sessionId).at(-1);
       if (!request || !session || session.status !== 'active' || latest?.id !== request.owner_turn_id) {
         throw problem('The session changed before the Scribe reply returned. The paid reply was not added.', 409, 'PLAY_REPLY_STALE');
       }
@@ -378,12 +459,13 @@ function createPlayStore(db, { stories }) {
       db.prepare(`
         INSERT INTO play_turns
           (id, session_id, ordinal, speaker, input_kind, content, source, model,
-           prompt_tokens, completion_tokens, cost_usd, cost_known, billed_attempts)
-        VALUES (?, ?, ?, 'scribe', 'response', ?, 'ai', ?, ?, ?, ?, ?, ?)
+           prompt_tokens, completion_tokens, cost_usd, cost_known, billed_attempts, branch_id)
+        VALUES (?, ?, ?, 'scribe', 'response', ?, 'ai', ?, ?, ?, ?, ?, ?, ?)
       `).run(responseId, sessionId, nextOrdinal(sessionId), result.content, result.model || null,
         result.usage?.prompt_tokens ?? null, result.usage?.completion_tokens ?? null,
         costKnown ? result.cost_usd : null, costKnown ? 1 : 0,
-        Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1);
+        Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1,
+        db.prepare('SELECT branch_id FROM play_turns WHERE id = ?').get(request.owner_turn_id).branch_id);
       db.prepare(`
         UPDATE play_ai_requests SET response_turn_id = ?, status = 'succeeded',
           spend_usd = spend_usd + ?, cost_known = cost_known AND ?,
@@ -426,9 +508,9 @@ function createPlayStore(db, { stories }) {
 
   reconcile();
   return {
-    get, listForScene, listTurns, validateContract, validateTurn, create,
+    get, listForScene, listTurns, listBranches, validateContract, validateTurn, create,
     updateContract, end, recordOwnerTurn, beginAiRequest, settleAiSuccess,
-    settleAiFailure, reconcile,
+    settleAiFailure, reconcile, createBranch, chooseBranch, selectSuccessor,
   };
 }
 

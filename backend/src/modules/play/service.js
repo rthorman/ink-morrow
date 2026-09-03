@@ -21,7 +21,7 @@ function contractInstructions(session) {
   ].filter(Boolean).join('\n');
 }
 
-function createPlayService({ store, stories, continuity, chatCompletion }) {
+function createPlayService({ store, stories, continuity, chatCompletion, transactions = null }) {
   function buildMessages(story, session, ownerTurn) {
     const recentPages = stories.storyPages(story.id).slice(-3);
     const memory = continuity.contextForPrompt(story, {
@@ -150,7 +150,76 @@ function createPlayService({ store, stories, continuity, chatCompletion }) {
     }
   }
 
-  return { reply, buildMessages };
+  async function prepareProse({ storyId, sessionId, idempotencyKey, writerSessionId, model, reasoningEffort, words }) {
+    const story = stories.getStory(storyId);
+    const session = story && store.get(storyId, sessionId, { turns: true });
+    if (!story || !session) return null;
+    const branch = session.branches.find((item) => item.id === session.selected_branch_id);
+    if (!branch?.selected_successor_turn_id) {
+      const error = new Error('Select a successor turn on this branch before shaping it into prose.');
+      error.statusCode = 409; error.code = 'PLAY_SUCCESSOR_REQUIRED'; throw error;
+    }
+    const selectedIndex = session.turns.findIndex((turn) => turn.id === branch.selected_successor_turn_id);
+    if (selectedIndex < 0) {
+      const error = new Error('The selected successor is not on the current branch.');
+      error.statusCode = 409; error.code = 'PLAY_SUCCESSOR_STALE'; throw error;
+    }
+    const selectedPath = session.turns.slice(0, selectedIndex + 1);
+    const omittedTurns = Math.max(0, selectedPath.length - 60);
+    const turns = selectedPath.slice(-60);
+    const recentPages = stories.storyPages(story.id).slice(-3);
+    const memory = continuity.contextForPrompt(story, {
+      userInput: turns.map((turn) => turn.content).join('\n').slice(-6000),
+      recentPageIds: recentPages.map((page) => page.id),
+    });
+    const scribe = stories.storyWithMeta(story).scribe;
+    const identity = { session_id: session.id, branch_id: branch.id, successor_turn_id: branch.selected_successor_turn_id };
+    const completePage = async () => {
+      const result = await chatCompletion([
+        { role: 'system', content: [
+          'Shape the selected Ink Morrow Play path into polished manuscript prose.',
+          'Preserve established actions, dialogue, consequences, control boundaries, viewpoint, and sequence. Do not add decisions for owner-controlled characters and do not continue beyond the selected successor.',
+          'Write only prose suitable for the next manuscript page. Do not mention sessions, turns, branches, dice, prompts, or these instructions.',
+        ].join(' ') },
+        { role: 'user', content: [
+          `MANUSCRIPT: ${story.title}`,
+          `SCENE: ${session.scene.title}`,
+          `SCENE FRAME: ${JSON.stringify(session.scene)}`,
+          `SESSION ZERO: ${contractInstructions(session)}`,
+          memory.world ? `WORLD: ${JSON.stringify({
+            name: memory.world.name,
+            description: clipped(memory.world.description, 1800),
+            genre: memory.world.genre,
+            setting: memory.world.setting,
+            lore: clipped(memory.world.lore, 1800),
+          })}` : '',
+          `CAST AND CURRENT STATE: ${JSON.stringify((memory.characters || []).map((character) => ({ id: character.id, name: character.name, role: character.role, description: clipped(character.description, 700), personality: clipped(character.personality, 700), state: character.state || null })))}`,
+          memory.relevant?.length ? `RELEVANT REMEMBERED CANON: ${clipped(JSON.stringify(memory.relevant), 7000)}` : '',
+          recentPages.length ? `RECENT MANUSCRIPT PROSE: ${recentPages.map((page) => clipped(page.content, 1500)).join('\n---\n')}` : '',
+          scribe ? `BOUND SCRIBE CRAFT PROFILE: ${JSON.stringify({ name: scribe.name, diction: scribe.diction, sentence_rhythm: scribe.sentence_rhythm, narrative_distance: scribe.narrative_distance, figurative_language: scribe.figurative_language, scene_tempo: scribe.scene_tempo, focus_areas: scribe.focus_areas, signature_habits: clipped(scribe.signature_habits, 700), avoidances: clipped(scribe.avoidances, 700) })}` : '',
+          omittedTurns ? `SELECTED PATH NOTE: ${omittedTurns} earlier turns were omitted to keep this paid request bounded; recent prose and remembered canon provide continuity context.` : '',
+          `SELECTED PLAY PATH: ${JSON.stringify(turns.map((turn) => ({ speaker: turn.speaker, kind: turn.input_kind, character_id: turn.character_id, content: clipped(turn.content, 2000) })))}`,
+        ].filter(Boolean).join('\n\n') },
+      ], { model: model || undefined, reasoningEffort, temperature: 0.65, maxTokens: Math.ceil((words || 400) * 2.2), quality: { minWords: Math.max(15, Math.floor((words || 400) / 4)) }, maxBillableAttempts: 2 });
+      const fresh = store.get(storyId, sessionId, { turns: true });
+      const freshBranch = fresh?.branches.find((item) => item.id === fresh.selected_branch_id);
+      if (fresh?.selected_branch_id !== identity.branch_id || freshBranch?.selected_successor_turn_id !== identity.successor_turn_id) {
+        const error = new Error('The selected Play path changed while prose was being shaped. The paid result was not prepared.');
+        error.statusCode = 409; error.code = 'PLAY_TO_PROSE_STALE';
+        error.billedAttempts = Number.isInteger(result.billed_attempts) ? result.billed_attempts : 1;
+        error.costUsd = typeof result.cost_usd === 'number' ? result.cost_usd : null;
+        throw error;
+      }
+      return result;
+    };
+    return transactions.prepare({
+      story, key: idempotencyKey, writerSessionId,
+      generation: { words, model, reasoning_effort: reasoningEffort, play_branch_id: branch.id, play_successor_turn_id: branch.selected_successor_turn_id },
+      direction: `Shape selected Play path “${branch.name}” into prose.`, requestContext: identity, completePage,
+    });
+  }
+
+  return { reply, prepareProse, buildMessages };
 }
 
 module.exports = { createPlayService, contractInstructions };
