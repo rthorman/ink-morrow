@@ -20,11 +20,20 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
   let placements = [];
   let anchors = [];
   let loadToken = 0;
+  let loading = false;
   const selectedReferences = new Set();
 
   function setStatus(text) {
     const target = document.getElementById('galleryStatus');
     if (target) target.textContent = text;
+  }
+
+  function syncPaintButton() {
+    const button = document.getElementById('galleryPaintBtn');
+    if (!button) return;
+    button.disabled = loading || !activeStoryId || !anchors.length;
+    button.textContent = loading ? 'Loading pages…' : 'Paint with AI';
+    button.setAttribute('aria-busy', loading ? 'true' : 'false');
   }
 
   function placementLabel(placement) {
@@ -307,6 +316,7 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
   }
 
   function openPaint() {
+    if (loading) return;
     if (!anchors.length) {
       showError('Write or import at least one committed page before painting with AI. Upload remains available without a page.');
       return;
@@ -343,6 +353,9 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   async function load(storyId) {
     const token = ++loadToken;
+    loading = true;
+    anchors = [];
+    syncPaintButton();
     setStatus('Opening normalized images and stable placement anchors…');
     try {
       const [listing, anchorResult] = await Promise.all([
@@ -353,12 +366,16 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
       assets = listing.assets || [];
       placements = listing.placements || [];
       anchors = anchorResult.anchors || [];
+      loading = false;
+      syncPaintButton();
       render();
     } catch (error) {
       if (token !== loadToken) return;
       assets = [];
       placements = [];
       anchors = [];
+      loading = false;
+      syncPaintButton();
       render();
       setStatus(`Gallery could not load: ${error.message}`);
       showError(error.message);
@@ -367,19 +384,33 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
 
   async function enter(params = {}) {
     if (!params.storyId) return;
+    // The router paints Gallery before this async entry finishes. Disable the
+    // trigger synchronously so a previous manuscript's anchors can never make
+    // it look actionable during the transition.
+    loading = true;
+    anchors = [];
+    syncPaintButton();
     const story = await chooseWorkspaceStory({ storyId: params.storyId, state, features });
     if (!story) {
+      activeStoryId = null;
+      loading = false;
+      syncPaintButton();
       showError('That manuscript could not be found - it may have been deleted from another window.');
       routeController.navigate('library-stories');
       return;
     }
     activeStoryId = story.id;
+    assets = [];
+    placements = [];
+    anchors = [];
     selectedReferences.clear();
+    syncPaintButton();
     await load(story.id);
   }
 
   function init() {
     document.getElementById('galleryPaintBtn')?.addEventListener('click', openPaint);
+    syncPaintButton();
     const input = document.getElementById('galleryUploadInput');
     document.getElementById('galleryUploadBtn')?.addEventListener('click', () => input?.click());
     input?.addEventListener('change', () => {
@@ -394,10 +425,12 @@ export function createGallery({ api, state, notify, features, dialogs, shell, ro
     assets = [];
     placements = [];
     anchors = [];
+    loading = false;
     selectedReferences.clear();
     features.imagery.setAssetReferences([]);
     const grid = document.getElementById('galleryGrid');
     if (grid) grid.textContent = '';
+    syncPaintButton();
     setStatus('Choose a manuscript to inspect its art.');
   }
 

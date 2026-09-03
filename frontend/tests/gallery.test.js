@@ -94,6 +94,39 @@ describe('PR 14 unified Gallery', () => {
     expect(fw.__selectedAssetReferences()).toEqual(['a-upload']);
   });
 
+  it('shows Paint with AI as busy until the current manuscript anchors are ready', async () => {
+    let resolveAnchors;
+    global.fetch = jest.fn((url) => {
+      const target = String(url);
+      if (target.endsWith('/assets/anchors')) {
+        return new Promise((resolve) => { resolveAnchors = () => resolve(jsonResponse(200, ANCHORS)); });
+      }
+      if (target.endsWith('/assets')) {
+        return Promise.resolve(jsonResponse(200, { assets: [], placements: [] }));
+      }
+      return Promise.resolve(jsonResponse(200, {}));
+    });
+    const fw = await loadScript();
+    fw.__setStoryState(STORY);
+
+    const entering = fw.enterGallery({ storyId: 's1' });
+    await tick();
+    const paint = document.getElementById('galleryPaintBtn');
+    expect(paint.disabled).toBe(true);
+    expect(paint.textContent).toBe('Loading pages…');
+    expect(paint.getAttribute('aria-busy')).toBe('true');
+    paint.click();
+    expect(document.querySelector('.dialog-manager:not([hidden])')).toBeNull();
+
+    resolveAnchors();
+    await entering;
+    expect(paint.disabled).toBe(false);
+    expect(paint.textContent).toBe('Paint with AI');
+    expect(paint.getAttribute('aria-busy')).toBe('false');
+    paint.click();
+    expect(document.querySelector('.dialog-manager__title').textContent).toBe('Paint with AI');
+  });
+
   it('moves a stable placement without mutating prose, numbering, or the active page', async () => {
     installGalleryFetch();
     const fw = await loadScript();

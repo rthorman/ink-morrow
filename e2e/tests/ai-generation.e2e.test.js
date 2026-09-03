@@ -867,6 +867,11 @@ test.describe('Scene image prompt', () => {
     await expect(page.locator('#storyContent')).toContainText('Second prose page.');
     await page.locator('#prevPageBtn').click();
     await expect(page.locator('#readAloudBtn')).toBeEnabled();
+    // Gallery releases its manuscript-specific anchors while Desk owns the
+    // workspace. Re-entering Gallery reloads them before painting is enabled.
+    await expect(page.locator('#galleryPaintBtn')).toBeDisabled();
+    await page.locator('#galleryBtn').click();
+    await expect(page.locator('#gallerySection')).toHaveClass(/active/);
     await expect(page.locator('#galleryPaintBtn')).toBeEnabled();
 
     // The exported EPUB carries the plate inside the book
