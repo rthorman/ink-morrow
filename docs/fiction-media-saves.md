@@ -79,9 +79,11 @@ control, future evidence, unreachable moments and unsafe or mismatched media.
 All graph checks precede writes. Staged image files receive random server-owned
 names; database import is one transaction; rollback cleans only its new files.
 
-No 4.x database, `.inkmorrow` archive or earlier playable story is accepted by this
-save importer. The production database uses the separate ink-morrow-5 family
-and defaults to database-v5/ink-morrow-5.db; older database files are refused.
+4.x databases and `.inkmorrow` manuscript archives are not accepted. Only valid
+version-1 `.inkmorrow5` saves satisfying the current graph/media contract are
+supported; unpublished development saves have no compatibility promise. The
+production database uses the separate ink-morrow-5 family and defaults to
+database-v5/ink-morrow-5.db; older database files are refused.
 
 ## Verification
 

@@ -26,9 +26,10 @@ parts of play. No points, streaks, forced avatar, or autonomous offline punishme
 ## Release boundary
 
 This is a new product, not a saved-data upgrade. Use fresh 5.0 storage; refuse older
-database families without modifying them. Old character/template import is a
-convenience only. Reuse secure infrastructure and useful assets where appropriate,
-but do not preserve manuscript-first workflows merely for compatibility.
+database families without modifying them. No 4.x database, manuscript-archive or
+character/template import is provided. Reuse secure infrastructure and useful
+assets where appropriate, but do not preserve manuscript-first workflows merely
+for compatibility.
 
 Development uses `/home/rthorman/src/ink-morrow-5`. All feature PRs target the
 release branch. The owner subsequently approved final main integration on green
@@ -66,8 +67,10 @@ Historical data remains untouched. Deployment/startup still needs a request.
 5. **New-product release completion** — fresh database isolation and version
    identity, supporting surfaces, complete six-book rewrite/regeneration,
    integration/browser/accessibility checks and final release evidence.
-   Status: implemented and locally verified on feature/5.0.0-product-cutover;
-   the substantial completion PR still requires exact-head green CI and merge.
+   Status: PR [#76](https://github.com/rthorman/ink-morrow/pull/76) passed all five
+   CI gates on head `6c4280a` and merged as `93a8f14` on 4 September 2026.
+   The implementation programme is complete; final integration into main is
+   separately gated on the final PR's exact head. Integration is not deployment.
 
 Additional 5.0 presentation requirement: illustrations appear above their associated
 story text in the reader/manuscript, but on a separate page immediately before that
@@ -90,6 +93,10 @@ Avoid tiny PRs and bypassing required checks. Record links and actual results he
   symlink case in a passing 15-case isolation/production rerun (459 unique cases).
   Frontend: 297 tests in 32 suites. Browser: 24 desktop and 24 mobile scenarios,
   including canonical logo, keyboard/reflow/accessibility, saves and EPUB layout.
+- PR #76 [CI run 33882024816](https://github.com/rthorman/ink-morrow/actions/runs/33882024816)
+  verified all 459 backend tests in 43 suites and all 297 frontend tests in 32
+  suites together on the final feature head. Brand, lint, production dependency
+  audit and both Playwright projects also passed before the merge.
 - Lint, setup safety, release/lockfile/PDF identity, brand and strict freshness
   pass. Production dependency audit reports zero vulnerabilities.
 - All six current-product PDFs regenerated and checked for text, outlines,
@@ -157,9 +164,9 @@ these three PRs and the final green release PR into main.
   all selected reviews; no transport retries or silent downgrade. Per-call durable
   accounting, reviewed role/configuration identity, local progress, role-specific
   settings and safe save/rewind restoration are implemented. No live paid model
-  benchmark was performed. The separate
-  fresh-storage/version cutover, full six-book release edition and final hardening
-  remain before the release PR into main.
+  benchmark was performed. The separate fresh-storage/version cutover, full
+  six-book release edition and final hardening subsequently passed CI and merged
+  through PR #76, recorded above.
 
 Development is consolidated in WSL; Windows Chrome and PDF tooling may operate on
 the WSL checkout. The owner explicitly abandoned older unmerged changes during
