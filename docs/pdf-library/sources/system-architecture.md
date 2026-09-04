@@ -256,3 +256,26 @@ A change should be rejected or redesigned when it:
 - requires full-novel AI replay to restore continuity.
 
 The Story is the system's reason for existing. Every architectural convenience remains subordinate to preserving its authorship, evidence, and recoverability.
+
+## 5.0 release-branch foundation preview
+
+The approved 5.0 product is playable fiction for a reader-director outside the
+cast. The first implementation batch adds `modules/fiction`, independently of
+the manuscript and optional Play tables. This is a backend foundation, not yet
+the replacement user interface. The final 5.0 product will use fresh storage;
+earlier databases and saved stories are not a compatibility requirement.
+
+`fiction_games` owns a title, premise, genre, initial state, active path and
+optimistic revision. `fiction_branches` owns exact ancestry and a head beat.
+Each immutable `fiction_beats` row carries readable prose, input attribution,
+changes and a complete bounded state snapshot. Forking and returning select the
+snapshot at that moment, including commitments, knowledge and character control.
+Corrections append history rather than rewriting an earlier beat.
+
+The authenticated `/api/fiction` API creates and reads these stories. Local
+control, correction, branch and episode operations require the current revision.
+Paid replies use a separate idempotent request journal and one pending request
+per story. A validated reply and its state changes commit together. Provider
+calls receive bounded recent history and relevant facts; there is no automatic
+per-NPC simulation or whole-story replay. The reader interface, richer scene
+director and portable 5.0 saves remain later batches, not delivered claims.

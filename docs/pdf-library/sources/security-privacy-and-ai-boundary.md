@@ -216,6 +216,27 @@ No AI is required. The portable exposure review names included history/media and
 
 ## Security change checklist
 
+### 5.0 release-branch playable-fiction boundary
+
+All `/api/fiction` routes sit behind the existing owner, origin, Host and CSRF
+boundary. New stories and local state actions call no provider. A reply sends the
+story premise, selected cast descriptions and motives, boundaries, current control,
+episode, bounded recent text and relevant facts to the selected text provider.
+Relevant secret world facts may cross that provider boundary to support narration;
+reader-facing state responses omit secret facts and private correction reasons.
+
+The model returns prose and evidenced state proposals. It cannot edit the cast,
+transfer character control, change episode status, overwrite an existing fact, or
+invent a recorded commitment for an inhabited character without input evidence.
+These structural checks do not prove semantic fidelity of every generated sentence.
+The narration instructions and regression tests cover knowledge and control, while
+the owner retains a correction path. No statement here makes a provider trusted.
+
+Paid work is idempotent, revision-checked, bounded to one successful provider
+completion per request, and charged honestly on local validation failure. There is
+no automatic paid follow-up. Complete 5.0 save portability is a later release batch;
+do not export these games with the older manuscript archive endpoints.
+
 A pull request changing authentication, provider calls, archives, uploads, publication, sharing, database identity, or network behavior must update its threat model and tests in the same change.
 
 Block release when a supported path can lose/corrupt canon, disclose credentials/private prose, duplicate spend silently, accept stale mutation, escape upload/archive storage, expose mutable APIs publicly, or bypass authentication/CSRF/Host protections.

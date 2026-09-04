@@ -309,6 +309,22 @@ Human approval remains essential for feature direction, art/voice, destructive o
 
 ## Definition of done
 
+### 5.0 delivery train
+
+The owner approved a new playable-fiction product on `release/5.0.0`, with no
+requirement to open older databases or saved stories. Substantial feature PRs
+target that branch and merge only after their current head passes CI. This does
+not authorize deployment over the running 4.x instance or integration into main.
+The implementation plan and actual batch evidence live in
+`docs/releases/5.0.0/README.md`. Reader-director play is the default; an avatar is
+never required. Character inhabiting must remain an explicit optional handoff.
+
+The foundation suite tests branch-local promises/resources/control, hidden-state
+filtering, immutable evidence, paging, ending/resuming episodes, paid idempotency,
+overlapping work, rollback on invalid effects, restart interruption, and real
+authentication/CSRF routing. Later UI/director/portability batches must add their
+own checks rather than treating these backend tests as end-to-end proof.
+
 A change is done when code, schema, migrations, tests, documentation, generated artifacts, and operator expectations describe the same system; local required checks and final CI are green; review evidence is attached; rollback is understood; and there is no safe in-scope work left unfinished.
 
 The Scriptorium exists to serve the Story. Release machinery exists to ensure the Story survives the machinery.

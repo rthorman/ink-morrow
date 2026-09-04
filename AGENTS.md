@@ -1,5 +1,29 @@
 # Project memory
 
+## 5.0.0 product programme (approved 2026-09-04)
+
+- `release/5.0.0` is the integration branch for a new playable-fiction product.
+  Substantial feature PRs target it, are verified and merged only on green CI,
+  and subsequent batches start from its updated head. Do not merge this release
+  into `main` or replace the existing port-3000 installation without approval.
+- The default player is a reader-director OUTSIDE the cast. Follow and Steer
+  are complete first-class experiences; Inhabit is optional, explicit character
+  control. No avatar, main character, or Session Zero is required to begin.
+- One durable narrative unifies readable prose and playable history. Important
+  commitments, knowledge, relationships, episodes, control handoffs, corrections,
+  and alternate timelines belong to the same branch-local state engine.
+- 5.0 is not required to open, migrate, or import any older database or saved
+  story. A separate data location and fail-closed family check protect old data.
+  Character/template portability may be retained when practical, not at the
+  expense of the new design. Never delete historical user data.
+- These approvals supersede the historical product/UI/canon/compatibility
+  constraints below where they conflict. Security, credential privacy, explicit
+  paid authority, spend accounting, transactional integrity, accessibility, the
+  six-book documentation workflow, and the AGPL license remain requirements.
+- The delivery plan and batch evidence live in `docs/releases/5.0.0/README.md`.
+  Do not describe planned features as implemented or mark a batch complete
+  until its tests and actual GitHub merge have been verified.
+
 Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
 
 ## Project overview

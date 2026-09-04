@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-4';
-const DATABASE_SCHEMA_VERSION = 18;
+const DATABASE_SCHEMA_VERSION = 19;
 const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
@@ -17,6 +17,7 @@ const ARCHIVE_EXTENSION = '.inkmorrow';
 const RELEASE_TRAIN = require('../../package.json').version;
 
 const FEATURES = Object.freeze([
+  Object.freeze({ id: 'playable-fiction-state', status: 'available' }),
   Object.freeze({ id: 'v4-kernel', status: 'available' }),
   Object.freeze({ id: 'manuscript-hierarchy', status: 'available' }),
   Object.freeze({ id: 'revisions-recovery', status: 'available' }),

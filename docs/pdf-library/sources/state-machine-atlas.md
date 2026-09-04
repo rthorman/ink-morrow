@@ -377,3 +377,22 @@ The highest-risk transitions require integration evidence across the real persis
 - active share to revoked/expired read denial.
 
 An implementation that adds a status string without defining its transitions, restart behavior, and UI meaning has not added a state machine. It has added ambiguity.
+
+## 5.0 release-branch story transitions
+
+The playable-fiction foundation introduces one request path:
+`pending -> succeeded | failed | interrupted`. Success atomically records a new
+immutable beat, its complete state and the branch head. Malformed or stale replies
+record known spend without saving prose or partial effects. Reusing a successful
+key returns the earlier result without another provider call; a failed key never
+silently purchases a retry. Startup marks abandoned requests interrupted.
+
+Branch selection, forks, control handoffs, corrections and episode transitions
+are local operations. They reject stale revisions and pending paid work. A fork
+references an exact ancestor rather than copying only its transcript. The default
+control state names no inhabited character. Explicitly taking or releasing a cast
+member creates a control beat; Ask creates clarification, not a fictional event.
+
+An ended episode rejects continuation until the reader explicitly starts another.
+Reading, reloading or time spent away performs no narrative transition. No automatic
+world simulation punishes absence. These foundation APIs precede the new 5.0 UI.
