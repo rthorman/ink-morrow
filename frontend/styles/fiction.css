@@ -84,3 +84,12 @@ body { margin: 0; background: #17151c; color: #eee5db; font-family: Inter, sans-
 #fictionInvitations { display: grid; gap: 10px; }
 #fictionInvitations .btn { text-align: left; }
 #fictionFocus { border-left: 3px solid #d2b58c; padding-left: 16px; margin-top: 20px; overflow-wrap: anywhere; }
+.fiction-reference-image, .fiction-shelf-cover { display: block; width: 100%; max-height: 180px; object-fit: contain; border-radius: 8px; margin-bottom: 12px; }
+.fiction-reader-cover { display: block; width: 100%; max-width: 320px; height: min(24vh, 180px); object-fit: contain; margin: 0 auto 12px; border-radius: 8px; }
+.fiction-choice-image { width: 48px; height: 48px; object-fit: cover; border-radius: 6px; }
+.fiction-catalog-description { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.fiction-catalogue-choices { max-height: 260px; overflow: auto; }
+.fiction-catalogue-choices > div { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.fiction-catalogue-choices input { width: 24px; min-height: 24px; flex: 0 0 24px; }
+#fictionCatalogueSetup fieldset { border: 1px solid #605160; border-radius: 8px; margin: 12px 0; padding: 12px; }
+#catalogTabs a[aria-current="page"] { text-decoration: underline; font-weight: 700; }

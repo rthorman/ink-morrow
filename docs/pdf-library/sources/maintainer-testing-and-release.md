@@ -81,7 +81,7 @@ different browser engine or human session was tested when only mocks ran.
 
 ## Data and concurrency qualification
 
-The new family is ink-morrow-5, schema 21. Fresh creation, supported migration,
+The new family is ink-morrow-5, schema 22. Fresh creation, supported migration,
 repeat startup, rollback, ledger integrity, future-family refusal and source-file
 preservation need independent tests. Never edit a migration checksum merely to
 make a valuable database open.
@@ -316,3 +316,17 @@ and verify both database rollback and cleanup of only newly staged image files.
 Browser journeys must upload, export, download a private save and import a copy.
 Never use real provider spending to satisfy deterministic tests. Verify final
 5.0 identity, fresh storage and the complete current documentation together.
+
+Visual catalogue coverage must exercise world, character and Scribe CRUD and both
+upload/generation paths, plus story covers and all reference portraits. Verify
+auth/CSRF before uploads, one pending purchase, changed-provider rejection, failed
+and late known/unknown charges, safe normalization and owned-file cleanup. Ordinary
+details, selection and upload make no model request. Old authoring routes stay 404.
+
+Freeze and copy selected images at setup. Delete or change the catalogue, then
+check that the story and its images remain unchanged. Round-trip private references
+and all visual asset IDs through saves; reject dangling or malformed copies. Books
+must contain the cover and passage art, never private lore or reference portraits.
+Test schema-21 to 22 migration with identical earlier ledger rows. UI tests cover
+immediate dialogs, retained selection/drafts, bounded tablet images, catalogue
+pagination, lock clearing and stale responses. Use mocked model output, not live spend.

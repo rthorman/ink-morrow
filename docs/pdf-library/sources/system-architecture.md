@@ -44,6 +44,7 @@ call a provider.
 | fiction/resistance.js and director.js | Structured rulings and scene opportunities |
 | fiction/service and quality modules | Reviewed, bounded model work and accounting |
 | fiction/media, publication, saves | Path-local art, reader-safe books, private copies |
+| fiction/library and library-model | Reusable visual references, frozen setup copies, separate image journal |
 | frontend/app/fiction | Shelf, start, reader, controls, dialogs and route fencing |
 
 Stores and domain validators should remain usable with isolated databases and
@@ -59,7 +60,7 @@ recreated at each surface.
 ## Fresh storage and startup order
 
 The release identifies itself as 5.0.0, database family ink-morrow-5,
-schema 21 and SQLite application ID 0x494D3530. Package identities agree across
+schema 22 and SQLite application ID 0x494D3530. Package identities agree across
 root, backend, frontend and E2E. Playable saves separately identify their own
 format and version; these are not interchangeable schema numbers.
 
@@ -294,3 +295,21 @@ prose stays reflowable. All adapters share one privacy-filtered document. Playab
 saves are separate bounded gzip-JSON graphs carrying every snapshot and image, with
 no credentials or request authority. Validation uses ancestry intervals to reject
 future/cross-path evidence before a transactional copy with remapped identities.
+
+The /api/fiction/catalog namespace is independent of the retired catalogue API.
+Schema 22 adds fiction_templates, fiction_template_assets and
+fiction_template_requests. Entries have revisions, bounded typed fields and one
+current normalized image. CRUD is local; explicit image generation is single-attempt,
+idempotent and accounted. Deletion scrubs content and removes its owned image while
+retaining the spend journal. Pending images block conflicting entry mutations.
+
+Story creation takes trusted template snapshots and fresh copies of selected images,
+then inserts the story graph and image ownership in one transaction. Failure discards
+only its uncommitted copies. There is no live catalogue foreign key in story state.
+World lore and character motives/background remain private bounded narrator context;
+public state exposes only visible reference metadata. A Scribe supplies craft, not
+cast ownership. Catalogue edits cannot rewrite a running story.
+
+Branch-local visuals target cover, world, Scribe or a current cast identity.
+Historical assets remain available to rewind and saves. Books include the current
+cover and passage illustrations, not reference portraits or private setup notes.

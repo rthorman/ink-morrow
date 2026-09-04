@@ -11,8 +11,9 @@
   supersedes the earlier removal of reusable catalogues, NOT the removal of
   manual prose authoring. Integrate catalogue selection into game setup, preserve
   frozen story copies, private data and safe saves, and do not revive retired
-  authoring routes or automatic background purchases. This work is pending after
-  the reader repair; do not describe it as delivered before verification/merge.
+  authoring routes or automatic background purchases. The new /api/fiction/catalog
+  namespace owns reusable entries; story snapshots/media copies are independent.
+  Do not describe a batch as delivered before verification and its main merge.
 - Finish these changes through coherent PRs and merge into main only when the
   exact PR head has all five CI checks green. The owner stopped live behaviour
   testing after permitting a few paid calls in the pure test instance; do not
@@ -22,7 +23,7 @@
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 21, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 22, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;
@@ -117,7 +118,13 @@
 - Fiction illustrations use an explicit Illustrator provider role. Upload and
   description correction are local. AI painting is one reviewed, journalled,
   stale-checked request with no retry; only the selected passage and art direction
-  cross the provider boundary. Placements are part of each path snapshot.
+  cross the provider boundary for passage art. Reference art instead sends visible
+  name/description/appearance/setting (cover: title/premise), never private lore,
+  motives or uploaded references. Placements are part of each path snapshot.
+- Catalogue CRUD and selection are local. Each catalogue image purchase has a
+  durable idempotent journal; deletion scrubs content but retains spend. Frozen
+  world/Scribe/character context is bounded narrator input, not in-world events.
+  Covers enter books; other reference portraits remain private save material.
 - Books use the existing PublicationDocument adapters, with only active-path
   opening/scene prose and current placements. EPUB image pages are separate
   fixed-layout spine items; prose remains reflowable. Exports are not saves.

@@ -20,6 +20,8 @@ const { createFictionRouter } = require('./modules/fiction/routes');
 const { createFictionMedia } = require('./modules/fiction/media');
 const { createFictionPublication } = require('./modules/fiction/publication');
 const { createFictionSaves } = require('./modules/fiction/saves');
+const { createFictionLibrary } = require('./modules/fiction/library');
+const { createFictionLibraryRouter } = require('./modules/fiction/library-routes');
 const { createAuthService } = require('./modules/auth/service');
 const { createAuthRouter } = require('./modules/auth/routes');
 const { createProviderService } = require('./modules/providers/service');
@@ -116,11 +118,14 @@ function createApp(
   const fictionMedia = createFictionMedia({ db, store: fictionStore, rootDir: imageDir, generateIllustration, providers });
   const fictionPublication = createFictionPublication({ store: fictionStore, media: fictionMedia });
   const fictionSaves = createFictionSaves({ db, store: fictionStore, media: fictionMedia });
+  const fictionLibrary = createFictionLibrary({ db, media: fictionMedia, store: fictionStore, providers, generateIllustration });
+  fictionLibrary.reconcile();
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.use(createProviderRouter({ providers, ai }));
-  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, allowManualOpening: legacyEnabled }));
+  app.use(createFictionLibraryRouter({ library: fictionLibrary, media: fictionMedia }));
+  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 
   // -- static frontend + error handling -------------------------------------

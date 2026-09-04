@@ -10,13 +10,13 @@ const { parseReasoningEffort } = require('../../core/validation');
 const { catalogue } = require('./scenarios');
 const { qualityPlan } = require('./quality-plan');
 
-function createFictionRouter({ store, service, providers = null, media, publication, saves, allowManualOpening = false }) {
+function createFictionRouter({ store, service, providers = null, media, publication, saves, library = null, allowManualOpening = false }) {
   const router = express.Router();
   const expose = (story) => ({ ...story, quality_generation: qualityPlan(story.state, providers), generation: providers?.exposure('scribe', {
-    data_categories: ['story premise', 'selected cast', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
+    data_categories: ['story premise', 'selected cast and frozen world/Scribe references', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
     operation_count: 1,
   }) || null, illustration_generation: providers?.exposure('illustrator', {
-    data_categories: ['selected story passage', 'art direction'], operation_count: 1,
+    data_categories: ['selected story passage or visible image-target description', 'art direction'], operation_count: 1,
   }) || null });
   const revision = (req) => req.body?.expected_revision;
   router.get('/api/fiction', (req, res) => {
@@ -27,7 +27,8 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   });
   router.post('/api/fiction', (req, res) => {
     if (!allowManualOpening && Object.hasOwn(req.body || {}, 'opening')) fail('Manual prose writing is not part of InkMorrow 5.0. Choose a curated opening or supply a situation.', 'MANUAL_PROSE_RETIRED');
-    res.status(201).json({ story: expose(store.create(req.body)) });
+    const { library: selection, ...input } = req.body || {};
+    res.status(201).json({ story: expose(selection !== undefined && library ? library.createStory(input, selection) : store.create(input)) });
   });
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
   router.get('/api/fiction/:id/memory', (req, res) => res.json({ facts: store.recall(req.params.id, req.query.q || '') }));
@@ -56,7 +57,9 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     let upload;
     try {
       upload = await receiveImageUpload(req, path.join(media.directory, 'staging'));
-      keys(upload.fields, ['expected_revision', 'beat_id', 'alt_text', 'caption'], 'Illustration upload');
+      keys(upload.fields, ['expected_revision', 'beat_id', 'kind', 'subject_id', 'alt_text', 'caption'], 'Illustration upload');
+      if (upload.fields.kind && (upload.fields.beat_id !== undefined || upload.fields.caption !== undefined)) fail('Choose one image target.');
+      if (!upload.fields.kind && upload.fields.subject_id !== undefined) fail('Only reference images have a subject.');
       if (!/^\d+$/.test(upload.fields.expected_revision || '')) fail('The current story revision is required.');
       const { expected_revision, ...placement } = upload.fields;
       const story = await media.upload(req.params.id, Number(expected_revision), upload, placement);
@@ -78,6 +81,14 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   router.post('/api/fiction/:id/images/describe', (req, res) => {
     keys(req.body, ['expected_revision', 'beat_id', 'alt_text'], 'Describe illustration');
     res.json({ story: expose(store.describeIllustration(req.params.id, revision(req), req.body)) });
+  });
+  router.post('/api/fiction/:id/visuals/remove', (req, res) => {
+    keys(req.body, ['expected_revision', 'kind', 'subject_id'], 'Remove story image');
+    res.json({ story: expose(store.editVisual(req.params.id, revision(req), req.body, true)) });
+  });
+  router.post('/api/fiction/:id/visuals/describe', (req, res) => {
+    keys(req.body, ['expected_revision', 'kind', 'subject_id', 'alt_text'], 'Describe story image');
+    res.json({ story: expose(store.editVisual(req.params.id, revision(req), req.body)) });
   });
   router.get('/api/fiction/:id/book/:format', async (req, res, next) => {
     try {

@@ -91,8 +91,14 @@ Open **Cast and story preferences** when you want more control. You can
 add a few characters, describe who they are and what they want,
 choose pacing, select gentle or dramatic consequences, and state tone or
 content boundaries. None of the characters must represent you. Initial casts
-support at most 24 members. Describe new people in the starting cast; the retired
-4.x character-template catalogue is not part of this product.
+support at most 24 members, including the curated cast and selected references.
+
+**Choose from the Visual Library (optional)** selects one world, one Scribe and
+any catalogue characters. Details and images are copied into the new story;
+later catalogue edits cannot change it. Preview a selected world or Scribe and
+check the cast portraits. More loads another local catalogue page without AI.
+Curated openings retain their own facts and people: choose compatible references,
+or use your own situation. The Scribe is a narrative craft reference, not your avatar.
 
 Starting is a local, free operation. It does not call a provider, paint a cover
 or prepare speculative prose. Curated scenarios include an opening to read.
@@ -442,6 +448,27 @@ you still want to matter.
 
 ## Cast and story preferences
 
+The **Visual Library** contains separate Worlds, Characters and Scribes catalogues.
+Choose New entry, give it a name and visible description, fill any useful reference
+fields, and Save details. Ordinary saving never paints an image or calls a model.
+Worlds have setting and lore; characters have appearance, personality, background
+and motive. Keep spoilers out of the visible description. Lore, background and
+motives may be private setup that guides the narrator, not facts every person knows.
+
+Scribes retain their adult catgirl identity and offer craft choices such as diction,
+rhythm, narrative distance, dialogue, humour and scene tempo. They influence style;
+your explicit voice, boundaries and character ownership remain stronger. Choosing a
+Scribe does not assign a provider or put her into the story's cast. Settings still
+chooses the text model. Bounded frozen references may be sent with narration and
+quality checks; the reader and exported book do not expose private reference fields.
+
+On a catalogue card choose **Image: upload or paint**. Upload is local; Paint with
+AI uses the Illustrator after paid review. Save description only changes accessible
+text. Replacing/removing catalogue art does not change stories already started.
+Delete entry removes that reusable entry and its picture, not its frozen story
+copies; the image-spend record remains. Refresh catalogue reconciles pending work
+without buying another image. Keep a full installation backup for the reusable library.
+
 **Add to the cast** introduces another person locally. Reader-visible description
 is separate from their private motive. Generated scenes can also introduce new
 named people, up to the 24-person cast bound. Neither route hands you a character.
@@ -563,11 +590,22 @@ Replacing or removing an image changes only the current path. Earlier snapshots
 retain the old illustration. Rewind can restore it. There is a 200-illustrated-moment
 limit per path and a 400-image limit per story including historical assets.
 
+The same upload/paint choices are available for **Story cover: upload or paint**,
+each cast member's **Portrait**, and the selected world and Scribe under Cast & story.
+The cover appears on Your stories and above the reader header, and enters the front
+of a book. Reference portraits stay in the private story/save, outside the book.
+These controls edit the story copy, never its reusable catalogue entry.
+
+Reference painting sends its name, visible description and appearance or setting;
+cover painting sends the title and premise. Your art direction also travels. Private
+lore, motives and uploaded image bytes do not. Every surface supports upload without
+a provider. Image creation alone never establishes a story event or character knowledge.
+
 ## Export a reading path or keep a playable save
 
 Choose Export this reading path for a book: EPUB, PDF, HTML, DOCX, ODT, RTF,
 Markdown, plain text or JSON. Supply an optional author credit and language tag.
-Only current-path prose and placed images are included—not private facts, motives,
+Only current-path prose, its cover and placed illustrations are included—not reference portraits, private facts, motives,
 questions, directions or other paths. No AI request is made. EPUB images each have
 a separate page immediately before their prose; text remains resizable. Text-only
 formats describe illustrations instead of embedding pixels. Missing media makes
@@ -575,7 +613,7 @@ export fail visibly rather than silently producing a broken book.
 
 Choose Download a playable save to preserve **all** paths and continue elsewhere.
 The `.inkmorrow5` file includes cast, hidden truth, commitments, knowledge, control,
-episodes, director history, illustrations and aggregate known/unknown spend. It
+episodes, director history, frozen catalogue references, all story images and aggregate known/unknown spend. It
 excludes credentials, provider configuration, payment consent and pending requests.
 It is unencrypted: keep it private, and use a book to share with ordinary readers.
 
@@ -828,8 +866,9 @@ not a checklist the game expects you to perform every night.
 
 1. Configure storyteller, memory-support and Illustrator roles. Choose session
 credentials or the encrypted vault deliberately, and set an upstream spend limit.
-2. Start The Drowned Bell. Review its cast and boundaries, choose Living-world,
-and leave yourself outside the cast.
+2. In Visual Library create a compatible world, an additional character and a
+Scribe. Upload reference art or explicitly paint it. Start The Drowned Bell,
+select those references, review boundaries, choose Living-world and stay outside the cast.
 3. Follow once, steer a single moment, then retain a focus explicitly. Select an
 optional possible direction, edit it, and send only when satisfied.
 4. Ask a clarification outside the story. Inspect a recorded change and its
@@ -844,13 +883,14 @@ different experience without replacing the first.
 8. Select Both quality roles, review its six-call ceiling, and request a passage.
 The ordinary passing path uses three calls; one repair can raise that to six.
 A failed review can cost money without producing a scene.
-9. Upload one image and explicitly paint another moment. Correct descriptions
-locally. Notice that the reader places each image above its passage.
+9. Upload a story cover and explicitly paint a moment. Inspect world/Scribe and
+cast portraits in Cast & story; change a story portrait without changing its template.
+Correct descriptions locally. Passage art appears above its prose.
 10. Reach a satisfying pause, end the episode, and later begin another question.
 Use Catch me up on return rather than buying a recap.
 11. Export a reading path as EPUB and inspect its separate illustration pages.
 Download a private save, check it, import it as a new story, and verify an
-alternate path and image.
+alternate path, cover and portrait. Keep a full installation backup for reusable catalogues.
 
 **Cost boundary:** new narration, Ask, selected quality calls and AI painting are
 paid. The remaining actions are local. **Outcome:** one reader-facing book and
@@ -863,11 +903,15 @@ Version 5.0 is a new game, not a new layout for the old writing suite.
 Your usual position is reader-director outside the cast. Follow and Steer are
 complete ways to play; Inhabit is optional.
 
-Manual prose editing, manuscript import, reusable world/character catalogues,
+Manual prose editing, manuscript import,
 prepared successor pages, Chronicle/Codex/Gallery/Gate rooms, narration,
 audiobooks and public snapshot sharing are not the 5.0 production workflow.
 Natural-language direction, starting situations, cast descriptions, factual
 correction and short episode recaps remain because they support play.
+
+Reusable visual world, character and Scribe catalogues are available in the new
+Visual Library, with upload and AI painting. They are new 5.0 references, not an
+import path for old templates. All selected details and images freeze into each story.
 
 The database family is ink-morrow-5. The default location is
 database-v5/ink-morrow-5.db, separate from the old database directory. Pointing

@@ -9,6 +9,7 @@ const { FOURTH_WALL_MODES } = require('./fourth-wall');
 const { makeEpisode, returnRecap } = require('./episodes');
 const { QUALITY_MODES, callLimit } = require('./quality');
 const { createCallLedger } = require('./call-ledger');
+const { validateLibrary, validateVisuals, visualTarget } = require('./library-model');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
@@ -21,7 +22,7 @@ function createFictionStore(db) {
   const branch = (gameId, id) => db.prepare('SELECT * FROM fiction_branches WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Path not found.', 'PATH_NOT_FOUND', 404);
   const beat = (gameId, id) => db.prepare('SELECT * FROM fiction_beats WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Story moment not found.', 'BEAT_NOT_FOUND', 404);
   const stateAt = (g, headId) => {
-    const state = { play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null, quality_mode: 'off',
+    const state = { play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null, quality_mode: 'off', visuals: [], library: { world: null, scribe: null, characters: [] },
       ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) };
     state.episode = { question: '', goal_ids: [], phase: 'opening', payoff_beat_id: null, ...state.episode };
     return state;
@@ -109,7 +110,7 @@ function createFictionStore(db) {
     bump(g.id);
     return id;
   }
-  function create(input) {
+  function create(input, { library = null, visuals = [], assets = [] } = {}) {
     keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall', 'episode_question', 'quality_mode'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
@@ -117,11 +118,15 @@ function createFictionStore(db) {
     const genre = choice(input.genre, GENRES, 'drama', 'Genre');
     const opening = text(input.opening, 'Opening', LIMITS.prose, { optional: true });
     const state = initialState(input);
+    if (library) state.library = validateLibrary(library, state.cast.map((person) => person.id));
+    state.visuals = validateVisuals(visuals, state);
+    if (assets.length > 27 || visuals.some((item) => !assets.some((asset) => asset.id === item.asset_id))) fail('Invalid story image copies.');
     const id = randomUUID(); const branchId = randomUUID();
     transaction(() => {
       db.prepare('INSERT INTO fiction_games (id, title, premise, genre, initial_state_json) VALUES (?, ?, ?, ?, ?)').run(id, title, premise, genre, JSON.stringify(state));
       db.prepare('INSERT INTO fiction_branches (id, game_id, name) VALUES (?, ?, ?)').run(branchId, id, 'Original path');
       db.prepare('UPDATE fiction_games SET active_branch_id = ? WHERE id = ?').run(branchId, id);
+      for (const asset of assets) insertAsset(id, asset);
       if (opening) append(current(id), { kind: 'opening', prose: opening, summary: 'The story begins.', state });
     });
     return view(id);
@@ -264,6 +269,43 @@ function createFictionStore(db) {
     if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
     return target;
   }
+  function insertAsset(id, asset) {
+    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+    db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
+  }
+  function referenceTarget(id, kind, subjectId = null) {
+    const context = current(id); visualTarget(context.state, kind, subjectId);
+    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+    if (kind === 'cover') return { kind, name: context.game.title, description: context.game.premise, data: {} };
+    if (kind === 'character') {
+      const person = context.state.cast.find((entry) => entry.id === subjectId);
+      const copy = context.state.library?.characters.find((entry) => entry.character_id === subjectId)?.snapshot;
+      return { kind, name: person.name, description: person.description, data: { appearance: copy?.data.appearance || '' } };
+    }
+    return { kind, ...context.state.library[kind] };
+  }
+  function visualize(id, expected, { asset, kind, subject_id = null, alt_text }, request = null, usage = {}) {
+    const alt = text(alt_text, 'Image description', 1000);
+    const result = (context) => {
+      const target = visualTarget(context.state, kind, subject_id); const state = structuredClone(context.state);
+      insertAsset(id, asset);
+      state.visuals = [...(state.visuals || []).filter((item) => visualTarget(state, item.kind, item.subject_id) !== target), { kind, subject_id, asset_id: asset.id, alt_text: alt }];
+      return { kind: 'correction', summary: `The story’s ${kind} image was updated.`, state };
+    };
+    if (request) { completeRequest(request, result, usage); return view(id); }
+    return mutate(id, expected, (context) => append(context, result(context)));
+  }
+  function editVisual(id, expected, input, remove = false) {
+    const alt = remove ? '' : text(input.alt_text, 'Image description', 1000);
+    return mutate(id, expected, (context) => {
+      const state = structuredClone(context.state); const target = visualTarget(state, input.kind, input.subject_id ?? null);
+      const image = state.visuals.find((item) => visualTarget(state, item.kind, item.subject_id) === target);
+      if (!image) fail('This story reference has no image.', 'IMAGE_NOT_FOUND', 404);
+      if (remove) state.visuals = state.visuals.filter((item) => item !== image); else image.alt_text = alt;
+      append(context, { kind: 'correction', summary: remove ? 'A story reference image was removed. Earlier snapshots retain it.' : 'A story image description was updated.', state });
+    });
+  }
   function illustrate(id, expected, { asset, beat_id, alt_text, caption = '' }, request = null, usage = {}) {
     const alt = text(alt_text, 'Image description', 1000);
     const label = text(caption, 'Caption', 500, { optional: true });
@@ -299,7 +341,7 @@ function createFictionStore(db) {
     });
   }
   function failRequest(requestId, code, usage = {}) {
-    db.prepare("UPDATE fiction_requests SET status = 'failed', error_code = ?, model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'")
+    db.prepare("UPDATE fiction_requests SET status = CASE WHEN status = 'pending' THEN 'failed' ELSE status END, error_code = coalesce(error_code, ?), model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ? AND status != 'succeeded'")
       .run(code, usage.model ?? null, usage.costUsd ?? null, usage.billedAttempts ?? 0, requestId);
   }
   function reconcile() {
@@ -308,7 +350,8 @@ function createFictionStore(db) {
       return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
     });
   }
-  const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset);
+  const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset)
+    .map((entry) => ({ ...entry, cover: current(entry.id).state.visuals?.find((item) => item.kind === 'cover') || null }));
   function recall(id, query) {
     const context = current(id);
     return memory.facts(id, context.branch.head_beat_id, { query: text(query, 'Memory search', 200, { optional: true }), publicOnly: true });
@@ -329,7 +372,7 @@ function createFictionStore(db) {
   }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model,
     ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
-  return { create, list, recall, evidence, recap, view, current, stateAt, memory, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  return { create, list, recall, evidence, recap, view, current, stateAt, memory, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
 }
 
 module.exports = { createFictionStore };

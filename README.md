@@ -36,6 +36,10 @@ authorised finishing.
   six, with at most one repair and complete known/unknown accounting.
 - Local image upload or explicit Illustrator painting. Images appear above reader
   prose and on separate preceding pages in EPUB.
+- Visual Library catalogues for worlds, characters and Scribes, with upload and
+  AI painting. Setup makes frozen story copies; later catalogue edits do not
+  change them. Story covers and cast/reference portraits support both image paths.
+- Tablet-friendly passage pagination; Previous, Next and Latest never buy prose.
 - Nine reader-safe book formats and private, all-path `.inkmorrow5` saves.
 - One-owner authentication, logical provider roles and optional encrypted
   credential storage.
@@ -88,6 +92,9 @@ Old `.inkmorrow` manuscript archives and character-template catalogues are not
 imported. New `.inkmorrow5` saves preserve every playable path but exclude
 credentials, provider configuration, consent and resumable purchases.
 They are unencrypted and can contain spoilers and private directions.
+Frozen catalogue selections and story images travel in playable saves. The reusable
+catalogues themselves need a full installation backup; old-series template import
+is still not provided. Existing 5.0 schema-21 stores migrate to schema 22 normally.
 
 Books contain the chosen reading path, not the private playable world. Keep
 operator-level cold backups as well: stop the process and copy the complete

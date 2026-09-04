@@ -24,6 +24,48 @@ async function approve(page) {
 test.describe('5.0 playable fiction', () => {
   test.beforeEach(async ({ page }) => openUnlocked(page));
 
+  test('visual catalogues upload all reference kinds, freeze setup images and show a story cover', async ({ page }, testInfo) => {
+    test.setTimeout(90000); const suffix = `${Date.now()}`; let paid = 0;
+    await page.route('**/api/fiction/**/images/generate', async (route) => { paid++; await route.fulfill({ status: 502, contentType: 'application/json', body: '{"error":"No live image purchase in this fixture"}' }); });
+    const picture = { name: 'reference.webp', mimeType: 'image/webp', buffer: readFileSync(path.join(__dirname, '../../frontend/brand/cinder-cast.webp')) };
+    await page.getByRole('link', { name: 'Visual Library', exact: true }).click();
+    for (const [kind, tab] of [['world', 'Worlds'], ['character', 'Characters'], ['scribe', 'Scribes']]) {
+      await page.locator('#catalogTabs').getByRole('link', { name: tab, exact: true }).click();
+      await page.getByRole('button', { name: 'New entry', exact: true }).click();
+      await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(`${kind} ${suffix}`);
+      await page.getByRole('dialog').getByLabel('Visible description', { exact: true }).fill(`A visible ${kind} reference.`);
+      await page.getByRole('button', { name: 'Save details', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
+      const card = page.locator('#catalogEntries article').filter({ has: page.getByRole('heading', { name: `${kind} ${suffix}`, exact: true }) });
+      await card.getByRole('button', { name: 'Image: upload or paint', exact: true }).click();
+      await page.getByRole('dialog').getByLabel('Image description', { exact: true }).fill(`${kind} uploaded picture`);
+      await page.getByRole('dialog').getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles(picture);
+      await page.getByRole('button', { name: 'Upload image', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
+      await expect(card.locator('img')).toBeVisible();
+    }
+    await page.getByRole('link', { name: 'Your stories', exact: true }).click(); await page.getByRole('link', { name: 'Start a story', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin with The Garden After Rain', exact: true }).click();
+    await page.getByLabel('Story title', { exact: true }).fill(`Visual story ${suffix}`);
+    await page.getByText('Choose from the Visual Library (optional)', { exact: true }).click();
+    await page.getByLabel('Selected world', { exact: true }).selectOption({ label: `world ${suffix}` });
+    await page.getByLabel('Selected scribe', { exact: true }).selectOption({ label: `scribe ${suffix}` });
+    await page.getByLabel(`character ${suffix}`, { exact: true }).check();
+    await page.getByRole('button', { name: 'Begin this story', exact: true }).click(); await expect(page.locator('#fictionStoryTitle')).toHaveText(`Visual story ${suffix}`);
+    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await expect(page.locator('#fictionReferences img')).toHaveCount(2); await expect(page.locator('#fictionCast img')).toHaveCount(1);
+    await page.getByRole('button', { name: 'Story cover: upload or paint', exact: true }).click();
+    await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('Our story cover');
+    await page.getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles(picture);
+    await page.getByRole('button', { name: 'Upload image', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
+    await page.locator('#fictionCover img').scrollIntoViewIfNeeded();
+    await expect.poll(() => page.locator('#fictionCover img').evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await expect(page.locator('#fictionDetails')).toBeHidden();
+    await page.screenshot({ path: testInfo.outputPath('visual-reference-story.png'), fullPage: true });
+    await page.getByRole('link', { name: 'Your stories', exact: true }).click();
+    await expect(page.locator('#fictionShelf article').filter({ hasText: `Visual story ${suffix}` }).locator('img')).toBeVisible();
+    expect(paid).toBe(0);
+  });
+
   test('the running game and locked threshold share the canonical README logo', async ({ page }, testInfo) => {
     await startFixture(page);
     const logo = page.locator('.fiction-brand img');

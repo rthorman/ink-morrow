@@ -279,6 +279,19 @@ Illustrator; it does not send private facts, motives or uploaded references. Eac
 press permits one attempt. A rejection after provider completion still records its
 known charge; uncertain dispatch is not reported free.
 
+Catalogue/reference painting instead sends the selected name, visible description,
+appearance/setting and art direction; story covers use title and premise. Private
+world lore and character motives/background are excluded from image prompts.
+No upload is silently used as a provider reference. Catalogue routes inherit the
+same auth/CSRF boundary, and asset reads bind both image and owning entry.
+
+Narration may receive bounded frozen world lore, character profiles and Scribe craft
+alongside other private story context. References are untrusted setup data, not
+instructions or established events. Reader responses omit private catalogue fields;
+books omit reference portraits as well. Saves deliberately contain frozen private
+references and their story-owned images. A reusable catalogue deletion does not erase
+those copies from existing stories, saves or operator backups.
+
 A playable save is unencrypted and contains spoilers, private motives and directions
 across all paths. It excludes credentials, provider configuration, consent and live
 request authority. Books exclude those private game surfaces altogether. Import

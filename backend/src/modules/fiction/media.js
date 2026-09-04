@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { normalizeImage, normalizeImageFile } = require('../imagery/art-store');
 const { keys, text, fail } = require('./model');
+const { imagePrompt } = require('./library-model');
 
 function createFictionMedia({ db, store, rootDir, generateIllustration, providers }) {
   const directory = path.join(rootDir, 'fiction');
@@ -30,14 +31,16 @@ function createFictionMedia({ db, store, rootDir, generateIllustration, provider
     return { ...asset, buffer };
   }
   async function upload(gameId, expected, upload, placement) {
-    store.illustrationTarget(gameId, placement.beat_id);
+    if (placement.kind) store.referenceTarget(gameId, placement.kind, placement.subject_id ?? null); else store.illustrationTarget(gameId, placement.beat_id);
     const normalized = await normalizeImageFile(upload.path, upload.mediaType);
     let asset;
-    try { asset = persist(normalized); return store.illustrate(gameId, expected, { ...placement, asset }); }
+    try { asset = persist(normalized); return (placement.kind ? store.visualize : store.illustrate)(gameId, expected, { ...placement, asset }); }
     catch (error) { if (!asset || !db.prepare('SELECT id FROM fiction_assets WHERE id = ?').get(asset.id)) discard(asset); throw error; }
   }
   async function generate(gameId, expected, key, input) {
-    keys(input, ['beat_id', 'direction', 'alt_text', 'caption', 'aspect_ratio', 'provider_id', 'model'], 'Illustrate story');
+    keys(input, ['beat_id', 'kind', 'subject_id', 'direction', 'alt_text', 'caption', 'aspect_ratio', 'provider_id', 'model'], 'Illustrate story');
+    if (input.kind && (input.beat_id !== undefined || input.caption !== undefined)) fail('Choose one image target.');
+    if (!input.kind && input.subject_id !== undefined) fail('Only reference images have a subject.');
     const direction = text(input.direction, 'Art direction', 2000, { optional: true });
     const alt = text(input.alt_text, 'Image description', 1000);
     const caption = text(input.caption, 'Caption', 500, { optional: true });
@@ -48,17 +51,21 @@ function createFictionMedia({ db, store, rootDir, generateIllustration, provider
     const { request } = started;
     let asset; let usage = { costUsd: null, billedAttempts: 0, model: input.model || null };
     try {
-      const target = store.illustrationTarget(gameId, input.beat_id);
+      const target = input.kind ? store.referenceTarget(gameId, input.kind, input.subject_id ?? null) : store.illustrationTarget(gameId, input.beat_id);
       const selected = providers.exposure('illustrator');
       if (!input.provider_id || selected.provider?.id !== input.provider_id || selected.model_id !== input.model) fail('The illustrator changed. Refresh and review the provider before purchasing.', 'STORY_PROVIDER_CHANGED', 409);
       providers.resolve('illustrator', { capability: 'image' }); // credential check precedes dispatch
-      const prompt = `Illustrate this fictional passage. Depict only what is present in the passage, not undiscovered secrets. No text overlays.\nPassage:\n${target.prose.slice(0, 12000)}\nArt direction:\n${direction}`;
+      const prompt = input.kind ? imagePrompt(target, direction) : `Illustrate this fictional passage. Depict only what is present in the passage, not undiscovered secrets. No text overlays.\nPassage:\n${target.prose.slice(0, 12000)}\nArt direction:\n${direction}`;
       store.dispatchRequest(request.id, input.model); usage.billedAttempts = 1;
       const result = await generateIllustration({ prompt, aspectRatio: ratio, resolution: '1K', quality: 'low' });
       usage.costUsd = Number.isFinite(result.cost) && result.cost >= 0 ? result.cost : null;
       const normalized = await normalizeImage(result.buffer, result.mediaType);
+      store.assertRequestCurrent(request);
+      const currentProvider = providers.exposure('illustrator');
+      if (currentProvider.provider?.id !== input.provider_id || currentProvider.model_id !== input.model) fail('The illustrator changed while painting. No image was attached.', 'STORY_PROVIDER_CHANGED', 409);
       asset = persist(normalized);
-      const story = store.illustrate(gameId, expected, { asset, beat_id: input.beat_id, alt_text: alt, caption }, request, usage);
+      const story = input.kind ? store.visualize(gameId, expected, { asset, kind: input.kind, subject_id: input.subject_id ?? null, alt_text: alt }, request, usage)
+        : store.illustrate(gameId, expected, { asset, beat_id: input.beat_id, alt_text: alt, caption }, request, usage);
       return { story, cost_usd: usage.costUsd, billed_attempts: 1, reused: false };
     } catch (error) {
       if (!asset || !db.prepare('SELECT id FROM fiction_assets WHERE id = ?').get(asset.id)) discard(asset);

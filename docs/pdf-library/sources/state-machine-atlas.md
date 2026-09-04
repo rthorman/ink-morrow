@@ -273,3 +273,20 @@ explicit copy -> stage new media -> single deferred-FK transaction -> new story.
 Rollback removes its staged files, never original data. Imported aggregate spend is
 terminal; request keys, credentials and consent do not travel. Books are a separate
 read-only active-path projection, with EPUB image-only spine pages before text.
+
+Catalogue creation/editing: validate typed fields -> compare expected revision ->
+require idle entry -> save metadata and increment revision. No provider call.
+Upload follows raster normalization and stale recheck; replacement cleans only the
+previous catalogue image after commit. Catalogue deletion scrubs content and removes
+its owned image but preserves image accounting. Frozen story copies are not targets.
+
+Catalogue painting uses its own pending/succeeded/failed/interrupted journal, one
+pending request per entry and one dispatch per key. A changed provider or revision
+refuses attachment. Restart marks pending work interrupted; a late completion can
+settle its known cost but cannot make the image current. There is no silent retry.
+
+Setup selection freezes world, Scribe and character references, copies normalized
+images to fresh story-owned identities and commits the graph atomically. Story cover
+and reference updates append path-local snapshots through the story request journal.
+Saves validate/remap every visual asset reference. Covers enter books; other reference
+art remains private. Images do not create facts, knowledge or cast control.

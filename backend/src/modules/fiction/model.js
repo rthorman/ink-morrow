@@ -87,7 +87,7 @@ function initialState(input) {
   const facts = factsInput.map((fact) => normalizeFact(fact, cast.map((entry) => entry.id)));
   if (new Set(facts.map((fact) => fact.id)).size !== facts.length) fail('Fact IDs must be unique.');
   return {
-    version: 1, cast, facts, illustrations: [], control: { character_id: null },
+    version: 1, cast, facts, illustrations: [], visuals: [], library: { world: null, scribe: null, characters: [] }, control: { character_id: null },
     play_style: choice(input.play_style, STYLES, 'story-shaping', 'Play style'),
     fourth_wall: choice(input.fourth_wall, FOURTH_WALL_MODES, 'never', 'Fourth-wall setting'), last_fourth_wall_scene: null,
     quality_mode: choice(input.quality_mode, QUALITY_MODES, 'off', 'Consistency quality mode'),
@@ -101,7 +101,9 @@ function initialState(input) {
 }
 
 function publicState(state) {
+  const visible = (entry) => entry ? { name: entry.name, description: entry.description, data: { appearance: entry.data.appearance || '', setting: entry.data.setting || '' } } : null;
   return { ...state, play_style: state.play_style || 'story-shaping', challenges: publicChallenges(state),
+    library: { world: visible(state.library?.world), scribe: visible(state.library?.scribe), characters: [] },
     adjudications: (state.adjudications || []).map(({ basis: _basis, ...entry }) => entry),
     cast: state.cast.map(({ motive: _motive, ...character }) => character), facts: state.facts.filter((fact) => fact.visibility === 'public'), scene_history: [] };
 }

@@ -9,6 +9,7 @@ const { keys, text, choice, fail, normalizeCast, normalizeFact, GENRES } = requi
 const { STYLES, normalizeChallenges } = require('./resistance');
 const { FOURTH_WALL_MODES } = require('./fourth-wall');
 const { QUALITY_MODES } = require('./quality');
+const { validateLibrary, validateVisuals } = require('./library-model');
 
 const SAVE_FORMAT = 'ink-morrow-fiction-save';
 const SAVE_MIME = 'application/vnd.inkmorrow.fiction-save';
@@ -98,6 +99,7 @@ function validateSave(value) {
   };
   function state(state, head) {
     record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count',
+      ...(Object.hasOwn(state, 'library') ? ['library'] : []), ...(Object.hasOwn(state, 'visuals') ? ['visuals'] : []),
       ...(Object.hasOwn(state, 'quality_mode') ? ['quality_mode'] : []),
       ...(Object.hasOwn(state, 'fourth_wall') ? ['fourth_wall', 'last_fourth_wall_scene'] : []),
       ...(Object.hasOwn(state, 'play_style') ? ['play_style', 'challenges', 'adjudications'] : [])], 'Saved state');
@@ -106,6 +108,8 @@ function validateSave(value) {
     list(state.cast, 24, 'cast').forEach((person) => record(person, ['id', 'name', 'description', 'motive'], 'Character'));
     state.cast.forEach((person) => { savedText(person.description, 'description', 2000); savedText(person.motive, 'motive', 1000); });
     const cast = normalizeCast(state.cast);
+    if (state.library !== undefined) validateLibrary(state.library, cast.map((person) => person.id));
+    if (state.visuals !== undefined) { validateVisuals(state.visuals, state); state.visuals.forEach((item) => ref(assets, item.asset_id)); }
     if (state.play_style !== undefined) {
       choice(state.play_style, STYLES, null, 'Play style');
       normalizeChallenges(state.challenges, cast.map((person) => person.id), { keys, text, fail });
@@ -247,6 +251,7 @@ function createFictionSaves({ db, store, media }) {
     const beatRef = (id) => id === null ? null : beatIds.get(id);
     const remapFact = (fact) => ({ ...fact, evidence_beat_id: beatRef(fact.evidence_beat_id) });
     const remapState = (state) => ({ ...state, facts: state.facts.map(remapFact),
+      ...(state.visuals ? { visuals: state.visuals.map((item) => ({ ...item, asset_id: assetIds.get(item.asset_id) })) } : {}),
       episode: { ...state.episode, ...(Object.hasOwn(state.episode, 'payoff_beat_id') ? { payoff_beat_id: beatRef(state.episode.payoff_beat_id) } : {}) },
       ...(state.adjudications ? { adjudications: state.adjudications.map((entry) => ({ ...entry, beat_id: beatRef(entry.beat_id) })) } : {}),
       illustrations: state.illustrations.map((item) => ({ ...item, beat_id: beatRef(item.beat_id), asset_id: assetIds.get(item.asset_id) })),

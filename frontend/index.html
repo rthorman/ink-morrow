@@ -22,6 +22,7 @@
       <a class="fiction-brand" href="#/stories" aria-label="InkMorrow stories"><img src="brand/ink-morrow-lockup.svg" alt="Ink Morrow — Where stories grow claws" width="900" height="240"><span>Playable fiction</span></a>
       <nav aria-label="Main navigation">
         <a href="#/stories" id="shelfLink">Your stories</a>
+        <a href="#/catalog/world" id="catalogLink">Visual Library</a>
         <a href="#/settings" id="preferencesLink">Settings</a>
         <button type="button" class="btn btn-secondary" id="lockBtn">Lock</button>
       </nav>
@@ -40,6 +41,14 @@
         <div id="fictionShelf" class="fiction-shelf"></div>
         <nav class="fiction-toolbar" aria-label="Story pages"><button class="btn btn-secondary" id="fictionShelfPrevious" type="button" hidden>Previous stories</button><button class="btn btn-secondary" id="fictionShelfNext" type="button" hidden>More stories</button></nav>
       </section>
+      <section id="catalogScreen" class="fiction-screen" aria-labelledby="catalogTitle" hidden>
+        <p class="eyebrow">Reusable inspiration</p><h1 id="catalogTitle">Worlds</h1>
+        <p>Create worlds, characters and Scribes with uploaded or AI-painted images. Choosing them at story setup makes independent copies. Catalogue changes never rewrite an existing story.</p>
+        <nav id="catalogTabs" class="fiction-toolbar" aria-label="Visual catalogues"><a href="#/catalog/world">Worlds</a><a href="#/catalog/character">Characters</a><a href="#/catalog/scribe">Scribes</a></nav>
+        <div class="fiction-toolbar"><button id="catalogNew" class="btn btn-primary" type="button" disabled>New entry</button><button id="catalogRefresh" class="btn btn-secondary" type="button">Refresh catalogue</button></div>
+        <p id="catalogStatus" role="status" aria-live="polite"></p><div id="catalogEntries" class="fiction-shelf"></div>
+        <nav class="fiction-toolbar" aria-label="Catalogue pages"><button id="catalogPrevious" class="btn btn-secondary" type="button" hidden>Previous entries</button><button id="catalogNext" class="btn btn-secondary" type="button" hidden>More entries</button></nav>
+      </section>
       <section id="startScreen" class="fiction-screen" aria-labelledby="startTitle" hidden>
         <p class="eyebrow">No avatar required</p><h1 id="startTitle">Where shall we begin?</h1>
         <p>Choose an opening or give the story a situation worth exploring. Starting makes no AI request.</p>
@@ -51,6 +60,7 @@
           <label for="fictionStartStyle">Play style</label><select id="fictionStartStyle" aria-describedby="fictionStyleHelp"><option value="story-shaping">Story-shaping — guide the outcome</option><option value="living-world">Living-world — discover what is possible</option></select>
           <p id="fictionStyleHelp" class="fiction-muted">Story-shaping follows your desired developments within continuity and boundaries. Living-world allows credible refusal and failure: asking a guard repeatedly is not new authority, but a verified warrant can change the answer. Both styles allow quiet cooperation and neither requires an avatar.</p>
           <div id="fictionFourthWallField" hidden><label for="fictionFourthWall">Characters may break the fourth wall</label><select id="fictionFourthWall" disabled aria-describedby="fictionFourthWallHelp"><option value="never">Never</option><option value="rarely">Rarely</option><option value="freely">Freely</option></select><p id="fictionFourthWallHelp" class="fiction-muted">In Living-world, characters may knowingly address you, the reader. Rarely permits at most one address in six narrated passages; Freely allows it when fitting. Neither weakens resistance, reveals secrets or makes you an avatar.</p></div>
+          <details><summary>Choose from the Visual Library (optional)</summary><p>Choose one world, one Scribe and any cast references. Their details and images are copied into this story. Curated openings keep their own cast and facts; choose compatible references or use your own situation. Scribes influence narrative craft, not who you play.</p><div id="fictionCatalogueSetup"></div></details>
           <details><summary>Cast and story preferences</summary>
             <p>Add a few people if you like. Nobody has to represent you.</p><div id="fictionCastDraft"></div>
             <button class="btn btn-secondary" id="addFictionCast" type="button">Add a character</button>
@@ -63,7 +73,7 @@
         </form>
       </section>
       <section id="readerScreen" class="fiction-screen" aria-labelledby="fictionStoryTitle" hidden>
-        <header class="fiction-story-header"><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionQualityState" hidden></p><p class="fiction-muted" id="fictionSpend"></p></header>
+        <header class="fiction-story-header"><div id="fictionCover"></div><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionQualityState" hidden></p><p class="fiction-muted" id="fictionSpend"></p></header>
         <div class="fiction-toolbar">
           <button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button>
           <button type="button" class="btn btn-secondary" id="fictionDetailsToggle" aria-expanded="false" aria-controls="fictionDetails">Cast &amp; story</button>
@@ -71,6 +81,7 @@
           <button type="button" class="btn btn-secondary" id="fictionEarlier" hidden>Read earlier moments</button>
         </div>
         <aside id="fictionDetails" class="fiction-details" hidden>
+          <h2>World and Scribe</h2><div id="fictionReferences"></div>
           <h2>The cast</h2><p>Taking a role is optional. Otherwise the narrator runs the cast and you direct the story.</p><div id="fictionCast"></div>
           <button class="btn btn-secondary" id="releaseFictionControl" type="button" hidden>Return to reader-director</button>
           <button class="btn btn-secondary" id="fictionAddCast" type="button">Add to the cast</button>
@@ -87,6 +98,7 @@
           <p>Both preserve the current path. A new path restores facts, commitments and control at the selected moment.</p>
           <h2>Episodes</h2><p id="fictionEpisodeFocus"></p><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
           <h2>Illustrations and books</h2>
+          <button class="btn btn-secondary" id="fictionCoverEdit" type="button">Story cover: upload or paint</button>
           <button class="btn btn-secondary" id="fictionIllustrate" type="button">Illustrate a moment</button>
           <button class="btn btn-secondary" id="fictionExportBook" type="button">Export this reading path</button>
           <div id="fictionSaveControls"><h2>Keep your story</h2><p>Reading progress is saved automatically on this server. Download a private save to preserve every path and continue elsewhere.</p><button class="btn btn-secondary" id="fictionDownloadSave" type="button">Download a playable save</button></div>
