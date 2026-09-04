@@ -2,6 +2,22 @@
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
+- POST-RELEASE OWNER REQUEST (4 September): restore tablet-friendly reader
+  pagination, one readable passage at a time with Previous/Next/Latest and no
+  generation on page turns. Keep failures visible beside Continue.
+- The owner subsequently explicitly restored reusable VISUAL catalogues for
+  worlds, characters and Scribes, plus story covers and in-story illustrations.
+  All these image surfaces need both upload and reviewed AI generation. This
+  supersedes the earlier removal of reusable catalogues, NOT the removal of
+  manual prose authoring. Integrate catalogue selection into game setup, preserve
+  frozen story copies, private data and safe saves, and do not revive retired
+  authoring routes or automatic background purchases. This work is pending after
+  the reader repair; do not describe it as delivered before verification/merge.
+- Finish these changes through coherent PRs and merge into main only when the
+  exact PR head has all five CI checks green. The owner stopped live behaviour
+  testing after permitting a few paid calls in the pure test instance; do not
+  continue live paid tests. Isolated regression checks and required CI remain.
+
 - RELEASE CUTOVER: the production entry point always uses authentication and
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use

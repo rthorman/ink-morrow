@@ -77,6 +77,43 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionProse')).toContainText('When Iona arrived');
   });
 
+  test('a long story renders one passage with local Previous, Next and Latest navigation', async ({ page }) => {
+    const story = await startFixture(page);
+    const beats = Array.from({ length: 30 }, (_, index) => ({ ...story.beats[0], id: `page-${index}`, kind: 'scene', prose: `Readable passage ${index + 1}.` }));
+    let reads = 0;
+    await page.route(`**/api/fiction/${story.id}`, async (route) => {
+      reads++;
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ story: { ...story, beats, head_beat_id: beats.at(-1).id } }) });
+    });
+    await page.reload(); await expect(page.locator('#fictionPageLabel')).toHaveText('Page 30 of 30');
+    await expect(page.locator('.fiction-beat')).toHaveCount(1);
+    await page.locator('#fictionPreviousPage').click();
+    await expect(page.locator('#fictionProse')).toHaveText('Readable passage 29.');
+    await expect(page.locator('#fictionPageContext')).toBeVisible();
+    await page.locator('#fictionNextPage').click();
+    await expect(page.locator('#fictionPageLabel')).toHaveText('Page 30 of 30');
+    await page.locator('#fictionPreviousPage').click(); await page.locator('#fictionLatestPage').click();
+    await expect(page.locator('#fictionProse')).toHaveText('Readable passage 30.');
+    await expect(page.locator('.fiction-beat')).toHaveCount(1); expect(reads).toBe(1);
+  });
+
+  test('Continue failure stays in view beside the button instead of disappearing above the story', async ({ page }) => {
+    await startFixture(page); let attempts = 0;
+    await page.route('**/api/fiction/*/replies', async (route) => {
+      attempts++;
+      await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ code: 'AI_PROVIDER_AUTH_FAILED', error: 'The AI provider rejected its API key (401). Check the provider credential in Settings. Your InkMorrow login is still valid.' }) });
+    });
+    await page.locator('#fictionContinue').click(); await approve(page);
+    const feedback = page.locator('#fictionActionStatus');
+    await expect(feedback).toContainText('API key (401)');
+    await expect(feedback).toBeInViewport();
+    await expect(page.locator('#fictionContinue')).toBeEnabled();
+    await expect(page.locator('#fictionProse')).toContainText('Mara waited on the quay');
+    await page.locator('#fictionDirection').fill('Let Mara wait.');
+    await expect(feedback).toContainText('API key (401)');
+    expect(attempts).toBe(1);
+  });
+
   test('illustrated manuscript and EPUB use different image layouts, and a save restores the whole story', async ({ page }, testInfo) => {
     test.setTimeout(60000);
     const story = await startFixture(page);
