@@ -156,7 +156,7 @@ function createApp(
   const ai = createAiClient({ providers });
   const fictionStore = createFictionStore(db);
   fictionStore.reconcile();
-  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion });
+  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, providers });
   app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
   const { generateImage, describeImageProvider } = createImageClient({ providers });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
@@ -276,7 +276,7 @@ function createApp(
   app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
   app.use(createSoloToolRouter({ stories, store: soloTools, transactions: writingTransactions }));
   app.use(createCampaignRouter({ stories, campaign, service: campaignService, transactions: writingTransactions }));
-  app.use(createFictionRouter({ store: fictionStore, service: fiction }));
+  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));

@@ -1,5 +1,21 @@
 # Operations & Recovery Handbook
 
+## 5.0 development-branch operator note
+
+The replacement root interface now opens Your stories, Start a story, the reader,
+and Settings. The remainder of this handbook retains the 4.x operational baseline
+until the final identity/portability batch; do not interpret old Desk or Gate steps
+as controls in the new reader. The separate development checkout must use isolated
+data and a separate port. Do not repoint it at the running 4.x database. New games
+are not included in the old manuscript archive. Until complete playable saves ship,
+stop the isolated instance and copy its complete data directory for a cold backup.
+
+Settings supports chat-capable provider profiles, a storyteller role/model,
+session-only or encrypted-vault credentials, and vault unlock. Credentials never
+go into browser storage. A story request reviews one response; the provider/model
+must still match that review when the server starts the purchase. Failed response
+validation can still cost money. Refresh is free and never retries generation.
+
 <div class="frontmatter">
 
 This handbook is the practical companion for the person who owns the Ink Morrow installation. It explains not only which command to run, but what that command changes, how to recognize a healthy result, and how to get back to safety when something does not behave as expected.

@@ -395,4 +395,11 @@ member creates a control beat; Ask creates clarification, not a fictional event.
 
 An ended episode rejects continuation until the reader explicitly starts another.
 Reading, reloading or time spent away performs no narrative transition. No automatic
-world simulation punishes absence. These foundation APIs precede the new 5.0 UI.
+world simulation punishes absence.
+
+The reader controller adds route-generation and operation guards. Click -> busy
+precedes any consent dialog or network work. Cancel -> idle preserves the draft;
+success -> render clears only the submitted draft; failure -> free reconciliation
+preserves input. A route change invalidates late rendering but not server work.
+Lock invalidates every outstanding UI generation and clears private state. Pending
+server work is polled read-only; the browser never purchases a retry on a timer.

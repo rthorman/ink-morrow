@@ -2,8 +2,11 @@ export const books = [
   {
     slug: 'user-guide',
     title: 'User Guide',
-    format: 'fixed-html',
-    source: 'sources/user-guide.html',
+    format: 'markdown',
+    subtitle: 'Follow the cast, steer the story, return to a living world',
+    audience: 'For readers and directors of the 5.0 development edition',
+    cover: '../../frontend/brand/vesper-threshold.webp',
+    source: 'sources/user-guide-v5.md',
     output: 'Ink-Morrow-4.0-User-Guide.pdf',
   },
   {
