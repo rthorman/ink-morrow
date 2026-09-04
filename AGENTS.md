@@ -48,6 +48,13 @@
   them. Challenge review is local and revision-bound; free repeated outcomes must
   stay free even when the provider is unavailable. Reader recall and evidence
   remain public-only and current-ancestry scoped; prior evidence remaps in saves.
+- People and episodes: affection, trust, cooperation and expectations are separate
+  qualitative relationship facts, never meters. Evidenced development preserves
+  relationship identity and cannot rewrite world truth or invent an inhabited
+  person's feelings. An episode question is focus, not a required plot. Payoff
+  needs an actual narrated goal resolution; quiet turns and local corrections
+  cannot manufacture it. Ending remains the player's decision. Return recaps use
+  existing public current-path records only, with no background model calls.
 - The default player is a reader-director OUTSIDE the cast. Follow and Steer
   are complete first-class experiences; Inhabit is optional, explicit character
   control. No avatar, main character, or Session Zero is required to begin.

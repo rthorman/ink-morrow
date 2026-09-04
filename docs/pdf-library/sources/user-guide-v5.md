@@ -22,6 +22,84 @@ The same story, history, facts and paths continue whichever way you participate.
 The story text is the experience itself. It does not need a later conversion
 from a roleplay transcript into something that counts as the real story.
 
+## People can care and still disagree
+
+InkMorrow distinguishes affection, trust, willingness to cooperate and expectations.
+These are short descriptions of the relationship, not points to collect. Iona may
+care deeply about Mara while distrusting a decision made on her behalf. Jo may
+agree to label seedlings without wanting to lead the neighbourhood or becoming
+close friends. A willing response is not a promise of unlimited future agreement.
+
+Developments need evidence in the passage or your explicit input. A later scene
+can revise a relationship description while retaining its identity and linking to
+earlier evidence. It cannot use that mechanism to change a fixed world fact.
+When you inhabit someone, their feelings and expectations belong to you; the
+narrator must not choose those for you. Other people's views of them may change.
+Model prose remains fallible even with structured checks.
+
+Use **Cast & story** and evidence links to inspect what is recorded. **Catch me up**
+also gathers current relationships, including older records. If something was
+recorded incorrectly, use a factual correction or return to an earlier path.
+Disagreeing with a character is not itself evidence that the game needs repair.
+
+## An episode with room to breathe
+
+An episode can have an organising question. The authored openings supply one;
+when beginning another episode you can optionally supply your own. It frames what
+is interesting, not a command to achieve a fixed ending. Existing public goals
+help the storyteller notice opportunities. You can turn aside or follow a quiet
+conversation without losing progress to a timer.
+
+The descriptive stages are Opening, Developing, A recorded payoff and Room for
+aftermath. Development follows public changes. Payoff requires a narrated event
+that resolves the episode's recorded goals; merely waiting, planning or locally
+marking a fact resolved does not fabricate a played resolution. A missing or
+retired goal is not silently treated as a victory. Aftermath makes room for what
+the changes mean to the people involved.
+
+None of these stages ends the episode. You may stop early, linger after a payoff,
+or begin another question when ready. **End this episode** is a local resting
+point with an optional short recap, not another paid request. Your cast, facts,
+relationships, promises, settings and paths continue into the next episode.
+
+## Two ways to reach a satisfying pause
+
+In **The Drowned Bell**, follow or steer the sisters as they investigate the chart
+sale and the bell. Public survey traces provide a fair starting point; the hidden
+answer is fixed. Learning who bought the chart does not automatically repair
+trust. Allow the sisters to decide a next step together, then linger over what
+their new understanding means. Vale's optional survey-record approach can refuse
+a plain appeal in Living-world and reconsider when relevant evidence is publicly
+established. Repeating the unchanged appeal makes no new AI purchase. You do not
+need to inhabit either sister.
+
+In **The Garden After Rain**, explore the working tap, space for a bench and the
+neighbours' different wishes. Jo can decline a group role without being hostile.
+A genuinely agreed quiet task can create a different basis for cooperation. Let
+the layout become welcoming and give each person room to join a first shared
+pause on their own terms. Tea and seedlings are sufficient; no surprise catastrophe,
+affection meter or compulsory romance is needed to make this a complete episode.
+
+These are possible journeys, not fixed scripts or guaranteed model behaviour.
+Story-shaping gives requested developments more influence; Living-world allows
+credible refusal. Both support quiet care, alternative paths and stopping without
+an avatar. Each new narrated passage is a reviewed AI request. Reading, recaps,
+evidence, episode controls and saved-path management are local.
+
+## Return without catching up on chores
+
+Choose **Catch me up** beside the reader controls. It opens immediately, then
+collects the last three narrated summaries, up to six open public commitments
+and up to twelve public relationship records from this path. Local corrections
+and character-control entries do not push narrated moments out of the recap.
+Follow the source links when you need the actual earlier passage.
+
+Time away does not advance the world; a request you already approved may still
+finish while you are away. The recap does not call a model, reveal
+private motives, draw on another path or generate a new story continuation.
+These are bounded reminders, not a second full manuscript: **Recall older facts**
+and the reader's earlier moments remain available for a particular detail.
+
 ## Installation and the private threshold
 
 The local application serves its interface and API together. The production

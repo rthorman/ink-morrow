@@ -4,10 +4,12 @@ const { randomUUID } = require('node:crypto');
 const { compactFacts } = require('./memory');
 const { STYLES, normalizeChallenges, publicChallenges } = require('./resistance');
 const { FOURTH_WALL_MODES } = require('./fourth-wall');
+const { makeEpisode } = require('./episodes');
 
 const LIMITS = Object.freeze({ cast: 24, facts: 128, branches: 40, prose: 24000, input: 4000 });
 const GENRES = ['drama', 'mystery', 'exploration', 'cozy'];
 const FACT_KINDS = ['fact', 'commitment', 'relationship', 'goal', 'resource'];
+const RELATIONSHIP_FACETS = ['general', 'affection', 'trust', 'cooperation', 'expectation'];
 
 function fail(message, code = 'INVALID_STORY_INPUT', statusCode = 400) {
   throw Object.assign(new Error(message), { code, statusCode });
@@ -50,7 +52,7 @@ function normalizeCast(input = []) {
 }
 
 function normalizeFact(value, castIds, { evidenceBeatId = null } = {}) {
-  keys(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id'], 'Story fact');
+  keys(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id', 'facet', 'toward_id'], 'Story fact');
   const id = text(value.id, 'Fact ID', 80);
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) fail('Fact ID contains invalid characters.');
   const knownBy = value.known_by === undefined ? [] : value.known_by;
@@ -59,8 +61,18 @@ function normalizeFact(value, castIds, { evidenceBeatId = null } = {}) {
   if (actorId !== null && !castIds.includes(actorId)) fail('The fact concerns an unknown cast member.');
   const numeric = value.value ?? null;
   if (numeric !== null && (!Number.isFinite(numeric) || Math.abs(numeric) > 1000000)) fail('Resource value is outside the supported range.');
+  const kind = choice(value.kind, FACT_KINDS, 'fact', 'Fact kind');
+  let relationship = {};
+  if (kind === 'relationship') {
+    const facet = choice(value.facet, RELATIONSHIP_FACETS, 'general', 'Relationship aspect');
+    const towardId = value.toward_id ?? null;
+    if (towardId !== null && (!castIds.includes(towardId) || towardId === actorId)) fail('A relationship must concern another known cast member.');
+    if (facet !== 'general' && (!actorId || (facet !== 'expectation' && !towardId))) fail('Name whose relationship this is and who it concerns.');
+    if (numeric !== null) fail('Relationships use descriptions, not numeric meters.');
+    relationship = { facet, toward_id: towardId };
+  } else if (value.facet !== undefined || value.toward_id !== undefined) fail('Only relationships have an aspect or target.');
   return {
-    id, kind: choice(value.kind, FACT_KINDS, 'fact', 'Fact kind'), text: text(value.text, 'Fact', 1500),
+    id, kind, text: text(value.text, 'Fact', 1500), ...relationship,
     visibility: choice(value.visibility, ['public', 'secret'], 'public', 'Fact visibility'),
     known_by: [...new Set(knownBy)], status: choice(value.status, ['active', 'resolved'], 'active', 'Fact status'),
     actor_id: actorId, value: numeric, evidence_beat_id: evidenceBeatId,
@@ -82,7 +94,7 @@ function initialState(input) {
     consequences: choice(input.consequences, ['gentle', 'dramatic'], 'gentle', 'Consequences'),
     boundaries: text(input.boundaries, 'Boundaries', 2000, { optional: true }),
     voice: text(input.voice, 'Narration voice', 1500, { optional: true }),
-    focus: '', episode: { number: 1, title: 'The beginning', status: 'active', summary: '' }, scene_history: [], scene_count: 0,
+    focus: '', episode: makeEpisode({ question: text(input.episode_question, 'Episode question', 500, { optional: true }) }, facts), scene_history: [], scene_count: 0,
   };
 }
 
@@ -116,7 +128,7 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
   const state = structuredClone(original);
   const changes = [];
   for (const effect of effects) {
-    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount', 'character'], 'Story effect');
+    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount', 'character', 'text'], 'Story effect');
     const evidence = text(effect.evidence, 'Effect evidence', 1000);
     if (!prose.includes(evidence) && !input.text.includes(evidence)) fail('A state change has no direct evidence in this beat.', 'INVALID_STORY_REPLY', 502);
     if (effect.op === 'introduce') {
@@ -128,8 +140,8 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
     } else if (effect.op === 'remember') {
       const fact = normalizeFact(effect.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
       if (state.facts.some((entry) => entry.id === fact.id) || lookup(fact.id, true)) fail('A new fact cannot overwrite existing truth.', 'INVALID_STORY_REPLY', 502);
-      if (fact.kind === 'commitment' && fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) {
-        fail('The narrator cannot invent a commitment for an inhabited character.', 'OWNED_CHARACTER_BOUNDARY', 502);
+      if (['commitment', 'relationship'].includes(fact.kind) && fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) {
+        fail('The narrator cannot invent a commitment or relationship for an inhabited character.', 'OWNED_CHARACTER_BOUNDARY', 502);
       }
       state.facts.push(fact);
       changes.push({ op: 'remember', fact });
@@ -140,7 +152,11 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
       const priorEvidence = fact.evidence_beat_id === beatId
         ? changes.find((change) => change.fact?.id === fact.id)?.prior_evidence_beat_id || null
         : fact.evidence_beat_id;
-      if (effect.op === 'resolve') fact.status = 'resolved';
+      if (effect.op === 'develop') {
+        if (fact.kind !== 'relationship') fail('Only an existing relationship can develop; established world truth cannot be rewritten.', 'INVALID_STORY_REPLY', 502);
+        if (fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) fail('The narrator cannot change an inhabited character\'s feelings or expectations.', 'OWNED_CHARACTER_BOUNDARY', 502);
+        fact.text = text(effect.text, 'Relationship development', 1500);
+      } else if (effect.op === 'resolve') fact.status = 'resolved';
       else if (effect.op === 'reveal') {
         if (!Array.isArray(effect.known_by) || effect.known_by.some((id) => !state.cast.some((entry) => entry.id === id))) fail('A revelation references unknown characters.');
         fact.visibility = 'public';
@@ -157,4 +173,4 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
   return { state, changes };
 }
 
-module.exports = { LIMITS, GENRES, fail, object, text, choice, keys, normalizeCast, normalizeFact, initialState, publicState, validateIntent, applyEffects };
+module.exports = { LIMITS, GENRES, RELATIONSHIP_FACETS, fail, object, text, choice, keys, normalizeCast, normalizeFact, initialState, publicState, validateIntent, applyEffects };

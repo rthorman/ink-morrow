@@ -32,6 +32,48 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDetails').hidden).toBe(true);
   });
 
+  test('return recap opens immediately, uses only existing records and cannot cross a story switch', async () => {
+    await app.start(); let resolve;
+    api.mockImplementation((path) => path.endsWith('/recap') ? new Promise((done) => { resolve = done; }) : Promise.resolve({ story: story('two') }));
+    document.getElementById('fictionRecap').click();
+    const spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(spec.body[0].textContent).toContain('Gathering');
+    resolve({ recap: { question: 'Can they trust each other?', recent: [{ beat_id: 'opening', summary: 'The reunion.' }], commitments: [], relationships: [{ facet: 'trust', text: 'Trust is tentative.' }] } });
+    await tick(); expect(spec.body[0].textContent).toContain('Time away does not advance the story'); expect(spec.body[0].textContent).toContain('Trust is tentative');
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled(); expect(api.mock.calls.every(([, method]) => !method)).toBe(true);
+    document.getElementById('fictionRecap').click(); const late = dialogs.openDialog.mock.calls.at(-1)[0];
+    window.history.replaceState({}, '', '#/story/two'); await app.route();
+    resolve({ recap: { question: 'Old private context', recent: [], commitments: [] } }); await tick();
+    expect(late.body[0].textContent).not.toContain('Old private context');
+  });
+
+  test('failed path and episode changes preserve the dialog and entered text', async () => {
+    await app.start(); api.mockRejectedValue(new Error('Offline.'));
+    for (const [id, action, selector, value] of [
+      ['fictionFork', 'Create this path', 'input', 'The patient choice'],
+      ['fictionEndEpisode', 'End episode', 'textarea', 'They pause beside the quay.'],
+    ]) {
+      document.getElementById(id).click(); const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+      const field = spec.body.flatMap((node) => [...node.querySelectorAll(selector)])[0]; field.value = value;
+      const close = jest.fn(); await spec.actions.find((item) => item.label === action).onClick(close);
+      expect(close).not.toHaveBeenCalled(); expect(field.value).toBe(value);
+      expect(spec.body.at(-1).textContent).toContain('Offline');
+    }
+    const ended = story(); ended.state.episode.status = 'ended'; app.renderStory(ended);
+    document.getElementById('fictionNextEpisode').click(); const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    const inputs = spec.body.flatMap((node) => [...node.querySelectorAll('input')]); inputs[0].value = 'A new morning'; inputs[1].value = 'Who will return?';
+    const close = jest.fn(); await spec.actions.find((item) => item.label === 'Begin episode').onClick(close);
+    expect(close).not.toHaveBeenCalled(); expect(inputs.map((input) => input.value)).toEqual(['A new morning', 'Who will return?']);
+  });
+
+  test('episode payoff is descriptive and never forces the player to end', async () => {
+    const value = story(); value.state.episode = { ...value.state.episode, question: 'Can they agree?', phase: 'payoff', payoff_beat_id: 'opening' };
+    api.mockResolvedValue({ story: value }); await app.start();
+    expect(document.getElementById('fictionEpisodeFocus').textContent).toContain('A recorded payoff');
+    expect(document.getElementById('fictionContinue').disabled).toBe(false);
+    expect(document.getElementById('fictionComposer').hidden).toBe(false);
+    app.lock(); expect(document.getElementById('fictionEpisodeFocus').textContent).toBe('');
+  });
+
   test('the manuscript puts the associated image above its prose and reports missing media honestly', async () => {
     const value = story(); value.state.illustrations = [{ beat_id: 'opening', asset_id: 'picture', alt_text: 'The quay.', caption: '' }];
     api.mockResolvedValue({ story: value }); await app.start();

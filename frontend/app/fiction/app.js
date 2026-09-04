@@ -119,6 +119,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       $('fictionFacts').append(card);
     }
     if (!story.state.facts.length) $('fictionFacts').append(el('p', 'Important discoveries and commitments will appear here.'));
+    const phases = { opening: 'Opening', developing: 'Developing', payoff: 'A recorded payoff', aftermath: 'Room for aftermath' };
+    $('fictionEpisodeFocus').textContent = `${story.state.episode.question || 'Follow what matters to the cast.'} ${phases[story.state.episode.phase] || ''} — you can linger, redirect or end the episode when ready.`;
     renderProse(story.beats);
     influence.render(story);
     $('fictionEarlier').hidden = !story.has_earlier;
@@ -160,7 +162,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const match = /^#\/story\/([A-Za-z0-9_-]+)$/.exec(hash);
       if (match) {
         showScreen('readerScreen'); $('fictionProse').replaceChildren(); $('fictionStoryTitle').textContent = 'Opening your story…';
-        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations']) $(id).replaceChildren();
+        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus']) $(id).replaceChildren();
         $('fictionDetails').hidden = true; $('fictionDetailsToggle').setAttribute('aria-expanded', 'false');
         controls();
         const data = await api(`/fiction/${match[1]}`);
@@ -257,10 +259,16 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     select.control.value = rewind ? current.beats.at(-2)?.id || '' : current.head_beat_id || '';
     const name = field('Name this path', 'input', rewind ? 'A different choice' : 'An alternative', { maxLength: 120 });
     const note = el('p', 'The original path remains available. This restores all story state at that moment. Read earlier moments first if the moment you want is not listed.');
+    const error = el('p'); error.setAttribute('role', 'alert');
     const id = current.id; const revision = current.revision;
-    dialogs.openDialog({ title: rewind ? 'Rewind a choice' : 'Explore an alternative', body: [note, select.wrapper, name.wrapper], actions: [
+    dialogs.openDialog({ title: rewind ? 'Rewind a choice' : 'Explore an alternative', body: [note, select.wrapper, name.wrapper, error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
-      { label: 'Create this path', className: 'btn-primary', onClick: async (close) => { if (!name.control.value.trim()) { name.control.focus(); return; } close(true); if (current?.id === id && current.revision === revision) await localAction('branches', 'POST', { beat_id: select.control.value || null, name: name.control.value.trim() }); } },
+      { label: 'Create this path', className: 'btn-primary', pendingLabel: 'Creating path…', onClick: async (close) => {
+        if (!name.control.value.trim()) { name.control.focus(); return; }
+        if (current?.id !== id || current.revision !== revision) { error.textContent = 'The story changed. Refresh before creating this path.'; return; }
+        const result = await localAction('branches', 'POST', { beat_id: select.control.value || null, name: name.control.value.trim() });
+        if (result?.ok) close(true); else error.textContent = result?.error || 'Not saved. Your path name and selected moment are still here.';
+      } },
     ] });
   }
 
@@ -291,10 +299,17 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   function episodeDialog(start) {
     if (busy || !current || current.pending) return;
     const entry = field(start ? 'Episode title' : 'A short recap (optional)', start ? 'input' : 'textarea', start ? `Episode ${current.state.episode.number + 1}` : '', { maxLength: start ? 200 : 2000 });
+    const question = start ? field('What question might this episode explore? (optional)', 'input', '', { maxLength: 500 }) : null;
+    const error = el('p'); error.setAttribute('role', 'alert');
     const id = current.id; const revision = current.revision;
-    dialogs.openDialog({ title: start ? 'Begin another episode' : 'End this episode', body: [el('p', start ? 'Your cast, history and commitments continue with you.' : 'Mark a resting point. Nothing changes while you are away, and you can begin another episode whenever you want.'), entry.wrapper], actions: [
+    dialogs.openDialog({ title: start ? 'Begin another episode' : 'End this episode', body: [el('p', start ? 'Your cast, history and commitments continue with you. A question gives focus, not a fixed plot or a requirement to finish.' : 'Mark a resting point. Nothing changes while you are away, and you can begin another episode whenever you want.'), entry.wrapper, ...(question ? [question.wrapper] : []), error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
-      { label: start ? 'Begin episode' : 'End episode', className: 'btn-primary', onClick: async (close) => { if (start && !entry.control.value.trim()) { entry.control.focus(); return; } close(true); if (current?.id === id && current.revision === revision) await localAction('episodes', 'POST', start ? { action: 'start', title: entry.control.value.trim() } : { action: 'end', summary: entry.control.value.trim() }); } },
+      { label: start ? 'Begin episode' : 'End episode', className: 'btn-primary', pendingLabel: 'Saving episode…', onClick: async (close) => {
+        if (start && !entry.control.value.trim()) { entry.control.focus(); return; }
+        if (current?.id !== id || current.revision !== revision) { error.textContent = 'The story changed. Refresh before saving this episode.'; return; }
+        const result = await localAction('episodes', 'POST', start ? { action: 'start', title: entry.control.value.trim(), question: question.control.value.trim() } : { action: 'end', summary: entry.control.value.trim() });
+        if (result?.ok) close(true); else error.textContent = result?.error || 'Not saved. Your episode details are still here.';
+      } },
     ] });
   }
 
@@ -363,7 +378,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
     $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
-    for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations']) $(id).replaceChildren();
+    for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus']) $(id).replaceChildren();
     $('fictionDirectionScope').value = 'moment';
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();

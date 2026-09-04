@@ -82,9 +82,17 @@ function validateSave(value) {
     while (next && !reachable.has(next.id)) { reachable.add(next.id); next = beats.get(next.parent_id); }
   }
   if (reachable.size !== beats.size) fail('The save contains unreachable moments.', 'INVALID_SAVE');
+  const goalOrigins = new Map();
+  const noteGoal = (fact, at) => {
+    if (fact?.kind !== 'goal' || fact.visibility !== 'public') return;
+    if (!goalOrigins.has(fact.id)) goalOrigins.set(fact.id, []);
+    goalOrigins.get(fact.id).push(at);
+  };
+  if (Array.isArray(game.initial_state?.facts)) game.initial_state.facts.forEach((fact) => noteGoal(fact, null));
+  for (const beat of beats.values()) if (Array.isArray(beat.changes)) for (const change of beat.changes) if (change?.op !== 'remove') noteGoal(change?.fact, beat.id);
   const evidence = (head, id) => { ref(beats, id, true); if (!ancestor(head, id)) fail('A snapshot refers to another path or the future.', 'INVALID_SAVE'); };
   const fact = (value, cast, head) => {
-    record(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id'], 'Fact');
+    record(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id', ...(Object.hasOwn(value, 'facet') ? ['facet', 'toward_id'] : [])], 'Fact');
     normalizeFact(value, cast.map((person) => person.id), { evidenceBeatId: value.evidence_beat_id }); evidence(head, value.evidence_beat_id);
   };
   function state(state, head) {
@@ -117,8 +125,18 @@ function validateSave(value) {
     choice(state.pacing, ['reflective', 'balanced', 'brisk'], null, 'Pacing');
     choice(state.consequences, ['gentle', 'dramatic'], null, 'Consequences');
     for (const [key, max] of [['boundaries', 2000], ['voice', 1500], ['focus', 1500]]) savedText(state[key], key, max);
-    record(state.episode, ['number', 'title', 'status', 'summary'], 'Episode');
+    record(state.episode, ['number', 'title', 'status', 'summary', ...(Object.hasOwn(state.episode, 'question') ? ['question', 'goal_ids', 'phase', 'payoff_beat_id'] : [])], 'Episode');
     integer(state.episode.number, 1, 1000000, 'episode'); text(state.episode.title, 'Episode title', 200); savedText(state.episode.summary, 'Episode summary', 2000);
+    if (state.episode.question !== undefined) {
+      savedText(state.episode.question, 'Episode question', 500);
+      list(state.episode.goal_ids, 6, 'episode goals').forEach(idOf);
+      if (new Set(state.episode.goal_ids).size !== state.episode.goal_ids.length) fail('Duplicate episode goals.', 'INVALID_SAVE');
+      if (state.episode.goal_ids.some((id) => !(goalOrigins.get(id) || []).some((at) => ancestor(head, at)))) fail('Episode goals must be public goals established on this path.', 'INVALID_SAVE');
+      choice(state.episode.phase, ['opening', 'developing', 'payoff', 'aftermath'], null, 'Episode phase');
+      evidence(head, state.episode.payoff_beat_id);
+      const paidOff = ['payoff', 'aftermath'].includes(state.episode.phase);
+      if (paidOff !== Boolean(state.episode.payoff_beat_id) || (paidOff && beats.get(state.episode.payoff_beat_id)?.kind !== 'scene')) fail('Invalid episode payoff evidence.', 'INVALID_SAVE');
+    }
     choice(state.episode.status, ['active', 'ended'], null, 'Episode status'); integer(state.scene_count, 0, 1000000, 'scene count');
     if (state.fourth_wall !== undefined) {
       choice(state.fourth_wall, FOURTH_WALL_MODES, null, 'Fourth-wall setting');
@@ -162,7 +180,7 @@ function validateSave(value) {
     for (const change of list(beat.changes, 12, 'state change')) {
       record(change, change.op === 'introduce' ? ['op', 'character'] : ['op', 'fact', ...(Object.hasOwn(change, 'prior_evidence_beat_id') ? ['prior_evidence_beat_id'] : [])], 'State change');
       if (Object.hasOwn(change, 'prior_evidence_beat_id')) evidence(beat.parent_id, change.prior_evidence_beat_id);
-      choice(change.op, ['remember', 'resolve', 'reveal', 'adjust', 'correct', 'remove', 'introduce'], null, 'State change');
+      choice(change.op, ['remember', 'resolve', 'reveal', 'adjust', 'develop', 'correct', 'remove', 'introduce'], null, 'State change');
       if (change.op === 'introduce') { keys(change.character, ['id', 'name', 'description'], 'Introduced character'); normalizeCast([change.character]); }
       else fact(change.fact, beat.state.cast, beat.id);
     }
@@ -226,6 +244,7 @@ function createFictionSaves({ db, store, media }) {
     const beatRef = (id) => id === null ? null : beatIds.get(id);
     const remapFact = (fact) => ({ ...fact, evidence_beat_id: beatRef(fact.evidence_beat_id) });
     const remapState = (state) => ({ ...state, facts: state.facts.map(remapFact),
+      episode: { ...state.episode, ...(Object.hasOwn(state.episode, 'payoff_beat_id') ? { payoff_beat_id: beatRef(state.episode.payoff_beat_id) } : {}) },
       ...(state.adjudications ? { adjudications: state.adjudications.map((entry) => ({ ...entry, beat_id: beatRef(entry.beat_id) })) } : {}),
       illustrations: state.illustrations.map((item) => ({ ...item, beat_id: beatRef(item.beat_id), asset_id: assetIds.get(item.asset_id) })),
       scene_history: state.scene_history.map((item) => ({ ...item, beat_id: beatRef(item.beat_id) })) });

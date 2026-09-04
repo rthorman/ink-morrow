@@ -179,6 +179,27 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionPlayStyle')).toContainText('Fourth-wall dialogue: Rarely'); expect(paid).toBe(0);
   });
 
+  test('return recap and episode questions remain local and survive reload', async ({ page }) => {
+    await page.getByRole('link', { name: 'Start a story', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin with The Garden After Rain', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin this story', exact: true }).click();
+    let paid = 0; await page.route('**/api/fiction/*/replies', () => { paid++; });
+    await page.getByRole('button', { name: 'Catch me up', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('welcoming to all three neighbours');
+    await expect(page.getByRole('dialog')).toContainText('Time away does not advance the story');
+    await expect(page.getByRole('dialog')).toContainText('cooperation');
+    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await page.getByRole('button', { name: 'End this episode', exact: true }).click();
+    await page.getByRole('button', { name: 'End episode', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin another episode', exact: true }).click();
+    await page.getByLabel('Episode title', { exact: true }).fill('The next morning');
+    await page.getByLabel('What question might this episode explore? (optional)', { exact: true }).fill('Who comes back?');
+    await page.getByRole('button', { name: 'Begin episode', exact: true }).click();
+    await page.reload(); await page.getByRole('button', { name: 'Catch me up', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Who comes back?'); expect(paid).toBe(0);
+  });
+
   test('character inhabiting requires an explicit handoff and can be released', async ({ page }) => {
     await startFixture(page);
     await page.getByRole('button', { name: 'Cast & story' }).click();

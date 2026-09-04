@@ -1,5 +1,26 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 people and episode verification
+
+Exercise both authored openings from development to payoff and aftermath, with
+Follow/Steer sufficient and no compulsory avatar. The garden fixture covers a
+refused group role, a free unchanged repeat and cooperation on new agreed terms.
+The mystery fixture distinguishes affection from restored practical trust.
+These are protocol fixtures, not evidence from human playtesting or paid models.
+
+Test relationship aspects/targets, exact evidence, owned-character boundaries,
+rejection of numeric meters and world-fact rewriting, historical provenance,
+reload/fork/save restoration and remapped payoff identities. Test quiet scenes,
+clarification and local correction cannot manufacture a played payoff. Ending
+early remains possible; goal completion never forces an episode end.
+
+Recaps must find narrated moments despite many local changes, filter public
+commitments/relationships before limits, exclude retired and other-path records,
+and make zero provider calls. Browser tests cover immediate recap feedback,
+episode questions, reload, narrow reflow and retained path/episode drafts after
+failed writes. The optional standard/memory/both consistency mode and final
+fresh-storage release cutover remain separate work before main integration.
+
 ## 5.0 fourth-wall verification
 
 Test default Never, invalid choices, Living-world-only UI visibility, local

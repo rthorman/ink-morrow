@@ -1,5 +1,24 @@
 # System Architecture & Design Rationale
 
+## 5.0 people and episode framing
+
+Relationship facts optionally identify a qualitative facet and a directed cast
+pair. Affection, trust, cooperation and expectations remain independent. The
+develop effect changes only a relationship's description, with exact passage or
+input evidence, immutable prior provenance and the inhabited-person boundary.
+It cannot rewrite world facts, change the facet or grant a challenge.
+
+Episode snapshots hold a public question, up to six public goal identifiers,
+descriptive phase and a payoff beat. A narrated goal-resolution change can move
+the episode to payoff; a later scene permits aftermath. No phase changes the
+player-owned active/ended status. Questions, phases and evidence restore through
+rewind and copy-import. The director offers rest after a recorded payoff.
+
+The local recap endpoint reads only current ancestry: three narrated summaries,
+six active public commitments and twelve active public relationships. Kind,
+visibility and status are filtered before bounded memory selection. No provider,
+whole-history prompt, autonomous character queue or offline simulation is added.
+
 ## 5.0 fourth-wall permission
 
 Living-world snapshots carry a Never/Rarely/Freely preference and the last narrated

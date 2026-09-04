@@ -68,6 +68,7 @@
         <div class="fiction-toolbar">
           <button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button>
           <button type="button" class="btn btn-secondary" id="fictionDetailsToggle" aria-expanded="false" aria-controls="fictionDetails">Cast &amp; story</button>
+          <button type="button" class="btn btn-secondary" id="fictionRecap">Catch me up</button>
           <button type="button" class="btn btn-secondary" id="fictionEarlier" hidden>Read earlier moments</button>
         </div>
         <aside id="fictionDetails" class="fiction-details" hidden>
@@ -84,7 +85,7 @@
           <button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button>
           <button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button>
           <p>Both preserve the current path. A new path restores facts, commitments and control at the selected moment.</p>
-          <h2>Episodes</h2><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
+          <h2>Episodes</h2><p id="fictionEpisodeFocus"></p><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
           <h2>Illustrations and books</h2>
           <button class="btn btn-secondary" id="fictionIllustrate" type="button">Illustrate a moment</button>
           <button class="btn btn-secondary" id="fictionExportBook" type="button">Export this reading path</button>

@@ -6,6 +6,7 @@ const { scenarioInput } = require('./scenarios');
 const { createMemory, compactFacts } = require('./memory');
 const { STYLES } = require('./resistance');
 const { FOURTH_WALL_MODES } = require('./fourth-wall');
+const { makeEpisode, returnRecap } = require('./episodes');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
@@ -17,8 +18,12 @@ function createFictionStore(db) {
   const game = (id) => db.prepare('SELECT * FROM fiction_games WHERE id = ?').get(id) || fail('Story not found.', 'STORY_NOT_FOUND', 404);
   const branch = (gameId, id) => db.prepare('SELECT * FROM fiction_branches WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Path not found.', 'PATH_NOT_FOUND', 404);
   const beat = (gameId, id) => db.prepare('SELECT * FROM fiction_beats WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Story moment not found.', 'BEAT_NOT_FOUND', 404);
-  const stateAt = (g, headId) => ({ play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null,
-    ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) });
+  const stateAt = (g, headId) => {
+    const state = { play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null,
+      ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) };
+    state.episode = { question: '', goal_ids: [], phase: 'opening', payoff_beat_id: null, ...state.episode };
+    return state;
+  };
   const current = (id) => {
     const g = game(id);
     const b = branch(id, g.active_branch_id);
@@ -95,7 +100,7 @@ function createFictionStore(db) {
     return id;
   }
   function create(input) {
-    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall'], 'New story');
+    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall', 'episode_question'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
     const premise = text(input.premise, 'Premise', 4000);
@@ -165,7 +170,7 @@ function createFictionStore(db) {
     });
   }
   function episode(id, expected, input) {
-    keys(input, ['action', 'title', 'summary'], 'Episode');
+    keys(input, ['action', 'title', 'summary', 'question'], 'Episode');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
       if (input.action === 'end') {
@@ -174,7 +179,8 @@ function createFictionStore(db) {
         state.episode.summary = text(input.summary, 'Episode summary', 2000, { optional: true });
       } else if (input.action === 'start') {
         if (state.episode.status !== 'ended') fail('Finish the current episode first.');
-        state.episode = { number: state.episode.number + 1, title: text(input.title, 'Episode title', 200), status: 'active', summary: '' };
+        state.episode = makeEpisode({ number: state.episode.number + 1, title: text(input.title, 'Episode title', 200), question: text(input.question, 'Episode question', 500, { optional: true }) },
+          memory.facts(id, context.branch.head_beat_id, { kind: 'goal', status: 'active', publicOnly: true, limit: 6 }));
       } else fail('Choose start or end.');
       append(context, { kind: 'episode', summary: input.action === 'end' ? 'The episode ends. You can stop here.' : `Episode ${state.episode.number}: ${state.episode.title}`, state });
     });
@@ -293,8 +299,17 @@ function createFictionStore(db) {
     if (!isAncestor(id, context.branch.head_beat_id, beatId)) fail('That evidence is not on this path.', 'BEAT_NOT_FOUND', 404);
     return publicBeat(beat(id, beatId));
   }
+  function recap(id) {
+    const context = current(id); const head = context.branch.head_beat_id;
+    const recent = db.prepare(`WITH RECURSIVE path AS (
+      SELECT id, parent_id, kind, summary, 0 AS depth FROM fiction_beats WHERE game_id = ? AND id = ?
+      UNION ALL SELECT b.id, b.parent_id, b.kind, b.summary, path.depth + 1 FROM fiction_beats b JOIN path ON b.id = path.parent_id WHERE b.game_id = ?
+    ) SELECT id, kind, summary FROM path WHERE kind IN ('opening', 'scene') ORDER BY depth LIMIT 3`).all(id, head, id).reverse();
+    return { ...returnRecap(context.state, recent, memory.facts(id, head, { publicOnly: true, kind: 'commitment', status: 'active', limit: 6 })),
+      relationships: memory.facts(id, head, { publicOnly: true, kind: 'relationship', status: 'active', limit: 12 }) };
+  }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, recall, evidence, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  return { create, list, recall, evidence, recap, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };

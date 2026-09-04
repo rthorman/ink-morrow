@@ -1,5 +1,20 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 relationships, episodes and return recaps
+
+The public recap is behind the existing authentication and origin boundary. It
+returns only the selected ancestry's narrated summaries, active public commitments
+and public relationships, never character motives or private correction reasons.
+The episode question is reader-visible working direction, not a secret-lore field.
+Opening a recap or episode dialog makes no model request.
+
+Relationships use qualitative aspects, not numerical affection scores. An evidenced
+development cannot rewrite protected world truth or supply an inhabited person's
+feelings. Structured validation narrows permitted effects; arbitrary model prose
+can still be inconsistent. Example journeys and mocked tests are not a live-model
+certification. Optional additional standard/memory-model checks are approved but
+remain separate unfinished work before final release.
+
 ## 5.0 characters addressing the user
 
 Fourth-wall dialogue is an optional Living-world presentation permission, not an
