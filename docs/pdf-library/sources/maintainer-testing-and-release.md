@@ -2,313 +2,317 @@
 
 <div class="frontmatter">
 
-Ink Morrow grew from a playful afternoon into a serious stateful system. This handbook turns that seriousness into repeatable contribution and release practice without pretending the project has a large permanent team.
-
-It explains how to understand a change, preserve data contracts, choose the right test layer, use automation responsibly, assemble release evidence, and stop when evidence says the change is not safe.
-
-**Guiding principle:** automate the mechanical work aggressively; keep human judgment at architectural, literary, security, and release boundaries.
+Change the playable-fiction product without losing causal history, paid authority or honest evidence. This handbook describes current development and release practice, not the retired writing-suite workflow.
 
 </div>
 
-## Repository orientation
-
-| Area | Responsibility |
-|---|---|
-| `backend/` | Express API, SQLite domain modules, providers, publication, transfer |
-| `frontend/` | Same-origin browser application and feature modules |
-| `e2e/` | Playwright user journeys against isolated server/database |
-| `docs/` | Feature contracts, release evidence, user guide, PDF library |
-| `scripts/` | Repository-level policy and validation helpers |
-| `.github/` | CI and contribution/security surfaces |
-| `AGENTS.md` | Persistent engineering constraints and learned project context |
-
-Read the nearest contract before changing code. For cross-cutting work, begin with system architecture, state-machine atlas, security boundary, and the feature document. Search for existing tests and migration history before inventing new behavior.
-
-## Change classification
-
-Classify the proposal before implementation:
-
-| Class | Typical examples | Required attention |
-|---|---|---|
-| Presentation | Typography, spacing, copy | Responsive, accessibility, screenshots |
-| Local behavior | UI validation, navigation | Frontend tests and stale-state handling |
-| Domain behavior | revisions, canon, cast, jobs | Backend integration and invariants |
-| Persistent contract | schema, archive, publication format | Migration, compatibility, rollback, fixtures |
-| Provider boundary | models, prompts, cost, errors | Mock call counts, data review, idempotency |
-| Trust boundary | auth, upload, share, import | Threat model and adversarial tests |
-| Release/operations | startup, environment, CI | Fail-fast behavior and operator guidance |
-
-If a change spans classes, satisfy the highest-risk obligations. A one-line schema default is still a persistent-contract change.
-
-## Planning a pull request
-
-A good PR states:
-
-- user/operator problem and acceptance outcome;
-- data/API/UI contracts that will change;
-- explicit non-goals;
-- state transitions and restart behavior;
-- provider data and spend implications;
-- migration, archive, publication, and rollback impact;
-- test evidence expected at each layer; and
-- documentation that must change.
-
-Prefer one coherent vertical slice over parallel models. When replacing a flow, remove obsolete entry points and terminology in the same PR unless a compatibility boundary is deliberately documented. Dual systems become data ambiguity.
-
-::: warning State first
-If work can be pending, retried, cancelled, interrupted, stale, or failed, design the durable state machine before the UI. A spinner is not a persistence contract.
-:::
-
-## Branch and commit discipline
-
-Branch from the verified latest main commit. Keep unrelated user changes intact. Use narrow commits with imperative summaries. Do not rewrite published history to remove an old name or mistake; make a forward correction and preserve the audit trail.
-
-Before push:
-
-```
-npm run check:brand
-npm test
-git diff --check
-```
-
-Run browser E2E locally only when the changed behavior is likely to break the primary flow, when diagnosing CI, or when creating deliberate screenshot evidence. Otherwise leave E2E to the isolated CI job as project practice.
-
-Never point E2E at port 3000 or a real data directory. The suite owns its clean port and in-memory/isolated database.
-
-## Test pyramid
-
-### Pure unit and schema tests
-
-Use for rank helpers, strict validators, deterministic folds, prompt/context selection, format escaping, redaction, token hashing, media signatures, and transition predicates. These should be fast and exhaustive around boundaries.
-
-### Backend integration tests
-
-Use in-memory SQLite unless filesystem behavior is the subject. Cross the real transaction boundary for hierarchy/revision mutation, prepared promotion, operation idempotency, continuity, Author Canon, vault, archive preflight/commit, media staging, publication snapshots, and sharing.
-
-Providers are mocked. Assert exact call count, model role, input categories, error classification, known usage, and absence of secret canaries.
-
-### Frontend integration tests
-
-Jest/jsdom covers feature state, API adaptation, dialog lifecycle, accessible names, stale response rejection, and the visible consequences of backend states. Test idle/loading/success/empty/refusal/failure/cancelled/retry/stale where relevant.
-
-### Browser E2E
-
-Playwright proves high-value composition across browser, server, and persistence:
-
-1. first-run setup and unlock;
-2. manual and AI-assisted manuscript start;
-3. exact prepared-page promotion and directed replacement;
-4. retry/double-click/racing-tab safety;
-5. tail edit, history copyedit, truncate, undo, restore;
-6. Chronicle failure/repair and Codex author corrections;
-7. upload/place art without provider traffic;
-8. provider refusal and deliberate retry;
-9. publication formats, backup/restore, share/revoke; and
-10. lock with no private flash.
-
-## State-machine testing pattern
-
-For each transition, cover:
-
-- valid predecessor and expected durable effects;
-- invalid predecessor;
-- repeated request/idempotency;
-- concurrent owner;
-- stale expected revision/context;
-- provider timeout and malformed result;
-- cancellation;
-- restart after each durable boundary;
-- visible specific error and repair route; and
-- reload proving persistence.
-
-High-risk machines deserve transition-table tests rather than only journey tests. The table should make missing edges obvious.
-
-## Database and migration changes
-
-Database family and schema version are security/data-safety boundaries. A migration must be ordered, checksummed, transactional, and idempotent only in the explicitly supported sense. Startup proves identity before mutation and refuses unknown/future/3.x data.
-
-Migration PR evidence includes:
-
-- clean database creation;
-- upgrade from every supported 4.0 predecessor fixture;
-- earlier pre-rebrand adoption and backup where applicable;
-- checksum mismatch refusal;
-- future/old-family refusal before writes;
-- restart after applied migration;
-- archive/export behavior; and
-- documented rollback using complete cold backup, not reverse SQL improvisation.
-
-Do not rename a database and infer identity. Do not delete migration history. Do not weaken a refusal to make a local fixture pass.
-
-The current 4.1.0 storage contract is schema 13: hierarchy, immutable page revisions, and revision-bound continuity deltas are canonical. The `manuscript_pages` read view is an API projection, never a writable compatibility store. Schema-12 upgrade tests must prove preservation of prose, Chronicle state, known and unknown cost semantics, and accumulated retry usage before the retired mirror tables disappear.
-
-## API and schema evolution
-
-Strict schemas should reject unknown fields where accepting them would hide provider or import drift. Public/private response fields are allowlisted. New enums require state-machine documentation, restart handling, frontend rendering, tests, and export/archive consideration.
-
-Changing an API requires synchronized backend, frontend adapter, fixtures, tests, and docs. Compatibility aliases should have a removal contract; accidental indefinite duality is not compatibility.
-
-## Provider work
-
-All provider calls require an explicit role, bounded context, timeout, sanitized errors, usage recording, and data/spend review appropriate to the action. Automatic continuity uses the server-configured Archivist. Model discovery may report unavailable choices but never silently replace an explicit assignment.
-
-Tests never spend money. Use deterministic mocks for success, delay, partial stream, refusal, invalid JSON, schema mismatch, oversized error, timeout, and late/stale response.
-
-A paid operation is incomplete until duplicate-request and restart behavior are proven.
-
-## UI and accessibility
-
-The supported browser is current Chrome, with desktop and Android tablet portrait/landscape as critical profiles. Other sane standards-respecting browsers should work but are not release evidence.
-
-Every critical flow must remain keyboard-completable. Maintain visible focus, meaningful accessible names, status announcements, non-color-only states, dialog focus trapping/restoration, 200% text zoom, reduced motion, touch-size controls, and resilience to short viewports/on-screen keyboards.
-
-Menus must escape clipping/stacking containers; a visible More button whose options are covered is a broken action, not cosmetic polish.
-
-Visual review distinguishes art changes from clipping, contrast regression, obscured manuscript content, and responsive control movement.
-
-## Documentation as product behavior
-
-Update the User Guide for workflows, the Operations Handbook for deployment/recovery, Architecture for boundaries/decisions, the State Atlas for new durable states, Security for trust-boundary changes, and this handbook for process changes.
-
-PDF source and final PDFs are version controlled. Rendering must complete with fonts and images loaded, outline/bookmarks enabled, and no content clipping. Render pages to images and visually inspect the latest version before merge.
-
-The GitHub README remains the front door, not a substitute for the guide. Link the documentation library clearly and keep setup concise.
-
-## Security review triggers
-
-Update the threat model and adversarial tests when a change touches:
-
-- login/session/CSRF/Host/origin;
-- secrets or logs;
-- provider endpoint/payload/result;
-- upload/decode/storage;
-- archive/import/export;
-- public share/publication;
-- database identity/migration;
-- paths, filenames, or process execution; or
-- third-party dependencies/Actions.
-
-Use canaries to prove that credentials, sessions, private prose, directions, recovery material, and share tokens do not cross forbidden outputs.
-
-## CI pipeline
-
-CI should independently prove:
-
-1. lockfile install and lint;
-2. old-brand residue guard;
-3. backend suite;
-4. frontend suite;
-5. isolated Playwright desktop/tablet journeys;
-6. archive/publication/security policy checks;
-7. dependency/Action review appropriate to the branch; and
-8. clean diff/generated artifact expectations.
-
-A green branch means the recorded checks passed on that commit; it does not replace review of architectural fit, documentation, or real-device release smoke.
-
-The project loop permits at most seven red CI runs for ordinary automated iteration. A red run caused by infrastructure should be classified separately but still investigated. At seven product-caused reds, stop, summarize evidence, and redesign instead of thrashing.
-
-## Pull request review gates
-
-A PR is mergeable only when:
-
-- acceptance contracts and non-goals are satisfied;
-- no unrelated changes are smuggled in;
-- state/restart/retry behavior is explicit;
-- persistence and provider boundaries have appropriate integration tests;
-- user-visible errors are specific and actionable;
-- accessibility and responsive risks are addressed;
-- secrets and private data remain excluded;
-- docs and format contracts are current;
-- local required tests pass; and
-- all GitHub checks are green on the final commit.
-
-Merge through GitHub after green checks. Preserve the merge/PR audit trail. Do not bypass protection merely because local tests passed.
-
-## Release candidate preparation
-
-Freeze the candidate commit and record:
-
-- commit/tag, Node version, Chrome version;
-- desktop/tablet device profiles;
-- database family/schema/migration ledger;
-- tested provider and model roles;
-- dependency audit disposition;
-- automated check URLs/results;
-- manual smoke evidence;
-- documentation/PDF versions;
-- known issues and workarounds; and
-- explicit release decision.
-
-No code or documentation changes occur after evidence capture without creating a new candidate and rerunning affected gates.
-
-## Manual release smoke
-
-On a clean self-hosted installation:
-
-1. follow README without undocumented steps;
-2. setup, lock/unlock, restart, change password;
-3. create manuscripts manually, from foundations, and import;
-4. edit title and Author Canon facts/world events;
-5. exercise generate/prepare/direct/cancel/fail/retry/race;
-6. edit tail, copyedit history, truncate, undo, recover;
-7. inspect Chronicle and repair one explicit memory failure;
-8. correct state and review impact in Codex;
-9. upload/place personal art without provider traffic;
-10. exercise image refusal and deliberate retry;
-11. narrate and build representative audiobook if supported;
-12. full backup, isolated restore, and semantic comparison;
-13. export every publication format and open representative files;
-14. publish, signed-out read, expire, and revoke a snapshot;
-15. run long-manuscript smoke on reference tablet; and
-16. inspect logs/artifacts for secret/private-data canaries.
-
-## Long-manuscript qualification
-
-The deterministic release fixture represents 10 volumes, 100 chapters, at least 3,000 pages, about 1.2 million words, 150 recurring characters, 10,000 continuity records, 500 media records, copyedits, corrections, prepared work, and recovery state.
-
-Prove that Desk open/page turn/save, continuity fold, bounded context construction, and Chronicle open do not scale with full manuscript text. Round-trip the project archive and publication semantics. Verify no AI operation requires the whole novel.
-
-Record reference tablet performance. Regressions above 20 percent require explanation and stakeholder acceptance; correctness and data safety never yield to a speed target.
-
-## Release blockers
-
-Do not release a reproducible defect that can cause:
-
-- manuscript/hierarchy/revision/continuity/recovery/archive/media loss or silent corruption;
-- speculative or unseen prose becoming canon;
-- duplicate/unattributed known provider spend;
-- stale results mutating another context;
-- credential/session/private prose/recovery/share-token disclosure;
-- upload-triggered AI without consent;
-- archive/upload parser escape or active execution;
-- public snapshot mutation/private API access;
-- same-version restore failure or invalid published formats;
-- inability to complete the primary flow on desktop/tablet Chrome;
-- authentication bypass or known critical/high vulnerability; or
-- inaccessible critical action without an equivalent path.
-
-Lower-severity issues require a documented workaround and explicit acceptance.
-
-## Incident and regression handling
-
-Preserve the failing commit, exact test/log, environment, fixture identity, and sanitized evidence. Reproduce at the lowest useful layer. Distinguish product defect, flaky test, provider drift, and CI infrastructure.
-
-Never weaken an assertion merely to fit new behavior. First state the old invariant, the intended new invariant, and why the change is safe. Add the regression test before or with the fix.
-
-For data-risk incidents, stop writes, make a cold copy, and investigate on a duplicate. For secret exposure, revoke/rotate first and then clean outputs; Git history remains an audit trail unless a separate high-risk remediation is explicitly approved.
-
-## Automation and human control
-
-Codex can inspect, implement, test, generate assets and documentation, push branches, create PRs, watch CI, and iterate fixes. Automation reduces the cost of maintaining a one-person project, but it does not broaden authorization.
-
-Human approval remains essential for feature direction, art/voice, destructive or public operations, secrets, nonstandard main/release integration, and final release acceptance. The automation should expose uncertainty and evidence, not manufacture confidence.
-
-### Creator's note
-
-> Somewhere along the way this went from a fun afternoon with a tablet to a rather serious project. I've developed things professionally since 1995, so maybe the stripes are permanent now. Anyway, I have a day job. But Codex does not. So. As full automation as possible it is. Though I remain involved. To a degree that only the wife actually creates any stories. Oh well.
-
-## Definition of done
-
-A change is done when code, schema, migrations, tests, documentation, generated artifacts, and operator expectations describe the same system; local required checks and final CI are green; review evidence is attached; rollback is understood; and there is no safe in-scope work left unfinished.
-
-The Scriptorium exists to serve the Story. Release machinery exists to ensure the Story survives the machinery.
+## Repository and product ownership
+
+Read AGENTS.md and the current release decisions before changing behaviour.
+The approved 5.0 product defaults to a reader-director outside the cast,
+excludes manual prose authoring and does not promise 4.x data migration.
+
+The authoritative project checkout is under WSL at
+/home/rthorman/src/ink-morrow-5; shared Git metadata lives under
+/home/rthorman/src/ink-morrow/.git. Windows tools may work through WSL paths.
+Do not create a second source copy or recover abandoned older branches.
+
+backend/src/app.js is the composer. Current game code lives in modules/fiction;
+the frontend starts its fiction app, not the old room router. Auth, provider,
+media and publication infrastructure is reused. legacy-runtime.js is opt-in
+for inherited tests, never enabled by server.js.
+
+Treat existing user changes as owned work. Preserve unrelated edits, use a
+coherent feature branch and inspect the diff before committing. A failed command
+or CI rerun does not authorise history rewriting, deployment or data cleanup.
+
+Project-owned 5.0 material remains AGPL-3.0-only. Preserve third-party licenses,
+bundled-font notices and the historical development credits. Do not describe
+generated fixtures as human playtesting or an unrun benchmark as research evidence.
+
+## Plan a substantial change
+
+Choose a coherent user outcome and identify its state, UI, privacy, cost and
+documentation boundaries before implementation. Batches should be large enough
+to justify a full push/PR/CI/merge cycle, without combining unrelated risks.
+
+For each mutation, name the input authority, expected revision, transaction,
+failure outcome and immutable record. For each provider call, name the role,
+data sent, maximum calls, consent scope, timeout, stale checks and known/unknown
+billing. For each read, name which path and visibility it can expose.
+
+Retain existing deterministic invariants unless the owner explicitly changes
+them. New game design can challenge branding or compatibility, but that does not
+waive security, credential privacy, paid consent or data integrity.
+
+Tests should accompany the behavioural change, not merely assert the new DOM.
+Include invalid input, delayed responses, navigation/lock, concurrent revision,
+restart and zero-provider paths where relevant. Use fixtures with exact expected
+effects rather than accepting whichever prose a model returns.
+
+Update all affected manual sources and regenerate the full six-book set together.
+A substantial feature is incomplete if the user guide still describes retired
+controls or if a version label masks inherited operating instructions.
+
+## Local verification layers
+
+From the repository root, run npm run lint, npm run test:setup,
+npm run check:release and npm run check:brand. Backend Jest runs through
+node node_modules/jest/bin/jest.js in backend. Frontend Jest uses
+node --experimental-vm-modules node_modules/jest/bin/jest.js in frontend.
+
+Backend tests use isolated databases and injected providers. New production
+boundary tests instantiate the default composer without legacyEnabled.
+Inherited component tests may explicitly opt into the old runtime; their
+coverage is regression protection, not a claim of a live 5.0 feature.
+
+Browser tests use port 3100, an in-memory database, fresh media and an isolated
+setup credential. Never point them at the owner's port 3000 or real database.
+Sweep abandoned E2E servers using the supplied script; do not kill processes by
+a broad command-line substring.
+
+Run desktop Chromium and Mobile Chrome in separate invocations so each receives
+a fresh server. Use an existing browser-capable environment; do not download a
+browser merely to satisfy local verification. CI has its own browser setup.
+
+A passing test count is evidence about that exact code/configuration. Record
+full-suite versus added focused cases accurately. Do not imply a paid provider,
+different browser engine or human session was tested when only mocks ran.
+
+## Data and concurrency qualification
+
+The new family is ink-morrow-5, schema 21. Fresh creation, supported migration,
+repeat startup, rollback, ledger integrity, future-family refusal and source-file
+preservation need independent tests. Never edit a migration checksum merely to
+make a valuable database open.
+
+Exercise old database files with WAL and missing shared-memory companions.
+Preflight must inspect a private copy, preserve original bytes/timestamps and
+not create source sidecars. Test orphan journals, symlinks, failed copy/storage
+and source changes. A current valid WAL-only committed state must recover.
+
+For paid work, delay the provider, mutate or restart, then return the response.
+Assert no stale canon, complete known/unknown billing and no duplicate purchase.
+Quality requires per-call records and one shared repair allowance. Transport
+retry is disabled even on uncertain failure.
+
+For graph changes, test exact fork snapshots, sibling exclusion, old fact
+retrieval beyond the working set, corrected/retired versions and evidence
+remapping through save import. Test all references before any import write.
+
+Use long deterministic histories to test bounded readers and retrieval. A large
+fixture proves structural scale and invariants, not that an actual model will
+remember every relevant detail or remain enjoyable across a long campaign.
+
+## UI, accessibility and one logo
+
+Immediate feedback is part of correctness. Dialogs should open before slow
+supporting requests; buttons must show reviewing/submitting status and prevent
+duplicate work. Cancelling, failing or changing routes should preserve or discard
+drafts according to the explicit lifecycle, never by accident.
+
+Exercise keyboard navigation, focus restoration, labelled controls, mobile
+reflow, delayed loads and lock while a request is pending. Automated accessibility
+scans supplement real inspection; they do not prove a design is easy to use.
+
+The canonical product lockup is frontend/brand/ink-morrow-lockup.svg, the existing
+artwork at the top of GitHub README. App header/footer, auth threshold and all
+manual covers/running headers reuse it. Do not regenerate it or emulate its
+lettering with another font. Ordinary product-name mentions remain text.
+
+npm run check:brand includes a canonical-logo reference guard. Browser tests
+verify the loaded image in the reader and locked threshold. Inspect both narrow
+and wide screenshots for size and clipping; inspect rendered PDF covers and
+headers, not only SVG paths in source.
+
+Images above manuscript text and separate preceding EPUB image pages are distinct
+requirements. Check every EPUB spine item and reader layout rather than assuming
+shared HTML produces both representations correctly.
+
+## The six-book documentation workflow
+
+Active books are declared in docs/pdf-library/books.mjs and use Markdown sources
+with a shared renderer/theme. The previous fixed HTML guide remains a historical
+content and visual baseline, not a current workflow.
+
+Update the User Guide, Operations, Architecture, State Machine Atlas, Security
+and Maintainer books where affected, then run npm run docs:pdf. All six PDFs and
+generated.json form one artifact set. The active filenames, cover labels,
+metadata and headers use 5.0.
+
+Run strict freshness after rendering. PDF QA checks extractable text, replacement
+characters, current identity, outlines and page counts. Rasterize pages and inspect
+covers, tables, code, headers and final pages. A valid PDF hash cannot prove
+layout or absence of a clipped paragraph.
+
+The guide includes complete journeys using no optional provider features,
+the whole current feature set and coherent subsets. No-provider play means
+existing reading/local management, not manual authoring or an invented offline
+narrator. Every journey identifies costs, skipped features and its save/book
+outcome.
+
+Retain historical release evidence, but make current entry-point documentation
+unambiguous. Never claim a book is current merely because its filename changed.
+A changed source or brand asset requires regenerating the complete set.
+
+## CI, release and exact-head merge
+
+The five CI gates are Brand residue, Lint, Jest, Production dependency audit
+and Playwright E2E. The brand job also checks release identity and warns about
+PDF freshness. For release work, run strict freshness locally even though the
+general CI freshness check is advisory.
+
+Feature PRs target release/5.0.0. Push a coherent batch, inspect the PR diff and
+wait for all five gates on its exact current head. A green earlier commit is not
+authority to merge a changed head. Use a head-matching merge and verify the
+resulting merge commit.
+
+After each feature merge, update from the integration head before the next batch.
+Do not rewrite the historical 4.x release line. Unrelated dependency PRs are not
+part of this product programme merely because they are open.
+
+Final release-to-main integration is authorised only after all approved 5.0 work
+is complete and the final PR's current head is green. Record actual PR links,
+head/merge hashes, tests and remaining limitations in the release record.
+Do not label planned checks as passed.
+
+Merging code is not deployment. The owner requested the old port-3000 instance
+stopped; do not restart or replace it without a separate request. A final handoff
+should briefly distinguish code state, running state and 4.x compatibility.
+
+## Definition of done and regression response
+
+A completed change has a verified user path, bounded state transition, correct
+privacy/cost boundary, failure and race coverage, current documentation and an
+honest release record. For model-facing changes, distinguish protocol tests
+from semantic evaluation and do not promise unmeasured quality gains.
+
+A completed 5.0 release additionally has fresh-family storage isolation, no live
+manual-authoring or retired room APIs, consistent branding, complete generated
+manuals and green exact-head integration. Old user data remains untouched.
+Character/template portability is not a release blocker and is not advertised
+unless implemented.
+
+When a regression appears, reproduce it with minimal fixture data. Determine
+whether the defect is product code, a stale test assumption, environment,
+provider behaviour or external infrastructure. Do not weaken an invariant
+simply to restore a green badge.
+
+Fix a proven defect in a focused but substantial batch, rerun the affected
+layer and full release gates in proportion to risk, and record the evidence.
+An intermittent registry error may justify a CI rerun; it does not justify
+bypassing the audit.
+
+If completion needs a new product choice, paid live evaluation, deployment
+authority or destructive recovery, pause and ask. Persistence toward a merge
+does not broaden the authorised actions. Keep the owner informed with concise,
+meaningful updates rather than unchanged polling reports.
+
+## Optional quality verification
+
+Fixture tests cover Off/Standard/Memory/Both, first-pass acceptance, the sole
+structural or consistency repair, replacement re-review and terminal rejection.
+Assert maximum totals of one/four/six, role-specific model routing and disabled
+transport retries. Reject malformed or unevidenced review JSON; approval must not
+bypass deterministic ownership, fourth-wall, state-effect or adjudication checks.
+No canon mutation may happen between draft and final acceptance.
+
+Test missing/stale plan identity, unavailable memory before the first purchase,
+provider changes after an already billed draft, mixed known/unknown costs,
+restart and late results, zero-call unchanged rulings and free idempotency replay.
+Rewind/save tests preserve quality choices and aggregate spend without carrying
+request authority. UI tests require fresh scoped review despite old global consent,
+cancelled-direction retention, free progress reads and lock/navigation fencing.
+Exercise the real preference API and both desktop/mobile browser journeys.
+
+These automated protocol fixtures make no paid provider requests and establish no
+model-quality ranking. Live comparisons need separate authorisation and versioned
+results: model/provider/date, repeated-persuasion and justified-cooperation cases,
+knowledge/ownership/continuity errors, review false positives, latency and actual
+known/unknown cost. Never claim the extra calls guarantee better play.
+
+## People and episode verification
+
+Exercise both authored openings from development to payoff and aftermath, with
+Follow/Steer sufficient and no compulsory avatar. The garden fixture covers a
+refused group role, a free unchanged repeat and cooperation on new agreed terms.
+The mystery fixture distinguishes affection from restored practical trust.
+These are protocol fixtures, not evidence from human playtesting or paid models.
+
+Test relationship aspects/targets, exact evidence, owned-character boundaries,
+rejection of numeric meters and world-fact rewriting, historical provenance,
+reload/fork/save restoration and remapped payoff identities. Test quiet scenes,
+clarification and local correction cannot manufacture a played payoff. Ending
+early remains possible; goal completion never forces an episode end.
+
+Recaps must find narrated moments despite many local changes, filter public
+commitments/relationships before limits, exclude retired and other-path records,
+and make zero provider calls. Browser tests cover immediate recap feedback,
+episode questions, reload, narrow reflow and retained path/episode drafts after
+failed writes. Include optional standard/memory/both consistency and fresh-storage isolation
+in the same final integration regression evidence.
+
+## Fourth-wall verification
+
+Test default Never, invalid choices, Living-world-only UI visibility, local
+preference saves and restored settings. Cover optional consecutive Freely
+addresses, the five intervening narrated scenes required by Rarely, and no
+cooldown advancement on failure or clarification. Reject unknown/inhabited
+speakers and effects evidenced only by an aside. Verify known charges survive
+rejection and, with quality Off, no automatic extra request occurs.
+
+Reload, fork and save-copy must preserve branch-local settings and counters;
+reject future scene indices in imported saves. Addresses remain ordinary saved
+passage text for publication. Mocked protocol tests do not demonstrate semantic
+model compliance with Never or prove resistance quality. The optional consistency
+pipeline has its own verification contract above; fourth-wall permission alone
+does not enable it or authorise another model call.
+
+## Clear-influence verification
+
+Cover the default one-moment direction, explicit ongoing focus, failure retention,
+local focus release, rewind and save-copy restoration. Invitations must not submit,
+overwrite drafts, reveal hidden facts or supply an inhabited person's decisions.
+Challenge preflight and repeat must make zero provider calls; stale preflight must
+not bypass paid consent. Test navigation during review as well as generation.
+
+Exercise recall beyond 128 working facts, public filtering before the 32-result
+limit, retirement and sibling-path rejection. Changed-fact citations must point to
+real earlier records, and portable copies must remap them. Exercise shelf paging
+beyond 200 stories, immediate loading feedback, keyboard operation and 320-pixel
+reflow. Automated accessibility scans supplement, not replace, human usability
+testing. All six books remain one regenerated artifact set per feature PR.
+
+## Fair-resistance verification
+
+The deterministic royal-guard fixtures test twenty repeated/paraphrased requests
+without extra purchases, legitimate new recorded authority, unknown or hidden
+evidence, distinct styles, narrator outcome disagreement, private-field filtering,
+branch restoration and save import. Memory fixtures exceed 128 facts, retrieve an
+old relevant fact, correct and retire it, and exclude a sibling path's history.
+Run `node node_modules/jest/bin/jest.js --runInBand tests/fiction-resistance.test.js`
+from backend. These use mocked providers and do not establish model suitability.
+
+Live evaluations need an explicitly approved paid budget and repeatable fixtures.
+Record exact model/settings/date, latency, cost, contradictions, unjustified
+capitulation AND unjustified stubbornness. Human semantic review is necessary;
+another model's approval is not sufficient. No model is certified by unit tests.
+The owner approved the three substantial iteration PRs and final green integration
+to main. Deployment remains separate; the old port-3000 instance is now stopped.
+
+## Illustrated-save verification
+
+Keep the media/save batch substantial. Test synchronous dialog feedback, prevented
+duplicate image purchases, retained drafts on failure, late-response route/lock
+isolation, exact path-local placements, safe upload and local description correction.
+Test EPUB image-only spine resources before associated prose, while manuscript/HTML
+places the image above that prose. Re-read the whole EPUB spine, not only book.xhtml.
+
+Save tests must round-trip hidden truth, knowledge, commitments, resources, control,
+episodes, preferences, director history, all branches, illustrations and known/unknown
+spend. Reject malformed versions/fields, cycles, dangling/future/cross-path references,
+unsafe media and corrupt digests before writes. Inject import transaction failure
+and verify both database rollback and cleanup of only newly staged image files.
+Browser journeys must upload, export, download a private save and import a copy.
+Never use real provider spending to satisfy deterministic tests. Verify final
+5.0 identity, fresh storage and the complete current documentation together.

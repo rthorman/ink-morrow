@@ -1,135 +1,119 @@
-# Ink Morrow security
+# InkMorrow 5.0 security
 
-Ink Morrow 4.0.0-beta.1 is a single-owner application intended to run on a
-local machine. Its access-control boundary is sized for that purpose; it does
-not turn the project into a public multi-user service. The complete 4.0 threat
-model is
-[docs/releases/4.0.0/SECURITY-THREAT-MODEL.md](docs/releases/4.0.0/SECURITY-THREAT-MODEL.md).
+InkMorrow is a private, single-owner application, not a public multi-user service.
+This document describes the 5.0 code line. Historical 4.x threat models remain
+archived; they are not instructions for the new runtime. Report the exact version
+and deployment shape when raising a security issue.
 
-## Supported version
+## Access boundary
 
-Security fixes are made on the current release line. Upgrade to the newest tagged release before reporting behavior that may already have been corrected.
+First-run requires a random terminal setup code and a distinctive 15–128-character
+NFC-normalized password. Passwords use asynchronous scrypt with random salts
+(`N=2^15, r=8, p=3`). Only a SHA-256 digest of each opaque session token is stored.
 
-The supported beta is `4.0.0-beta.1`. Versions through 3.2.2 remain available
-in the historical first-parent line but are outside the 4.0 security-support
-boundary.
+Cookies are HttpOnly and SameSite=Strict, with Secure under trusted HTTPS.
+Remembered sessions expire after seven idle days or thirty total days;
+unremembered sessions after eight idle hours or twenty-four total hours.
+Lock revokes one session; password change revokes the others. Setup/login have
+progressive delays and a temporary ten-attempt/fifteen-minute limit.
 
-## What the seal protects
+Private APIs are authenticated before parsing bodies. Mutations require the
+session CSRF token and same origin. Host checks limit DNS rebinding; restrictive
+browser headers and private no-store responses protect the HTTP boundary.
+Ordinary JSON is capped at 256 KiB; uploads and binary saves have independent limits.
 
-- On an empty installation, the server prints a random one-time setup code. The browser must present that code before it can set the owner password.
-- The owner password must contain 15–128 Unicode characters. It is normalized, salted independently, and hashed asynchronously with scrypt; plaintext is never stored.
-- Successful setup/login creates a random opaque session token. Only its SHA-256 digest is stored in SQLite. The cookie is `HttpOnly`, `SameSite=Strict`, and becomes `Secure` when Ink Morrow is reached through HTTPS.
-- A remembered session has a 7-day idle timeout and a 30-day absolute lifetime. An unremembered browser session has an 8-hour idle timeout and a 24-hour absolute lifetime.
-- Every private API is authenticated before its body is parsed. State-changing requests also require the session's random CSRF token plus a same-origin request.
-- Unlock/setup failures receive progressive delays and a temporary 10-attempt/15-minute limit. Restarting the local process clears that in-memory attempt history; it never permanently locks the owner out.
-- The server rejects unapproved Host headers, limiting DNS-rebinding attacks. It sends a restrictive Content Security Policy, framing prohibition, MIME-sniffing protection, privacy-oriented referrer/permissions policies, and private no-store caching for authenticated APIs.
-- Ordinary JSON bodies are limited to 256 KiB. The one image-page route has a separate 12 MiB limit; import streaming has its own archive limits and staged validation.
-- Provider errors and unexpected server errors are sanitized before reaching the browser. Unexpected errors receive a correlation reference in the server log.
-- New local storage/config files use owner-only permissions where the operating system supports POSIX modes. Production setup installs only backend runtime dependencies.
+The production executable explicitly requires authentication even with
+NODE_ENV=test. Retired authoring, public-share and manual-opening APIs are not
+mounted. The user manual remains public for setup and recovery guidance.
 
-The cryptographic password work happens only at setup/login/password change, not on ordinary page turns. Session lookup is indexed, session activity writes are throttled, and no security background poll is added, preserving the low-powered-device target.
+## Credentials and model work
 
-## 4.0 provider, media, archive, and sharing boundaries
+Provider credentials come from environment, process memory or an AES-256-GCM
+vault. APIs never return keys. Password change rewraps the vault key; remembered
+login after restart does not itself unlock stored credentials. Re-enter the
+password when needed.
 
-- Provider credentials may come from the environment, process-session memory,
-  or the encrypted persistent vault. APIs never return secret material. The
-  vault must be unlocked after restart, and a password change rewraps its key;
-  terminal password recovery clears vault ciphertext that can no longer be
-  decrypted without deleting manuscripts.
-- User image uploads are streamed into private staging, checked by signature,
-  size, pixel, decode, and metadata limits, then normalized to metadata-free
-  WebP. Uploading performs no AI request and no semantic subject moderation.
-  An uploaded image crosses a provider boundary only after the owner separately
-  permits and selects it as a reference for a paid generation.
-- Portable `.inkmorrow` v2 archives are validated and hashed but deliberately
-  unencrypted. They exclude owner credentials, sessions, provider secrets,
-  paid-consent state, recovery credentials, and public-share capabilities.
-- Public reading shares are immutable publication snapshots. The raw
-  high-entropy capability remains in the URL fragment and is sent in an
-  `Authorization` header; expiry and revocation fail closed. Public sharing
-  requires a correctly configured HTTPS reverse proxy that does not log that
-  header. It is not a supported direct-public-HTTP deployment.
+Storyteller and optional quality reviewers can receive relevant hidden facts,
+motives, directions and bounded prose. Standard, Memory and Both quality choices
+have explicit role/model plans, at most one repair and four/six total-call ceilings.
+Off permits one call. Prior single-call consent does not authorise quality work.
 
-## First login and daily use
+Models and reviewers are untrusted advisers. Structured effects, ownership,
+evidence and challenge outcomes are validated before atomic commit, but generated
+prose can still be inconsistent or reveal a spoiler. Resistance is game behaviour,
+not an access-control or perfect semantic-security guarantee.
 
-1. Start Ink Morrow with `./start.sh`.
-2. Open `http://localhost:3000` on that machine.
-3. Copy the one-time setup code printed by the server into the first-login screen.
-4. Choose a distinctive password or passphrase of at least 15 characters. Spaces and Unicode are allowed.
-5. Leave **Keep this scriptorium unlocked on this device** selected only on a device you control.
+Each actual call is journalled before dispatch. No uncertain transport failure is
+automatically retried. Known charges and unknown attempts survive rejection and
+interruption. Credentials never enter story context, saves or ordinary API output.
 
-Use **Lock** in the main navigation to revoke the current session. Change the password under **Settings → Security**; doing so revokes all other browser sessions immediately.
+## Images, books, saves and old data
 
-If the password is forgotten, stop the server and run:
+Uploads are authenticated before parsing, limited to 20 MB and 40 megapixels,
+container-checked and decoded fail-closed. Metadata/animation are stripped and
+orientation normalized into WebP. Active SVG and forged/polyglot files are refused.
+Upload itself sends nothing to a model and performs no semantic moderation.
+
+AI painting sends only the selected passage and art direction to the reviewed
+Illustrator. It sends no private facts, motives or uploaded references, and makes
+one attempt. Books contain only current-path prose and placed illustrations.
+Review the prose before sharing: filtering private fields cannot undo a model's
+secret disclosure already written into it.
+
+Private `.inkmorrow5` saves are bounded gzip-JSON with all paths and private state,
+not old manuscript ZIP archives. They are unencrypted. Import validates fields,
+ancestry, evidence and media before a transactional new copy. Credentials,
+provider configuration, consent and pending request authority are excluded.
+
+5.0 defaults to `database-v5/ink-morrow-5.db`. Existing database/journal files are
+inspected through a private scratch copy before normal startup. Older families,
+future versions, bad ledgers and orphan journals are refused without adoption.
+This is not a live backup service: stop other writers before operator copies.
+
+## Recovery
+
+Stop the exact installation and verify DATA_DIR/DB_PATH. From backend:
 
 ```bash
-cd backend
 npm run auth:reset -- --yes
 ```
 
-That command deletes only the password record and sessions. Stories, worlds, characters, settings, continuity, images, audio, and transfer archives remain intact. The next server start prints a new setup code.
+This removes the owner, sessions and saved provider credentials from the selected
+5.0 database. Stories and media remain. It refuses missing, in-memory or old-family
+databases. Relative paths resolve from backend/, matching startup. Keep a cold
+backup before recovery; the next start prints a new setup code.
 
-## Network access
+## Network and limits
 
-The default `HOST=127.0.0.1` accepts connections only from the same machine.
+Loopback (`HOST=127.0.0.1`) is the safe default. For remote access, prefer an HTTPS
+reverse proxy on loopback, explicit ALLOWED_HOSTS and TRUST_PROXY=1. Trust applies
+only to the loopback proxy. Verify Secure cookies and Host rejection.
 
-In plain language, `localhost`/`127.0.0.1` means “this computer only.” A LAN is
-the local home or office network. HTTP does not encrypt traffic in transit;
-HTTPS does, protecting passwords, cookies, prose, and media from being read by
-other equipment along the route. A reverse proxy is the front-door service
-that terminates HTTPS and forwards the request to loopback Ink Morrow.
+Direct non-loopback HTTP requires ALLOW_INSECURE_LAN=1 and is unencrypted.
+Never expose that configuration directly to the public internet. This project
+does not claim a hardened public hosting service.
 
-For durable access from other devices, put an HTTPS reverse proxy on the same machine and leave Ink Morrow bound to loopback. Add the proxy's public hostname to `ALLOWED_HOSTS`, set `TRUST_PROXY=1`, and configure the proxy to preserve `Host` and send `X-Forwarded-Proto: https`. `TRUST_PROXY` trusts forwarding information only from a loopback peer.
+The web password is not whole-disk encryption. Database, media, saves and backups
+can be read by someone with filesystem access; .env may contain a provider key.
+Protect the operating-system account and use encrypted devices/backups as needed.
+A compromised OS, administrator, browser extension, proxy or provider is outside
+this boundary. There is no MFA, email recovery or shared-account role system.
 
-Direct LAN HTTP is an explicit escape hatch:
+OpenAI-compatible endpoints may differ in catalogue, text and image behaviour.
+Review the actual provider's privacy/retention policies independently.
+Fixture tests do not certify live model quality. Desktop/mobile Chrome coverage
+does not imply every browser engine or physical device has been tested.
 
-```dotenv
-HOST=0.0.0.0
-ALLOW_INSECURE_LAN=1
-```
+## Reporting and further detail
 
-This sends the password, session cookie, manuscripts, generated media, and API traffic without transport encryption. Use it only on a network you trust and understand; never expose that configuration directly to the public internet.
+CI audits production dependencies and pins third-party actions. Keep supported
+runtime/dependency versions and inspect security updates rather than bypassing
+a failing audit.
 
-## Important limits
+Use the [private advisory form](https://github.com/rthorman/ink-morrow/security/advisories/new),
+not a public issue, for exploitable findings. Include a minimal reproduction,
+version, deployment and impact; omit real prose, passwords, cookies and keys.
 
-The login is access control, not encryption:
-
-- The SQLite database, images, and audio are plaintext files. Anyone who can read the account's files—or an unencrypted disk after theft—can read them without the web password.
-- Portable `.inkmorrow` exports are ZIP containers and are not encrypted. The exposure review shows what is included; store/share them accordingly. Login credentials, sessions, API keys, and paid-consent state are never exported.
-- `backend/.env` contains the provider key. Use a dedicated OpenRouter key with a hard spend limit and protect the operating-system account.
-- A malicious administrator/root user, compromised OS, browser extension, reverse proxy, or provider is outside this boundary.
-- There is one owner only: no usernames, roles, remote recovery, MFA, email, or account sharing.
-- Public internet deployment is outside the supported threat model, even behind TLS.
-
-## Provider and browser compatibility
-
-OpenRouter is the only AI supplier tested with Ink Morrow 4.0. A different
-OpenAI-compatible service may not implement the catalogue, image, speech,
-reasoning, or response behavior Ink Morrow expects, and may fail partially or
-completely. Treat an untested provider as a separate integration and threat
-boundary; review its data handling, authentication, retention, and error
-behavior before sending real material.
-
-Chrome Stable is the only browser tested for the beta. Other modern browsers
-should work, but browser-specific privacy, extension, cookie, storage, media,
-and download behavior remains outside the certified path.
-
-Full-device encryption and encrypted backups remain the right controls for data at rest. Archive encryption may be added separately in a future format revision.
-
-## Updates and dependencies
-
-CI pins third-party GitHub Actions to immutable commits and audits production dependencies. Dependabot checks npm packages and Actions weekly. Review dependency-update pull requests and keep Node.js on a supported release.
-
-The password work factor follows OWASP's 32 MiB scrypt profile (`N=2^15`, `r=8`, `p=3`), while the random 16-byte salt and asynchronous implementation follow Node's crypto guidance. Session expiry, strict SameSite plus a separate CSRF token, and server-side revocation follow OWASP's password, session, and CSRF guidance.
-
-- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
-- [OWASP Session Management Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
-- [OWASP CSRF Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)
-- [Node.js `crypto.scrypt` documentation](https://nodejs.org/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback)
-
-## Reporting a vulnerability
-
-Please avoid posting exploitable details in a public issue. Use the repository's [private security advisory form](https://github.com/rthorman/ink-morrow/security/advisories/new). Include the affected version, deployment shape, reproduction steps, and impact; do not include real manuscripts, passwords, session cookies, or provider keys.
-
-The operational and data boundaries are also summarized in
-[LEGAL.md](LEGAL.md) and [PRIVACY.md](PRIVACY.md).
+Read the [complete Security handbook](docs/pdf/Ink-Morrow-5.0-Security-Privacy-and-AI-Boundary.pdf),
+[Operations handbook](docs/pdf/Ink-Morrow-5.0-Operations-and-Recovery-Handbook.pdf),
+[Privacy notice](PRIVACY.md) and [Legal notices](LEGAL.md).

@@ -269,7 +269,7 @@ describe('PR 06 transactional writing state machine', () => {
     let secondApp;
     try {
       firstDb = createDb(dbPath);
-      firstApp = createApp(firstDb, { staticDir: null, autoSuccessorEnabled: false });
+      firstApp = createApp(firstDb, { legacyEnabled: true, staticDir: null, autoSuccessorEnabled: false });
       const story = await createStory(firstApp);
       axios.post.mockResolvedValueOnce(reply('Restart-safe prepared prose.'));
       const prepared = await post(firstApp, story.id, '/pages/preview', {}, { key: 'restart-ready' }).expect(200);
@@ -286,7 +286,7 @@ describe('PR 06 transactional writing state machine', () => {
       firstDb = null;
 
       secondDb = createDb(dbPath);
-      secondApp = createApp(secondDb, { staticDir: null, autoSuccessorEnabled: false });
+      secondApp = createApp(secondDb, { legacyEnabled: true, staticDir: null, autoSuccessorEnabled: false });
       expect(secondDb.prepare('SELECT status, error_code FROM writing_operations WHERE id = ?').get('abandoned-op'))
         .toMatchObject({ status: 'failed', error_code: 'RESTART_INTERRUPTED' });
       const status = await request(secondApp).get(`/api/stories/${story.id}/pages/preview`).expect(200);

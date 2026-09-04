@@ -55,6 +55,16 @@ def contact_sheet(pages: list[Path], output: Path) -> None:
 
 def inspect(pdf: Path) -> tuple[int, int]:
     reader = PdfReader(pdf)
+    if not pdf.name.startswith("Ink-Morrow-5.0-"):
+        raise ValueError(f"{pdf.name}: unexpected current-edition filename")
+    title = str((reader.metadata or {}).get("/Title", ""))
+    cover = reader.pages[0].extract_text() or ""
+    if "5.0" not in title or "5.0" not in cover or "4.0" in title:
+        raise ValueError(f"{pdf.name}: current-edition title/cover mismatch")
+    if "Development Edition" in title or "Development Edition" in cover:
+        raise ValueError(f"{pdf.name}: transitional edition label remains")
+    if pdf.name == "Ink-Morrow-5.0-User-Guide.pdf" and len(reader.pages) != 35:
+        raise ValueError(f"{pdf.name}: expected 35 A4 pages, got {len(reader.pages)}")
     text = "\n".join(page.extract_text() or "" for page in reader.pages)
     if not text.strip():
         raise ValueError(f"{pdf.name}: no extractable text")

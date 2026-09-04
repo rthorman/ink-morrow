@@ -114,36 +114,26 @@ async function generateImageWithConfig(cfg, {
     throw imageError(error, cfg);
   }
   const image = response.data?.data?.[0];
+  const rejected = (message) => Object.assign(new Error(message), { statusCode: 502, code: 'IMAGE_PROVIDER_INVALID_PAYLOAD', billedAttempts: 1,
+    costUsd: Number.isFinite(response.data?.usage?.cost) && response.data.usage.cost >= 0 ? response.data.usage.cost : null });
   if (!image?.b64_json) {
-    const err = new Error('The image model returned nothing usable.');
-    err.statusCode = 502;
-    throw err;
+    throw rejected('The image model returned nothing usable.');
   }
   const encoded = image.b64_json;
   const mediaType = String(image.media_type || 'image/png').toLowerCase();
   if (typeof encoded !== 'string' || encoded.length > MAX_IMAGE_BASE64_CHARS ||
-      !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(encoded) ||
       !PROVIDER_IMAGE_TYPES.has(mediaType)) {
-    const err = new Error('The image model returned an invalid or oversized image payload.');
-    err.statusCode = 502;
-    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
-    throw err;
+    throw rejected('The image model returned an invalid or oversized image payload.');
   }
   const decoded = Buffer.from(encoded, 'base64');
   if (decoded.toString('base64') !== encoded) {
-    const err = new Error('The image model returned invalid base64 image data.');
-    err.statusCode = 502;
-    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
-    throw err;
+    throw rejected('The image model returned invalid base64 image data.');
   }
   let normalized;
   try {
     normalized = await normalizeImage(decoded, mediaType);
   } catch {
-    const err = new Error('The image model returned an unsafe or unreadable image.');
-    err.statusCode = 502;
-    err.code = 'IMAGE_PROVIDER_INVALID_PAYLOAD';
-    throw err;
+    throw rejected('The image model returned an unsafe or unreadable image.');
   }
   return {
     buffer: normalized.buffer,
@@ -161,6 +151,11 @@ function createImageClient({ providers }) {
   }
 
   return {
+    generateIllustration: async (input) => {
+      const cfg = providers.resolve('illustrator', { capability: 'image' });
+      try { return await generateImageWithConfig(cfg, input); }
+      catch (error) { error.message = providers.redact(error.message || 'Image provider request failed.'); throw error; }
+    },
     generateImage: async (input) => {
       const cfg = resolvedConfig();
       try { return await generateImageWithConfig(cfg, input); }

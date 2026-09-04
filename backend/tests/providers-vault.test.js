@@ -94,7 +94,7 @@ describe('PR 04 provider profiles and role assignments', () => {
         credential: { source: 'environment', configured: true, read_only: true, state: 'ready' },
       });
       expect(JSON.stringify(status.body)).not.toContain(CANARY);
-      expect(status.body.roles.map((entry) => entry.role).sort()).toEqual(['archivist', 'narrator', 'scribe']);
+      expect(status.body.roles.map((entry) => entry.role).sort()).toEqual(['archivist', 'illustrator', 'narrator', 'scribe']);
       expect(status.body.roles.find((entry) => entry.role === 'archivist')?.model_id)
         .toBe('google/gemini-2.5-flash-lite');
 
@@ -300,6 +300,7 @@ describe('encrypted persistent provider vault', () => {
     const db = createDb(':memory:');
     const logger = { log: jest.fn(), error: jest.fn() };
     const appOptions = {
+      legacyEnabled: true,
       staticDir: null,
       authRequired: true,
       authOptions: {

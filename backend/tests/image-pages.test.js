@@ -14,7 +14,7 @@ let app, db, imageDir;
 beforeAll(() => {
   imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-art-pages-'));
   db = createDb(':memory:');
-  app = createApp(db, { staticDir: null, imageDir });
+  app = createApp(db, { legacyEnabled: true, staticDir: null, imageDir });
 });
 
 beforeEach(() => {
@@ -133,7 +133,7 @@ describe('Noncanonical generated art compatibility', () => {
     expect(db.prepare('SELECT COUNT(*) AS value FROM continuity_deltas').get().value).toBe(before);
   });
 
-  it('serves only the normalized derivative and embeds it beside prose in EPUB', async () => {
+  it('serves the normalized derivative and exports it as a separate EPUB image page', async () => {
     const { story } = await seedStory();
     const placed = await placeGenerated(story.id, 2);
     const asset = placed.body.asset;
@@ -144,11 +144,13 @@ describe('Noncanonical generated art compatibility', () => {
 
     const epub = await request(app).get(`/api/stories/${story.id}/export`).buffer().parse(binaryParser).expect(200);
     const text = epub.body.toString('utf8');
-    expect(text).toContain('EPUB/images/asset-1.webp');
+    expect(text).toContain('EPUB/images/asset-1.png');
+    expect(text).toContain('rendition:layout-pre-paginated');
     expect(text).toContain('A candlelit hall, shadows leaning in.');
     expect(text).toContain('Second page body.');
     expect(text).toContain('EPUB/book.xhtml');
-    expect(epub.body.includes(media.body)).toBe(true);
+    // EPUB uses the same normalized pixels in a core-media PNG container.
+    expect(epub.body.includes(await sharp(media.body).png().toBuffer())).toBe(true);
   });
 
   it('unplaces art when its anchor is deleted while retaining the asset', async () => {

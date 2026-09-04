@@ -1,13 +1,13 @@
 'use strict';
 
-// One place for the durable identities introduced by the 4.0 release train.
+// Durable identity for the new 5.0 product. Older data is never adopted.
 // Database and archive readers must compare these values before attempting a
 // migration or import; feature consumers use the same contract through the
 // authenticated /api/capabilities endpoint.
 
-const DATABASE_FAMILY = 'ink-morrow-4';
-const DATABASE_SCHEMA_VERSION = 18;
-const SQLITE_APPLICATION_ID = 0x494D3430; // ASCII "IM40"
+const DATABASE_FAMILY = 'ink-morrow-5';
+const DATABASE_SCHEMA_VERSION = 21;
+const SQLITE_APPLICATION_ID = 0x494D3530; // ASCII "IM50"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
 const ARCHIVE_VERSION = 2;
@@ -17,29 +17,18 @@ const ARCHIVE_EXTENSION = '.inkmorrow';
 const RELEASE_TRAIN = require('../../package.json').version;
 
 const FEATURES = Object.freeze([
-  Object.freeze({ id: 'v4-kernel', status: 'available' }),
-  Object.freeze({ id: 'manuscript-hierarchy', status: 'available' }),
-  Object.freeze({ id: 'revisions-recovery', status: 'available' }),
+  Object.freeze({ id: 'playable-fiction-state', status: 'available' }),
+  Object.freeze({ id: 'reader-director', status: 'available' }),
+  Object.freeze({ id: 'living-world-resistance', status: 'available' }),
+  Object.freeze({ id: 'durable-fiction-memory', status: 'available' }),
+  Object.freeze({ id: 'character-relationships', status: 'available' }),
+  Object.freeze({ id: 'episode-framing', status: 'available' }),
+  Object.freeze({ id: 'optional-consistency-quality', status: 'available' }),
+  Object.freeze({ id: 'fourth-wall-dialogue', status: 'available' }),
   Object.freeze({ id: 'providers-vault', status: 'available' }),
-  Object.freeze({ id: 'continuity-v2', status: 'available' }),
-  Object.freeze({ id: 'writing-transactions', status: 'available' }),
-  Object.freeze({ id: 'art-upload', status: 'available' }),
-  Object.freeze({ id: 'grok-sanitization', status: 'available' }),
-  Object.freeze({ id: 'adaptive-shell', status: 'available' }),
-  Object.freeze({ id: 'library-start', status: 'available' }),
-  Object.freeze({ id: 'desk', status: 'available' }),
-  Object.freeze({ id: 'chronicle', status: 'available' }),
-  Object.freeze({ id: 'codex', status: 'available' }),
-  Object.freeze({ id: 'gallery', status: 'available' }),
-  Object.freeze({ id: 'publication-core', status: 'available' }),
-  Object.freeze({ id: 'publication', status: 'available' }),
-  Object.freeze({ id: 'snapshot-sharing', status: 'available' }),
-  Object.freeze({ id: 'first-class-scribes', status: 'available' }),
-  Object.freeze({ id: 'optional-scenes', status: 'available' }),
-  Object.freeze({ id: 'optional-play-sessions', status: 'available' }),
-  Object.freeze({ id: 'living-campaign-state', status: 'available' }),
-  Object.freeze({ id: 'play-forks-prose', status: 'available' }),
-  Object.freeze({ id: 'deterministic-solo-tools', status: 'available' }),
+  Object.freeze({ id: 'fiction-illustrations', status: 'available' }),
+  Object.freeze({ id: 'fiction-books', status: 'available' }),
+  Object.freeze({ id: 'fiction-saves', status: 'available' }),
 ]);
 
 function releaseCapabilities(applicationVersion) {
@@ -54,8 +43,9 @@ function releaseCapabilities(applicationVersion) {
       format: ARCHIVE_FORMAT,
       version: ARCHIVE_VERSION,
       manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
-      status: 'available',
+      status: 'retired',
     },
+    playable_save: { format: 'ink-morrow-fiction-save', version: 1, extension: '.inkmorrow5', status: 'available', imports_older_series: false },
     features: FEATURES.map((feature) => ({ ...feature })),
   };
 }

@@ -1,69 +1,40 @@
 'use strict';
 
 // Application composer: global middleware, one runtime/service set, feature
-// router mounting on unchanged paths, static frontend, error handling, and
+// current-product router mounting, static frontend, error handling, and
 // a disposal hook. All domain behavior lives in src/modules/*.
 
 const express = require('express');
-const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const { randomUUID } = require('node:crypto');
 const { createAiClient } = require('./ai');
-const { createImageClient, createImageStore } = require('./images');
+const { createImageClient } = require('./images');
+const { createLegacyRuntime } = require('./legacy-runtime');
+const { createPublicShareRouter } = require('./modules/publication/share-routes');
 const { createHostGuard, securityHeaders } = require('./core/security');
 const { releaseCapabilities } = require('./release');
 
-const { createCatalogStore } = require('./modules/catalog/store');
-const { createCatalogRouter } = require('./modules/catalog/routes');
-const { createScribeStore } = require('./modules/scribes/store');
-const { createScribeRouter } = require('./modules/scribes/routes');
-const { createStoriesStore } = require('./modules/stories/store');
-const { createStoriesRouter } = require('./modules/stories/routes');
-const { createPlayStore } = require('./modules/play/store');
-const { createPlayService } = require('./modules/play/service');
-const { createPlayRouter } = require('./modules/play/routes');
-const { createSoloToolStore } = require('./modules/play/solo-tools');
-const { createSoloToolRouter } = require('./modules/play/solo-tool-routes');
-const { createCampaignStore } = require('./modules/campaign/store');
-const { createCampaignService } = require('./modules/campaign/service');
-const { createCampaignRouter } = require('./modules/campaign/routes');
-const { createContinuityStore } = require('./modules/continuity/store');
-const { createContinuityService } = require('./modules/continuity/service');
-const { createContinuityRouter } = require('./modules/continuity/routes');
-const { createWritingService } = require('./modules/writing/service');
-const { createWritingRouter } = require('./modules/writing/routes');
-const { createWritingTransactions } = require('./modules/writing/transactions');
-const { createImageQueue } = require('./modules/imagery/queue');
-const { createImageryService } = require('./modules/imagery/service');
-const { createImageryRouter } = require('./modules/imagery/routes');
-const { createArtStore } = require('./modules/imagery/art-store');
-const { createNarration } = require('./modules/audio/narration');
-const { createAudiobookQueue } = require('./modules/audio/audiobook-queue');
-const { createAudioRouter } = require('./modules/audio/routes');
-const { createLibraryRouter } = require('./modules/library/routes');
-const { createExportPlanner } = require('./modules/transfer/planner');
-const { createTransferService } = require('./modules/transfer/service');
-const { createTransferRouter } = require('./modules/transfer/routes');
+const { createFictionStore } = require('./modules/fiction/store');
+const { createFictionService } = require('./modules/fiction/service');
+const { createFictionRouter } = require('./modules/fiction/routes');
+const { createFictionMedia } = require('./modules/fiction/media');
+const { createFictionPublication } = require('./modules/fiction/publication');
+const { createFictionSaves } = require('./modules/fiction/saves');
 const { createAuthService } = require('./modules/auth/service');
 const { createAuthRouter } = require('./modules/auth/routes');
 const { createProviderService } = require('./modules/providers/service');
 const { createProviderRouter } = require('./modules/providers/routes');
-const { createPublicationService } = require('./modules/publication/document');
-const { createPublicationRouter } = require('./modules/publication/routes');
-const { createPublicationJobs } = require('./modules/publication/jobs');
-const { createPublicationShares } = require('./modules/publication/shares');
-const { createPublicShareRouter, createPublicationShareRouter } = require('./modules/publication/share-routes');
 
 function createApp(
   db,
   {
     staticDir = path.join(__dirname, '../../frontend'),
-    imageDir = path.join(__dirname, '../../database/images'),
-    audioDir = path.join(__dirname, '../../database/audio'),
+    imageDir = path.join(__dirname, '../../database-v5/images'),
+    audioDir = path.join(__dirname, '../../database-v5/audio'),
     transferDir = null,
     publicationDir = null,
     authRequired = process.env.NODE_ENV !== 'test',
+    legacyEnabled = false,
     authOptions = {},
     providerOptions = {},
     allowLan = false,
@@ -112,21 +83,16 @@ function createApp(
   // The manual is deliberately public: a locked-out owner may need its setup,
   // recovery, and network guidance before they can authenticate.
   app.get('/user-manual.pdf', (req, res) => {
-    const manualPath = path.join(__dirname, '../../docs/pdf/Ink-Morrow-4.0-User-Guide.pdf');
+    const manualPath = path.join(__dirname, '../../docs/pdf/Ink-Morrow-5.0-User-Guide.pdf');
     res.setHeader('Cache-Control', 'no-cache');
     res.download(manualPath, 'Ink-Morrow-User-Manual.pdf');
   });
-  // The public reader is the sole unauthenticated API seam. It accepts a
-  // capability in an Authorization header, never in a logged path or query.
-  // The service is assigned before createApp returns and the closure prevents
-  // the rest of /api from bypassing the owner gate.
-  let publicationShares;
-  app.use(createPublicShareRouter({ shares: () => publicationShares }));
+  // Only inherited tests can mount the retired public-reader seam. Production
+  // has no unauthenticated story API or sharing capability.
+  if (legacyEnabled) app.use(createPublicShareRouter({ shares: () => app.locals.publicationShares }));
   app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
 
-  // The release branch grows feature-by-feature. Later frontend PRs can use
-  // this authenticated, non-secret contract instead of inferring support from
-  // routes or package versions.
+  // Authenticated identity distinguishes live 5.0 features from retired archives.
   const capabilities = releaseCapabilities(require('../package.json').version);
   app.get('/api/capabilities', (req, res) => res.json(capabilities));
 
@@ -135,158 +101,33 @@ function createApp(
   const paintedPagePath = /^\/api\/stories\/[^/]+\/pages\/\d+\/image-page$/;
   app.use((req, res, next) => {
     if (!req.is('application/json')) return next();
-    return (paintedPagePath.test(req.path) ? paintedPageJson : ordinaryJson)(req, res, next);
+    return (legacyEnabled && paintedPagePath.test(req.path) ? paintedPageJson : ordinaryJson)(req, res, next);
   });
 
   // -- runtime / service set -------------------------------------------------
 
-  const catalog = createCatalogStore(db);
-  const scribes = createScribeStore(db);
-  const stories = createStoriesStore(db, {
-    getWorld: catalog.getWorld,
-    scribes,
-    recoveryRetentionDays,
-    clock,
-  });
-  const playStore = createPlayStore(db, { stories });
-  const soloTools = createSoloToolStore(db, { stories, playStore });
   const ai = createAiClient({ providers });
-  app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
-  const { generateImage, describeImageProvider } = createImageClient({ providers });
-  // Automatic continuity is silenced in ordinary unit tests so old one-call
-  // provider mocks remain deterministic. Dedicated continuity tests opt in.
-  const autoContinuityEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_CONTINUITY_EXTRACTION === '1';
-  const continuityStore = createContinuityStore(db);
-  const continuity = createContinuityService({
-    db, stories, store: continuityStore, chatCompletion: ai.archivistCompletion, autoEnabled: autoContinuityEnabled,
-  });
-  const campaign = createCampaignStore(db, { stories, continuity, playStore });
-  const campaignService = createCampaignService({ campaign, chatCompletion: ai.chatCompletion });
-  const writing = createWritingService({ db, catalog, scribes, stories, continuity, chatCompletion: ai.chatCompletion });
-  const writingTransactions = createWritingTransactions({
-    db,
-    stories,
-    continuityStore,
-    continuity,
-    writing,
-    clock,
-    ...(writerLeaseMs === undefined ? {} : { leaseMs: writerLeaseMs }),
-    ...(autoSuccessorEnabled === undefined ? {} : { autoSuccessorEnabled }),
-    logger: providerSafeLogger,
-  });
-  const play = createPlayService({
-    store: playStore, stories, continuity, chatCompletion: ai.chatCompletion,
-    transactions: writingTransactions, soloTools,
-  });
-  const imageStore = createImageStore(imageDir);
-  const artStore = createArtStore({
-    db,
-    rootDir: imageDir,
-    legacyImageStore: imageStore,
-    logger: providerSafeLogger,
-  });
-  // Auto-generation (creation + boot backfill) can be silenced in tests so it
-  // never steals mocked upstream calls; explicit redo always works.
-  const autoImagesEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_BACKGROUND_IMAGES === '1';
-  const imageQueue = createImageQueue({
-    db, continuity, generateImage, imageStore, logger: providerSafeLogger, autoImagesEnabled,
-  });
-  const imagery = createImageryService({
-    catalog,
-    stories,
-    continuity,
-    chatCompletion: ai.chatCompletion,
-    generateImage,
-    describeImageProvider,
-    imageStore,
-    artStore,
-  });
-  const narration = createNarration({ createSpeech: ai.createSpeech });
-  // Whole-story audiobooks live on disk next to the images; a pending row
-  // left behind by a server restart can never finish - fail it honestly.
-  fs.mkdirSync(audioDir, { recursive: true });
-  db.prepare(
-    "UPDATE audiobooks SET status = 'failed', error = 'Interrupted by a server restart. Start it again from the audiobook button.', updated_at = CURRENT_TIMESTAMP WHERE status = 'pending'"
-  ).run();
-  const audiobooks = createAudiobookQueue({
-    db,
-    audioDir,
-    stories,
-    narration,
-    listSpeechModels: ai.listSpeechModels,
-    fetchGenerationCost: ai.fetchGenerationCost,
-    logger: providerSafeLogger,
-  });
-  const audio = { abandonStory: audiobooks.abandonStory };
-  // Imports are staged next to the database in production. Tests receive an
-  // isolated disposable root unless they explicitly provide one.
-  const ownsTransferDir = !transferDir && process.env.NODE_ENV === 'test';
-  const resolvedTransferDir = transferDir || (ownsTransferDir
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'im-transfers-'))
-    : path.join(__dirname, '../../database/transfers'));
-  const transferPlanner = createExportPlanner({
-    db,
-    imageStore,
-    artStore,
-    audioDir,
-    appVersion: require('../package.json').version,
-  });
-  const transfers = createTransferService({
-    db,
-    planner: transferPlanner,
-    imageStore,
-    artStore,
-    audioDir,
-    audiobooks,
-    writingTransactions,
-    transferDir: resolvedTransferDir,
-  });
-  const publications = createPublicationService({ db, stories, artStore });
-  const ownsPublicationDir = !publicationDir && process.env.NODE_ENV === 'test';
-  const resolvedPublicationDir = publicationDir || (ownsPublicationDir
-    ? fs.mkdtempSync(path.join(os.tmpdir(), 'im-publications-'))
-    : path.join(__dirname, '../../database/publications'));
-  const publicationJobs = createPublicationJobs({ publications, rootDir: resolvedPublicationDir, clock });
-  publicationShares = createPublicationShares({ db, publications, clock });
+  const fictionStore = createFictionStore(db);
+  fictionStore.reconcile();
+  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, archivistCompletion: ai.archivistCompletion, providers });
+  app.locals.validateStartup = () => legacyEnabled ? providers.validateStartup(ai.listModelsForProfile) : Promise.resolve();
+  const imageClient = createImageClient({ providers });
+  const { generateIllustration } = imageClient;
+  const fictionMedia = createFictionMedia({ db, store: fictionStore, rootDir: imageDir, generateIllustration, providers });
+  const fictionPublication = createFictionPublication({ store: fictionStore, media: fictionMedia });
+  const fictionSaves = createFictionSaves({ db, store: fictionStore, media: fictionMedia });
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
-  app.locals.writingTransactions = writingTransactions;
-  app.locals.playStore = playStore;
-  app.locals.campaign = campaign;
-  app.locals.artStore = artStore;
-  app.locals.publications = publications;
-  app.locals.publicationJobs = publicationJobs;
-  app.locals.publicationShares = publicationShares;
-
-  // -- feature routers (unchanged paths) ---------------------------------------
-
-  app.use(createCatalogRouter({ store: catalog, imageQueue, imageStore, stories }));
-  app.use(createScribeRouter({ store: scribes, imageQueue, imageStore, stories }));
   app.use(createProviderRouter({ providers, ai }));
-  app.use(createStoriesRouter({
-    store: stories, imageStore, artStore, imageQueue, audio, transactions: writingTransactions,
-  }));
-  app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
-  app.use(createSoloToolRouter({ stories, store: soloTools, transactions: writingTransactions }));
-  app.use(createCampaignRouter({ stories, campaign, service: campaignService, transactions: writingTransactions }));
-  app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
-  app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
-  app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
-  app.use(createAudioRouter({ stories, narration, audiobooks, ai, logger: providerSafeLogger }));
-  app.use(createLibraryRouter({ db, catalog, stories, continuity, publications, imageStore, artStore, audiobooks }));
-  app.use(createPublicationRouter({ publications, jobs: publicationJobs }));
-  app.use(createPublicationShareRouter({ shares: publicationShares }));
-  app.use(createTransferRouter({ transfers }));
-
-  // Boot backfill of entity reference images (no-op without an API key or
-  // in silenced test runs).
-  imageQueue.backfill();
+  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, allowManualOpening: legacyEnabled }));
+  const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 
   // -- static frontend + error handling -------------------------------------
 
   if (staticDir) {
-    app.get(['/share', '/share/'], (req, res) => {
+    app.get(['/share', '/share/', '/share.html'], (req, res) => {
+      if (!legacyEnabled) return res.status(404).send('Public sharing is not part of InkMorrow 5.0.');
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
       res.sendFile(path.join(staticDir, 'share.html'));
@@ -327,27 +168,15 @@ function createApp(
       body.cost_usd = typeof error.costUsd === 'number' && Number.isFinite(error.costUsd)
         ? error.costUsd
         : null;
+      if (Number.isFinite(error.knownCostUsd)) body.known_cost_usd = error.knownCostUsd;
+      if (Number.isInteger(error.unknownAttempts)) body.unknown_attempts = error.unknownAttempts;
     }
     res.status(status).json(body);
   });
 
   // Test/runtime disposal: queues stop accepting work; persisted user data
   // and in-flight cleanup are never deleted.
-  app.locals.dispose = () => {
-    imageQueue.dispose();
-    audiobooks.dispose();
-    narration.dispose();
-    transfers.dispose();
-    publicationJobs.dispose();
-    writingTransactions.dispose();
-    providers.dispose();
-    if (ownsTransferDir) {
-      try { fs.rmSync(resolvedTransferDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
-    }
-    if (ownsPublicationDir) {
-      try { fs.rmSync(resolvedPublicationDir, { recursive: true, force: true }); } catch { /* test cleanup only */ }
-    }
-  };
+  app.locals.dispose = () => { legacy?.dispose(); providers.dispose(); };
 
   return app;
 }

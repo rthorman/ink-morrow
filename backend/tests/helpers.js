@@ -1,6 +1,9 @@
 'use strict';
 
 const request = require('supertest');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { createDb } = require('../src/db');
 const { createApp } = require('../src/app');
 
@@ -26,15 +29,28 @@ function createTestApp(options = {}) {
         ...(appOptions.authOptions || {}),
       }
     : appOptions.authOptions;
-  const app = createApp(db, { staticDir: null, logger, ...appOptions, authOptions });
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'im-test-app-'));
+  let app;
+  try {
+    app = createApp(db, {
+      legacyEnabled: true, staticDir: null, logger,
+      imageDir: path.join(temporaryRoot, 'images'),
+      audioDir: path.join(temporaryRoot, 'audio'),
+      transferDir: path.join(temporaryRoot, 'transfers'),
+      publicationDir: path.join(temporaryRoot, 'publications'),
+      ...appOptions, authOptions,
+    });
+  } catch (error) {
+    db.close(); fs.rmSync(temporaryRoot, { recursive: true, force: true }); throw error;
+  }
   app.locals.logEntries = logEntries;
   return {
     db,
     app,
     logEntries,
     close: () => {
-      app.locals.dispose?.();
-      db.close();
+      try { app.locals.dispose?.(); db.close(); }
+      finally { fs.rmSync(temporaryRoot, { recursive: true, force: true }); }
     },
   };
 }

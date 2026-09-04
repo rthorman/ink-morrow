@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { books } from './books.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '../..');
@@ -10,7 +11,7 @@ const manifestPath = path.join(here, 'generated.json');
 const write = process.argv.includes('--write');
 const strict = process.argv.includes('--strict');
 const sourceRoots = ['docs/pdf-library/books.mjs','docs/pdf-library/markdown.mjs','docs/pdf-library/render.mjs','docs/pdf-library/theme.css','docs/pdf-library/sources','docs/screenshots','frontend/brand','frontend/fonts'];
-const outputs = ['docs/pdf/Ink-Morrow-4.0-User-Guide.pdf','docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf','docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf','docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf','docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf','docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf'];
+const outputs = books.map((book) => `docs/pdf/${book.output}`);
 
 async function filesUnder(relative) {
   const absolute = path.join(root, relative);

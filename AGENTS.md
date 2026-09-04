@@ -1,6 +1,129 @@
 # Project memory
 
-Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
+## 5.0.0 product programme (approved 2026-09-04)
+
+- RELEASE CUTOVER: the production entry point always uses authentication and
+  legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
+  runtime are not mounted. Only explicitly opted-in inherited tests use
+  legacy-runtime.js; do not revive manual prose through an API or test-mode server.
+- Fresh storage is family ink-morrow-5, schema 21, SQLite application ID IM50,
+  default database-v5/ink-morrow-5.db. Server and password reset share the same
+  DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
+  DB/WAL/journal files only through a private scratch copy before acceptance;
+  read-only SQLite itself may create SHM. Refuse older families, orphan journals,
+  invalid ledgers and failed preflight without modifying source files or falling
+  back to adoption. This preflight is not a live-backup mechanism.
+- Current manuals describe 5.0 throughout. The User Guide targets 35 A4 pages
+  with full local/all-feature/subset journeys. Retained 4.x contracts below and
+  older fixed HTML/PDF source material are historical, not current workflows.
+- LATEST VISUAL REQUIREMENT (4 September 2026): consolidate product text logos,
+  including the running app and all six manuals, on the existing logo at the top
+  of the GitHub README: `frontend/brand/ink-morrow-lockup.svg`. Reuse that canonical
+  artwork rather than re-typesetting the name or generating a new logo. Ordinary
+  product-name mentions remain text. Verify responsive sizing, accessibility and
+  PDF appearance before the final release-to-main merge.
+- LATEST OWNER DIRECTION (4 September 2026): add a Living-world setting allowing
+  characters to address the user across the fourth wall: Never, Rarely or Freely.
+  The owner briefly cancelled final main integration, then explicitly restored
+  approval AFTER implementation is complete. Finish this setting and the remaining
+  approved 5.0 programme, pass CI, and only then merge the release into main.
+- The owner is willing to allow additional LLM calls when they improve character
+  and world consistency, and explicitly selected an OPTIONAL quality mode (not
+  enabled by default). Assess bounded quality-review/repair before the final
+  merge using the standard model, the memory-support model, or both as useful;
+  the owner's permission is not restricted to extra calls to the standard model.
+  The earlier universal one-call restriction may be superseded by an
+  explicitly reviewed quality mode. Keep maximum calls, latency/cost tradeoffs,
+  failure handling and actual spend visible. No unbounded retries or assumption
+  that a second model proves semantic correctness; no live paid benchmark is
+  authorised merely by permitting additional product-runtime calls.
+- Optional quality is branch-local Off/Standard/Memory/Both: Off stays one call;
+  a single reviewer caps at four total calls, Both at six. At most one repair,
+  followed by every selected review. No transport retry or silent reviewer drop.
+  Per-call durable accounting preserves mixed known/unknown costs and late-result
+  charges without permitting stale canon commits. Review consent is scoped to
+  the exact role/provider/model plan; prior one-call consent does not cover it.
+- Development is consolidated under WSL at `/home/rthorman/src/ink-morrow-5`,
+  with shared Git metadata in `/home/rthorman/src/ink-morrow/.git`. Windows
+  tooling may operate on that checkout; do not create another Windows copy.
+  The owner abandoned all older unmerged changes on 4 September. Do not recover
+  or import them into 5.0. Preserve new work based on `release/5.0.0`.
+- `release/5.0.0` is the integration branch for a new playable-fiction product.
+  Substantial feature PRs target it, are verified and merged only on green CI,
+  and subsequent batches start from its updated head. On 4 September the owner
+  approved the next-iteration plan, its three substantial PRs, and final release
+  integration into `main` after completion and green CI. Do not deploy or start
+  the replacement server without a separate request. The owner explicitly asked
+  to stop the old port-3000 instance; it was stopped and the port verified clear.
+- The accepted iteration is in `docs/releases/5.0.0/NEXT-ITERATION.md`: trustworthy
+  resistance/memory, clear influence, and characters/episode payoff. Both styles
+  remain independent of avatar ownership and gentle/dramatic consequences.
+  Character-consistent cooperation is as important as resistance: repeated pleading
+  is not new leverage, but genuinely sufficient grounds can change an outcome.
+  Model quality must be measured, not inferred from price, size or prose fluency.
+- Structured challenges are application-owned and distinct from open-ended NPC
+  dialogue. Never claim mechanical guarantees for arbitrary generated prose.
+  Adjudications are branch-local; unchanged repeated approaches make no new AI
+  purchase. Private motives, requirements and basis hashes stay out of reader APIs.
+- The 128-fact snapshot is a working set, not a lifetime history limit. Initial
+  facts and immutable change records remain authoritative; bounded retrieval reads
+  only the selected ancestry, honours corrections/retirements and does not erase
+  evidence or force players to prune memory. Saves preserve those records.
+- Clear influence: Steer defaults to this moment; only explicit ongoing Steer
+  changes focus after success. Invitations fill drafts, never submit or overwrite
+  them. Challenge review is local and revision-bound; free repeated outcomes must
+  stay free even when the provider is unavailable. Reader recall and evidence
+  remain public-only and current-ancestry scoped; prior evidence remaps in saves.
+- People and episodes: affection, trust, cooperation and expectations are separate
+  qualitative relationship facts, never meters. Evidenced development preserves
+  relationship identity and cannot rewrite world truth or invent an inhabited
+  person's feelings. An episode question is focus, not a required plot. Payoff
+  needs an actual narrated goal resolution; quiet turns and local corrections
+  cannot manufacture it. Ending remains the player's decision. Return recaps use
+  existing public current-path records only, with no background model calls.
+- The default player is a reader-director OUTSIDE the cast. Follow and Steer
+  are complete first-class experiences; Inhabit is optional, explicit character
+  control. No avatar, main character, or Session Zero is required to begin.
+- Manual prose writing is expressly excluded from 5.0 (owner decision, 2026-09-04).
+  Do not add a text editor, hand-written opening field, or manual passage API.
+  Curated openings, natural-language direction, preferences, factual correction,
+  reading, rewind and saves remain. No separate non-AI game mode is promised;
+  historical no-provider authoring journeys below do not apply to this product.
+- Illustrations appear above their associated text in the reader/manuscript.
+  EPUB places the illustration on a separate image page immediately before the
+  associated text. Test this representation difference; do not copy inline reader
+  markup into EPUB unchanged.
+- Playable saves use `.inkmorrow5` / `ink-morrow-fiction-save` version 1,
+  not legacy manuscript archives. They contain all paths, private state and
+  normalized illustrations, but no credentials, consent or resumable requests.
+  Import validates bounded media and the complete ancestry graph before a
+  transactional copy with fresh IDs. Never overwrite an existing story.
+- Fiction illustrations use an explicit Illustrator provider role. Upload and
+  description correction are local. AI painting is one reviewed, journalled,
+  stale-checked request with no retry; only the selected passage and art direction
+  cross the provider boundary. Placements are part of each path snapshot.
+- Books use the existing PublicationDocument adapters, with only active-path
+  opening/scene prose and current placements. EPUB image pages are separate
+  fixed-layout spine items; prose remains reflowable. Exports are not saves.
+- One durable narrative unifies readable prose and playable history. Important
+  commitments, knowledge, relationships, episodes, control handoffs, corrections,
+  and alternate timelines belong to the same branch-local state engine.
+- 5.0 is not required to open, migrate, or import any older database or saved
+  story. A separate data location and fail-closed family check protect old data.
+  Character/template portability may be retained when practical, not at the
+  expense of the new design. Never delete historical user data.
+- These approvals supersede the historical product/UI/canon/compatibility
+  constraints below where they conflict. Security, credential privacy, explicit
+  paid authority, spend accounting, transactional integrity, accessibility, the
+  six-book documentation workflow, and the AGPL license remain requirements.
+- The delivery plan and batch evidence live in `docs/releases/5.0.0/README.md`.
+  Do not describe planned features as implemented or mark a batch complete
+  until its tests and actual GitHub merge have been verified.
+
+## Historical implementation notes — superseded where 5.0 differs
+
+Persistent notes for earlier Ink Morrow versions follow. Current 5.0 contracts
+above and the active six-book library take precedence.
 
 ## Project overview
 

@@ -3,7 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { createSecretVault } = require('./vault');
 
-const ROLE_CAPABILITY = Object.freeze({ scribe: 'chat', archivist: 'chat', narrator: 'speech' });
+const ROLE_CAPABILITY = Object.freeze({ scribe: 'chat', archivist: 'chat', narrator: 'speech', illustrator: 'image' });
 const CAPABILITIES = new Set(['chat', 'catalog', 'speech', 'image', 'generation-cost']);
 const DEFAULT_PROFILE_ID = 'openrouter-default';
 const DEFAULT_ARCHIVIST_MODEL = 'google/gemini-2.5-flash-lite';
@@ -70,6 +70,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     insertRole.run('scribe', DEFAULT_PROFILE_ID, scribe);
     insertRole.run('archivist', DEFAULT_PROFILE_ID, DEFAULT_ARCHIVIST_MODEL);
     insertRole.run('narrator', DEFAULT_PROFILE_ID, env.NARRATOR_MODEL || 'openai/gpt-4o-mini-tts');
+    insertRole.run('illustrator', DEFAULT_PROFILE_ID, env.IMAGE_MODEL || 'x-ai/grok-imagine-image-2.0');
   }
   ensureDefaults();
 

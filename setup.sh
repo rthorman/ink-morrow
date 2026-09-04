@@ -121,8 +121,8 @@ else
 fi
 
 # Database + config
-mkdir -p -m 700 database
-chmod 700 database 2>/dev/null || true
+mkdir -p -m 700 database-v5
+chmod 700 database-v5 2>/dev/null || true
 
 if [ ! -f "backend/.env" ]; then
     echo "📝 Creating backend/.env from the example..."
@@ -139,9 +139,9 @@ echo ""
 echo "🎉 Setup complete!"
 echo ""
 if [ -f "database/ink-morrow.db" ]; then
-    echo "⚠️  Ink Morrow 4.0 will not reinterpret an existing 3.x database."
-    echo "   Set DATA_DIR=../database-v4 in backend/.env for a clean 4.0 store,"
-    echo "   or keep this directory on the historical 3.2.2 build. The old file is not changed."
+    echo "⚠️  InkMorrow 5.0 uses fresh database-v5 storage, not this older database."
+    echo "   Remove old DATA_DIR/DB_PATH overrides or choose a new empty location."
+    echo "   Keep older data with its original version; the old file is not changed."
     echo ""
 fi
 echo "Next steps:"

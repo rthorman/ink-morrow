@@ -843,7 +843,7 @@ describe('Speculative next-page preview', () => {
     const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'im-preview-')), 'preview.db');
     try {
       const db1 = createDb(dbFile);
-      const app1 = createApp(db1, { staticDir: null });
+      const app1 = createApp(db1, { legacyEnabled: true, staticDir: null });
       const world = await createWorld(app1, { name: 'Restart Realm' });
       const story = await createStory(app1, world.id, []);
 
@@ -853,7 +853,7 @@ describe('Speculative next-page preview', () => {
       // Full restart: new app instance on the same database file
       db1.close();
       const db2 = createDb(dbFile);
-      const app2 = createApp(db2, { staticDir: null });
+      const app2 = createApp(db2, { legacyEnabled: true, staticDir: null });
 
       // The prepared page is still there and commits as-is - no silent
       // fallback to a fresh (re-billed) generation

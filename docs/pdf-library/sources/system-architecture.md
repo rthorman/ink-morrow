@@ -2,257 +2,295 @@
 
 <div class="frontmatter">
 
-Ink Morrow is a self-hosted writing system whose hardest problem is not text generation. Its hardest problem is keeping authored prose, remembered story truth, revision history, provider spend, and recoverability honest while all of them change at different speeds.
-
-This document explains the current 4.x architecture through boundaries and decisions, including the canonical-storage boundary introduced in 4.1.0. It is intentionally more durable than a source-file tour: modules may move, but the invariants should remain recognizable.
-
-**Primary promise:** manuscript canon, authoritative story state, and known provider spend advance through explicit, recoverable transactions.
+InkMorrow 5.0 is a single-owner playable-fiction system. This book explains the current production boundaries, reuse decisions and limits; historical writing-suite routes are not part of its runtime.
 
 </div>
 
-## System context
+## Product and system context
 
-One owner uses a browser to reach one Node.js process. That process serves the frontend and same-origin API, owns one SQLite database, stores media and staging on the same filesystem, and calls only the AI provider explicitly configured by the owner. Public readers see immutable publication snapshots, never the live authoring application.
+The durable product is one readable story with alternate paths, not a transcript
+that must later be converted into canon. The normal player is a reader-director
+outside the cast. Follow and Steer are complete experiences; Inhabit grants
+explicit control of one cast member and can be released.
 
-```
-Author / Operator
-       |
-       | browser, same origin
-       v
-Ink Morrow Node.js process -----> Configured AI provider
-       |                           (only on explicit work)
-       +---- SQLite database
-       +---- media / audio / transfers
-       +---- immutable public snapshots -----> Readers
-```
+An Express process serves static native-JavaScript modules and a protected API.
+SQLite holds identity, auth, providers and playable state. Normalized raster files
+live under a configured private media root. Remote models are untrusted proposal
+generators reached only at reviewed purchase boundaries.
 
-There is no required maintainer cloud, multi-user collaboration service, telemetry collector, or background provider agent. Local manual authoring must remain useful when the provider is unavailable.
+The production composer creates auth, provider and fiction services. It does not
+instantiate the retired writing, continuity, catalogue, image-backfill, audiobook,
+transfer or public-share runtime. legacy-runtime.js is an explicit internal test
+and reuse seam; server.js always selects legacyEnabled:false.
 
-## Container and module map
+Historical tables and migrations remain for tested infrastructure reuse. Their
+presence is not a compatibility promise or a live product surface. The database
+family is new, and old databases are refused before normal SQLite startup.
 
-| Backend module | Owns | Must not silently own |
-|---|---|---|
-| `auth` | Owner setup, sessions, password, vault unlock | Provider choice or manuscript content |
-| `providers` | Profiles, capabilities, roles, calls, cost | Canon commits |
-| `catalog` | Reusable world and character templates | Existing manuscript snapshots |
-| `stories` | Manuscripts, hierarchy, pages, revisions, local canon | Provider credentials |
-| `continuity` | Revision-provenanced deltas, fold, corrections, issues | Prose rewriting authority |
-| `writing` | Writer lease, prepared prose, paid operation journal | Publication or image placement |
-| `imagery` | Upload, generation, normalization, placement | Narrative page order |
-| `audio` | Narration and audiobook jobs | Canon state |
-| `publication` | Normalized reading document and adapters | Live story mutation |
-| `sharing` | Immutable snapshots and capability reads | Private API access |
-| `transfer` | Archive plan, stage, verify, commit, restore | Ad-hoc field merge |
+No per-character background agent, speculative continuation or offline simulation
+runs. A player's return does not advance fictional time, and local recaps do not
+call a provider.
 
-Frontend features - Library, Desk, Chronicle, Codex, Gallery, Gate, Settings, and the authentication threshold - receive shared services through one composition root. A feature may request another feature's public service; it must not reach through private DOM or module state.
+## Module and responsibility map
 
-## Storage identity and migration
-
-The database declares family `ink-morrow-4` and a monotonic schema version. SQLite application/version markers and a migration ledger with checksums prove what has happened to the file.
-
-Startup follows a fail-closed sequence:
-
-1. Resolve the configured storage root and database candidate.
-2. Open without applying speculative changes.
-3. Prove family, application ID, schema version, and migration checksums.
-4. Refuse 3.x, unknown, corrupt, or future identities before mutation.
-5. If adopting an earlier 4.0 beta identity, write a full pre-adoption snapshot.
-6. Apply known migrations transactionally.
-7. Reconcile incomplete jobs and only then listen.
-
-This design rejects filename-based identity. Renaming a file does not make it another schema. It also rejects "best effort" migration because a confident refusal is cheaper than silently corrupting the only manuscript.
-
-Schema 13, shipped with Ink Morrow 4.1.0, makes the hierarchy, immutable page revisions, and revision-bound continuity deltas the only writable sources of manuscript prose and Chronicle memory. Existing page-shaped API responses are assembled through a read-only database view. This removes the earlier duplicate writable mirrors without forcing interface consumers or portable `.inkmorrow` v2 archives to change shape.
-
-## Domain model
-
-| Entity | Durable responsibility |
+| Component | Responsibility |
 |---|---|
-| Manuscript | Ordered volumes, local author canon, settings, one active tail |
-| Volume / chapter / page | Hierarchy with stable opaque IDs and scoped order |
-| Page revision | Immutable prose version with parent, kind, direction, timestamps |
-| Prepared page | At most one speculative successor with opaque ID and context fingerprint |
-| Writing operation | Idempotency, expected tail/revision, state, provider result, spend |
-| Continuity delta | One structured memory result per canonical page revision |
-| Continuity correction | Author-owned override with scope and evidence |
-| Continuity issue | Derived warning that later prose may conflict with a correction |
-| Author canon record | Versioned author-created facts, world events, people, and other truths |
-| Template snapshot | Manuscript-local copy of reusable Library source data |
-| Recovery suffix | Expiring package of truncated pages and private dependent state |
-| Asset / placement | Immutable media plus noncanonical anchor between pages |
-| Publication snapshot | Immutable normalized reading copy |
-| Share | Revocable capability record pointing at one snapshot |
-
-Stable IDs are independent of display order. Reordering a chapter or inserting art must not change references used by continuity, history, recovery, exports, or links.
-
-## Canon, display, and author truth
-
-A page has two prose pointers:
-
-- **Canonical revision:** the prose from which continuity was extracted.
-- **Display revision:** the prose readers see and exports use.
-
-They are normally equal. A substantive active-tail edit creates a new canonical revision, points both fields to it, invalidates speculative work, and schedules new continuity. A historical copyedit creates only a display revision; it does not pretend that remembered state was recalculated.
-
-Codex overlays three truth layers:
-
-1. **Author Canon** - explicit facts and events created by the author.
-2. **Extracted memory** - structured, page-revision-provenanced evidence.
-3. **Corrections** - author-owned overrides that preserve the original evidence.
-
-The fold is deterministic. AI may produce a candidate delta or summarize possible impact, but it never receives authority to apply a correction or rewrite prose.
-
-## The canon transaction
-
-Every canon-changing write executes in one SQLite transaction:
-
-1. Validate owner session, writer lease, and idempotency key.
-2. Validate expected manuscript, tail page, canonical revision, and context fingerprint.
-3. Write or promote a complete immutable page revision.
-4. Update hierarchy and active-tail pointers.
-5. Consume or invalidate prepared work exactly once.
-6. Create the continuity work item.
-7. Commit database changes.
-8. Only after commit, schedule extraction and successor preparation.
-
-No partial provider stream is canon. If continuity later fails, valid prose remains canonical while the page displays incomplete memory. This separates literary success from archival success without lying about either.
-
-::: danger Architectural veto
-A green Next Page action may promote only the exact prepared page visible to the author. It cannot fall back to generating different prose. Speculation cannot enter canon or continuity without an explicit commit boundary.
-:::
-
-## Writer concurrency and idempotency
-
-One manuscript has one writer lease with a short heartbeat and visible owning session. Other tabs may read. Conflicting writes are rejected with a reconciliation action; an expired lease is recoverable and is never a permanent lock.
-
-Paid requests carry idempotency identity and expected context. Repeated clicks join the same work or receive the stored result. A provider response that returns after the tail changes becomes superseded and cannot mutate the new context. Known provider usage remains attached to the operation even when canon does not advance.
-
-This makes the operation journal the bridge between unreliable networks and durable authorship.
-
-## Prepared prose and bounded context
-
-After a successful page, Ink Morrow may prepare exactly one successor. Prepared prose is inert. Its context fingerprint covers the facts that made it valid: tail, revision, direction-sensitive settings, relevant canon, and template snapshots.
-
-Generation context is bounded, not a replay of the complete novel:
-
-- recent display prose;
-- compact folded continuity;
-- unresolved threads and arcs;
-- relevant older evidence;
-- manuscript-local templates and Author Canon;
-- cast prioritized as Main Character, support, then background; and
-- explicit author direction.
-
-In a Main Character-driven story, the Main Character perspective anchor remains present even when the current page does not name them. Bounded context protects cost and provider limits; deterministic prioritization protects narrative identity.
-
-## Chronicle and Codex architecture
-
-Chronicle is the structural and historical projection: volumes, chapters, pages, revision states, coverage, failures, and recovery records. Codex is the truth and correction projection: foundations, Author Canon, extracted evidence, arcs, threads, corrections, issues, and template differences.
-
-A continuity delta cites its page and canonical revision. The Archivist produces strict versioned JSON. Validation rejects unknown or malformed structure. Failed entries store a specific code, reason, and model so the failure is actionable rather than a generic red badge.
-
-Repair is page-local. It may retry extraction for missing/failed coverage, but it does not replay the whole manuscript or manufacture success. Impact analysis begins with deterministic search across later display revisions and deltas; optional AI can summarize the candidate impact but cannot apply changes.
-
-## Catalog, local snapshots, and Author Canon
-
-Library worlds and characters are reusable sources. Adding them to a manuscript copies relevant fields into a versioned local snapshot. Later Library edits do not silently alter existing work.
-
-An explicit review computes field-level differences. Accepted fields create a new local snapshot and invalidate incompatible prepared prose. Historical prose and continuity remain unchanged until the author chooses a separate action.
-
-Author Canon is inherently manuscript-local and versioned. The author can create, edit, retire, and restore structured facts, world events, people, places, rules, objects, factions, and other records. Retiring preserves evidence and history; it is not destructive erasure.
-
-## Media architecture
-
-Art is not a narrative page. An asset records source, content hash, media type, decoded dimensions, normalized derivative, optional title/alt text, and provider provenance. A placement anchors the asset before the first page or after a stable page ID; several placements at one anchor have independent order.
-
-Uploads stream to private staging, enforce byte and decoded-pixel limits, verify signatures and decode, strip metadata, use random storage names, and publish a safe raster derivative. Uploading never calls AI. A reference image crosses the provider boundary only after explicit selection.
-
-Provider-specific prompt sanitation is announce-and-wait: Ink Morrow presents the editable rewrite and cost, then waits for another owner action. It never hides a second generation behind a refusal.
-
-## Provider and credential boundary
-
-Profiles contain endpoint, declared capability, logical role assignments, and secret reference. APIs never return a submitted secret. Environment credentials are read-only. UI credentials may be session-only or explicitly stored in an encrypted vault.
-
-The vault separates entry encryption from passphrase wrapping. Password changes rewrap the random data key. Plaintext exists only in process memory while unlocked. Terminal password recovery cannot recover the old wrapping key, so it clears stored provider credentials while preserving manuscripts and media.
-
-OpenRouter is the tested default. Capability discovery never silently changes a stored role. An explicit unavailable `CONTINUITY_MODEL` prevents startup instead of falling back to a browser-selected model.
-
-## Publication and sharing
-
-Every export builds one immutable `PublicationDocument`:
-
-- title, author, and publication metadata;
-- ordered volumes, chapters, prose blocks, and scene breaks;
-- selected placed art and accessible descriptions; and
-- style-independent semantic roles.
-
-DOCX, ODT, RTF, EPUB, PDF, HTML, Markdown, text, and JSON adapters render the same normalized document. This prevents every format from inventing its own manuscript model.
-
-A public share freezes the same document. Snapshot creation is authenticated; snapshot reading is the only unauthenticated route. The high-entropy capability is stored only as a hash. Reads expose no mutable story API, provider action, private identifier, or live update. Replacing manuscript prose never changes an existing share.
-
-## Portable archives
-
-`.inkmorrow` archives are versioned ZIP containers with a manifest, ordinary JSON, and optional media. They are not raw SQLite files. Planning exposes included entities and exclusions before bytes are streamed.
-
-Import stages outside the catalogue, validates paths, duplicates, symlinks, declaration, counts, expansion ratio, hashes, media, IDs, family, and version, then presents collisions. Commit stages filesystem moves and uses one SQLite transaction. Full replace first writes a persistent safety archive.
-
-Derived indexes, search tables, checkpoints, issues, and caches are rebuilt rather than exported as truth. Credentials, sessions, paid consent, recovery tokens, and share capabilities never travel.
-
-## Restart and recovery model
-
-The process may stop between any two external observations. Therefore durable jobs record enough state to reconcile without guessing. Startup:
-
-- marks unrecoverable in-flight provider/publication work interrupted;
-- removes abandoned staging;
-- preserves complete results already committed;
-- resumes only work with an explicit safe resumption contract; and
-- never invents success from a missing response.
-
-Truncating after page N creates a recovery suffix before removing the canonical tail. Restore is allowed only when the surviving head still matches the recovery fingerprint. Otherwise the suffix can be exported for manual reconciliation. The default recovery window is 30 days.
-
-## Security design
-
-The primary supported boundary is a single owner on loopback. Authentication still protects against casual local access and deliberate network exposure. State-changing routes require session, CSRF, Origin/Referer, and Host validation. Security headers, strict output encoding, bounded inputs, same-origin design, and encrypted provider secrets provide defense in depth.
-
-Public sharing is a narrower independent surface. HTTPS is required, responses prohibit indexing/framing/sniffing, capability tokens do not enter logs, and the route serves only an allowlisted immutable document.
-
-Provider output, manuscript text, imported archives, and uploaded media are all untrusted input at their respective parser boundaries.
-
-## Performance and scale
-
-Page turns, history browsing, local editing, and manual organization make no provider call. Queries on the Desk use indexed bounded access rather than whole-story scans. Media and archives stream. Background jobs expose honest pending/running/failed/ready states.
-
-The reference long-manuscript fixture contains 10 volumes, 100 chapters, 3,000 pages, about 1.2 million words, 150 recurring characters, 10,000 memory records, and 500 asset records. Performance decisions are judged against that shape and the reference Android tablet, not only an empty desktop database.
-
-## Decision register
-
-| Decision | Why | Rejected shortcut |
-|---|---|---|
-| Same-origin monolith | Simple self-hosting and security boundary | Distributed services for their own sake |
-| Immutable revisions | History and evidence survive edits | Overwrite page text in place |
-| Separate canonical/display pointers | Honest historical copyediting | Recompute or ignore continuity silently |
-| Explicit local snapshots | Existing stories do not drift | Live-link global templates |
-| Author Canon overlay | Author truth is editable and traceable | Treat extracted AI memory as supreme |
-| Durable paid-operation journal | Idempotency, spend, restart reconciliation | Fire-and-forget provider calls |
-| Art separate from pages | Placement can change without canon | Image pages that shift numbering |
-| One PublicationDocument | Cross-format semantic agreement | Per-adapter story queries |
-| Capability snapshots | Narrow, immutable public surface | Share live authoring routes |
-| Versioned portable archive | Reviewed transfer without raw DB coupling | Copy SQLite into imports |
-
-## Architectural fitness checks
-
-A change should be rejected or redesigned when it:
-
-- stores speculative prose as canon or memory;
-- commits an unseen replacement behind Next Page;
-- lets global template edits mutate an existing manuscript;
-- uses visible order as durable identity;
-- hides or duplicates provider spend;
-- accepts stale provider output into a changed context;
-- stores UI-entered secrets in plaintext;
-- serves active uploaded documents from the application origin;
-- exposes mutable private APIs through a public capability;
-- adds a second independent publication model; or
-- requires full-novel AI replay to restore continuity.
-
-The Story is the system's reason for existing. Every architectural convenience remains subordinate to preserving its authorship, evidence, and recoverability.
+| server.js / core/storage.js | Environment, safe bind, shared data-path selection |
+| app.js | Security order, service composition, current routers, static delivery |
+| modules/auth and providers | Owner sessions, CSRF, credentials and logical roles |
+| fiction/model.js | Strict domain shapes and deterministic transitions |
+| fiction/store | Immutable history, ancestry, revisions and transactions |
+| fiction/service.js and memory.js | Bounded relevant authoritative context |
+| fiction/resistance.js and director.js | Structured rulings and scene opportunities |
+| fiction/service and quality modules | Reviewed, bounded model work and accounting |
+| fiction/media, publication, saves | Path-local art, reader-safe books, private copies |
+| frontend/app/fiction | Shelf, start, reader, controls, dialogs and route fencing |
+
+Stores and domain validators should remain usable with isolated databases and
+mocked transport. UI components receive their dependencies rather than
+reimplementing authority checks. Rendering reader state is distinct from the
+private snapshot sent to a storyteller.
+
+Common publication adapters and raster validation are reused without remounting
+the old authoring APIs. The canonical SVG lockup is also reused across README,
+app, authentication and manual rendering; typography is not independently
+recreated at each surface.
+
+## Fresh storage and startup order
+
+The release identifies itself as 5.0.0, database family ink-morrow-5,
+schema 21 and SQLite application ID 0x494D3530. Package identities agree across
+root, backend, frontend and E2E. Playable saves separately identify their own
+format and version; these are not interchangeable schema numbers.
+
+Before connecting SQLite to an existing source, preflight copies the database
+and its WAL/rollback journal into a unique private temporary directory. It
+does not copy shared memory; SQLite may rebuild that only beside the copy.
+Regular-file and source-change checks protect the inspection boundary.
+
+Identity markers, supported version, migration ledger, quick_check and foreign
+keys must pass before the original enters normal WAL/migration/reconciliation.
+A recognized old family, unknown SQLite file, orphan journal, future version,
+invalid ledger or failed scratch copy is rejected. No fallback opens an old
+source merely because scratch space ran out.
+
+The retained migration chain constructs the fresh schema transactionally.
+Migration rollback preserves the prior ledger/version. This does not make
+earlier product-family databases upgradeable. Operators must stop other writers;
+scratch preflight is not a live backup or an adversarial filesystem lock.
+
+The shared storage resolver keeps server and terminal recovery on the same
+file. Default data is separate from the old series, and in-memory test runs
+receive disposable media storage rather than writing into the real installation.
+
+## The playable graph
+
+A game identifies its active branch and optimistic revision. Each branch points
+to an exact historical head and optional parent/fork moment. Immutable beats link
+to their parent and carry the resulting state snapshot. Local corrections,
+preferences, control handoffs and episode actions are history too, distinct
+from narrated opening/scene prose and outside-story clarification.
+
+A snapshot carries cast, knowledge, facts, commitments, relationships, resources,
+control, preferences, episode framing, director history, adjudications and image
+placements. Forking restores that exact state; switching branches does not merge
+their futures. A bounded reader window is not a lifetime history limit.
+
+Every mutation checks the expected game revision and rejects concurrent changes.
+A pending paid operation excludes conflicting mutations. Network work runs outside
+the database transaction; the final commit rechecks ownership, revision, branch
+and reviewed provider plan before appending one accepted beat.
+
+Initial facts and immutable changes are the authoritative memory history.
+A current 128-fact snapshot is only a working set. Retrieval chooses current
+versions on the selected ancestry; corrections supersede and retirement excludes,
+without deleting historical evidence. Sibling-path events cannot become context.
+
+The graph is also the save boundary. Import validates all identities, references
+and ancestry before assigning fresh local IDs and committing a new game.
+
+## Canon commit and spend accounting
+
+A reply begins with validated intent, expected revision and idempotency key.
+Successful replay returns the existing result without another provider call.
+Changed input under the same key is rejected. A repeated unchanged structured
+ruling is resolved locally before provider availability or quality checks.
+
+For new work, the request is journalled, then each actual model call is recorded
+pending before dispatch. The proposal contains prose plus bounded structured
+effects. Local validation never makes an intermediate draft canonical. Quality,
+when enabled, can review and repair within its disclosed ceiling.
+
+Commit appends the accepted beat, derived snapshot, request outcome and accounting
+in the same transaction after stale checks. Late or invalid output cannot append
+a scene. Its known charge still counts; uncertainty is represented explicitly
+rather than rounded to zero.
+
+Per-call rows allow mixed known/unknown charges across one quality sequence.
+Parent-only historical entries are included only where no call rows exist, so
+the two accounting layers are not summed twice. Recent reader metadata is bounded
+and omits rejected prose and reviewer explanations.
+
+Restart interrupts abandoned requests and calls. A late completion may improve
+the billing record but cannot revive the abandoned operation or bypass a changed
+story. Recovery reads are free and never invent a replacement purchase.
+
+## Reader, privacy and asynchronous UI
+
+The static HTML begins gated. Authentication completes before private startup,
+story requests, provider requests or private rendering. Lock clears story text,
+cast, facts, drafts and credential fields; route/liveness tokens discard late
+responses that belong to an old story or locked session.
+
+Controls show immediate loading or busy states before delayed network work.
+Reviewing and submitting are separate states, both protected against duplicate
+actions. Cancelling a review preserves the direction; a failed request reconciles
+through free reads without auto-submitting. Leaving a view does not claim to
+cancel transport already dispatched.
+
+The reader receives filtered public records, not complete snapshots. Memory and
+evidence endpoints verify current ancestry and filter private or retired entries
+before result limits. Source links distinguish local records from narrated proof.
+Untrusted text is rendered as text, not executable HTML.
+
+Provider context is a different boundary: relevant hidden facts and motives may
+be deliberately sent to the selected storyteller or reviewers. A model can leak
+them in prose despite instructions. Reader projection is mechanically filtered;
+semantic secrecy in generated text is not proven by that filtering.
+
+Books consume the same reader-safe projection across formats. Saves intentionally
+contain private state and all paths, and therefore require a different exposure
+description.
+
+## Limits, performance and extension decisions
+
+| Bound | Purpose |
+|---|---|
+| 24 cast members | Bounded active character context |
+| 128 facts in a snapshot | Bounded working set, not erased lifetime history |
+| 12 effects per response | Inspectable deterministic mutation |
+| 40 paths per story | Bounded alternate-history graph |
+| 80 shelf rows per page | Reach all stories without an unbounded response |
+| 32 recall results | Useful search without downloading all memory |
+| 200 placed moments / 400 retained assets | Bound current and historical art |
+| 10,000 moments in a save | Conservative portable-graph processing |
+
+Context uses bounded recent prose and relevant historical records rather than
+whole-manuscript replay. No embeddings server or local background model is
+required. Limits reject work before purchases where known; they do not justify
+deleting a player's commitments or pretending an unknown charge is zero.
+
+Future extensions should preserve one authoritative graph, explicit paid
+authority and distinct reader/provider/save projections. A new optional model
+call needs a bounded plan, per-call accounting, cancellation/staleness semantics,
+consent scope and adversarial fixtures.
+
+Do not add a second manual prose workflow, hidden autonomous progression,
+numerical relationship grinding or compatibility adapters merely to retain old
+UI vocabulary. Such changes alter the approved game and need a deliberate
+product decision rather than incidental refactoring.
+
+## Bounded consistency pipeline
+
+Branch snapshots select quality_mode off, standard, memory or both. A server-owned
+plan hashes mode, role/provider/model identities, endpoint, timeout and maximum
+calls into a review identity. Quality replies require that identity. Credentials
+are never part of the hash or public plan. All required roles are resolved before
+dispatch and every subsequent boundary; stale story or provider changes abort.
+
+The pipeline proposes a draft, validates its structured effects without mutation,
+then optionally asks the selected standard and/or memory roles to review it.
+Reviewers return approval or bounded issues with direct candidate quotations,
+never canon changes. A single repair uses the original authoritative context.
+The replacement passes the same structural checks and every selected review.
+Only the final accepted beat enters the ordinary atomic commit. Model approval
+does not bypass application-owned adjudication, evidence or character ownership.
+
+Schema 21 adds fiction_calls beneath fiction_requests. Each call has a bounded
+index, role, purpose, model, status and billing data. Off caps at one call, one
+reviewer at four, and both at six. Transport retries are disabled. Spend is the
+union of call rows and legacy parent-only purchases, not their double-counted sum.
+Mixed known/unknown costs survive failure and restart. Reader APIs expose bounded
+call metadata, not candidates or review explanations. Saves export aggregate
+spend and the branch setting, never call/replay identities or consent.
+
+## People and episode framing
+
+Relationship facts optionally identify a qualitative facet and a directed cast
+pair. Affection, trust, cooperation and expectations remain independent. The
+develop effect changes only a relationship's description, with exact passage or
+input evidence, immutable prior provenance and the inhabited-person boundary.
+It cannot rewrite world facts, change the facet or grant a challenge.
+
+Episode snapshots hold a public question, up to six public goal identifiers,
+descriptive phase and a payoff beat. A narrated goal-resolution change can move
+the episode to payoff; a later scene permits aftermath. No phase changes the
+player-owned active/ended status. Questions, phases and evidence restore through
+rewind and copy-import. The director offers rest after a recorded payoff.
+
+The local recap endpoint reads only current ancestry: three narrated summaries,
+six active public commitments and twelve active public relationships. Kind,
+visibility and status are filtered before bounded memory selection. No provider,
+whole-history prompt, autonomous character queue or offline simulation is added.
+
+## Fourth-wall permission
+
+Living-world snapshots carry a Never/Rarely/Freely preference and the last narrated
+scene index containing an accepted address. Never is the default; Story-shaping
+and out-of-story Ask disable character asides. Rarely requires a six-scene index
+gap; Freely permits consecutive fitting addresses. Preference changes do not reset
+the cooldown. The same snapshot/save graph preserves it without a separate timer.
+
+The existing narration response may include one bounded structured aside. The
+server checks permission, cast identity and character ownership, appends the named
+address to saved prose, and advances its index in the same atomic commit. Effects
+and challenge evidence are validated against ordinary prose, not appended asides.
+There is no extra provider request. The protocol cannot prove that unrestricted
+model prose contains no unstructured fourth-wall language.
+
+## Clear influence and evidence
+
+Reader directions carry moment or ongoing scope. Only a successful ongoing Steer
+replaces branch-local focus; one-moment detours and failures do not. Locally derived
+invitations use public state and fill drafts only. Explicit challenge review is a
+read-only, revision-checked endpoint: it reveals a prior ruling only when unchanged.
+Reply commits recheck that same revision, so a free review cannot silently become
+a newly billable attempt after a concurrent change. A free repeated ruling remains
+available when a former provider configuration is unavailable.
+
+Public memory search filters before its result bound, and source reads verify
+active ancestry. Changes can carry an earlier evidence identity; save validation
+requires it on parent ancestry and import remaps it. The shelf uses bounded
+80-story pages instead of silently hiding everything after 200 stories.
+
+## Memory and adjudication foundations
+
+The bounded snapshot cache is not the only copy of story facts. Immutable initial
+facts and per-beat changes form a branch-local version history. Retrieval folds
+the latest version of each fact on the selected ancestry, excludes explicit
+retirements, ranks relevant entries and returns a bounded result. Working-set
+compaction drops cached entries only; correction and export preserve their history.
+
+Story-shaping and Living-world are independent of character ownership and severity.
+Structured challenges define named approaches and explicit evidence requirements.
+Application code adjudicates from recorded public facts and character knowledge;
+models receive the decision, not permission to rewrite it. A matching prior basis
+replays locally without a provider call. The request journal, stale checks and
+atomic commit still apply. Model-returned outcome/evidence are checked, but this
+is not a semantic proof that every generated sentence agrees. Open-ended dialogue
+remains model-dependent and must not be advertised as mechanically adjudicated.
+
+## Media and portability boundary
+
+The new game owns immutable branch-state illustration placements and story-scoped
+normalized raster assets. Media never becomes prose or truth. A dedicated Illustrator
+role uses the game request journal and exact revision/path checks. Upload/description
+changes remain local. Files are staged under random keys; asset insertion, placement
+snapshot and terminal paid accounting share one database transaction.
+
+The game projects only the selected ancestry's prose and placements into the existing
+PublicationDocument. EPUB splits images into individual fixed-layout spine items;
+prose stays reflowable. All adapters share one privacy-filtered document. Playable
+saves are separate bounded gzip-JSON graphs carrying every snapshot and image, with
+no credentials or request authority. Validation uses ancestry intervals to reject
+future/cross-path evidence before a transactional copy with remapped identities.

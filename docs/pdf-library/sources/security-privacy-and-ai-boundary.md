@@ -2,224 +2,301 @@
 
 <div class="frontmatter">
 
-Ink Morrow is private-by-default self-hosted software, not a hosted confidentiality service. The owner chooses the machine, storage, network, provider, models, and publications. This book explains the trust boundaries those choices create and the controls built around them.
-
-It is useful to authors because it says what leaves the machine. It is useful to operators because it says what must be protected. It is useful to reviewers because it names the threats and verification duties.
-
-**Security posture:** one owner, loopback by default, same-origin application, explicit provider actions, immutable public snapshots, versioned transfer, and fail-closed identity/version checks.
+InkMorrow is private-by-default self-hosted software for one owner. This book distinguishes browser access, filesystem access, provider exposure, generated prose and portable files.
 
 </div>
 
-## Trust map
+## Threat model and trust map
 
-```
-PRIVATE MACHINE
-  Browser <----same origin----> Ink Morrow process
-                                   |-- SQLite and media
-                                   |-- encrypted provider vault
-                                   |
-                                   +---- explicit request ----> AI provider
-                                   +---- selected snapshot ---> HTTPS readers
-                                   +---- reviewed archive ----> chosen storage
-```
+The owner controls the machine, network, provider profiles and downloaded files.
+The browser password protects the HTTP application; it does not encrypt all data
+at rest or protect against someone who controls the operating-system account.
 
-The browser, operating system account, filesystem backups, reverse proxy, provider account, and any public capability recipient are distinct trust decisions. Self-hosting removes a maintainer cloud; it does not make a compromised machine or leaked key safe.
-
-## Data inventory
-
-| Data | Normal home | May leave when |
+| Boundary | Trusted responsibility | Untrusted input |
 |---|---|---|
-| Manuscript prose | SQLite | AI context, publication, archive, public snapshot |
-| Directions and prepared prose | SQLite private work state | Paid generation context or optional working-history archive |
-| World/cast/Author Canon | SQLite | Relevant AI context, selected archive/publication metadata |
-| Continuity evidence/corrections | SQLite | Relevant AI context or selected archive |
-| Art/audio | Data directory | Reference/generation, publication, archive, public snapshot |
-| Provider key | Environment or encrypted local vault | Sent only to configured provider endpoint as credential |
-| Owner password/session | Local auth stores | Never a project archive/publication/provider payload |
-| Share capability | Recipient URL; hash at rest | Whoever receives the URL |
-| Recovery/undo credentials | Local data | Never portable archive/publication/share |
-| Cost and provider traces | Local operation records | Sanitized diagnostics only when owner shares them |
-
-The application has no maintainer analytics, advertising, tracking pixels, or crash telemetry. An AI provider receives only because the owner invokes a provider-backed action or has enabled an explicit background preparation flow.
-
-## Authentication and browser boundary
-
-Ink Morrow has one owner. Setup uses a terminal-printed one-time code, after which ordinary login creates a random opaque session whose stored representation cannot be used directly as the browser token. Successful authentication rotates identity; logout, expiry, and reset revoke it.
-
-State-changing requests require a session plus CSRF token and Origin/Referer/Host checks. SameSite cookies, strict output encoding, content security policy, MIME-sniffing prevention, and frame restrictions add defense in depth.
-
-Locking the interface is not disk encryption. Anyone with sufficient operating-system or backup access may copy the local data. Protect the user account and backup storage accordingly.
-
-## Provider secrets
-
-Use a dedicated provider key with the least account privilege available and a hard upstream spending limit. The provider account is the authoritative cost boundary.
-
-Environment keys are read-only to Ink Morrow but plain text in configuration. UI-entered persistent keys are encrypted in a separate vault. A random data-encryption key protects entries; the owner passphrase wraps that key under a purpose-separated derivation. Plaintext keys exist only in process memory while unlocked.
-
-Password change rewraps the data key. Terminal password recovery cannot recreate the old wrapping key, so it clears saved provider credentials and requires re-entry while preserving manuscripts and media.
-
-::: danger Secret handling
-Provider keys must never appear in API responses, browser persistence, logs, screenshots, archives, publication files, public snapshots, test fixtures, issue reports, or Git history. Redact adjacent headers and provider error bodies as well as the obvious key string.
-:::
-
-## The AI boundary
-
-Ink Morrow is designed for human-led, AI-collaborative writing. The author supplies intention, taste, direction, revision, and the final decision on canon. AI accelerates drafting, continuity extraction, optional impact summaries, imagery, and narration.
-
-An action review should identify:
-
-- provider and model;
-- data categories being sent;
-- selected image references;
-- expected operation count;
-- estimated cost; and
-- whether equivalent consent may be remembered.
-
-Repeated prompts should not become meaningless nuisance dialogs, but a new provider, data category, reference image, public publication, or destructive action requires renewed clarity.
-
-OpenRouter is the only supplier tested with Ink Morrow. Other OpenAI-compatible endpoints may not offer compatible discovery, strict JSON, reasoning controls, imagery, or narration and may fail entirely.
-
-## Untrusted provider output
-
-Provider output is input, not authority:
-
-- generated prose is plain text, not executable HTML;
-- continuity must satisfy a strict versioned JSON schema;
-- unknown fields and missing evidence are rejected;
-- model-supplied filenames, URLs, markup, and tool instructions are ignored;
-- image bytes cross the same decode/normalization boundary as uploads;
-- provider error bodies are bounded, sanitized, and redacted; and
-- one provider response cannot invoke another paid action.
-
-Prompt injection inside manuscript text cannot grant mutation authority. The server constructs role-separated requests and the resulting data crosses explicit application validation and transaction guards.
-
-## Continuity, models, and truth
-
-The Archivist model is server-configured because automatic memory should not drift with browser-local preferences. An explicit invalid `CONTINUITY_MODEL` refuses startup before listening. This makes a typo visible instead of silently choosing a different cost/behavior profile.
-
-The Main Character perspective anchor receives highest priority in a Main Character-driven manuscript, followed by support cast, background setting, and background cast. This bounds large prompts while preserving narrative identity.
-
-AI-extracted memory never outranks the author. Author Canon and corrections are explicit, versioned overlays. Optional AI impact summaries can point at consequences but cannot apply a correction, retire a fact, or rewrite prose.
-
-## Paid-operation safety
-
-Networks lose responses and users double-click. Each paid prose operation therefore has an idempotency key, expected manuscript/tail/revision, context fingerprint, one provider owner, durable result, known usage, and final state.
-
-A retry joins or starts a traceable new attempt according to state. A stale result becomes superseded instead of mutating the changed story. Known spend is recorded even when canon does not advance. Partial provider streams never become canon.
-
-Prepared prose is speculative and inert. The green Next Page action may promote only the exact prepared identity shown to the author; it cannot hide a replacement generation.
-
-## Upload security
-
-"Upload any image" describes subject-matter freedom, not a parser bypass. Ink Morrow does not semantically classify the image. It does protect the system by:
-
-- streaming multipart data to private staging;
-- limiting compressed bytes and decoded pixels;
-- verifying signatures and successful decode rather than trusting extension/MIME;
-- using random storage names;
-- producing a safe raster derivative and stripping EXIF/XMP/GPS metadata;
-- fixing response type and disabling sniffing;
-- rejecting or boundedly rasterizing active formats such as SVG; and
-- cleaning staging after success, failure, timeout, cancellation, and restart.
-
-An upload never triggers AI. A user must explicitly select an asset before it is transmitted as a reference.
-
-## Archive and import security
-
-`.inkmorrow` archives are unencrypted ZIP containers with a declared manifest, ordinary JSON, and optional media. Treat them as confidential manuscript packages.
-
-Import streams to staging and rejects traversal, backslashes, symlinks, duplicates, undeclared paths, excessive entry count, expansion/ratio bombs, unsafe IDs, hash mismatch, invalid media, unknown family, and future version before catalogue writes.
-
-Preflight shows scope and collisions. Commit stages filesystem changes with rollback evidence and uses one SQLite transaction. Full replace first creates a safety archive. No provider call occurs during export, preflight, or import.
-
-Portable archives never contain authentication records, sessions, provider credentials, saved paid consent, recovery/undo credentials, or share capabilities. Derived indexes are rebuilt.
-
-## Public snapshot sharing
-
-A share is publication by capability, not access control around the live manuscript. Creation freezes an immutable normalized publication document. The random URL capability is stored only as a hash and is the reader's key.
-
-Public reads:
-
-- use GET/HEAD only;
-- expose no private application ID or API;
-- invoke no provider;
-- receive `noindex`, `nofollow`, `noarchive`, strict referrer/CSP, frame denial, and MIME protections;
-- fail closed after expiry or revocation; and
-- do not change when the source manuscript changes.
-
-HTTPS is required because it encrypts the capability and content in transit and authenticates the public front door. A loopback-only test origin is the narrow exception.
-
-## Network deployment
-
-Loopback (`127.0.0.1`) accepts connections only from the same computer. It is the default and safest supported operating shape.
-
-For other devices, use a reviewed HTTPS reverse proxy while Ink Morrow remains on loopback. The proxy must preserve Host, set the forwarded HTTPS scheme, forward authorization correctly, and never log or cache share tokens.
-
-Direct plain HTTP on a LAN exposes traffic to that network path. `ALLOW_INSECURE_LAN=1` is an explicit temporary exception and cannot enable public shares. It should not become an Internet-facing configuration.
-
-## Threat register
-
-| Threat | Primary control | Evidence |
-|---|---|---|
-| Credential disclosure | Encrypted vault, redaction, exclusion | Secret canaries across responses/logs/exports |
-| Cross-site mutation | CSRF + origin/referer/Host + session | Missing/foreign header integration tests |
-| Session replay | Random opaque rotation, hash, expiry/revoke | Auth replay tests |
-| Password guessing | Memory-hard derivation and throttling | Bounded authentication tests |
-| Duplicate spend | Idempotency, one owner, durable operation | Concurrent/repeated-call tests |
-| Stale reply | Expected context and superseded state | Reordered mock races |
-| Prompt injection | Role separation, schema validation, no AI authority | Adversarial story fixtures |
-| Archive attack | Streaming limits, path/hash/manifest checks | Malicious archive corpus |
-| Image attack | Decode/pixel bounds, derivative, metadata strip | Polyglot/bomb/malformed fixtures |
-| Stored script | Context-safe DOM rendering and CSP | XSS corpus |
-| Capability leak | No logs/referrer/index; token hash; revoke | Canary URL and header tests |
-| Private overpublication | Allowlist snapshot and exposure preview | Negative-field contracts |
-| Filesystem escape | Explicit roots and stable random names | Traversal/symlink tests |
-| Supply-chain compromise | Lockfiles, pinned Actions, audit/review | CI policy and dependency review |
-
-## Privacy decisions by workflow
-
-### Draft or prepare prose
-
-Relevant recent prose, compact memory, unresolved threads, selected local canon/cast/world context, and direction may go to the Scribe provider. The entire novel is not sent by design.
-
-### Build or repair memory
-
-Page prose plus bounded relevant story/cast context goes to the configured Archivist. The structured result is stored locally with page/revision evidence.
-
-### Paint
-
-Prompt and explicitly chosen reference images go to the selected image-capable provider. Local uploaded art does not leave the machine merely by existing in Gallery.
-
-### Narrate
-
-Selected page/section text, voice, and model settings go to a narration-capable provider. Cached identical results can replay without another provider call.
-
-### Publish or share
-
-No AI is required. The owner selects formats, metadata, and placed art. A share exposes only its frozen allowlisted reading copy.
-
-### Back up or restore
-
-No AI is required. The portable exposure review names included history/media and excluded secrets. The archive remains unencrypted.
-
-## Security operator checklist
-
-- Keep application and provider account credentials unique.
-- Set provider-side hard spending limits.
-- Restrict `.env`, `DATA_DIR`, logs, backups, and terminal history.
-- Stay on loopback unless a reviewed network need exists.
-- Use HTTPS for any remote access or public sharing.
-- Keep Chrome, Node, OS, and reviewed dependencies updated.
-- Restore-test backups in an isolated data directory.
-- Revoke obsolete or possibly leaked share links.
-- Report failures with sanitized diagnostics, never real keys/manuscripts unless deliberately minimized.
-
-## Security change checklist
-
-A pull request changing authentication, provider calls, archives, uploads, publication, sharing, database identity, or network behavior must update its threat model and tests in the same change.
-
-Block release when a supported path can lose/corrupt canon, disclose credentials/private prose, duplicate spend silently, accept stale mutation, escape upload/archive storage, expose mutable APIs publicly, or bypass authentication/CSRF/Host protections.
-
-::: good Final authority
-Ink Morrow can help the author think, draft, remember, paint, and narrate. It cannot decide what is canon, publish without a reviewed action, or make a provider trustworthy. Those decisions remain with the human owner.
-:::
+| Browser to server | Auth, origin, CSRF, bounded parsing | URLs, bodies, filenames, stale revisions |
+| Server to SQLite/media | Transactions, private paths, integrity | Old files, corrupt journals, imported graphs |
+| Server to provider | Explicit exposure and bounded dispatch | Model prose, effects, reviews, errors, costs |
+| Story to reader | Public current-path projection | Hidden state and other-path references |
+| Story to book | Selected prose and current illustrations | Private metadata accidentally included |
+| Story to save | Complete validated continuation graph | Imported fields, cycles and media bytes |
+
+A fictional character's refusal is not real authorisation. The owner can correct
+world facts through authenticated local controls; narration cannot use claimed
+royal authority to change application permissions.
+
+No hosted multi-user account boundary, MFA or email recovery is claimed.
+Deploying the software for other people or adding remote access changes the
+threat model and needs a deliberate review.
+
+## Data inventory and retention
+
+The database holds owner authentication, session digests, provider assignments,
+encrypted vault material, playable graphs and model-call accounting. Normalized
+images live under the configured media root. The environment file may hold a
+plaintext provider credential protected by filesystem permissions.
+
+Story data includes private motives, hidden world truths, directions and correction
+reasons as well as visible prose. Branch snapshots preserve earlier states.
+Removing a placement does not erase its historically referenced image. Retiring
+a fact is not secure deletion of its old versions.
+
+Call metadata records roles, purposes, models, status and known/unknown charges.
+Rejected candidates and reviewer explanations are not saved as playable history.
+Do not claim that the remote provider also discards them: its retention is an
+independent service policy.
+
+A book contains selected-path reading material. A playable save contains all paths
+and private state, but no credentials, provider configuration, consent or pending
+request authority. A cold installation backup contains more, including auth and
+vault records, and must be protected accordingly.
+
+Browser consent flags are convenience preferences; the session CSRF token is
+held in memory. Keys entered in Settings are not placed in browser persistence.
+Lock clears private runtime state. Operating-system swap, backups and external
+provider logs are outside that UI clearing guarantee.
+
+## Authentication, origin and network
+
+Setup requires a random terminal code and a distinctive 15–128-character
+NFC-normalized password. Password hashing uses asynchronous scrypt with random
+salt. Only opaque session-token digests are stored. Cookies are HttpOnly and
+SameSite=Strict, and Secure when the trusted request is HTTPS.
+
+Remembered sessions have a seven-day idle and thirty-day absolute lifetime;
+unremembered sessions use eight hours idle and twenty-four hours absolute.
+Lock revokes one session. Password change revokes the others. Setup/login have
+bounded progressive delays and temporary attempt limits, not permanent lockout.
+
+Private API guards execute before body parsing. Mutations need CSRF and same
+origin. Host validation limits DNS rebinding; restrictive headers constrain
+script, framing, MIME sniffing and referrer exposure. Static documentation remains
+public so a locked-out owner can read recovery instructions.
+
+The executable forces auth on, even under NODE_ENV=test. Loopback is the default
+bind. Direct non-loopback HTTP requires explicit insecure-LAN opt-in. Prefer
+HTTPS through a loopback proxy with explicit allowed hosts and trusted-proxy
+configuration when remote access is necessary.
+
+These controls do not encrypt the database or downloaded files. They do not
+make a compromised machine trustworthy. Test both accepted and rejected network
+paths before treating a changed deployment as secure.
+
+## Credential lifecycle
+
+Environment credentials are read-only sources for the built-in provider profile.
+UI credentials are either process-session memory or AES-256-GCM vault entries.
+A random data-encryption key is wrapped using a separately salted,
+purpose-labelled password-derived key.
+
+Explicit login can unlock an existing vault. A remembered browser session after
+restart can access local story data while the vault remains locked; re-entering
+the password restores plaintext provider access. Password change rewraps the
+data key rather than re-encrypting every secret entry.
+
+Lock, final session expiry and disposal clear plaintext access. Terminal reset
+removes saved credentials with the owner and sessions while preserving stories
+and media. It uses the same DATA_DIR/DB_PATH resolution as startup and refuses
+missing or older-family databases.
+
+Provider keys never belong in story prompts, saved JSON, public responses,
+screenshots, logs or issue attachments. Redaction reduces accidental exposure
+but is not permission to log complete upstream errors or request headers.
+
+Custom provider endpoints are trusted destinations selected by the owner.
+HTTPS or supported loopback HTTP is required; OpenAI-compatible is a protocol
+claim, not proof of equal capabilities, retention or safety. Review each
+provider's terms and behaviour independently before sending sensitive material.
+
+## Untrusted output and semantic limits
+
+A model response is a proposal, not a database command. Strict field, type,
+identity, evidence and ancestry checks constrain structured effects before any
+mutation. Character ownership, secret/public state, challenge decisions and
+quality permissions remain application rules.
+
+Exact quotations support provenance but do not prove truth. A model can quote
+its own invented sentence, misunderstand a relationship, or reveal a secret in
+ordinary prose. Structural validation and a second model's approval cannot
+establish perfect semantic correctness.
+
+The storyteller and optional reviewers receive bounded context that can include
+hidden facts and motives. Those facts are withheld from ordinary reader-state
+APIs, but a model may still narrate them prematurely. Do not store real-world
+secrets on the assumption that a fictional spoiler boundary is cryptographic.
+
+Story text, imported text and previous dialogue are data. They do not authorise
+extra model calls, weaken output validation, change provider credentials or
+supply system-level instructions. Reviewers return bounded findings, not canon
+writes; repair uses the original authoritative context.
+
+Render text safely and validate all exported data. A prompt-injection sentence
+must not become executable HTML or a command. No paid live benchmark is implied
+by deterministic test coverage; model behaviour needs separate, authorised,
+versioned evaluation.
+
+## Uploads, saves and historical data
+
+Uploads are authenticated and CSRF-protected before parsing. Raster inputs have
+20 MB and 40-megapixel ceilings, signature/container checks, fail-closed decoding,
+orientation normalization and metadata/animation removal. Active SVG and
+polyglot/trailing content are refused. Stored names are server-generated.
+
+Playable saves are bounded gzip-JSON, not legacy manuscript ZIP archives.
+Import caps compressed and expanded bytes, validates exact fields, identities,
+cycles, ancestry, evidence and image digests before writes. It creates a new
+story with fresh IDs; staged files are cleaned on rollback.
+
+Private saves are unencrypted and carry spoilers and directions. Provider consent,
+credentials and resumable request IDs never travel. Never open a save by executing
+its contents, trusting an embedded filesystem path or relaxing a failed preflight.
+
+Startup inspects a private copy before allowing SQLite to touch an existing
+database. Old families and orphan journals are refused; sources and sidecars are
+not adopted or rewritten. Source-change checks require stopped writers for
+reliable operator handling and do not claim immunity to malicious filesystem races.
+
+Back up complete stopped installations. A live copy can combine inconsistent
+database and journal states. Scratch inspection protects source files but is
+not a supported live-backup mechanism.
+
+## Reporting and operator checks
+
+Report a suspected vulnerability privately through the repository's security
+advisory form. Include version, deployment shape, affected boundary, minimal
+reproduction and observed impact. Do not include real provider keys, passwords,
+cookies, full private saves or exploitable details in a public issue.
+
+For suspected credential disclosure, revoke or rotate the affected upstream key
+through its provider, preserve a redacted incident record and inspect the actual
+exposure. Logging out cannot revoke a provider key or recall data already sent.
+Coordinate any destructive cleanup explicitly and retain recoverable evidence.
+
+Before exposing an installation, verify loopback/proxy assumptions, HTTPS,
+allowed Host rejection, private API denial before unlock, CSRF denial,
+vault lock/re-entry and file permissions. Use dedicated fixture data rather
+than a real private story for screenshots or public reproductions.
+
+Before sharing a file, identify it correctly: book for readers, playable save
+for trusted continuation, cold backup for installation recovery. A book excludes
+private fields by construction but can still contain a secret leaked into prose
+by the storyteller. Read it before sharing.
+
+Security review is required for new provider calls, storage/import formats,
+network trust, authentication, public routes, logging and new data projections.
+The absence of a failing unit test is not proof that an expanded trust boundary
+has been reviewed.
+
+## Optional reviewer exposure and authority
+
+Quality can send bounded story context, hidden truths and motives, direction,
+candidate prose and proposed effects to the standard model, memory-support model,
+or both. They can be different provider profiles. The review names every selected
+role/provider/model and its call ceiling before purchase. A provider credential
+remains transport-only; it is never story context or reviewer content.
+
+Quality is off by default. A per-configuration device consent cannot be inferred
+from the earlier one-call approval. The server checks the reviewed plan identity,
+all role availability and current story revision at every paid boundary. Browser
+consent is a user-experience record, not an authentication or CSRF substitute.
+Import never brings consent or pending request authority from another device.
+
+Reviewers are untrusted advisers: direct quotations support bounded issues but
+do not prove semantic accuracy. Story text and earlier dialogue are data, not
+permission to override the review contract. The original context remains binding
+during repair. Application validations still govern ownership, structured challenge
+outcomes and effect evidence. Unstructured prose can still be wrong or disclose
+a secret. Do not advertise perfect resistance or treat repeated model agreement
+as independent verification. Only call metadata and aggregate spend persist;
+rejected drafts and reviewer reasons do not become reader-visible history.
+
+## Relationships, episodes and return recaps
+
+The public recap is behind the existing authentication and origin boundary. It
+returns only the selected ancestry's narrated summaries, active public commitments
+and public relationships, never character motives or private correction reasons.
+The episode question is reader-visible working direction, not a secret-lore field.
+Opening a recap or episode dialog makes no model request.
+
+Relationships use qualitative aspects, not numerical affection scores. An evidenced
+development cannot rewrite protected world truth or supply an inhabited person's
+feelings. Structured validation narrows permitted effects; arbitrary model prose
+can still be inconsistent. Example journeys and mocked tests are not a live-model
+certification. Optional standard/memory-model checks follow the bounded quality contract; they
+remain fallible and require their own purchase authority.
+
+## Characters addressing the user
+
+Fourth-wall dialogue is an optional Living-world presentation permission, not an
+authentication, knowledge or authority exception. The same narration purchase
+covers an optional bounded address. Never rejects structured addresses; Rarely
+adds a durable scene-gap check; Freely removes that gap but not cast/ownership
+validation. The narrator may not supply an inhabited character's address.
+
+Instructions prohibit hidden-truth disclosure, invented user speech, pressure to
+return or spend, and using an aside to override resistance. Asides cannot be
+evidence for effects or adjudication. Structural enforcement is not a semantic
+guarantee for the model's unrestricted prose. Addresses form part of readable
+prose and therefore appear in exported books; they are not private annotations.
+
+## Influence and recall boundary
+
+The new memory, evidence and challenge-review routes use the same authentication,
+same-origin and CSRF middleware as the game. Memory search filters secret and
+retired facts before limiting results; evidence reads reject other paths. Private
+correction reasons and challenge requirements remain absent. An invitation is
+constructed only from reader-visible facts and never makes a provider request.
+
+Challenge review grants no authority to change state. The submitted reply still
+requires its exact reviewed revision, and changed grounds cannot turn a free
+repeat into a paid action behind the player's back. No new telemetry or provider
+logging is introduced. Model prose remains fallible despite validated rulings.
+
+## Resistance is not a security boundary
+
+A character's refusal is a game-design contract, not an access-control mechanism
+for the real application. Story text, pleas and claimed authority cannot write
+the application-owned challenge decision directly. Evidence must exist as recorded
+world state, but models can still misinterpret how narrative evidence arose.
+Outcome-field and quotation checks are useful structural safeguards, not a proof
+of semantic consistency. Do not describe the system as immune to persuasion.
+
+Private challenge motives, requirements and basis hashes are omitted from reader
+responses. Selected challenge definitions and relevant historical facts may enter
+the reviewed narrator context; they also belong in the private playable save, not
+reader-facing books. No new credentials, background calls or telemetry are added.
+World corrections remain explicit owner actions outside the fictional contest.
+
+## Images and saves
+
+Image upload and binary save import remain behind authentication, same-origin and
+CSRF checks before body parsing. Uploaded rasters are container-checked, pixel/byte
+bounded, stripped of metadata/animation and normalized. Image reads are story-scoped,
+authenticated and no-store. SVG, forged containers and broken digests fail closed.
+
+Painting sends only the selected passage and art direction to the reviewed
+Illustrator; it does not send private facts, motives or uploaded references. Each
+press permits one attempt. A rejection after provider completion still records its
+known charge; uncertain dispatch is not reported free.
+
+A playable save is unencrypted and contains spoilers, private motives and directions
+across all paths. It excludes credentials, provider configuration, consent and live
+request authority. Books exclude those private game surfaces altogether. Import
+has hard compressed/expanded bounds, validates all references and media, and creates
+a new copy transactionally without interpreting paths or storage keys from the file.
+
+## Reader boundary
+
+The new reader starts private requests only after unlock. Lock clears prose, cast,
+facts, input drafts and credential fields. Route epochs discard late UI responses;
+leaving a story does not pretend to cancel a provider request already dispatched.
+All story text is rendered with text nodes, not interpreted HTML. Secret facts and
+private correction reasons are excluded from normal story responses, but selected
+hidden truth is disclosed as part of the paid narrator's provider exposure.
+
+The client submits the provider/model shown in review. A changed storyteller role
+rejects the request before purchase; replaying a completed key remains free even
+after configuration changes. Paid consent follows the existing remembered-device
+policy: a review is not necessarily shown on every later click. Off permits one
+billable attempt; enabled quality has its own reviewed four- or six-call ceiling.
+Failures retain known charges and unknown attempts. Estimates are not caps.

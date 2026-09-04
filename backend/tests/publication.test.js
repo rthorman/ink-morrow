@@ -175,7 +175,8 @@ describe('PR 15 PublicationDocument and core adapters', () => {
       } else if (format === 'epub') {
         expect(response.body.subarray(0, 2).toString()).toBe('PK');
         expect(bytesAsText).toContain('application/epub+zip');
-        expect(bytesAsText).toContain('EPUB/images/asset-1.webp');
+        expect(bytesAsText).toContain('EPUB/images/asset-1.png');
+        expect(bytesAsText).toContain('rendition:layout-pre-paginated');
         expect(validateEpub(response.body)).toEqual({ valid: true, errors: [] });
       } else if (format === 'pdf') {
         expect(bytesAsText).toMatch(/^%PDF-1\.7/);
