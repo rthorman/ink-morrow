@@ -14,7 +14,7 @@ let app, db, imageDir;
 beforeAll(() => {
   imageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'im-art-pages-'));
   db = createDb(':memory:');
-  app = createApp(db, { staticDir: null, imageDir });
+  app = createApp(db, { legacyEnabled: true, staticDir: null, imageDir });
 });
 
 beforeEach(() => {

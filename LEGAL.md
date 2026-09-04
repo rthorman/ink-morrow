@@ -1,6 +1,6 @@
 # Legal and liability notices
 
-Last updated: **2026-09-01**
+Last updated: **2026-09-04** (product-behaviour references)
 
 > **Important:** This document is a project notice, not legal advice. It was
 > not prepared by a law firm and has not yet received qualified legal review.
@@ -9,7 +9,7 @@ Last updated: **2026-09-01**
 
 ## What Ink Morrow is
 
-The Ink Morrow 4.0 release line is free and open-source software distributed
+The InkMorrow 5.0 release line is free and open-source software distributed
 under the [GNU Affero General Public License, version 3 only](LICENSE), using
 the SPDX expression `AGPL-3.0-only`. It is designed for the user to install
 and operate on their own hardware. Versions through 3.2.2 remain under the
@@ -36,9 +36,9 @@ or fitness guarantee unless a separate signed agreement expressly says so.
 
 The user supplies and controls any AI-provider account, endpoint, credential,
 model, quota, and spending limit. Requests made through Ink Morrow are sent
-from the user's installation to the provider the user configured. OpenRouter
-is the only AI supplier tested with Ink Morrow 4.0; another nominally
-compatible endpoint may fail or lack capabilities Ink Morrow expects.
+from the user's installation to the provider the user configured. A nominally
+compatible endpoint may fail or lack capabilities InkMorrow expects. Deterministic
+release fixtures do not certify live provider or model quality.
 
 The user's relationship is directly with that provider and is governed by the
 provider's current terms, privacy policy, content rules, availability, billing,
@@ -48,9 +48,10 @@ misprice, fail, or discontinue a request or service.
 Ink Morrow may show good-faith cost estimates and local usage records. They are
 not quotes, invoices, account balances, guarantees, or a substitute for the
 provider's billing records. Prices and metering can change without notice.
-Retries, partial success, speculative generation, sanitation, narration,
-continuity extraction, and other separate provider operations may each incur a
-charge.
+Drafting, optional quality reviews and their single permitted repair, image
+generation, and failed or interrupted dispatched calls may each incur a charge.
+The 5.0 runtime does not automatically retry uncertain transport failures or
+purchase speculative successors.
 
 The user is solely responsible for setting provider-side limits, safeguarding
 credentials, reviewing the provider's bill, and paying all provider charges.
@@ -93,7 +94,7 @@ for:
   and dependency review;
 - deciding what data is sent to a provider or made available through an export
   or share;
-- protecting capability links and revoking them when appropriate; and
+- protecting private saves, downloaded books and their recipients; and
 - satisfying any privacy, employment, records, accessibility, consumer,
   publication, or data-protection duties that apply to that deployment.
 
@@ -113,8 +114,9 @@ The maintainer has no obligation to continue hosting or distributing any
 historical or current version merely because that version was previously made
 available.
 
-The 4.0.0 plan is intentionally a clean break from 3.x. Keep independent
-backups and preserve the software version needed to read important data.
+The 5.0 product intentionally refuses older databases and manuscript saves.
+Keep independent backups and preserve the software version needed to read
+important historical data.
 
 ## Global warranty and liability notice
 

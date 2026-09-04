@@ -9,8 +9,13 @@ new setting, remaining approved release work and green CI, not an immediate merg
 The owner also approved an optional consistency-quality mode with bounded extra
 LLM calls to the standard model, memory-support model, or both as useful. It is
 off by default and requires explicit role/call disclosure and full spend accounting.
-The optional quality implementation is being verified for its own substantial PR;
-it is not a deployed feature or a model benchmark.
+Optional quality passed all five CI gates and merged through PR #75. It is not
+a deployed feature or a live-model benchmark; startup remains separately authorised.
+
+Additional owner requirement before the main merge: unify product text logos on
+the existing `frontend/brand/ink-morrow-lockup.svg` shown at the top of this
+repository's GitHub README. App, authentication and manual branding use that one
+artwork; normal product-name mentions are not replacement logos.
 
 The player is normally a reader-director, not a member of the cast. Follow and
 Steer must stand alone; Inhabit is optional and explicitly delegates character
@@ -61,7 +66,8 @@ Historical data remains untouched. Deployment/startup still needs a request.
 5. **New-product release completion** — fresh database isolation and version
    identity, supporting surfaces, complete six-book rewrite/regeneration,
    integration/browser/accessibility checks and final release evidence.
-   Status: planned.
+   Status: implemented and locally verified on feature/5.0.0-product-cutover;
+   the substantial completion PR still requires exact-head green CI and merge.
 
 Additional 5.0 presentation requirement: illustrations appear above their associated
 story text in the reader/manuscript, but on a separate page immediately before that
@@ -70,6 +76,29 @@ text in EPUB. Cover both representations with export/layout regression tests.
 Each batch is tested locally, pushed once coherent, opened as a PR, and merged
 only after its current head is green. Pull the release head before the next batch.
 Avoid tiny PRs and bypassing required checks. Record links and actual results here.
+
+### Product-cutover verification
+
+- Fresh ink-morrow-5/schema-21/IM50 identity, shared server/reset path selection,
+  untouched old database and journal files, WAL-only 5.0 recovery, orphan and
+  dangling-symlink rejection, private scratch failure and concurrent-change tests.
+- Production auth stays explicit, legacy runtime and routes are not mounted,
+  raw manual openings are refused, and local startup/play makes no provider call.
+  Password recovery targets only the configured existing 5.0 database. Test-helper
+  media roots are disposable rather than sharing production defaults.
+- Local backend: 458 tests in the complete 43-suite run, plus the added dangling-
+  symlink case in a passing 15-case isolation/production rerun (459 unique cases).
+  Frontend: 297 tests in 32 suites. Browser: 24 desktop and 24 mobile scenarios,
+  including canonical logo, keyboard/reflow/accessibility, saves and EPUB layout.
+- Lint, setup safety, release/lockfile/PDF identity, brand and strict freshness
+  pass. Production dependency audit reports zero vulnerabilities.
+- All six current-product PDFs regenerated and checked for text, outlines,
+  identity and visual layout. Pages: User Guide 35, Operations 15, Architecture
+  15, State Machine Atlas 15, Security 16, Maintainer 16. Covers and running
+  headers reuse the canonical README SVG; no active Development Edition label.
+- Desktop/mobile logo screenshots and every PDF page were rendered for review.
+  Verification used fixture data and no paid live model calls. Ports 3000 and
+  3100 remain stopped after tests; code integration does not deploy a server.
 
 The five 4.x browser specs are archived beside this file as historical product
 contracts. Active browser tests now exercise the 5.0 reader-director journeys;
@@ -119,12 +148,16 @@ these three PRs and the final green release PR into main.
   quiet aftermath and local current-path return recaps. Local verification passed
   420 backend tests, 289 frontend tests and 44 browser tests. All six PDFs passed
   regeneration, freshness and QA.
-- **Optional consistency quality:** Off remains one call; Standard or Memory
+- **Optional consistency quality:** PR [#75](https://github.com/rthorman/ink-morrow/pull/75)
+  passed all five CI gates and merged as `25bffb4` on 4 September 2026. Local
+  verification covered 444 unique backend cases (442 full-suite plus two added
+  real-API cases), 297 frontend tests and 46 browser tests. All six PDFs passed
+  regeneration, strict freshness and QA. Off remains one call; Standard or Memory
   review caps at four total calls and Both at six. One repair at most, followed by
   all selected reviews; no transport retries or silent downgrade. Per-call durable
   accounting, reviewed role/configuration identity, local progress, role-specific
-  settings and safe save/rewind restoration are implemented and under final
-  verification. No live paid model benchmark was performed. The separate
+  settings and safe save/rewind restoration are implemented. No live paid model
+  benchmark was performed. The separate
   fresh-storage/version cutover, full six-book release edition and final hardening
   remain before the release PR into main.
 

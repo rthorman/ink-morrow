@@ -1,12 +1,12 @@
 {
   "name": "ink-morrow",
-  "version": "4.1.0",
-  "description": "Interactive fiction writing tool with gothic frontend, world/character reuse, and full test suite",
+  "version": "5.0.0",
+  "description": "Playable fiction: follow the cast, steer the story, explore a living world",
   "scripts": {
     "start": "cd backend && npm start",
     "setup": "bash setup.sh",
     "lint": "node node_modules/eslint/bin/eslint.js backend frontend e2e",
-    "check:brand": "node scripts/check-brand-residue.mjs",
+    "check:brand": "node scripts/check-brand-residue.mjs && node scripts/check-logo-consistency.mjs",
     "check:release": "node scripts/check-release-consistency.mjs",
     "check:docs": "node docs/pdf-library/freshness.mjs",
     "check:docs:strict": "node docs/pdf-library/freshness.mjs --strict",

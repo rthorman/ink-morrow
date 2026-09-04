@@ -5,6 +5,7 @@ node_modules/
 # belongs in the repo: the SQLite database (plus wal/shm/journal side files),
 # generated reference portraits and world scenes, any future exports.
 database/
+database-v5/
 
 # Environment variables (the example file IS committed)
 .env

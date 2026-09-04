@@ -148,7 +148,6 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; current = null;
     dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
-    $('importFictionCast').disabled = false; $('importFictionCast').textContent = 'Choose a character template';
     $('fictionEarlier').disabled = false;
     const hash = window.location.hash || '#/stories';
     try {
@@ -378,27 +377,13 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     finally { if (alive(token)) { busy = false; $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story'; } }
   }
 
-  async function templates() {
-    const token = epoch; const trigger = $('importFictionCast');
-    if (trigger.disabled) return;
-    trigger.disabled = true; trigger.textContent = 'Loading templates…';
-    try {
-      const data = await api('/characters');
-      if (!alive(token)) return;
-      $('fictionTemplatePicker').replaceChildren();
-      const characters = Array.isArray(data) ? data : data.characters || [];
-      for (const character of characters) $('fictionTemplatePicker').append(button(`Add ${character.name}`, () => addCast(character)));
-      if (!characters.length) $('fictionTemplatePicker').textContent = 'No character templates yet. You can add a character above.';
-    } catch (error) { if (alive(token)) status(error.message, true); }
-    finally { if (alive(token)) { trigger.disabled = false; trigger.textContent = 'Choose a character template'; } }
-  }
 
   function clearPrivate() {
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
     dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
-    for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
+    for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
     $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
     stopProgress();
     for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus', 'fictionQualityState', 'fictionCalls']) $(id).replaceChildren();
@@ -422,7 +407,6 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionStartForm').addEventListener('submit', startStory);
   $('fictionStartStyle').addEventListener('change', syncFourthWallStart);
   $('addFictionCast').addEventListener('click', () => addCast());
-  $('importFictionCast').addEventListener('click', templates);
   $('fictionRefresh').addEventListener('click', route);
   $('fictionShelfPrevious').addEventListener('click', () => { shelfOffset = Math.max(0, shelfOffset - 80); $('fictionShelfPrevious').disabled = true; route(); });
   $('fictionShelfNext').addEventListener('click', () => { if (nextShelfOffset !== null) { shelfOffset = nextShelfOffset; $('fictionShelfNext').disabled = true; route(); } });

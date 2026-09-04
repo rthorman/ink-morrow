@@ -36,7 +36,7 @@ beforeAll(async () => {
     log: (msg) => logEntries.push({ level: 'log', msg }),
     error: (msg) => logEntries.push({ level: 'error', msg }),
   };
-  app = createApp(db, { staticDir: null, imageDir, logger });
+  app = createApp(db, { legacyEnabled: true, staticDir: null, imageDir, logger });
   close = () => db.close();
 });
 
@@ -226,7 +226,7 @@ describe('Character & world reference images', () => {
     const worldId = 'legacy-world-0001';
     bootDb.prepare("INSERT INTO worlds (id, name) VALUES (?, 'Legacy')").run(worldId);
     try {
-      const bootApp = createApp(bootDb, { staticDir: null, imageDir: bootDir });
+      const bootApp = createApp(bootDb, { legacyEnabled: true, staticDir: null, imageDir: bootDir });
       const started = Date.now();
       for (;;) {
         const row = bootDb.prepare('SELECT image_status FROM worlds WHERE id = ?').get(worldId);
@@ -247,7 +247,7 @@ describe('Character & world reference images', () => {
     const bootDb = createDb(':memory:');
     const characterId = 'interrupted-character-0001';
     bootDb.prepare("INSERT INTO characters (id, name, image_status) VALUES (?, 'Interrupted', 'pending')").run(characterId);
-    const bootApp = createApp(bootDb, { staticDir: null, imageDir: bootDir });
+    const bootApp = createApp(bootDb, { legacyEnabled: true, staticDir: null, imageDir: bootDir });
     try {
       expect(bootDb.prepare('SELECT image_status FROM characters WHERE id = ?').get(characterId).image_status).toBe('failed');
       await request(bootApp).post(`/api/characters/${characterId}/image`).expect(200);

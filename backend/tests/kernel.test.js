@@ -70,7 +70,7 @@ function makePreRebrandV4Identity(db) {
   }
 }
 
-describe('Ink Morrow 4.0 kernel', () => {
+describe('InkMorrow 5.0 kernel', () => {
   let root;
 
   beforeEach(() => {
@@ -140,45 +140,20 @@ describe('Ink Morrow 4.0 kernel', () => {
     expect(fs.existsSync(`${dbPath}-shm`)).toBe(false);
   });
 
-  it('backs up and transactionally adopts a verified earlier 4.0 database identity', () => {
+  it('refuses even a verified earlier 4.0 identity without adoption or backup', () => {
     const dbPath = path.join(root, 'ink-morrow.db');
-    let db = createDb(dbPath);
+    const db = createDb(dbPath);
     db.prepare("INSERT INTO stories (id, title) VALUES ('kept-story', 'Kept manuscript')").run();
     makePreRebrandV4Identity(db);
     db.close();
 
-    expect(inspectExistingDatabase(dbPath)).toMatchObject({
-      kind: 'pre-rebrand-v4', version: DATABASE_SCHEMA_VERSION,
-    });
-
-    db = createDb(dbPath);
-    const backupPath = db.identityUpgradeBackupPath;
-    expect(backupPath).toMatch(/\.pre-ink-morrow-v4\.bak$/);
-    expect(fs.existsSync(backupPath)).toBe(true);
-    expect(schemaIdentity(db)).toMatchObject({
-      family: DATABASE_FAMILY, version: DATABASE_SCHEMA_VERSION,
-    });
-    expect(db.prepare("SELECT title FROM stories WHERE id = 'kept-story'").get().title)
-      .toBe('Kept manuscript');
-    expect(db.prepare('PRAGMA application_id').get().application_id).toBe(SQLITE_APPLICATION_ID);
-    expect(db.prepare('PRAGMA quick_check').get().quick_check).toBe('ok');
-    expect(db.prepare('PRAGMA foreign_key_check').all()).toEqual([]);
-    db.close();
-
-    const backup = new DatabaseSync(backupPath, { readOnly: true });
-    expect(backup.prepare(`SELECT family FROM "${PRE_REBRAND_V4.schemaTable}"`).get().family)
-      .toBe(PRE_REBRAND_V4.family);
-    expect(backup.prepare("SELECT title FROM stories WHERE id = 'kept-story'").get().title)
-      .toBe('Kept manuscript');
-    expect(backup.prepare('PRAGMA application_id').get().application_id)
-      .toBe(PRE_REBRAND_V4.applicationId);
-    backup.close();
-
-    db = createDb(dbPath);
-    expect(db.identityUpgradeBackupPath).toBeUndefined();
-    db.close();
-    expect(fs.readdirSync(root).filter((name) => name.includes('.pre-ink-morrow-v4.bak')))
-      .toHaveLength(1);
+    const before = fs.readFileSync(dbPath);
+    const beforeStat = fs.statSync(dbPath);
+    expect(() => inspectExistingDatabase(dbPath)).toThrow(expect.objectContaining({ code: 'LEGACY_DATABASE' }));
+    expect(() => createDb(dbPath)).toThrow(expect.objectContaining({ code: 'LEGACY_DATABASE' }));
+    expect(fs.readFileSync(dbPath)).toEqual(before);
+    expect(fs.statSync(dbPath).mtimeMs).toBe(beforeStat.mtimeMs);
+    expect(fs.readdirSync(root)).toEqual(['ink-morrow.db']);
   });
 
   it('refuses a damaged earlier 4.0 identity without changing or backing up the database', () => {
@@ -194,7 +169,7 @@ describe('Ink Morrow 4.0 kernel', () => {
 
     let error;
     try { createDb(dbPath); } catch (caught) { error = caught; }
-    expect(error).toMatchObject({ code: 'INVALID_MIGRATION_LEDGER' });
+    expect(error).toMatchObject({ code: 'LEGACY_DATABASE' });
     expect(fs.readFileSync(dbPath)).toEqual(before);
     expect(fs.statSync(dbPath).mtimeMs).toBe(beforeStat.mtimeMs);
     expect(fs.readdirSync(root).some((name) => name.includes('.pre-ink-morrow-v4.bak')))
@@ -406,21 +381,14 @@ describe('Ink Morrow 4.0 kernel', () => {
     const open = createTestApp();
     const response = await request(open.app).get('/api/capabilities').expect(200);
     expect(response.body).toMatchObject({
-      release_train: '4.1.0',
+      release_train: '5.0.0',
       database: { family: DATABASE_FAMILY, schema_version: DATABASE_SCHEMA_VERSION },
-      archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'available' },
+      archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'retired' },
+      playable_save: { format: 'ink-morrow-fiction-save', version: 1, status: 'available', imports_older_series: false },
     });
-    expect(response.body.features.find((feature) => feature.id === 'v4-kernel').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'manuscript-hierarchy').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'revisions-recovery').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'chronicle').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'providers-vault').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'continuity-v2').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'writing-transactions').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'art-upload').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'grok-sanitization').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'adaptive-shell').status).toBe('available');
-    expect(response.body.features.find((feature) => feature.id === 'gallery').status).toBe('available');
+    expect(response.body.features.length).toBeGreaterThan(5);
+    expect(response.body.features.every((feature) => feature.status === 'available')).toBe(true);
+    expect(response.body.features.some((feature) => feature.id === 'writing-transactions')).toBe(false);
     open.close();
 
     const sealed = createTestApp({ authRequired: true });

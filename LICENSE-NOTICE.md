@@ -2,6 +2,9 @@
 
 Copyright (C) 2026 Ink Morrow contributors
 
+The current InkMorrow 5.0 product continues under AGPL-3.0-only. The new-product
+data boundary does not change the project or third-party licensing terms.
+
 The Ink Morrow 4.0 release line, including the machine-readable release
 contract under `docs/releases/4.0.0/`, is licensed under the
 [GNU Affero General Public License, version 3 only](LICENSE), identified by

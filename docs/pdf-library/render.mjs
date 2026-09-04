@@ -20,6 +20,9 @@ const systemChrome = [process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,'C:\\Progr
 const outputDir = path.join(here, '../pdf');
 await fs.mkdir(outputDir,{recursive:true});
 const css = await fs.readFile(path.join(here,'theme.css'),'utf8');
+// Reuse the exact README/authentication artwork, including its embedded font.
+const logoPath = '../../frontend/brand/ink-morrow-lockup.svg';
+const logoData = `data:image/svg+xml;base64,${(await fs.readFile(path.join(here, logoPath))).toString('base64')}`;
 const browser = await chromium.launch({headless:true,...(systemChrome?{executablePath:systemChrome}:{})});
 
 try {
@@ -51,13 +54,13 @@ try {
     const headings = [...body.matchAll(/<h2 id="([^"]+)">([^<]+)<\/h2>/g)];
     const toc = `<h3>Contents</h3><div class="contents-list">${headings.map(([,id,label])=>`<a href="#${id}">${label}</a>`).join('')}</div>`;
     const bodyWithToc = body.replace('</div>',`${toc}</div>`);
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Ink Morrow ${editionLabel} - ${book.title}</title><style>${css}</style></head><body><section class="cover"><img src="${book.cover}" alt=""><div class="cover-copy"><div class="cover-kicker">Ink Morrow ${editionLabel}</div><h1>${book.title}</h1><div class="cover-subtitle">${book.subtitle}</div><div class="cover-meta">${book.audience} &nbsp; / &nbsp; September 2026</div></div></section><main>${bodyWithToc}</main></body></html>`;
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Ink Morrow ${editionLabel} - ${book.title}</title><style>${css}</style></head><body><section class="cover"><img src="${book.cover}" alt=""><div class="cover-copy"><img class="cover-logo" src="${logoPath}" alt="Ink Morrow — Where stories grow claws" width="900" height="240"><div class="cover-kicker">${editionLabel}</div><h1>${book.title}</h1><div class="cover-subtitle">${book.subtitle}</div><div class="cover-meta">${book.audience} &nbsp; / &nbsp; September 2026</div></div></section><main>${bodyWithToc}</main></body></html>`;
     const intermediate = path.join(here,`.render-${book.slug}.html`);
     await fs.writeFile(intermediate,html,'utf8');
     await page.goto(pathToFileURL(intermediate).href,{waitUntil:'networkidle'});
     await page.evaluate(()=>document.fonts.ready);
     await page.evaluate(()=>{const broken=[...document.images].filter((image)=>!image.complete||image.naturalWidth===0);if(broken.length)throw new Error(`Broken images: ${broken.map((image)=>image.src).join(', ')}`);});
-    await page.pdf({path:output,format:'A4',printBackground:true,preferCSSPageSize:true,tagged:true,outline:true,displayHeaderFooter:true,headerTemplate:`<div style="font:7px Georgia;color:#766a72;width:100%;padding:0 15mm;text-align:right">INK MORROW ${editionLabel.toUpperCase()}</div>`,footerTemplate:'<div style="font:7px Georgia;color:#766a72;width:100%;padding:0 15mm;display:flex;justify-content:space-between"><span>YOUR CHOICES, THEIR LIVES</span><span class="pageNumber"></span></div>',margin:{top:'14mm',right:'15mm',bottom:'13mm',left:'15mm'}});
+    await page.pdf({path:output,format:'A4',printBackground:true,preferCSSPageSize:true,tagged:true,outline:true,displayHeaderFooter:true,headerTemplate:`<div style="font:7px Georgia;color:#766a72;width:100%;padding:0 15mm;display:flex;align-items:center;justify-content:space-between"><img src="${logoData}" alt="Ink Morrow" style="width:96px;height:26px;object-fit:contain"><span>${editionLabel.toUpperCase()}</span></div>`,footerTemplate:'<div style="font:7px Georgia;color:#766a72;width:100%;padding:0 15mm;display:flex;justify-content:space-between"><span>YOUR CHOICES, THEIR LIVES</span><span class="pageNumber"></span></div>',margin:{top:'14mm',right:'15mm',bottom:'13mm',left:'15mm'}});
     await page.close();
     await fs.unlink(intermediate);
     console.log(output);

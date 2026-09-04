@@ -1,167 +1,114 @@
-# Privacy notice for self-hosted Ink Morrow
+# Privacy notice for self-hosted InkMorrow
 
-Last updated: **2026-09-01**
-Current shipped behavior covered: **4.0.0-beta.1**
+Last updated: **2026-09-04**
 
-> This is a plain-language project notice, not legal advice. An operator is
-> responsible for the privacy notice and lawful basis required by their own
-> deployment and users.
+Application behaviour covered: **5.0**
+
+> This is a plain-language project notice, not legal advice. An operator remains
+> responsible for the privacy requirements of their own deployment.
 
 ## The short version
 
-Ink Morrow is self-hosted software, not a service operated by the project
-maintainer. By default, the application stores manuscripts and working data on
-the operator's machine and makes no request to an Ink Morrow-owned server.
+InkMorrow stores playable stories and working data on the operator's machine.
+It has no maintainer cloud, analytics, advertising, tracking pixels or crash
+telemetry. The maintainer cannot retrieve, restore or erase another installation's
+data. Source hosting, package installation and third-party tools have their own
+network behaviour and privacy terms.
 
-The project does not provide analytics, advertising, tracking pixels, crash
-telemetry, accounts, or a maintainer cloud. The maintainer cannot see, retrieve,
-delete, or restore data in someone else's installation.
+An explicit AI action sends its disclosed context from the local backend to the
+selected provider. Model-catalogue browsing also contacts the provider, without
+buying a story response. The provider controls its own retention and processing.
+Review its actual policies before sending sensitive material.
 
-When the owner deliberately uses an AI feature, the self-hosted backend sends
-the necessary request data to the AI endpoint configured by that owner. That
-provider processes the data under its own terms and privacy policy.
+## Stored data
 
-## Who controls the data
+The 5.0 installation can contain:
 
-The person or organization running an installation decides why and how its data
-is processed, which provider receives it, who can access the installation, and
-what is exported or shared. In many data-protection contexts, that operator—not
-the open-source maintainer—is the controller responsible for the deployment.
+- Cast, situations, readable moments, private motives, hidden world facts,
+  knowledge, relationships, commitments, directions and correction reasons.
+- Every alternate path and immutable state change, including control,
+  preferences, episode framing and illustration placement history.
+- Normalized uploaded/generated images and staged files during validation.
+- Role assignments, request/call status, models and known/unknown spend.
+- Owner password verifier, session digests and authentication timestamps.
+- Environment credentials, process-session credentials or encrypted vault entries.
+- Browser interface preferences and remembered paid-consent configuration flags.
 
-See the European Commission's general explanation of
-[data controllers and processors](https://commission.europa.eu/law/law-topic/data-protection/data-protection-explained_en)
-and obtain local advice when required.
+The session cookie is HttpOnly and SameSite=Strict. CSRF is held in memory.
+Provider keys are not stored in browser persistence or included in ordinary
+story responses. Rejected drafts and reviewer explanations are not saved as
+playable history.
 
-## Data stored by the current application
+The database, media and downloaded saves are not encrypted as a whole by the
+application. Vault encryption protects its stored credential entries, not the
+rest of the installation. Protect device access and backups.
 
-Depending on features used, a 4.0.0-beta.1 installation stores:
+## Provider exposure and costs
 
-- stories, pages, directions, worlds, lore, characters, cast snapshots and
-  author settings;
-- continuity deltas, corrections, search indexes and provider usage/cost
-  records;
-- prepared speculative prose and generation metadata;
-- generated reference images, covers, scene plates, narration cache and
-  audiobooks;
-- portable-archive staging and safety backups, immutable publication
-  snapshots, and public-share expiry/revocation records;
-- a password verifier, hashed session records and authentication timestamps;
-- the provider key in the operator-managed backend environment file; and
-- interface preferences and remembered paid-action consent in that browser's
-  local storage.
+The storyteller receives bounded relevant context: situation, selected cast,
+boundaries, facts (including relevant hidden truth), recent prose and direction.
+Optional quality can also send candidate prose and proposed effects to the
+standard model, memory-support model or both, potentially at different providers.
 
-The browser session cookie is HttpOnly and SameSite=Strict. The CSRF value is
-kept in memory by the frontend. The application does not intentionally persist
-provider credentials or manuscript prose in browser local storage.
+Quality is Off by default. Standard or Memory permits at most four total calls;
+Both permits six. There is one repair allowance and no automatic transport retry.
+The expanded purchase needs its own role/model review. A rejected or interrupted
+attempt may still be charged, and unknown cost is not zero.
 
-Data and media files are not encrypted by the application. The owner login does
-not protect files from someone who can read the operating-system account or
-unencrypted disk. Portable archives are also unencrypted. Use device encryption
-and protect backups.
+AI painting sends only the selected passage and art direction to Illustrator,
+not hidden facts, private motives, other passages or uploaded image references.
+Local upload makes no provider request. Technical validation strips metadata
+and animation but does not semantically classify the image.
 
-## Data sent to an AI provider
+There is no speculative successor generation, autonomous cast activity,
+background continuity extraction, narration or audiobook workflow in the 5.0
+production runtime. Local reading, recap, correction, paths, episode controls,
+upload, book export and save/import do not buy AI work.
 
-Only an explicit AI or narration action sends data. The exact categories vary
-by action and can include:
+## Reader visibility is not provider confidentiality
 
-- story direction, recent prose, folded continuity and relevant older
-  memories;
-- selected world, character, cast and tone information;
-- prompts for drafts, images, covers or continuity extraction;
-- selected character/reference images for an image request;
-- page text for speech; and
-- model, voice, quality and generation settings.
+Ordinary story APIs exclude private facts, motives and correction reasons,
+and evidence is scoped to the current path. Providers may deliberately receive
+relevant private world context. A model can reveal it in generated prose despite
+instructions or a reviewer's approval.
 
-Prepared successor generation and continuity extraction are separate provider
-operations associated with the writing flow and may send the contextual data
-needed for each. Cost review and settings should be read before enabling them.
+Do not use fictional secrecy as a place to store real-world confidential data
+that must never reach a provider or reader. Structured checks improve control
+but do not prove semantic secrecy, resistance or correctness.
 
-The OpenRouter quick-connect path creates one OpenAI-compatible provider
-profile. **OpenRouter is the only AI supplier tested with Ink Morrow 4.0.**
-The operator may configure another nominally compatible endpoint,
-but it may lack model discovery, image generation, narration, reasoning
-controls, or may not work at all. Consult each actual provider's privacy,
-retention, training, regional-processing, and security terms. The Ink Morrow
-maintainer cannot control or erase provider-held data.
+## Files, retention and sharing
 
-Merely opening the app, browsing the Library, reading pages, exporting a manuscript,
-or creating a portable archive does not require an AI provider call.
+A book contains the selected reading path and its illustrations, not private
+metadata or alternate paths. Read it before sharing: a spoiler already present
+in prose remains prose. There is no public snapshot-sharing service in 5.0.
 
-## Network and third-party requests
+A .inkmorrow5 playable save is an unencrypted all-path continuation package.
+It contains private world state and directions, but excludes credentials,
+provider settings, consent and pending request authority. Import creates a
+new story and never resumes spending. Old .inkmorrow archives are not accepted.
 
-The frontend and API are served from the same self-hosted origin. Interface
-fonts are bundled locally. The current project does not include third-party
-browser analytics or advertisements.
+A cold installation backup preserves more, including auth/vault data. Stop the
+process before copying complete database/media locations and sidecars; protect
+configuration separately. The application does not provide cloud backup.
 
-The backend contacts the configured AI endpoint for provider features and may
-retrieve that endpoint's model/pricing metadata. Normal package installation,
-source hosting, operating-system updates, reverse proxies, browsers, and
-provider dashboards are separate tools with their own network behavior and
-privacy terms.
+Retiring a fact or removing an illustration placement does not securely erase
+historical records or files needed by other paths. Rewind preserves the old
+path. Manage downloaded copies, operator backups and any provider-held data
+separately. The maintainer cannot act on data it does not possess.
 
-## Logs
+## Logs and access
 
-The application is designed to sanitize provider and unexpected errors before
-returning them and to use correlation references rather than manuscript text
-in diagnostics. Operators should still protect terminal output, process
-supervisor logs, reverse-proxy access logs and backups.
+Error responses are sanitized and unexpected failures carry correlation references.
+Protect terminal/supervisor/proxy logs and do not enable request-body logging.
+Never publish provider keys, cookies, private saves, real story data or
+unredacted screenshots in issues or CI artifacts.
 
-Do not enable request-body logging. Do not place provider keys, session cookies,
-real manuscripts, private image links, or portable archives in bug reports,
-issues, screenshots, or public CI artifacts.
+Loopback is the default. Remote access changes exposure and should use deliberate
+HTTPS/proxy configuration. Lock clears private UI state and revokes the session,
+but cannot revoke an upstream API key or recall data already sent.
 
-## Exports and deletion
-
-Publication files and portable archives are created on the operator's machine
-and downloaded by the operator. Their contents are explained before export.
-Credentials, password records, sessions and remembered paid consent are
-excluded from portable archives.
-
-Deleting an item may be permanent, subject to the bounded recovery or undo
-path offered for that exact operation and backups the operator made. Tail
-truncation keeps an expiring recovery suffix; restoration refuses when later
-canon makes it unsafe rather than silently merging. Securely delete exported
-files, backups, expired recovery material, and provider-held copies separately
-when needed.
-
-Because the maintainer has no copy of installation data, data-access,
-correction, export, or deletion requests must be handled by the installation
-operator and any configured provider. The maintainer cannot act on data they do
-not possess.
-
-## Public sharing
-
-Anyone holding a share capability can read that
-frozen snapshot until it expires or is revoked. It contains owner-selected
-manuscript prose and art only, triggers no AI, and excludes credentials,
-directions, continuity internals, speculative/deleted work, costs and sessions.
-The self-hosting operator remains responsible for the content, capability link,
-TLS, reverse proxy, access logs and recipients.
-
-## Image uploads
-
-Image upload does not semantically inspect or moderate uploaded subject matter
-and does not send an upload to an AI provider by default.
-
-For technical safety, the self-hosted application validates and normalizes
-the image and strips embedded location/device metadata from its display
-derivative by default. The operator and uploader remain responsible for people,
-personal information, privacy and rights depicted in an image.
-
-## Security and contact
-
-Read [SECURITY.md](SECURITY.md) for the current access-control boundary and
-safe network configuration. Report a vulnerability through the repository's
-private security-advisory form linked there. Do not include real personal data
-or secrets in the report.
-
-Ordinary repository participation—issues, pull requests, discussions, and
-source-host interactions—occurs on the hosting platform and is subject to that
-platform's privacy practices, not this self-hosted application notice.
-
-## Changes to this notice
-
-The notice is versioned in the repository. A release that changes telemetry,
-provider disclosure, credentials, uploads, sharing, stored categories, or
-maintainer-operated services must update it in the same pull request. Release
-notes should call out material privacy-boundary changes.
+Read [Security](SECURITY.md), [Legal notices](LEGAL.md) and the
+[Security handbook](docs/pdf/Ink-Morrow-5.0-Security-Privacy-and-AI-Boundary.pdf).
+Report vulnerabilities through the private advisory link in SECURITY.md.
+Material changes to storage, telemetry, provider exposure, credentials, uploads
+or sharing must update this notice in the same change.

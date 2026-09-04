@@ -10,7 +10,7 @@ describe('quality through the real API and role-specific AI client', () => {
   const providerResponse = (content) => ({ data: { choices: [{ message: { content: JSON.stringify(content) }, finish_reason: 'stop' }] } });
   beforeEach(() => {
     axios.post.mockReset(); axios.get.mockReset();
-    fixture = createTestApp({ providerOptions: { env: { OPENROUTER_API_KEY: 'fixture-only-key' } } });
+    fixture = createTestApp({ legacyEnabled: false, providerOptions: { env: { OPENROUTER_API_KEY: 'fixture-only-key' } } });
   });
   afterEach(() => fixture.close());
   async function start() {

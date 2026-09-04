@@ -7,43 +7,28 @@ require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { createDb } = require('./src/db');
 const { createApp } = require('./src/app');
+const { storagePaths } = require('./src/core/storage');
 
 // Newly-created local secrets and media should never become group/world
 // readable merely because the shell has a permissive default umask.
 process.umask(0o077);
 try { fs.chmodSync(path.join(__dirname, '.env'), 0o600); } catch { /* missing on first launch or unsupported */ }
-const defaultStorageRoot = path.join(__dirname, '../database');
-const configuredPath = (value) => value === ':memory:'
-  ? value
-  : path.isAbsolute(value) ? value : path.resolve(__dirname, value);
-const configuredStorageRoot = process.env.DATA_DIR ? configuredPath(process.env.DATA_DIR) : defaultStorageRoot;
-const currentDefaultDbPath = path.join(configuredStorageRoot, 'ink-morrow.db');
-const preRebrandDefaultDbPath = path.join(
-  configuredStorageRoot,
-  `${['scr', 'ibe-tr', 'ibe'].join('')}.db`
-);
-const dbPath = process.env.DB_PATH
-  ? configuredPath(process.env.DB_PATH)
-  : !fs.existsSync(currentDefaultDbPath) && fs.existsSync(preRebrandDefaultDbPath)
-    ? preRebrandDefaultDbPath
-    : currentDefaultDbPath;
-const storageRoot = process.env.DATA_DIR
-  ? configuredPath(process.env.DATA_DIR)
-  : process.env.DB_PATH && dbPath !== ':memory:'
-    ? path.dirname(dbPath)
-    : defaultStorageRoot;
+const storage = storagePaths();
+const dbPath = storage.dbPath;
+const storageRoot = storage.ephemeral ? fs.mkdtempSync(path.join(os.tmpdir(), 'inkmorrow-ephemeral-')) : storage.storageRoot;
+if (storage.ephemeral) process.once('exit', () => {
+  // Only this process's unique disposable in-memory-runtime directory.
+  fs.rmSync(storageRoot, { recursive: true, force: true });
+});
 
 let db;
 try {
-  // createDb performs a read-only family/version inspection before WAL,
-  // permissions, migrations, or boot reconciliation can touch an existing
-  // file. A 3.x installation therefore fails closed here.
+  // Inspection reads source files into a private scratch copy. SQLite cannot
+  // touch historical database/sidecar files before family/version acceptance.
   db = createDb(dbPath);
-  if (db.identityUpgradeBackupPath) {
-    console.log(`Upgraded an earlier 4.0 database identity for Ink Morrow. Backup: ${db.identityUpgradeBackupPath}`);
-  }
 } catch (error) {
   console.error(error.message || 'Ink Morrow could not open its database.');
   process.exit(1);
@@ -79,6 +64,7 @@ const app = createApp(db, {
   // The executable entry point is always sealed, even if a caller happens to
   // use NODE_ENV=test. Only direct in-memory unit-test composers opt out.
   authRequired: true,
+  legacyEnabled: false,
   allowLan,
   allowedHosts,
   trustProxy: process.env.TRUST_PROXY === '1',

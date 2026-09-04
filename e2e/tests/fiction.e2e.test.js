@@ -7,8 +7,7 @@ import { openUnlocked, apiPost, E2E_PASSWORD } from '../auth.js';
 async function startFixture(page, overrides = {}) {
   const response = await apiPost(page, '/api/fiction', {
     title: `The reunion ${Date.now()}`, premise: 'Mara returns to the quay.',
-    opening: 'Mara waits beside the old bell. Her sister has not arrived.',
-    cast: [{ id: 'mara', name: 'Mara', description: 'An old friend.' }, { id: 'sister', name: 'The sister' }],
+    scenario_id: 'drowned-bell',
     ...overrides,
   });
   const story = (await response.json()).story;
@@ -24,6 +23,17 @@ async function approve(page) {
 
 test.describe('5.0 playable fiction', () => {
   test.beforeEach(async ({ page }) => openUnlocked(page));
+
+  test('the running game and locked threshold share the canonical README logo', async ({ page }, testInfo) => {
+    await startFixture(page);
+    const logo = page.locator('.fiction-brand img');
+    await expect(logo).toHaveAttribute('src', 'brand/ink-morrow-lockup.svg'); await expect(logo).toBeVisible();
+    expect(await logo.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath('canonical-logo-reader.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Lock', exact: true }).click();
+    await expect(page.locator('.auth-surface__lockup')).toHaveAttribute('src', 'brand/ink-morrow-lockup.svg');
+    await expect(page.locator('.auth-surface__lockup')).toBeVisible();
+  });
 
   test('starts a reader-director story without choosing an avatar or making a paid call', async ({ page }) => {
     let paid = 0;
@@ -61,10 +71,10 @@ test.describe('5.0 playable fiction', () => {
     const story = await startFixture(page);
     await page.getByRole('link', { name: 'Your stories', exact: true }).click();
     await page.locator('.fiction-card', { hasText: story.title }).getByRole('link', { name: 'Return to this story' }).click();
-    await expect(page.locator('#fictionProse')).toContainText('Mara waits beside the old bell.');
+    await expect(page.locator('#fictionProse')).toContainText('Mara waited on the quay');
     await expect(page.locator('#fictionDetails')).toBeHidden();
     await page.reload();
-    await expect(page.locator('#fictionProse')).toContainText('Her sister has not arrived.');
+    await expect(page.locator('#fictionProse')).toContainText('When Iona arrived');
   });
 
   test('illustrated manuscript and EPUB use different image layouts, and a save restores the whole story', async ({ page }, testInfo) => {
@@ -146,6 +156,7 @@ test.describe('5.0 playable fiction', () => {
     expect(saved.story.state.voice).toBe('Warm, unhurried prose.');
     await expect(page.locator('#fictionPlayStyle')).toContainText('Living-world');
     await page.getByRole('button', { name: 'Retire a fact', exact: true }).click();
+    await page.getByLabel('Fact to retire', { exact: true }).selectOption('old');
     await page.getByLabel('Reason for retiring it').fill('No longer relevant.');
     await page.getByRole('button', { name: 'Retire this fact', exact: true }).click();
     await expect(page.locator('#fictionFacts')).not.toContainText('An old detail.');
@@ -243,7 +254,7 @@ test.describe('5.0 playable fiction', () => {
     await page.reload();
     await page.getByRole('button', { name: 'Cast & story' }).click();
     await expect(page.locator('#fictionFacts')).toContainText('promised to protect');
-    await expect(page.locator('#fictionProse')).toContainText('Her sister has not arrived.');
+    await expect(page.locator('#fictionProse')).toContainText('When Iona arrived');
   });
 
   test('rewind restores complete state while retaining the original path', async ({ page }) => {
@@ -264,7 +275,8 @@ test.describe('5.0 playable fiction', () => {
   test('hidden world facts do not appear in the reader recap', async ({ page }) => {
     await startFixture(page, { facts: [{ id: 'secret', text: 'The mayor bought the map.', visibility: 'secret', known_by: ['mara'] }] });
     await page.getByRole('button', { name: 'Cast & story' }).click();
-    await expect(page.locator('#fictionDetails')).not.toContainText('mayor');
+    await expect(page.locator('#fictionDetails')).not.toContainText('The mayor bought the map.');
+    await expect(page.locator('#fictionDetails')).not.toContainText('Vale is the buyer');
   });
 
   test('ends and starts episodes without calling a provider', async ({ page }) => {
@@ -344,7 +356,7 @@ test.describe('5.0 playable fiction', () => {
     expect((await page.request.get('/api/fiction')).status()).toBe(401);
     await page.locator('#authPassword').fill(E2E_PASSWORD);
     await page.locator('#authLoginForm button[type="submit"]').click();
-    await expect(page.locator('#fictionProse')).toContainText('Mara waits');
+    await expect(page.locator('#fictionProse')).toContainText('Mara waited');
   });
 
   test('core surfaces have no detected WCAG A/AA violations', async ({ page }) => {

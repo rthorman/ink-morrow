@@ -1,69 +1,62 @@
-# Contributing to Ink Morrow
+# Contributing to InkMorrow
 
-Thank you for helping improve the Scriptorium. Ink Morrow is a self-hosted,
-single-owner writing tool, so a good contribution protects manuscripts,
-preserves literal consequences, and keeps the author—not the machinery—in
-control.
+InkMorrow 5.0 is playable fiction for one owner. Protect causal history, explicit
+character control, private data and honest paid authority. Manual prose authoring
+and 4.x data migration are deliberately outside this product.
 
-## Before opening an issue
+## Before changing behaviour
 
-- Read the [known beta limits](docs/releases/4.0.0/KNOWN-ISSUES.md).
-- Reproduce browser problems in current Google Chrome when possible. Chrome is
-  the only browser tested for 4.0.
-- Reproduce provider problems with OpenRouter when possible. It is the only AI
-  supplier tested; another nominally compatible endpoint is a separate,
-  unsupported integration.
-- Use a new, empty 4.0 `DATA_DIR`. Never test 4.0 against valuable 3.x data.
+Read AGENTS.md, the [5.0 release record](docs/releases/5.0.0/README.md) and
+[known limits](docs/releases/5.0.0/KNOWN-ISSUES.md). Reproduce with isolated fixture
+data, never the owner's real database or provider key. Model fixtures are not
+live quality certification.
 
-For a vulnerability, use a
-[private security advisory](https://github.com/rthorman/ink-morrow/security/advisories/new)
-instead of a public issue. Never attach real manuscripts, provider keys,
-passwords, cookies, share capabilities, private prompts, or unredacted logs.
+Use the [private advisory form](https://github.com/rthorman/ink-morrow/security/advisories/new)
+for vulnerabilities. Do not attach private saves, credentials, cookies,
+unredacted logs or real story material to public issues.
 
 ## Local development
 
-Ink Morrow requires Node.js 22.5 or newer. The development setup updates each
-package from its own lockfile without first deleting an existing dependency
-tree:
+The active project is consolidated under WSL. Windows tooling can use that same
+tree; do not create another source copy. Node 22.5+ with node:sqlite is required.
 
 ```bash
 bash setup.sh --dev
-```
-
-For a deliberately clean reinstall, use `bash setup.sh --dev --clean`. That
-explicit mode prints and then replaces only the repository root, backend,
-frontend, and E2E `node_modules` directories. It does not touch source,
-configuration, databases, manuscripts, or media.
-
-Run the fast verification from the repository root:
-
-```bash
 npm test
+npm run check:brand
+npm run check:release
 ```
 
-For a user-visible or browser-sensitive change, also run:
+Existing dependencies are updated in place. Only explicit
+`bash setup.sh --dev --clean` replaces the printed dependency directories.
+Do not use broad destructive cleanup or restore abandoned branches.
 
-```bash
-npm run test:e2e
-```
+For browser-sensitive changes, run `npm run test:e2e` in an existing
+browser-capable environment. Desktop and Mobile Chrome run separately on
+isolated port 3100 data. Never point tests at port 3000 or download a browser
+merely to satisfy local testing when CI can provide it.
 
-Tests use isolated data. Do not point automated work at a real library.
+## Pull requests and documentation
 
-## Pull requests
+Use substantial, coherent feature batches targeting release/5.0.0.
+Explain the user outcome, changed contract, verification and limits.
+Cover failures, concurrency, cancelled review, late navigation and known/unknown
+costs, not only the happy path. Screenshots should use fixture stories.
 
-Keep a pull request focused enough to explain and review. In its description:
+All five CI gates must pass on the exact current head before merge.
+Final integration to main follows complete approved implementation and its own
+green PR. Deployment or starting the old port is a separate owner decision.
 
-1. lead with the user-visible outcome;
-2. name the behavior or contract that changed;
-3. list the exact verification performed;
-4. include before/after screenshots for meaningful visual changes; and
-5. update the README, guide, release notes, operations, privacy, or security
-   documentation when the user-facing boundary changes.
+Update every affected manual source and regenerate all six PDFs plus the
+freshness manifest. Run strict freshness and inspect rendered pages.
+The [documentation workflow](docs/pdf-library/README.md) and
+[Maintainer handbook](docs/pdf/Ink-Morrow-5.0-Maintainer-Testing-and-Release-Handbook.pdf)
+define the complete checks.
 
-AI-assisted contributions are welcome. The submitting human remains responsible
-for understanding, testing, reviewing, licensing, and standing behind every
-change. Do not include generated material that you do not have the right to
-submit.
+Use the canonical frontend/brand/ink-morrow-lockup.svg wherever a product logo
+is needed, including app/auth and PDF covers/headers. Do not re-typeset it.
 
-By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md). Code
-is accepted under the repository's [AGPL-3.0-only license](LICENSE).
+AI-assisted contributions are welcome; the submitting human remains responsible
+for understanding, testing, reviewing and having rights to the contribution.
+Follow the [Code of Conduct](CODE_OF_CONDUCT.md). Project code is accepted under
+[AGPL-3.0-only](LICENSE), preserving separately licensed third-party materials.
