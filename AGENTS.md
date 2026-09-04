@@ -9,6 +9,15 @@
 - The default player is a reader-director OUTSIDE the cast. Follow and Steer
   are complete first-class experiences; Inhabit is optional, explicit character
   control. No avatar, main character, or Session Zero is required to begin.
+- Manual prose writing is expressly excluded from 5.0 (owner decision, 2026-09-04).
+  Do not add a text editor, hand-written opening field, or manual passage API.
+  Curated openings, natural-language direction, preferences, factual correction,
+  reading, rewind and saves remain. No separate non-AI game mode is promised;
+  historical no-provider authoring journeys below do not apply to this product.
+- Illustrations appear above their associated text in the reader/manuscript.
+  EPUB places the illustration on a separate image page immediately before the
+  associated text. Test this representation difference; do not copy inline reader
+  markup into EPUB unchanged.
 - One durable narrative unifies readable prose and playable history. Important
   commitments, knowledge, relationships, episodes, control handoffs, corrections,
   and alternate timelines belong to the same branch-local state engine.

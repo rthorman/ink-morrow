@@ -46,6 +46,33 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionProse')).toContainText('Her sister has not arrived.');
   });
 
+  test('authored openings include a cast without requiring an avatar or exposing the solution', async ({ page }) => {
+    await page.getByRole('link', { name: 'Start a story', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin with The Drowned Bell', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin this story' }).click();
+    await expect(page.locator('#fictionProse')).toContainText('The bell had been underwater');
+    await expect(page.locator('#fictionControl')).toContainText('reader-director');
+    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await expect(page.locator('#fictionCast')).toContainText('Iona');
+    await expect(page.locator('#fictionDetails')).not.toContainText('Vale is the buyer');
+  });
+
+  test('preferences and fact retirement are explicit local changes', async ({ page }) => {
+    const story = await startFixture(page, { facts: [{ id: 'old', text: 'An old detail.' }] });
+    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
+    await page.getByRole('dialog').getByLabel('Pacing', { exact: true }).selectOption('reflective');
+    await page.getByRole('dialog').getByLabel('Narration voice', { exact: true }).fill('Warm, unhurried prose.');
+    await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    const saved = await (await page.request.get(`/api/fiction/${story.id}`)).json();
+    expect(saved.story.state.voice).toBe('Warm, unhurried prose.');
+    await page.getByRole('button', { name: 'Retire a fact', exact: true }).click();
+    await page.getByLabel('Reason for retiring it').fill('No longer relevant.');
+    await page.getByRole('button', { name: 'Retire this fact', exact: true }).click();
+    await expect(page.locator('#fictionFacts')).not.toContainText('An old detail.');
+  });
+
   test('character inhabiting requires an explicit handoff and can be released', async ({ page }) => {
     await startFixture(page);
     await page.getByRole('button', { name: 'Cast & story' }).click();

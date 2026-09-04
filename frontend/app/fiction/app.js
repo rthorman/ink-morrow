@@ -1,4 +1,5 @@
 import { el, button, field, option } from './dom.js';
+import { createStoryDialogs } from './story-dialogs.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen'];
 
@@ -20,7 +21,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   function controls() {
     const blocked = busy || !current || current.pending;
-    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode']) $(id).disabled = blocked;
+    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire']) $(id).disabled = blocked;
     $('fictionEarlier').disabled = Boolean(blocked || earlierBusy);
     $('fictionContinue').textContent = busy ? 'Working…' : current?.pending ? 'Story unfolding…' : 'Continue';
     $('fictionActionStatus').textContent = busy ? 'Your action is being handled.' : current?.pending ? 'A response is in progress. You can leave and return.' : '';
@@ -53,7 +54,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       } else article.append(el('p', beat.kind === 'clarification' ? `Outside the story: ${beat.prose}` : beat.summary, 'fiction-aside'));
       if (beat.changes?.length) {
         const details = el('details'); details.append(el('summary', 'What changed'));
-        for (const change of beat.changes) details.append(el('p', `${change.op === 'resolve' ? 'Resolved: ' : change.op === 'remove' ? 'Removed: ' : ''}${change.fact.text}`));
+        for (const change of beat.changes) details.append(el('p', change.op === 'introduce' ? `Introduced: ${change.character.name}` : `${change.op === 'resolve' ? 'Resolved: ' : change.op === 'remove' ? 'Removed: ' : ''}${change.fact.text}`));
         article.append(details);
       }
       root.append(article);
@@ -110,13 +111,18 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   async function route() {
     if (!unlocked) return;
     const token = ++epoch; clearTimeout(poll); busy = false; earlierBusy = false; current = null;
-    dialogs.close(); status();
+    dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
     $('importFictionCast').disabled = false; $('importFictionCast').textContent = 'Choose a character template';
     $('fictionEarlier').disabled = false;
     const hash = window.location.hash || '#/stories';
     try {
-      if (hash === '#/new') { showScreen('startScreen'); return; }
+      if (hash === '#/new') {
+        showScreen('startScreen');
+        try { const data = await api('/fiction/scenarios'); if (alive(token)) renderScenarios(data.scenarios || []); }
+        catch { if (alive(token)) $('scenarioChoices').textContent = 'Authored openings are unavailable. You can still create your own situation below.'; }
+        return;
+      }
       if (hash === '#/settings') {
         showScreen('settingsScreen');
         await providerPanel?.render(() => alive(token));
@@ -144,8 +150,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     busy = true; controls(); status();
     try {
       const data = await api(`/fiction/${story.id}/${path}`, method, { ...payload, expected_revision: story.revision });
-      if (alive(token)) { renderStory(data.story); status('Saved.'); }
-    } catch (error) { if (alive(token)) status(`${error.message} Your current path is preserved.`, true); }
+      if (alive(token)) { renderStory(data.story); status('Saved.'); return { ok: true }; }
+    } catch (error) { if (alive(token)) status(`${error.message} Your current path is preserved.`, true); return { ok: false, error: error.message }; }
     finally { if (alive(token)) { busy = false; controls(); } }
   }
 
@@ -244,16 +250,33 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     castRows.push(row); $('fictionCastDraft').append(card);
   }
 
+  function renderScenarios(scenarios) {
+    const root = $('scenarioChoices'); root.replaceChildren();
+    for (const entry of scenarios) {
+      const card = el('article', '', 'fiction-card');
+      card.append(el('h2', entry.title), el('p', entry.tagline), button(`Begin with ${entry.title}`, () => {
+        scenario = entry; $('fictionTitle').value = entry.title; $('fictionPremise').value = entry.premise;
+        $('fictionGenre').value = entry.genre; $('fictionBoundaries').value = entry.boundaries;
+        castRows.length = 0; $('fictionCastDraft').replaceChildren();
+        $('scenarioNote').textContent = `${entry.title} selected. Its authored opening, cast and world facts will be included. Any characters you add below are additional people.`;
+        $('fictionTitle').focus();
+      })); root.append(card);
+    }
+    root.append(button('Use my own situation', () => {
+      scenario = null; $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); $('scenarioNote').textContent = 'Your own situation: no preset cast or hidden world facts.';
+    }));
+  }
+
   async function startStory(event) {
     event.preventDefault();
     if (busy) return;
     const token = epoch; busy = true; $('startFiction').disabled = true; $('startFiction').textContent = 'Starting…'; status();
     try {
       const cast = castRows.map((row) => ({ id: row.id, name: row.name.control.value.trim(), description: row.description.control.value.trim(), motive: row.motive.control.value.trim() }));
-      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, opening: $('fictionOpening').value.trim(), cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), ...(scenario?.facts ? { facts: scenario.facts } : {}) };
+      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
       const data = await api('/fiction', 'POST', payload);
       if (!alive(token)) return;
-      $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null;
+      $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null; $('scenarioNote').textContent = '';
       window.location.hash = `#/story/${data.story.id}`;
     } catch (error) { if (alive(token)) status(error.message, true); }
     finally { if (alive(token)) { busy = false; $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story'; } }
@@ -277,11 +300,17 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   function clearPrivate() {
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; clearTimeout(poll); drafts.clear(); scenario = null; castRows.length = 0;
     dialogs.close(true);
+    document.querySelector('.dialog-manager__body')?.replaceChildren();
+    const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary', 'fictionSaveControls']) $(id).replaceChildren();
     $('fictionStartForm').reset(); $('fictionDirection').value = ''; status();
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();
+    $('scenarioNote').textContent = ''; $('scenarioChoices').replaceChildren();
   }
+
+  const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
+  for (const [id, action] of [['fictionPreferences', 'preferences'], ['fictionAddCast', 'cast'], ['fictionRetire', 'retire']]) $(id).addEventListener('click', storyDialogs[action]);
 
   $('fictionStartForm').addEventListener('submit', startStory);
   $('addFictionCast').addEventListener('click', () => addCast());

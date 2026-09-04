@@ -40,4 +40,14 @@ describe('playable-fiction API boundary', () => {
     expect(paid.status).toBe(400);
     expect(fixture.db.prepare('SELECT count(*) AS n FROM fiction_requests').get().n).toBe(0);
   });
+
+  test('manual passage writing is not a supported game endpoint', async () => {
+    fixture = createTestApp();
+    const started = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain' });
+    expect(started.status).toBe(201);
+    const before = fixture.db.prepare('SELECT count(*) AS n FROM fiction_beats').get().n;
+    const response = await request(fixture.app).post(`/api/fiction/${started.body.story.id}/passages`).send({ expected_revision: started.body.story.revision, prose: 'Not a writing tool.', summary: 'No.' });
+    expect(response.status).toBe(404);
+    expect(fixture.db.prepare('SELECT count(*) AS n FROM fiction_beats').get().n).toBe(before);
+  });
 });

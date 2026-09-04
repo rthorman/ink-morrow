@@ -75,12 +75,13 @@ function initialState(input) {
     pacing: choice(input.pacing, ['reflective', 'balanced', 'brisk'], 'balanced', 'Pacing'),
     consequences: choice(input.consequences, ['gentle', 'dramatic'], 'gentle', 'Consequences'),
     boundaries: text(input.boundaries, 'Boundaries', 2000, { optional: true }),
-    focus: '', episode: { number: 1, title: 'The beginning', status: 'active', summary: '' }, scene_history: [],
+    voice: text(input.voice, 'Narration voice', 1500, { optional: true }),
+    focus: '', episode: { number: 1, title: 'The beginning', status: 'active', summary: '' }, scene_history: [], scene_count: 0,
   };
 }
 
 function publicState(state) {
-  return { ...state, facts: state.facts.filter((fact) => fact.visibility === 'public') };
+  return { ...state, cast: state.cast.map(({ motive: _motive, ...character }) => character), facts: state.facts.filter((fact) => fact.visibility === 'public'), scene_history: [] };
 }
 
 function validateIntent(input, state) {
@@ -92,17 +93,23 @@ function validateIntent(input, state) {
   return { kind, text: value, character_id: ['act', 'say'].includes(kind) ? state.control.character_id : null };
 }
 
-// Effects are narrow, evidenced proposals. They cannot hand off control, change
-// the cast, rewrite hidden truth, or make a future plan a completed event.
+// Effects are narrow, evidenced proposals. Introducing a named person is not
+// a control handoff. Plans never become completed events just by being selected.
 function applyEffects(original, effects, { prose, input, beatId }) {
   if (!Array.isArray(effects) || effects.length > 12) fail('A scene may have at most twelve state changes.', 'INVALID_STORY_REPLY', 502);
   const state = structuredClone(original);
   const changes = [];
   for (const effect of effects) {
-    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount'], 'Story effect');
+    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount', 'character'], 'Story effect');
     const evidence = text(effect.evidence, 'Effect evidence', 1000);
     if (!prose.includes(evidence) && !input.text.includes(evidence)) fail('A state change has no direct evidence in this beat.', 'INVALID_STORY_REPLY', 502);
-    if (effect.op === 'remember') {
+    if (effect.op === 'introduce') {
+      const [character] = normalizeCast([effect.character]);
+      if (state.cast.length >= LIMITS.cast || state.cast.some((entry) => entry.id === character.id || entry.name.toLowerCase() === character.name.toLowerCase())) fail('A cast introduction duplicates a person or exceeds the cast limit.', 'INVALID_STORY_REPLY', 502);
+      if (!prose.includes(character.name)) fail('A new cast member must appear by name in the prose.', 'INVALID_STORY_REPLY', 502);
+      state.cast.push(character);
+      changes.push({ op: 'introduce', character: { id: character.id, name: character.name, description: character.description } });
+    } else if (effect.op === 'remember') {
       const fact = normalizeFact(effect.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
       if (state.facts.some((entry) => entry.id === fact.id)) fail('A new fact cannot overwrite existing truth.', 'INVALID_STORY_REPLY', 502);
       if (fact.kind === 'commitment' && fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) {
@@ -126,8 +133,8 @@ function applyEffects(original, effects, { prose, input, beatId }) {
       changes.push({ op: effect.op, fact: structuredClone(fact) });
     }
   }
-  if (state.facts.length > LIMITS.facts) fail('The story fact limit has been reached. Resolve or consolidate facts with a correction.', 'STORY_STATE_FULL', 409);
+  if (state.facts.length > LIMITS.facts) fail('The story fact limit has been reached. Retire an unneeded fact in Cast & story before continuing.', 'STORY_STATE_FULL', 409);
   return { state, changes };
 }
 
-module.exports = { LIMITS, GENRES, fail, object, text, choice, keys, normalizeFact, initialState, publicState, validateIntent, applyEffects };
+module.exports = { LIMITS, GENRES, fail, object, text, choice, keys, normalizeCast, normalizeFact, initialState, publicState, validateIntent, applyEffects };

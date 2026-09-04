@@ -40,20 +40,20 @@
       </section>
       <section id="startScreen" class="fiction-screen" aria-labelledby="startTitle" hidden>
         <p class="eyebrow">No avatar required</p><h1 id="startTitle">Where shall we begin?</h1>
-        <p>Give the story a situation worth exploring. Starting and saving an opening make no AI request.</p>
-        <div id="scenarioChoices"></div>
+        <p>Choose an opening or give the story a situation worth exploring. Starting makes no AI request.</p>
+        <div id="scenarioChoices" class="fiction-scenarios"></div><p id="scenarioNote" role="status"></p>
         <form id="fictionStartForm" class="fiction-form">
           <label for="fictionTitle">Story title</label><input id="fictionTitle" name="title" required maxlength="200" autocomplete="off">
           <label for="fictionPremise">The situation</label><textarea id="fictionPremise" name="premise" required maxlength="4000" rows="4" placeholder="Two old friends meet again. One has something to confess."></textarea>
           <label for="fictionGenre">What kind of story?</label><select id="fictionGenre"><option value="drama">Character drama</option><option value="mystery">Mystery</option><option value="exploration">Exploration</option><option value="cozy">Cozy discovery</option></select>
-          <details><summary>Cast, opening and story preferences</summary>
+          <details><summary>Cast and story preferences</summary>
             <p>Add a few people if you like. Nobody has to represent you.</p><div id="fictionCastDraft"></div>
             <button class="btn btn-secondary" id="addFictionCast" type="button">Add a character</button>
             <button class="btn btn-secondary" id="importFictionCast" type="button">Choose a character template</button><div id="fictionTemplatePicker"></div>
-            <label for="fictionOpening">An opening to read immediately (optional)</label><textarea id="fictionOpening" rows="5" maxlength="24000"></textarea>
             <label for="fictionPacing">Pacing</label><select id="fictionPacing"><option value="reflective">Room to linger</option><option value="balanced" selected>Balanced</option><option value="brisk">Keep moving</option></select>
             <label for="fictionConsequences">Consequences</label><select id="fictionConsequences"><option value="gentle">Gentle complications</option><option value="dramatic">Dramatic consequences</option></select>
             <label for="fictionBoundaries">Tone and boundaries (optional)</label><textarea id="fictionBoundaries" rows="3" maxlength="2000" placeholder="What should this story include or avoid?"></textarea>
+            <label for="fictionVoice">Narration voice (optional)</label><textarea id="fictionVoice" rows="2" maxlength="1500" placeholder="Warm, precise prose; restrained dialogue; close attention to place."></textarea>
           </details>
           <button class="btn btn-primary" type="submit" id="startFiction">Begin this story</button>
         </form>
@@ -68,8 +68,11 @@
         <aside id="fictionDetails" class="fiction-details" hidden>
           <h2>The cast</h2><p>Taking a role is optional. Otherwise the narrator runs the cast and you direct the story.</p><div id="fictionCast"></div>
           <button class="btn btn-secondary" id="releaseFictionControl" type="button" hidden>Return to reader-director</button>
+          <button class="btn btn-secondary" id="fictionAddCast" type="button">Add to the cast</button>
           <h2>What matters now</h2><div id="fictionFacts"></div>
           <button class="btn btn-secondary" id="fictionCorrect" type="button">Correct a story fact</button>
+          <button class="btn btn-secondary" id="fictionRetire" type="button">Retire a fact</button>
+          <button class="btn btn-secondary" id="fictionPreferences" type="button">Story preferences</button>
           <h2>Alternate paths</h2><label for="fictionBranch">Reading path</label><select id="fictionBranch"></select>
           <button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button>
           <button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button>

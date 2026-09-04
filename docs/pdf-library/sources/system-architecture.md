@@ -285,5 +285,13 @@ optional explicit character handoff, complete-state rewind, and episode controls
 It starts private reads only after authentication and clears private DOM on lock.
 Navigation invalidates late responses without cancelling a server-side purchase.
 The existing shared credential vault and paid-review dialog remain authoritative;
-the selected provider/model pair is checked again before generation. The richer
-scene director and portable 5.0 saves remain later batches, not delivered claims.
+the selected provider/model pair is checked again before generation.
+
+Batch three adds a pure bounded scene selector: active commitments and goals,
+genre, attention, cadence and two-beat cooldowns choose a provisional opportunity.
+The plan is supplied to one narrator and is recorded in a twelve-entry history
+only after a valid beat commits. It cannot mutate truth or fulfil its own goal.
+Authored scenarios carry fixed secret facts; the catalogue is spoiler-free.
+Named cast introductions require on-page evidence and never transfer control.
+Local cast additions, preferences and fact retirement share
+the same transactional path snapshots. Portable 5.0 saves remain the final batch.

@@ -1,7 +1,8 @@
 'use strict';
 
 const { randomUUID, createHash } = require('node:crypto');
-const { LIMITS, GENRES, fail, text, choice, keys, initialState, publicState, normalizeFact } = require('./model');
+const { LIMITS, GENRES, fail, text, choice, keys, initialState, publicState, normalizeCast, normalizeFact } = require('./model');
+const { scenarioInput } = require('./scenarios');
 
 function createFictionStore(db) {
   const transaction = (fn) => {
@@ -29,7 +30,7 @@ function createFictionStore(db) {
   const publicBeat = (row) => row && ({
     id: row.id, parent_id: row.parent_id, branch_id: row.branch_id, kind: row.kind,
     prose: row.prose, summary: row.summary, input: row.kind === 'correction' ? {} : JSON.parse(row.input_json),
-    changes: JSON.parse(row.changes_json).filter((change) => change.fact?.visibility === 'public'), created_at: row.created_at,
+    changes: JSON.parse(row.changes_json).filter((change) => change.op === 'introduce' || change.fact?.visibility === 'public'), created_at: row.created_at,
   });
   const historyRows = (gameId, headId, limit = 60) => db.prepare(`
     WITH RECURSIVE path AS (
@@ -74,7 +75,8 @@ function createFictionStore(db) {
     return id;
   }
   function create(input) {
-    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries'], 'New story');
+    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id'], 'New story');
+    input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
     const premise = text(input.premise, 'Premise', 4000);
     const genre = choice(input.genre, GENRES, 'drama', 'Genre');
@@ -155,6 +157,24 @@ function createFictionStore(db) {
       append(context, { kind: 'episode', summary: input.action === 'end' ? 'The episode ends. You can stop here.' : `Episode ${state.episode.number}: ${state.episode.title}`, state });
     });
   }
+  function preferences(id, expected, input) {
+    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus'], 'Story preferences');
+    return mutate(id, expected, (context) => {
+      const state = structuredClone(context.state);
+      state.pacing = choice(input.pacing, ['reflective', 'balanced', 'brisk'], state.pacing, 'Pacing');
+      state.consequences = choice(input.consequences, ['gentle', 'dramatic'], state.consequences, 'Consequences');
+      for (const [key, max] of [['boundaries', 2000], ['voice', 1500], ['focus', 1500]]) if (input[key] !== undefined) state[key] = text(input[key], key, max, { optional: true });
+      append(context, { kind: 'correction', summary: 'Story preferences were updated.', state });
+    });
+  }
+  function addCast(id, expected, input) {
+    const [character] = normalizeCast([input]);
+    return mutate(id, expected, (context) => {
+      if (context.state.cast.length >= LIMITS.cast || context.state.cast.some((entry) => entry.id === character.id || entry.name.toLowerCase() === character.name.toLowerCase())) fail('Choose a new cast member within the 24-person limit.');
+      const state = structuredClone(context.state); state.cast.push(character);
+      append(context, { kind: 'correction', summary: `${character.name} was added to the cast.`, state });
+    });
+  }
   function beginRequest(id, expected, idempotencyKey, payload) {
     const key = text(idempotencyKey, 'Idempotency key', 200);
     const fingerprint = createHash('sha256').update(JSON.stringify({ expected, payload })).digest('hex');
@@ -185,6 +205,10 @@ function createFictionStore(db) {
       return beatId;
     });
   }
+  function dispatchRequest(requestId, model) {
+    const result = db.prepare("UPDATE fiction_requests SET billed_attempts = 1, model = ? WHERE id = ? AND status = 'pending'").run(model || null, requestId);
+    if (!result.changes) fail('This response is no longer active.', 'STORY_REQUEST_STALE', 409);
+  }
   function failRequest(requestId, code, usage = {}) {
     db.prepare("UPDATE fiction_requests SET status = 'failed', error_code = ?, model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'")
       .run(code, usage.model ?? null, usage.costUsd ?? null, usage.billedAttempts ?? 0, requestId);
@@ -194,7 +218,7 @@ function createFictionStore(db) {
   }
   const list = () => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 200').all();
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, view, current, stateAt, historyRows, fork, selectBranch, control, correct, episode, beginRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat };
+  return { create, list, view, current, stateAt, historyRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat };
 }
 
 module.exports = { createFictionStore };

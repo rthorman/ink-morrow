@@ -28,14 +28,24 @@ main integration and production deployment require a separate decision.
    https://github.com/rthorman/ink-morrow/pull/68.
 2. **Reader-director experience** — start/resume, unified readable story, Follow,
    Steer, optional Inhabit, cast/recap, history and alternate paths, immediate
-   feedback, responsive keyboard-accessible navigation. Status: in progress.
+   feedback, responsive keyboard-accessible navigation. Status: PR #69 passed all
+   CI gates and merged as `30a1362` on 4 September 2026:
+   https://github.com/rthorman/ink-morrow/pull/69. Local 343 backend tests,
+   271 frontend tests including the added race regression, and 28 browser tests
+   passed. All six PDFs regenerated.
 3. **History-driven scenes** — curated openings, genre-aware scene patterns,
    persistent commitments and payoffs, bounded generation, episode endings,
-   pacing, failure/spend accounting and causal regression tests. Status: planned.
+   pacing, failure/spend accounting and causal regression tests. Status: in progress;
+   also includes cast additions and local preferences. Manual prose authoring
+   was explicitly rejected by the owner and removed, not merely hidden.
 4. **Portability and release hardening** — complete 5.0 save/export/import,
    new-product database isolation and version identity, supporting surfaces,
    all six books regenerated, integration/browser/accessibility checks and final
    release evidence. Status: planned.
+
+Additional 5.0 presentation requirement: illustrations appear above their associated
+story text in the reader/manuscript, but on a separate page immediately before that
+text in EPUB. Cover both representations with export/layout regression tests.
 
 Each batch is tested locally, pushed once coherent, opened as a PR, and merged
 only after its current head is green. Pull the release head before the next batch.
