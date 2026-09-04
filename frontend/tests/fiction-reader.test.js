@@ -278,4 +278,31 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionCorrect').disabled).toBe(false);
     expect(dialogs.confirmPaid).not.toHaveBeenCalled();
   });
+
+  test('fourth-wall settings are visible only for Living-world and save locally', async () => {
+    await app.start(); document.getElementById('fictionPreferences').click();
+    const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    const selects = spec.body.flatMap((node) => [...node.querySelectorAll('select')]);
+    const [style, fourthWall] = selects;
+    expect(fourthWall.parentElement.hidden).toBe(true); expect(fourthWall.value).toBe('never');
+    style.value = 'living-world'; style.dispatchEvent(new Event('change'));
+    expect(fourthWall.parentElement.hidden).toBe(false); expect(fourthWall.disabled).toBe(false);
+    expect([...fourthWall.options].map((entry) => entry.textContent)).toEqual(['Never', 'Rarely', 'Freely']);
+    fourthWall.value = 'rarely';
+    await spec.actions.find((item) => item.label === 'Save preferences').onClick(jest.fn());
+    expect(api).toHaveBeenCalledWith('/fiction/one/preferences', 'PUT', expect.objectContaining({ play_style: 'living-world', fourth_wall: 'rarely' }));
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+  });
+
+  test('a new Living-world story can select fourth-wall dialogue without a provider call', async () => {
+    window.history.replaceState({}, '', '#/new'); api.mockResolvedValue({ scenarios: [] }); await app.start();
+    const style = document.getElementById('fictionStartStyle'); style.value = 'living-world'; style.dispatchEvent(new Event('change'));
+    expect(document.getElementById('fictionFourthWallField').hidden).toBe(false);
+    document.getElementById('fictionFourthWall').value = 'freely';
+    document.getElementById('fictionTitle').value = 'A conversation with the reader'; document.getElementById('fictionPremise').value = 'Neighbours in a garden.';
+    api.mockResolvedValue({ story: story() }); document.getElementById('fictionStartForm').dispatchEvent(new Event('submit', { cancelable: true })); await tick();
+    expect(api).toHaveBeenCalledWith('/fiction', 'POST', expect.objectContaining({ play_style: 'living-world', fourth_wall: 'freely' }));
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    expect(document.getElementById('fictionFourthWallField').hidden).toBe(true);
+  });
 });

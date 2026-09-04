@@ -153,6 +153,40 @@ paid review or provider purchase; new attempts use the ordinary paid boundary.
 **Read the decision moment** opens its actual record. Controls concerning a person
 you inhabit do not supply that person's decisions for you.
 
+## Let characters address the reader
+
+Living-world has a separate **Characters may break the fourth wall** setting.
+Choose it when starting a story or in **Cast & story → Story preferences**. It
+defaults to **Never**. Changing it is local and makes no provider request.
+
+- **Never:** characters remain within the fiction rather than knowingly speaking
+  to you as its reader. Ordinary dialogue between characters is still welcome.
+- **Rarely:** the storyteller may include an occasional fitting address. The
+  application permits at most one structured address in six narrated passages:
+  five ordinary passages must intervene before another. It need not use every
+  opportunity. Clarifications, failed attempts and free repeated rulings do not
+  advance that cooldown.
+- **Freely:** characters may address you whenever it fits. This is permission,
+  not a demand for jokes or an aside after every paragraph.
+
+An address appears with the character's name and **to you** in the saved passage.
+For example, Jo might look beyond the garden and ask the reader whether the kettle
+was optimistic. You can respond through Steer without becoming a cast member.
+**Ask outside the story** remains a separate narrator clarification, not a
+character's fourth-wall address. The setting is inactive in Story-shaping; its
+choice is retained if you switch back to Living-world.
+
+Fourth-wall permission does not relax resistance, grant a challenge, reveal a
+hidden solution, or let the narrator speak for a character you inhabit. Asides
+cannot supply evidence for a world-state effect. No additional model call is
+needed for the address. Its text travels with the passage in books and saves;
+rewind and save-copy restore the setting and cooldown on the selected path.
+
+These checks constrain structured addresses. A model can still disobey instructions
+in ordinary prose; **Never** is not a proof of semantic model compliance. If it
+repeatedly breaks immersion, switch to Never, review the storyteller choice and
+use an alternative path as appropriate. No automatic paid repair is purchased.
+
 ## Optional character control
 
 Open **Cast & story** and select **Inhabit** beside a cast member. Read the

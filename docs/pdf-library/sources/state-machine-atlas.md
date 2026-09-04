@@ -1,5 +1,19 @@
 # State Machine & Invariant Atlas
 
+## 5.0 fourth-wall transitions
+
+Local preference change → snapshot the Never/Rarely/Freely choice, leaving the
+last-address index intact. Narration → compute permission from play style,
+participation, eligible non-inhabited cast and scene gap → validate optional aside
+→ append named address and updated index with the complete scene. Rarely permits
+at most one structured address in six narrated scenes. Failed, stale, Ask and free
+repeat operations cannot advance the cooldown. No timer runs while away.
+
+A forbidden address fails the response without partial prose or state; actual
+provider spend remains recorded. Rewind restores the earlier index; save import
+validates it against scene count and preserves it in the new copy. An aside is
+neither world-state evidence nor a new source of challenge authority.
+
 ## 5.0 influence transitions
 
 Invitation selection -> editable direction only, no request. Moment Steer -> one

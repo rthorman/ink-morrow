@@ -7,6 +7,16 @@ export function styleField(value = 'story-shaping') {
   input.control.value = value; return input;
 }
 
+export function fourthWallField(style, value = 'never') {
+  const input = field('Characters may break the fourth wall', 'select');
+  input.control.append(option('never', 'Never'), option('rarely', 'Rarely'), option('freely', 'Freely'));
+  input.control.value = value;
+  const help = el('p', 'Characters may knowingly address you, the reader. Rarely permits at most one address in six narrated passages. Freely allows it when fitting, not on every turn. This does not weaken resistance or reveal secrets.');
+  help.id = `${input.control.id}-help`; input.control.setAttribute('aria-describedby', help.id); input.wrapper.append(help);
+  const sync = () => { input.wrapper.hidden = style.control.value !== 'living-world'; input.control.disabled = input.wrapper.hidden; };
+  style.control.addEventListener('change', sync); sync(); return input;
+}
+
 // All invitations derive from reader-visible records. They fill a draft, never
 // submit a choice, invoke a model, or speak for an inhabited character.
 export function invitations(story) {
@@ -76,6 +86,7 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
   function render(story) {
     const style = story.state.play_style || 'story-shaping';
     $('fictionPlayStyle').textContent = style === 'living-world' ? 'Living-world · Attempts can meet credible resistance.' : 'Story-shaping · Your direction guides developments.';
+    if (style === 'living-world') $('fictionPlayStyle').textContent += ` Fourth-wall dialogue: ${{ never: 'Never', rarely: 'Rarely', freely: 'Freely' }[story.state.fourth_wall || 'never']}.`;
     $('fictionFocusText').textContent = story.state.focus ? `Ongoing focus: ${story.state.focus}` : '';
     $('fictionFocus').hidden = !story.state.focus;
     const root = $('fictionInvitations'); root.replaceChildren();

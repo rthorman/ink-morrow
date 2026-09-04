@@ -15,6 +15,10 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let scenario = null;
   const alive = (token) => unlocked && epoch === token;
   const status = (message = '', error = false) => { $('fictionStatus').textContent = message; $('fictionStatus').dataset.error = String(error); };
+  function syncFourthWallStart() {
+    const hidden = $('fictionStartStyle').value !== 'living-world';
+    $('fictionFourthWallField').hidden = hidden; $('fictionFourthWall').disabled = hidden;
+  }
 
   function showScreen(id) {
     for (const screen of SCREEN_IDS) $(screen).hidden = screen !== id;
@@ -318,7 +322,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       })); root.append(card);
     }
     root.append(button('Use my own situation', () => {
-      scenario = null; $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); $('scenarioNote').textContent = 'Your own situation: no preset cast or hidden world facts.';
+      scenario = null; $('fictionStartForm').reset(); syncFourthWallStart(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); $('scenarioNote').textContent = 'Your own situation: no preset cast or hidden world facts.';
     }));
   }
 
@@ -328,10 +332,10 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const token = epoch; busy = true; $('startFiction').disabled = true; $('startFiction').textContent = 'Starting…'; status();
     try {
       const cast = castRows.map((row) => ({ id: row.id, name: row.name.control.value.trim(), description: row.description.control.value.trim(), motive: row.motive.control.value.trim() }));
-      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, play_style: $('fictionStartStyle').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
+      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, play_style: $('fictionStartStyle').value, fourth_wall: $('fictionFourthWall').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
       const data = await api('/fiction', 'POST', payload);
       if (!alive(token)) return;
-      $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null; $('scenarioNote').textContent = '';
+      $('fictionStartForm').reset(); syncFourthWallStart(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null; $('scenarioNote').textContent = '';
       window.location.hash = `#/story/${data.story.id}`;
     } catch (error) { if (alive(token)) status(error.message, true); }
     finally { if (alive(token)) { busy = false; $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story'; } }
@@ -358,7 +362,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
-    $('fictionStartForm').reset(); $('fictionDirection').value = ''; status();
+    $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
     for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations']) $(id).replaceChildren();
     $('fictionDirectionScope').value = 'moment';
     for (const id of SCREEN_IDS) $(id).hidden = true;
@@ -378,6 +382,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   for (const [id, action] of [['fictionPreferences', 'preferences'], ['fictionAddCast', 'cast'], ['fictionRetire', 'retire']]) $(id).addEventListener('click', storyDialogs[action]);
 
   $('fictionStartForm').addEventListener('submit', startStory);
+  $('fictionStartStyle').addEventListener('change', syncFourthWallStart);
   $('addFictionCast').addEventListener('click', () => addCast());
   $('importFictionCast').addEventListener('click', templates);
   $('fictionRefresh').addEventListener('click', route);

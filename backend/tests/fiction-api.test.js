@@ -59,4 +59,17 @@ describe('playable-fiction API boundary', () => {
     const invalid = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: changed.body.story.revision, play_style: 'always-refuse' });
     expect(invalid.status).toBe(400);
   });
+  test('fourth-wall settings cross the real API without making a paid request', async () => {
+    fixture = createTestApp();
+    const started = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain', play_style: 'living-world', fourth_wall: 'freely' });
+    expect(started.status).toBe(201); expect(started.body.story.state.fourth_wall).toBe('freely');
+    const story = started.body.story;
+    const changed = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: story.revision, fourth_wall: 'rarely' });
+    expect(changed.status).toBe(200); expect(changed.body.story.state.fourth_wall).toBe('rarely');
+    const invalid = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: changed.body.story.revision, fourth_wall: 'always' });
+    expect(invalid.status).toBe(400);
+    const reread = await request(fixture.app).get(`/api/fiction/${story.id}`);
+    expect(reread.body.story.state.fourth_wall).toBe('rarely');
+    expect(fixture.db.prepare('SELECT count(*) AS n FROM fiction_requests').get().n).toBe(0);
+  });
 });

@@ -2,6 +2,15 @@
 
 Approved 4 September 2026. Integration branch: `release/5.0.0`.
 
+Latest owner direction, 4 September 2026: add a Living-world fourth-wall setting
+(Never, Rarely, Freely). The owner briefly cancelled the main merge and then
+explicitly restored it **after implementation is complete**. This includes the
+new setting, remaining approved release work and green CI, not an immediate merge.
+The owner also approved an optional consistency-quality mode with bounded extra
+LLM calls to the standard model, memory-support model, or both as useful. It is
+off by default and requires explicit role/call disclosure and full spend accounting.
+This is remaining implementation work, not a shipped feature or a model benchmark.
+
 The player is normally a reader-director, not a member of the cast. Follow and
 Steer must stand alone; Inhabit is optional and explicitly delegates character
 control. Prose is the playing surface, not a conversion product. History creates
@@ -97,7 +106,8 @@ these three PRs and the final green release PR into main.
   The six PDFs now use 5.0 filenames and development-edition covers.
 - **B — clear influence:** implementation includes visible play styles, moment
   versus ongoing direction, local invitations, free repeated-challenge review,
-  current-path recall and earlier-evidence links. Verification and PR delivery
+  current-path recall and earlier-evidence links. PR #73 also includes the new
+  Never/Rarely/Freely Living-world fourth-wall setting. Verification and PR delivery
   are in progress; this entry is not a merge claim.
 - **C — people and complete episodes:** remains planned, followed by fresh-storage
   cutover, the full six-book release edition and final hardening.

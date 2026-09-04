@@ -163,6 +163,22 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.getByRole('dialog')).not.toContainText('A private repair reason');
   });
 
+  test('fourth-wall preference is Living-world only and survives reload without purchasing', async ({ page }) => {
+    const story = await startFixture(page); let paid = 0;
+    await page.route('**/api/fiction/*/replies', () => { paid++; });
+    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
+    const setting = page.getByRole('dialog').getByLabel('Characters may break the fourth wall', { exact: true });
+    await expect(setting).toBeHidden();
+    await page.getByRole('dialog').getByLabel('Play style', { exact: true }).selectOption('living-world');
+    await expect(setting).toBeVisible(); await expect(setting).toHaveValue('never');
+    await setting.selectOption('rarely'); await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Fourth-wall dialogue: Rarely');
+    await page.reload(); await expect(page.locator('#fictionStoryTitle')).toHaveText(story.title);
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Fourth-wall dialogue: Rarely'); expect(paid).toBe(0);
+  });
+
   test('character inhabiting requires an explicit handoff and can be released', async ({ page }) => {
     await startFixture(page);
     await page.getByRole('button', { name: 'Cast & story' }).click();

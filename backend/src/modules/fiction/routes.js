@@ -102,7 +102,7 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary })) });
   });
   router.put('/api/fiction/:id/preferences', (req, res) => {
-    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style'], 'Story preferences');
+    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');
     const { expected_revision, ...input } = req.body;
     res.json({ story: expose(store.preferences(req.params.id, expected_revision, input)) });
   });

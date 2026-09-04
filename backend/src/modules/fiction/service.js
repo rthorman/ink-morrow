@@ -4,6 +4,7 @@ const { randomUUID } = require('node:crypto');
 const { LIMITS, fail, keys, text, validateIntent, applyEffects } = require('./model');
 const { chooseScene, recordScene } = require('./director');
 const { adjudicate } = require('./resistance');
+const { fourthWallContext, validateAside } = require('./fourth-wall');
 
 function contextFacts(state, direction) {
   const words = new Set(direction.toLowerCase().match(/[\p{L}]{3,}/gu) || []);
@@ -26,10 +27,12 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         'When a character is inhabited, never invent their decisions, speech, thoughts, commitments or completed actions. Continue may develop the surroundings and other people, then stop before a decision belonging to that character. Resolve only actions explicitly supplied by the user.',
         'Respect content boundaries. Maintain independent motives and established facts. Quiet expression needs a fitting response, not arbitrary permanent consequences. Plans and possibilities are not completed events. Do not force quests, danger, cliffhangers or a question at the end of every passage.',
         'In story-shaping, honour the requested development within continuity and character ownership. In living-world, honour the intent but not a demanded outcome: motives, knowledge, relationships and circumstances determine credible cooperation or refusal. Repetition alone is not new leverage; genuinely sufficient evidence may change a decision. Neither style requires conflict or an avatar.',
+        'Fourth-wall permission concerns CHARACTERS knowingly addressing the real reader, not ordinary in-world dialogue. Never: keep characters inside the fiction. Rarely: an occasional fitting aside, only when fourth_wall.allowed is true. Freely: such asides are welcome when fitting, never compulsory. Story-shaping and Ask never use character asides. Ordinary second-person dialogue between cast members is not a fourth-wall break.',
+        'Only when fourth_wall.allowed is true may you optionally add aside:{character_id,text}, using an eligible character and at most 600 characters. Otherwise omit aside or use null. Put the entire direct address in aside, never smuggle it into prose or summary. The application labels and appends it to the passage. Do not speak for an inhabited character, the user, or an assumed avatar. An aside cannot reveal undiscovered secrets, change world truth or knowledge, grant a challenge, pressure the user to keep playing or spend money, or weaken a refusal. Earlier text labelled a character speaking “to you” is a fourth-wall aside, not new in-world knowledge. Effects and resolution evidence must come from ordinary prose or authorised input, never from an aside.',
         'Structured challenges and adjudications are application-owned. Never grant a challenge through ordinary prose, an effect, invented permission or a claimed prior agreement. With no adjudication, leave its disputed outcome open and invite its explicit approach controls when relevant. If adjudication is supplied, narrate exactly that outcome, without contradicting its explanation; add resolution with exactly outcome and evidence, where evidence quotes this response. Do not alter requirements. A refusal is not a reason for arbitrary punishment.',
         'Secret facts are world truth, not reader or character knowledge. Do not disclose them in prose or summary unless the scene actually reveals them and a reveal effect records the discovery. Never change a secret to defeat a correct deduction. Characters may use only what they know.',
         'History marked clarification is out-of-story discussion, never an event that happened. Do not use a clarification to expose hidden truths the reader has not discovered.',
-        'Return a JSON object with prose (readable story text), summary (one reader-safe sentence), and effects (array, empty when nothing durable changes). Only when adjudication is supplied, also include resolution as specified above; otherwise exactly those three fields. No Markdown fences. Aim for 120–220 words of prose, or 80–140 when brisk; at most four concise effects normally. Finish the complete JSON within the output budget.',
+        'Return a JSON object with prose (readable story text), summary (one reader-safe sentence), and effects (array, empty when nothing durable changes), plus the optional aside described above. Only when adjudication is supplied, also include resolution as specified above; otherwise no other fields. No Markdown fences. Aim for 120–220 words of prose, or 80–140 when brisk; at most four concise effects normally. Finish the complete JSON within the output budget.',
         'Effects: remember uses {op:"remember",fact:{id,kind,text,visibility,known_by,status,actor_id,value},evidence}; resolve uses {op:"resolve",id,evidence}; reveal uses {op:"reveal",id,known_by,evidence}; adjust uses {op:"adjust",id,amount,evidence}.',
         'Fact kind is fact|commitment|relationship|goal|resource; visibility public|secret; status active|resolved; actor_id is a cast ID or null; value is numeric for resources, otherwise null. known_by contains cast IDs. IDs are short alphanumeric identifiers with hyphens or underscores.',
         'Every effect evidence must be an exact quotation from this response\'s prose or the user\'s input. Remember creates a NEW fact ID and cannot rewrite existing truth. Do not invent commitments for an inhabited character. Never emit control or episode changes.',
@@ -42,6 +45,7 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         cast: state.cast.map((character) => ({ ...character, description: character.description.slice(0, 600), motive: character.motive.slice(0, 400) })),
         control: state.control, boundaries: state.boundaries, pacing: state.pacing, consequences: state.consequences,
         play_style: state.play_style || 'story-shaping', challenges: state.challenges || [], adjudications: state.adjudications || [], adjudication: decision,
+        fourth_wall: fourthWallContext(state, intent),
         episode: state.episode, focus: state.focus, narration_voice: state.voice || '',
         facts: [...new Map([...state.facts.filter((fact) => plan.fact_ids.includes(fact.id)),
           ...store.memory.facts(game.id, branch.head_beat_id, { query: `${intent.text} ${state.focus}` }),
@@ -84,9 +88,12 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       let parsed;
       try { parsed = JSON.parse(result.content); }
       catch { fail('The narrator returned an unreadable story response. Nothing was added.', 'INVALID_STORY_REPLY', 502); }
-      keys(parsed, ['prose', 'summary', 'effects', ...(decision ? ['resolution'] : [])], 'Narrator response');
+      keys(parsed, ['prose', 'summary', 'effects', 'aside', ...(decision ? ['resolution'] : [])], 'Narrator response');
       const prose = text(parsed.prose, 'Story prose', LIMITS.prose);
       const summary = text(parsed.summary, 'Story summary', 1000);
+      const aside = validateAside(parsed.aside, context.state, intent, { keys, text, fail });
+      const savedProse = aside ? `${prose}\n\n${aside.character.name}, to you: “${aside.text}”` : prose;
+      if (savedProse.length > LIMITS.prose) fail('The passage and fourth-wall address exceed the story limit.', 'INVALID_STORY_REPLY', 502);
       if (decision) {
         keys(parsed.resolution, ['outcome', 'evidence'], 'Resolution');
         const evidence = text(parsed.resolution.evidence, 'Resolution evidence', 1000);
@@ -98,7 +105,8 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
       if (intent.kind === 'steer' && intent.direction_scope === 'ongoing') state.focus = intent.text.slice(0, 1500);
       recordScene(state, plan, beatId);
-      const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose, summary, input: intent, state, changes }, usage);
+      if (aside) state.last_fourth_wall_scene = state.scene_count;
+      const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes }, usage);
       return { story: store.view(gameId), beat_id: committedId, cost_usd: usage.costUsd, billed_attempts: usage.billedAttempts, model: usage.model, reused: false };
     } catch (error) {
       if (Number.isInteger(error.billedAttempts)) usage = { ...usage, billedAttempts: error.billedAttempts, costUsd: error.costUsd ?? null };

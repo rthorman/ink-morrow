@@ -1,5 +1,20 @@
 # System Architecture & Design Rationale
 
+## 5.0 fourth-wall permission
+
+Living-world snapshots carry a Never/Rarely/Freely preference and the last narrated
+scene index containing an accepted address. Never is the default; Story-shaping
+and out-of-story Ask disable character asides. Rarely requires a six-scene index
+gap; Freely permits consecutive fitting addresses. Preference changes do not reset
+the cooldown. The same snapshot/save graph preserves it without a separate timer.
+
+The existing narration response may include one bounded structured aside. The
+server checks permission, cast identity and character ownership, appends the named
+address to saved prose, and advances its index in the same atomic commit. Effects
+and challenge evidence are validated against ordinary prose, not appended asides.
+There is no extra provider request. The protocol cannot prove that unrestricted
+model prose contains no unstructured fourth-wall language.
+
 ## 5.0 clear influence and evidence
 
 Reader directions carry moment or ongoing scope. Only a successful ongoing Steer

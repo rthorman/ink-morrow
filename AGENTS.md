@@ -2,6 +2,21 @@
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
+- LATEST OWNER DIRECTION (4 September 2026): add a Living-world setting allowing
+  characters to address the user across the fourth wall: Never, Rarely or Freely.
+  The owner briefly cancelled final main integration, then explicitly restored
+  approval AFTER implementation is complete. Finish this setting and the remaining
+  approved 5.0 programme, pass CI, and only then merge the release into main.
+- The owner is willing to allow additional LLM calls when they improve character
+  and world consistency, and explicitly selected an OPTIONAL quality mode (not
+  enabled by default). Assess bounded quality-review/repair before the final
+  merge using the standard model, the memory-support model, or both as useful;
+  the owner's permission is not restricted to extra calls to the standard model.
+  The earlier universal one-call restriction may be superseded by an
+  explicitly reviewed quality mode. Keep maximum calls, latency/cost tradeoffs,
+  failure handling and actual spend visible. No unbounded retries or assumption
+  that a second model proves semantic correctness; no live paid benchmark is
+  authorised merely by permitting additional product-runtime calls.
 - Development is consolidated under WSL at `/home/rthorman/src/ink-morrow-5`,
   with shared Git metadata in `/home/rthorman/src/ink-morrow/.git`. Windows
   tooling may operate on that checkout; do not create another Windows copy.

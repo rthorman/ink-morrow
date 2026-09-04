@@ -1,5 +1,21 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 fourth-wall verification
+
+Test default Never, invalid choices, Living-world-only UI visibility, local
+preference saves and restored settings. Cover optional consecutive Freely
+addresses, the five intervening narrated scenes required by Rarely, and no
+cooldown advancement on failure or clarification. Reject unknown/inhabited
+speakers and effects evidenced only by an aside. Verify known charges survive
+rejection and no automatic extra request occurs.
+
+Reload, fork and save-copy must preserve branch-local settings and counters;
+reject future scene indices in imported saves. Addresses remain ordinary saved
+passage text for publication. Mocked protocol tests do not demonstrate semantic
+model compliance with Never or prove resistance quality. An optional higher-cost
+consistency mode is separately approved for assessment before final release;
+it is not implemented merely by this fourth-wall preference.
+
 ## 5.0 clear-influence verification
 
 Cover the default one-moment direction, explicit ongoing focus, failure retention,

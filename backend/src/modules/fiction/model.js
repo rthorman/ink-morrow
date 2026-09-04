@@ -3,6 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { compactFacts } = require('./memory');
 const { STYLES, normalizeChallenges, publicChallenges } = require('./resistance');
+const { FOURTH_WALL_MODES } = require('./fourth-wall');
 
 const LIMITS = Object.freeze({ cast: 24, facts: 128, branches: 40, prose: 24000, input: 4000 });
 const GENRES = ['drama', 'mystery', 'exploration', 'cozy'];
@@ -75,6 +76,7 @@ function initialState(input) {
   return {
     version: 1, cast, facts, illustrations: [], control: { character_id: null },
     play_style: choice(input.play_style, STYLES, 'story-shaping', 'Play style'),
+    fourth_wall: choice(input.fourth_wall, FOURTH_WALL_MODES, 'never', 'Fourth-wall setting'), last_fourth_wall_scene: null,
     challenges: normalizeChallenges(input.challenges, cast.map((person) => person.id), { keys, text, fail }), adjudications: [],
     pacing: choice(input.pacing, ['reflective', 'balanced', 'brisk'], 'balanced', 'Pacing'),
     consequences: choice(input.consequences, ['gentle', 'dramatic'], 'gentle', 'Consequences'),

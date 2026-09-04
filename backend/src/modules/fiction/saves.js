@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const { assertTechnicalInput } = require('../imagery/art-store');
 const { keys, text, choice, fail, normalizeCast, normalizeFact, GENRES } = require('./model');
 const { STYLES, normalizeChallenges } = require('./resistance');
+const { FOURTH_WALL_MODES } = require('./fourth-wall');
 
 const SAVE_FORMAT = 'ink-morrow-fiction-save';
 const SAVE_MIME = 'application/vnd.inkmorrow.fiction-save';
@@ -88,6 +89,7 @@ function validateSave(value) {
   };
   function state(state, head) {
     record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count',
+      ...(Object.hasOwn(state, 'fourth_wall') ? ['fourth_wall', 'last_fourth_wall_scene'] : []),
       ...(Object.hasOwn(state, 'play_style') ? ['play_style', 'challenges', 'adjudications'] : [])], 'Saved state');
     if (state.version !== 1) fail('Unsupported story-state version.', 'SAVE_VERSION_UNSUPPORTED');
     list(state.cast, 24, 'cast').forEach((person) => record(person, ['id', 'name', 'description', 'motive'], 'Character'));
@@ -118,6 +120,10 @@ function validateSave(value) {
     record(state.episode, ['number', 'title', 'status', 'summary'], 'Episode');
     integer(state.episode.number, 1, 1000000, 'episode'); text(state.episode.title, 'Episode title', 200); savedText(state.episode.summary, 'Episode summary', 2000);
     choice(state.episode.status, ['active', 'ended'], null, 'Episode status'); integer(state.scene_count, 0, 1000000, 'scene count');
+    if (state.fourth_wall !== undefined) {
+      choice(state.fourth_wall, FOURTH_WALL_MODES, null, 'Fourth-wall setting');
+      if (state.last_fourth_wall_scene !== null) integer(state.last_fourth_wall_scene, 1, state.scene_count, 'fourth-wall scene');
+    }
     for (const entry of list(state.scene_history, 12, 'director history')) {
       record(entry, ['kind', 'fact_ids', 'beat_id', 'episode'], 'Director history');
       choice(entry.kind, ['response', 'commitment', 'quiet', 'opportunity', 'rest', 'discovery', 'connection', 'exploration', 'relationship'], null, 'Scene kind');
