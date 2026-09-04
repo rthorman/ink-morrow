@@ -1,31 +1,31 @@
 {
   "schema": 1,
-  "source_sha256": "476fc6fbccfb2172603320d5aa084116cabe64653c8b5060302c041051428744",
+  "source_sha256": "c31dd3bb5bbc567f48967ae62aea7df1f871c4d1b6fa4297134d44379dc10a36",
   "source_count": 50,
   "outputs": {
-    "docs/pdf/Ink-Morrow-4.0-User-Guide.pdf": {
-      "sha256": "1c83c2a0ababd5dcb38a13f402c37a7d7e22706c9ec294bafe742ccf29212e73",
-      "bytes": 1324693
+    "docs/pdf/Ink-Morrow-5.0-User-Guide.pdf": {
+      "sha256": "23764bf64525a826f0781ce13635e4ebbf9b683bc8d0f0ff8192af3b2e4a0a1a",
+      "bytes": 1372746
     },
-    "docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf": {
-      "sha256": "6b1dd256f91da42654af99095e80c23f52a00057cabea95ed2b30384637eaf7d",
-      "bytes": 1576655
+    "docs/pdf/Ink-Morrow-5.0-Operations-and-Recovery-Handbook.pdf": {
+      "sha256": "f9e0c90b257ee154ad091d10d86545491c3b7c12eab3377d724c13a3b7c41a8b",
+      "bytes": 1575293
     },
-    "docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf": {
-      "sha256": "1976f9598c38df86a2d4fd5630a40e8546bf5f53a19e6b6620e8a5c7447048b3",
-      "bytes": 1344154
+    "docs/pdf/Ink-Morrow-5.0-System-Architecture.pdf": {
+      "sha256": "2da544376a1f63342c7a7689a0300b1be9dcfc0756991d756592ed591923d8de",
+      "bytes": 1352656
     },
-    "docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf": {
-      "sha256": "ec7000a4b4ffbd4be2e69c3decdde1e7ba895ed17744ce02f5b5233fac7dd736",
-      "bytes": 1488966
+    "docs/pdf/Ink-Morrow-5.0-State-Machine-Atlas.pdf": {
+      "sha256": "6b8d9d850ae925e7407df364b241f62c98bc44608699c5119673bb9dd225ae86",
+      "bytes": 1496607
     },
-    "docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf": {
-      "sha256": "9b93ca50808bc18392ea31635ee1ee0cf2b16c7e0980aad829df33c3818867e8",
-      "bytes": 2440606
+    "docs/pdf/Ink-Morrow-5.0-Security-Privacy-and-AI-Boundary.pdf": {
+      "sha256": "2abef00fd4f4ab96585955ef2bb39bda660f132a600974d3484af67659f37e0a",
+      "bytes": 2448188
     },
-    "docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf": {
-      "sha256": "7810f64e5b8aaf2aeaff26718b532dd85d810992d4900e5821c90bdea5420519",
-      "bytes": 2237545
+    "docs/pdf/Ink-Morrow-5.0-Maintainer-Testing-and-Release-Handbook.pdf": {
+      "sha256": "661c5124d0ace12783e9e69d4e80ce721a8901838b9bb701b3c0698f9d081f5a",
+      "bytes": 2247750
     }
   }
 }

@@ -6,6 +6,7 @@ const { promisify } = require('node:util');
 const sharp = require('sharp');
 const { assertTechnicalInput } = require('../imagery/art-store');
 const { keys, text, choice, fail, normalizeCast, normalizeFact, GENRES } = require('./model');
+const { STYLES, normalizeChallenges } = require('./resistance');
 
 const SAVE_FORMAT = 'ink-morrow-fiction-save';
 const SAVE_MIME = 'application/vnd.inkmorrow.fiction-save';
@@ -86,11 +87,27 @@ function validateSave(value) {
     normalizeFact(value, cast.map((person) => person.id), { evidenceBeatId: value.evidence_beat_id }); evidence(head, value.evidence_beat_id);
   };
   function state(state, head) {
-    record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count'], 'Saved state');
+    record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count',
+      ...(Object.hasOwn(state, 'play_style') ? ['play_style', 'challenges', 'adjudications'] : [])], 'Saved state');
     if (state.version !== 1) fail('Unsupported story-state version.', 'SAVE_VERSION_UNSUPPORTED');
     list(state.cast, 24, 'cast').forEach((person) => record(person, ['id', 'name', 'description', 'motive'], 'Character'));
     state.cast.forEach((person) => { savedText(person.description, 'description', 2000); savedText(person.motive, 'motive', 1000); });
     const cast = normalizeCast(state.cast);
+    if (state.play_style !== undefined) {
+      choice(state.play_style, STYLES, null, 'Play style');
+      normalizeChallenges(state.challenges, cast.map((person) => person.id), { keys, text, fail });
+      const seen = new Set();
+      for (const decision of list(state.adjudications, 12, 'adjudication')) {
+        record(decision, ['challenge_id', 'approach_id', 'basis', 'outcome', 'explanation', 'evidence_fact_ids', 'beat_id'], 'Adjudication');
+        const challenge = state.challenges.find((entry) => entry.id === decision.challenge_id);
+        if (!challenge?.approaches.some((entry) => entry.id === decision.approach_id) || seen.has(decision.challenge_id)) fail('Invalid adjudication target.', 'INVALID_SAVE');
+        seen.add(decision.challenge_id);
+        if (typeof decision.basis !== 'string' || !/^[a-f0-9]{64}$/.test(decision.basis)) fail('Invalid adjudication basis.', 'INVALID_SAVE');
+        choice(decision.outcome, ['granted', 'refused'], null, 'Outcome'); text(decision.explanation, 'Outcome explanation', 800);
+        list(decision.evidence_fact_ids, 6, 'decision evidence').forEach(idOf); evidence(head, decision.beat_id);
+        if (beats.get(decision.beat_id)?.kind !== 'scene') fail('An adjudication must refer to its scene.', 'INVALID_SAVE');
+      }
+    }
     for (const item of list(state.facts, 128, 'fact')) fact(item, cast, head);
     if (new Set(state.facts.map((entry) => entry.id)).size !== state.facts.length) fail('Duplicate fact IDs.', 'INVALID_SAVE');
     keys(state.control, ['character_id'], 'Control');
@@ -122,10 +139,14 @@ function validateSave(value) {
     choice(beat.kind, ['opening', 'scene', 'clarification', 'correction', 'control', 'episode'], null, 'Moment kind');
     savedText(beat.prose, 'Prose', 24000); savedText(beat.summary, 'Summary', 2000);
     if (['opening', 'scene', 'clarification'].includes(beat.kind)) text(beat.prose, 'Prose', 24000);
-    keys(beat.input, ['kind', 'text', 'character_id', 'reason'], 'Saved input');
+    keys(beat.input, ['kind', 'text', 'character_id', 'reason', 'challenge_id', 'approach_id'], 'Saved input');
     if (beat.input.kind !== undefined) choice(beat.input.kind, ['follow', 'steer', 'act', 'say', 'ask'], null, 'Input kind');
     if (beat.input.text !== undefined) savedText(beat.input.text, 'Direction', 4000);
     if (beat.input.reason !== undefined) savedText(beat.input.reason, 'Reason', 1500);
+    if (beat.input.challenge_id !== undefined || beat.input.approach_id !== undefined) {
+      idOf(beat.input.challenge_id); idOf(beat.input.approach_id);
+      if (!beat.state.challenges?.some((entry) => entry.id === beat.input.challenge_id && entry.approaches.some((approach) => approach.id === beat.input.approach_id))) fail('Invalid challenge input.', 'INVALID_SAVE');
+    }
     if (beat.input.character_id != null && !beat.state.cast?.some((person) => person.id === beat.input.character_id)) fail('Invalid input character.', 'INVALID_SAVE');
     state(beat.state, beat.id);
     for (const change of list(beat.changes, 12, 'state change')) {
@@ -194,6 +215,7 @@ function createFictionSaves({ db, store, media }) {
     const beatRef = (id) => id === null ? null : beatIds.get(id);
     const remapFact = (fact) => ({ ...fact, evidence_beat_id: beatRef(fact.evidence_beat_id) });
     const remapState = (state) => ({ ...state, facts: state.facts.map(remapFact),
+      ...(state.adjudications ? { adjudications: state.adjudications.map((entry) => ({ ...entry, beat_id: beatRef(entry.beat_id) })) } : {}),
       illustrations: state.illustrations.map((item) => ({ ...item, beat_id: beatRef(item.beat_id), asset_id: assetIds.get(item.asset_id) })),
       scene_history: state.scene_history.map((item) => ({ ...item, beat_id: beatRef(item.beat_id) })) });
     let committed = false;

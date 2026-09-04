@@ -4,8 +4,25 @@
 
 - `release/5.0.0` is the integration branch for a new playable-fiction product.
   Substantial feature PRs target it, are verified and merged only on green CI,
-  and subsequent batches start from its updated head. Do not merge this release
-  into `main` or replace the existing port-3000 installation without approval.
+  and subsequent batches start from its updated head. On 4 September the owner
+  approved the next-iteration plan, its three substantial PRs, and final release
+  integration into `main` after completion and green CI. Do not deploy or start
+  the replacement server without a separate request. The owner explicitly asked
+  to stop the old port-3000 instance; it was stopped and the port verified clear.
+- The accepted iteration is in `docs/releases/5.0.0/NEXT-ITERATION.md`: trustworthy
+  resistance/memory, clear influence, and characters/episode payoff. Both styles
+  remain independent of avatar ownership and gentle/dramatic consequences.
+  Character-consistent cooperation is as important as resistance: repeated pleading
+  is not new leverage, but genuinely sufficient grounds can change an outcome.
+  Model quality must be measured, not inferred from price, size or prose fluency.
+- Structured challenges are application-owned and distinct from open-ended NPC
+  dialogue. Never claim mechanical guarantees for arbitrary generated prose.
+  Adjudications are branch-local; unchanged repeated approaches make no new AI
+  purchase. Private motives, requirements and basis hashes stay out of reader APIs.
+- The 128-fact snapshot is a working set, not a lifetime history limit. Initial
+  facts and immutable change records remain authoritative; bounded retrieval reads
+  only the selected ancestry, honours corrections/retirements and does not erase
+  evidence or force players to prune memory. Saves preserve those records.
 - The default player is a reader-director OUTSIDE the cast. Follow and Steer
   are complete first-class experiences; Inhabit is optional, explicit character
   control. No avatar, main character, or Session Zero is required to begin.

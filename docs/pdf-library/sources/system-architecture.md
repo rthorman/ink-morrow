@@ -1,5 +1,22 @@
 # System Architecture & Design Rationale
 
+## 5.0 memory and adjudication foundations
+
+The bounded snapshot cache is not the only copy of story facts. Immutable initial
+facts and per-beat changes form a branch-local version history. Retrieval folds
+the latest version of each fact on the selected ancestry, excludes explicit
+retirements, ranks relevant entries and returns a bounded result. Working-set
+compaction drops cached entries only; correction and export preserve their history.
+
+Story-shaping and Living-world are independent of character ownership and severity.
+Structured challenges define named approaches and explicit evidence requirements.
+Application code adjudicates from recorded public facts and character knowledge;
+models receive the decision, not permission to rewrite it. A matching prior basis
+replays locally without a provider call. The request journal, stale checks and
+atomic commit still apply. Model-returned outcome/evidence are checked, but this
+is not a semantic proof that every generated sentence agrees. Open-ended dialogue
+remains model-dependent and must not be advertised as mechanically adjudicated.
+
 ## 5.0 media and portability boundary
 
 The new game owns immutable branch-state illustration placements and story-scoped

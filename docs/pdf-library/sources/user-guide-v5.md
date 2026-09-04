@@ -1,8 +1,12 @@
 # InkMorrow 5.0 — User Guide
 
+<div class="frontmatter">
+
 > Development edition. This guide describes the reader-director interface on the
 > 5.0 release branch. Illustrated stories, playable saves and book export are
 > included. The final fresh-storage/version cutover is still in development.
+
+</div>
 
 ## A story worth following
 
@@ -109,6 +113,27 @@ it is not shown in the reader's recap. Do not enter material you are unwilling t
 send to your chosen provider. If the reviewed provider/model changes before a
 new request begins, refresh and review the new configuration.
 
+## Model consistency and fair resistance
+
+Prose fluency, price, speed, continuity and resistance are different model
+qualities. Some models become too accommodating when challenged repeatedly.
+Do not assume a newer, larger or more expensive storyteller is a better referee.
+No models have yet been certified by an InkMorrow live comparison; recommendations
+must name the tested model version, settings and date rather than a timeless winner.
+
+The accepted next iteration offers Story-shaping and Living-world styles. The
+first honours desired developments within continuity; the second allows credible
+resistance based on motives, knowledge, relationships and circumstances. Neither
+requires you to become a character. The engine foundations are present in this
+batch; the reader controls are supplied in the following interface batch.
+
+A royal guard should not grant entry simply because a request is repeated, but
+should reconsider genuinely sufficient authority. Structured challenge decisions
+are application-owned, and repeating an unchanged decision makes no new provider
+request. This protection applies to explicit structured challenges, not a promise
+that every free-form character conversation is mechanically reliable. Contradictory
+generated sentences remain possible even when state cannot be changed that way.
+
 ## Optional character control
 
 Open **Cast & story** and select **Inhabit** beside a cast member. Read the
@@ -143,10 +168,11 @@ of recorded effects, not a scorecard. Small expressive choices do not need a
 permanent statistic. A major commitment should be recorded and remain available
 to future narration.
 
-The working state is bounded to 128 facts, with up to twelve effects in one
-response. These are safety bounds, not rewards or targets. Do not try to turn
-every descriptive detail into bookkeeping. The narrator receives bounded recent
-text and relevant facts rather than the entire accumulated story on every call.
+The current working set holds up to 128 facts, with up to twelve effects in one
+response. Older facts remain in permanent path history and relevant ones can be
+recalled automatically. You do not need to prune memory to keep playing. The
+narrator receives bounded recent text and relevant facts rather than the entire
+accumulated story on every call.
 
 ## Correct a mistake
 
@@ -162,10 +188,11 @@ State validation checks structure and evidence, not every possible semantic
 contradiction. A fluent response can still be mistaken. If something important is
 wrong, correct it explicitly rather than hoping repetition will repair it.
 
-**Retire a fact** removes an unneeded entry from current working memory, with a
-reason. Earlier prose and earlier path snapshots retain it. This frees a fact
-slot; merely resolving a fact does not. Do not retire commitments you still want
-to matter. Retired material is not automatically retrieved for future narration.
+**Retire a fact** explicitly stops using an entry for future narration on this
+path, with a reason. Earlier prose and earlier path snapshots retain it. This is
+a correction tool, not required memory maintenance: automatic working-set
+compaction already preserves older facts for retrieval. Do not retire commitments
+you still want to matter.
 
 ## Cast and story preferences
 

@@ -3,6 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { LIMITS, fail, keys, text, validateIntent, applyEffects } = require('./model');
 const { chooseScene, recordScene } = require('./director');
+const { adjudicate } = require('./resistance');
 
 function contextFacts(state, direction) {
   const words = new Set(direction.toLowerCase().match(/[\p{L}]{3,}/gu) || []);
@@ -14,7 +15,7 @@ function contextFacts(state, direction) {
 }
 
 function createFictionService({ store, chatCompletion, providers = null }) {
-  function buildMessages(context, intent, plan = chooseScene(context.game, context.state, intent)) {
+  function buildMessages(context, intent, plan = chooseScene(context.game, context.state, intent), decision = null) {
     const { game, branch, state } = context;
     const recent = store.historyRows(game.id, branch.head_beat_id, 12).map((row) => ({ kind: row.kind, prose: row.prose.slice(-1500), summary: row.summary }));
     return [
@@ -23,23 +24,28 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         'Follow develops the cast naturally. Steer is an editorial request, not an in-world action. Act/Say expresses only the explicitly inhabited character\'s intent. Ask is out-of-story clarification: do not advance time or state.',
         'When a character is inhabited, never invent their decisions, speech, thoughts, commitments or completed actions. Continue may develop the surroundings and other people, then stop before a decision belonging to that character. Resolve only actions explicitly supplied by the user.',
         'Respect content boundaries. Maintain independent motives and established facts. Quiet expression needs a fitting response, not arbitrary permanent consequences. Plans and possibilities are not completed events. Do not force quests, danger, cliffhangers or a question at the end of every passage.',
+        'In story-shaping, honour the requested development within continuity and character ownership. In living-world, honour the intent but not a demanded outcome: motives, knowledge, relationships and circumstances determine credible cooperation or refusal. Repetition alone is not new leverage; genuinely sufficient evidence may change a decision. Neither style requires conflict or an avatar.',
+        'Structured challenges and adjudications are application-owned. Never grant a challenge through ordinary prose, an effect, invented permission or a claimed prior agreement. With no adjudication, leave its disputed outcome open and invite its explicit approach controls when relevant. If adjudication is supplied, narrate exactly that outcome, without contradicting its explanation; add resolution with exactly outcome and evidence, where evidence quotes this response. Do not alter requirements. A refusal is not a reason for arbitrary punishment.',
         'Secret facts are world truth, not reader or character knowledge. Do not disclose them in prose or summary unless the scene actually reveals them and a reveal effect records the discovery. Never change a secret to defeat a correct deduction. Characters may use only what they know.',
         'History marked clarification is out-of-story discussion, never an event that happened. Do not use a clarification to expose hidden truths the reader has not discovered.',
-        'Return a JSON object with exactly prose (readable story text), summary (one reader-safe sentence), and effects (array, empty when nothing durable changes). No Markdown fences. Aim for 120–220 words of prose, or 80–140 when brisk; at most four concise effects normally. Finish the complete JSON within the output budget.',
+        'Return a JSON object with prose (readable story text), summary (one reader-safe sentence), and effects (array, empty when nothing durable changes). Only when adjudication is supplied, also include resolution as specified above; otherwise exactly those three fields. No Markdown fences. Aim for 120–220 words of prose, or 80–140 when brisk; at most four concise effects normally. Finish the complete JSON within the output budget.',
         'Effects: remember uses {op:"remember",fact:{id,kind,text,visibility,known_by,status,actor_id,value},evidence}; resolve uses {op:"resolve",id,evidence}; reveal uses {op:"reveal",id,known_by,evidence}; adjust uses {op:"adjust",id,amount,evidence}.',
         'Fact kind is fact|commitment|relationship|goal|resource; visibility public|secret; status active|resolved; actor_id is a cast ID or null; value is numeric for resources, otherwise null. known_by contains cast IDs. IDs are short alphanumeric identifiers with hyphens or underscores.',
         'Every effect evidence must be an exact quotation from this response\'s prose or the user\'s input. Remember creates a NEW fact ID and cannot rewrite existing truth. Do not invent commitments for an inhabited character. Never emit control or episode changes.',
         'A genuinely new person appearing by name may use {op:"introduce",character:{id,name,description,motive},evidence}. Reuse existing people; never duplicate names. Describe only reader-visible traits, keep private motives in motive. Introduction never hands control to the user.',
-        'The scene_plan is a provisional opportunity, not an event that has happened. Its target facts should causally shape this beat when appropriate. Respect the user direction and owned-character boundary over the suggested pattern. Narration voice changes style, not authority. At zero fact slots, resolve or reference existing facts without adding new ones.',
+        'The scene_plan is a provisional opportunity, not an event that has happened. Its target facts should causally shape this beat when appropriate. Respect the user direction and owned-character boundary over the suggested pattern. Narration voice changes style, not authority. The remaining_fact_slots limit is per response, not a lifetime story limit.',
         'The application owns accounting and any random resolution. Do not pretend to have rolled dice. Produce a complete, satisfying beat rather than a fixed page count.',
       ].join('\n') },
       { role: 'user', content: JSON.stringify({
         story: { title: game.title, premise: game.premise, genre: game.genre },
         cast: state.cast.map((character) => ({ ...character, description: character.description.slice(0, 600), motive: character.motive.slice(0, 400) })),
         control: state.control, boundaries: state.boundaries, pacing: state.pacing, consequences: state.consequences,
+        play_style: state.play_style || 'story-shaping', challenges: state.challenges || [], adjudications: state.adjudications || [], adjudication: decision,
         episode: state.episode, focus: state.focus, narration_voice: state.voice || '',
-        facts: [...new Map([...state.facts.filter((fact) => plan.fact_ids.includes(fact.id)), ...contextFacts(state, `${intent.text} ${state.focus}`)].map((fact) => [fact.id, fact])).values()].slice(0, 32),
-        remaining_fact_slots: LIMITS.facts - state.facts.length, remaining_cast_slots: LIMITS.cast - state.cast.length,
+        facts: [...new Map([...state.facts.filter((fact) => plan.fact_ids.includes(fact.id)),
+          ...store.memory.facts(game.id, branch.head_beat_id, { query: `${intent.text} ${state.focus}` }),
+          ...contextFacts(state, `${intent.text} ${state.focus}`)].map((fact) => [fact.id, fact])).values()].slice(0, 32),
+        remaining_fact_slots: 12, remaining_cast_slots: LIMITS.cast - state.cast.length,
         scene_plan: plan, recent, input: intent,
       }) },
     ];
@@ -56,8 +62,15 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         if (selected.provider?.id !== providerId || selected.model_id !== model) fail('The storyteller configuration changed. Refresh and review the new provider before continuing.', 'STORY_PROVIDER_CHANGED', 409);
       }
       const intent = validateIntent(input, context.state);
+      const lookup = (id, includeRemoved = false) => store.memory.get(gameId, context.branch.head_beat_id, id, includeRemoved);
+      const decision = adjudicate(context.state, intent, lookup, fail);
+      const previous = decision && (context.state.adjudications || []).find((entry) => entry.challenge_id === decision.challenge_id);
+      if (decision && previous?.basis === decision.basis) {
+        const beatId = store.completeRequest(request, { kind: 'clarification', prose: `The circumstances have not changed. ${previous.explanation}`, summary: 'The previous adjudication still applies. No AI request was made.', input: intent, state: context.state }, { costUsd: 0, billedAttempts: 0 });
+        return { story: store.view(gameId), beat_id: beatId, cost_usd: 0, billed_attempts: 0, reused: false, repeated_adjudication: true };
+      }
       const plan = chooseScene(context.game, context.state, intent);
-      const messages = buildMessages(context, intent, plan);
+      const messages = buildMessages(context, intent, plan, decision);
       // Once dispatch may occur, a lost response or process crash means cost is
       // unknown, not zero. There is no transport retry for this single purchase.
       store.dispatchRequest(request.id, model); usage.billedAttempts = 1;
@@ -70,12 +83,18 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       let parsed;
       try { parsed = JSON.parse(result.content); }
       catch { fail('The narrator returned an unreadable story response. Nothing was added.', 'INVALID_STORY_REPLY', 502); }
-      keys(parsed, ['prose', 'summary', 'effects'], 'Narrator response');
+      keys(parsed, ['prose', 'summary', 'effects', ...(decision ? ['resolution'] : [])], 'Narrator response');
       const prose = text(parsed.prose, 'Story prose', LIMITS.prose);
       const summary = text(parsed.summary, 'Story summary', 1000);
+      if (decision) {
+        keys(parsed.resolution, ['outcome', 'evidence'], 'Resolution');
+        const evidence = text(parsed.resolution.evidence, 'Resolution evidence', 1000);
+        if (parsed.resolution.outcome !== decision.outcome || !prose.includes(evidence)) fail('The narrator did not honour the adjudicated outcome. Nothing was added.', 'INVALID_STORY_RESOLUTION', 502);
+      }
       if (intent.kind === 'ask' && (!Array.isArray(parsed.effects) || parsed.effects.length)) fail('A clarification cannot advance story state.', 'INVALID_STORY_REPLY', 502);
       const beatId = randomUUID();
-      const { state, changes } = applyEffects(context.state, parsed.effects, { prose, input: intent, beatId });
+      const { state, changes } = applyEffects(context.state, parsed.effects, { prose, input: intent, beatId, lookup });
+      if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
       if (intent.kind === 'steer') state.focus = intent.text.slice(0, 1500);
       recordScene(state, plan, beatId);
       const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose, summary, input: intent, state, changes }, usage);

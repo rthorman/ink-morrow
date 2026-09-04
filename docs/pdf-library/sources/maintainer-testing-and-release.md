@@ -1,5 +1,22 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 fair-resistance verification
+
+The deterministic royal-guard fixtures test twenty repeated/paraphrased requests
+without extra purchases, legitimate new recorded authority, unknown or hidden
+evidence, distinct styles, narrator outcome disagreement, private-field filtering,
+branch restoration and save import. Memory fixtures exceed 128 facts, retrieve an
+old relevant fact, correct and retire it, and exclude a sibling path's history.
+Run `node node_modules/jest/bin/jest.js --runInBand tests/fiction-resistance.test.js`
+from backend. These use mocked providers and do not establish model suitability.
+
+Live evaluations need an explicitly approved paid budget and repeatable fixtures.
+Record exact model/settings/date, latency, cost, contradictions, unjustified
+capitulation AND unjustified stubbornness. Human semantic review is necessary;
+another model's approval is not sufficient. No model is certified by unit tests.
+The owner approved the three substantial iteration PRs and final green integration
+to main. Deployment remains separate; the old port-3000 instance is now stopped.
+
 ## 5.0 illustrated-save verification
 
 Keep the media/save batch substantial. Test synchronous dialog feedback, prevented

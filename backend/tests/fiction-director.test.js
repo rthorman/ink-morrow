@@ -104,7 +104,7 @@ describe('history-driven playable scenes', () => {
     const state = store.current(story.id).state;
     expect(state.scene_count).toBe(1); expect(state.facts.find((fact) => fact.id === 'iona-chart').status).toBe('active');
     const prompt = JSON.parse(completion.mock.calls[0][0][1].content);
-    expect(prompt.scene_plan.kind).toBe('opportunity'); expect(prompt.remaining_fact_slots).toBe(124);
+    expect(prompt.scene_plan.kind).toBe('opportunity'); expect(prompt.remaining_fact_slots).toBe(12);
     expect(completion.mock.calls[0][1].maxBillableAttempts).toBe(1);
   });
 });

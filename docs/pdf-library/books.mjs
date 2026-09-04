@@ -1,3 +1,5 @@
+export const edition = '5.0';
+export const editionLabel = '5.0 Development Edition';
 export const books = [
   {
     slug: 'user-guide',
@@ -7,16 +9,16 @@ export const books = [
     audience: 'For readers and directors of the 5.0 development edition',
     cover: '../../frontend/brand/vesper-threshold.webp',
     source: 'sources/user-guide-v5.md',
-    output: 'Ink-Morrow-4.0-User-Guide.pdf',
+    output: `Ink-Morrow-${edition}-User-Guide.pdf`,
   },
   {
     slug: 'operations-and-recovery',
     title: 'Operations & Recovery Handbook',
-    subtitle: 'Install, protect, update, diagnose, and restore Ink Morrow 4.0',
+    subtitle: 'Operate the isolated development edition and protect historical data',
     audience: 'For the owner-operator',
     cover: '../../frontend/brand/vesper-threshold.webp',
     source: 'sources/operations-and-recovery.md',
-    output: 'Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf',
+    output: `Ink-Morrow-${edition}-Operations-and-Recovery-Handbook.pdf`,
   },
   {
     slug: 'system-architecture',
@@ -25,7 +27,7 @@ export const books = [
     audience: 'For maintainers and technical reviewers',
     cover: '../../frontend/brand/hero-scriptorium-desktop.webp',
     source: 'sources/system-architecture.md',
-    output: 'Ink-Morrow-4.0-System-Architecture.pdf',
+    output: `Ink-Morrow-${edition}-System-Architecture.pdf`,
   },
   {
     slug: 'state-machine-atlas',
@@ -34,24 +36,24 @@ export const books = [
     audience: 'For implementers, testers, and incident investigators',
     cover: '../../frontend/brand/moth-archive.webp',
     source: 'sources/state-machine-atlas.md',
-    output: 'Ink-Morrow-4.0-State-Machine-Atlas.pdf',
+    output: `Ink-Morrow-${edition}-State-Machine-Atlas.pdf`,
   },
   {
     slug: 'security-privacy-ai',
     title: 'Security, Privacy & AI Boundary',
     subtitle: 'What crosses the threshold, what stays local, and who remains in control',
-    audience: 'For operators, authors, and security reviewers',
+    audience: 'For operators, players, and security reviewers',
     cover: '../../frontend/brand/vesper-quill.webp',
     source: 'sources/security-privacy-and-ai-boundary.md',
-    output: 'Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf',
+    output: `Ink-Morrow-${edition}-Security-Privacy-and-AI-Boundary.pdf`,
   },
   {
     slug: 'maintainer-testing-release',
     title: 'Maintainer, Testing & Release Handbook',
-    subtitle: 'Change the Scriptorium without breaking the Story',
+    subtitle: 'Change playable fiction without breaking history or trust',
     audience: 'For contributors and release owners',
     cover: '../../frontend/brand/cinder-cast.webp',
     source: 'sources/maintainer-testing-and-release.md',
-    output: 'Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf',
+    output: `Ink-Morrow-${edition}-Maintainer-Testing-and-Release-Handbook.pdf`,
   },
 ];

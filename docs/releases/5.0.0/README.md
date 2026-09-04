@@ -15,9 +15,10 @@ database families without modifying them. Old character/template import is a
 convenience only. Reuse secure infrastructure and useful assets where appropriate,
 but do not preserve manuscript-first workflows merely for compatibility.
 
-Keep the existing main checkout and port-3000 application untouched. Development
-uses `/home/rthorman/src/ink-morrow-5`. All feature PRs target the release branch;
-main integration and production deployment require a separate decision.
+Development uses `/home/rthorman/src/ink-morrow-5`. All feature PRs target the
+release branch. The owner subsequently approved final main integration on green
+CI and explicitly requested stopping the old port-3000 instance (now stopped).
+Historical data remains untouched. Deployment/startup still needs a request.
 
 ## Substantial PR batches
 
@@ -43,8 +44,10 @@ main integration and production deployment require a separate decision.
    rejected by the owner and removed, not merely hidden.
 4. **Illustrated stories and portable saves** — branch-local illustrations,
    explicit Illustrator purchases, safe local uploads, complete 5.0 save/import,
-   reader-safe book exports and separate EPUB image pages. Status: implemented
-   locally; final validation and PR pending. See `docs/fiction-media-saves.md`.
+   reader-safe book exports and separate EPUB image pages. Status: PR #71 passed
+   all five CI checks and merged as `1e2083a` on 4 September 2026:
+   https://github.com/rthorman/ink-morrow/pull/71. Local 381 backend tests,
+   277 frontend tests and 36 browser tests passed. All six PDFs regenerated.
 5. **New-product release completion** — fresh database isolation and version
    identity, supporting surfaces, complete six-book rewrite/regeneration,
    integration/browser/accessibility checks and final release evidence.
@@ -77,3 +80,15 @@ the existing backend and component regression suites remain active.
 - Complete playable saves are separate from book-style exports; secrets and
   credentials never leak into a reader-facing recap or published text.
 - No legacy database or save compatibility is a release blocker.
+
+## Next-iteration considerations (4 September 2026)
+
+The owner wants both Story-shaping and Living-world play styles and has asked
+that repeated-persuasion/model-consistency risks be included in the design and
+model-choice documentation considerations. The proposed next iteration is
+[Agency, resistance and payoff](NEXT-ITERATION.md). It separates these recorded
+decisions from proposed implementation scope, describes three substantial PRs,
+and defines evaluation and documentation requirements. The owner then approved
+these three PRs and the final green release PR into main. Iteration A is in
+progress; the other two iterations and final hardening remain. This is not a
+record of completed implementation or permission to deploy/start the replacement.
