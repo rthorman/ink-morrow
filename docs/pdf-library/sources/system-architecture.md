@@ -277,5 +277,13 @@ control, correction, branch and episode operations require the current revision.
 Paid replies use a separate idempotent request journal and one pending request
 per story. A validated reply and its state changes commit together. Provider
 calls receive bounded recent history and relevant facts; there is no automatic
-per-NPC simulation or whole-story replay. The reader interface, richer scene
-director and portable 5.0 saves remain later batches, not delivered claims.
+per-NPC simulation or whole-story replay.
+
+The second batch replaces the root interface with the reader-director shell.
+`app/fiction` owns route epochs, immediate operation feedback, local drafts,
+optional explicit character handoff, complete-state rewind, and episode controls.
+It starts private reads only after authentication and clears private DOM on lock.
+Navigation invalidates late responses without cancelling a server-side purchase.
+The existing shared credential vault and paid-review dialog remain authoritative;
+the selected provider/model pair is checked again before generation. The richer
+scene director and portable 5.0 saves remain later batches, not delivered claims.

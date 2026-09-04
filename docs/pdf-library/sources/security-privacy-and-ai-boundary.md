@@ -1,5 +1,20 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 reader boundary
+
+The new reader starts private requests only after unlock. Lock clears prose, cast,
+facts, input drafts and credential fields. Route epochs discard late UI responses;
+leaving a story does not pretend to cancel a provider request already dispatched.
+All story text is rendered with text nodes, not interpreted HTML. Secret facts and
+private correction reasons are excluded from normal story responses, but selected
+hidden truth is disclosed as part of the paid narrator's provider exposure.
+
+The client submits the provider/model shown in review. A changed storyteller role
+rejects the request before purchase; replaying a completed key remains free even
+after configuration changes. Paid consent follows the existing remembered-device
+policy: a review is not necessarily shown on every later click. One request allows
+one billable attempt, and failures retain known charges. Estimates are not caps.
+
 <div class="frontmatter">
 
 Ink Morrow is private-by-default self-hosted software, not a hosted confidentiality service. The owner chooses the machine, storage, network, provider, models, and publications. This book explains the trust boundaries those choices create and the controls built around them.

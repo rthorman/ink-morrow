@@ -23,10 +23,12 @@ main integration and production deployment require a separate decision.
 
 1. **Story-state foundations** — transactional game/branch/beat state, immutable
    history, knowledge/control boundaries, corrections and forks, protected APIs,
-   concurrency/idempotency and counterfactual tests. Status: in progress.
+   concurrency/idempotency and counterfactual tests. Status: PR #68 passed all CI
+   gates and merged as `23d52e6` on 4 September 2026. Link:
+   https://github.com/rthorman/ink-morrow/pull/68.
 2. **Reader-director experience** — start/resume, unified readable story, Follow,
    Steer, optional Inhabit, cast/recap, history and alternate paths, immediate
-   feedback, responsive keyboard-accessible navigation. Status: planned.
+   feedback, responsive keyboard-accessible navigation. Status: in progress.
 3. **History-driven scenes** — curated openings, genre-aware scene patterns,
    persistent commitments and payoffs, bounded generation, episode endings,
    pacing, failure/spend accounting and causal regression tests. Status: planned.
@@ -38,6 +40,10 @@ main integration and production deployment require a separate decision.
 Each batch is tested locally, pushed once coherent, opened as a PR, and merged
 only after its current head is green. Pull the release head before the next batch.
 Avoid tiny PRs and bypassing required checks. Record links and actual results here.
+
+The five 4.x browser specs are archived beside this file as historical product
+contracts. Active browser tests now exercise the 5.0 reader-director journeys;
+the existing backend and component regression suites remain active.
 
 ## Acceptance boundaries
 

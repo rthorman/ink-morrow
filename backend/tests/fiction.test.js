@@ -92,6 +92,25 @@ describe('5.0 playable-fiction foundations', () => {
     await expect(service.reply({ ...request, input: { kind: 'steer', text: 'Something else.' } })).rejects.toMatchObject({ code: 'IDEMPOTENCY_CONFLICT' });
   });
 
+  test('a changed provider snapshot stops before purchasing', async () => {
+    const completion = jest.fn();
+    const service = createFictionService({ store, chatCompletion: completion, providers: { exposure: () => ({ provider: { id: 'different' }, model_id: 'test' }) } });
+    await expect(service.reply({ gameId: story.id, expectedRevision: story.revision, idempotencyKey: 'changed-provider', input: { kind: 'follow' }, providerId: 'reviewed', model: 'test' })).rejects.toMatchObject({ code: 'STORY_PROVIDER_CHANGED', billedAttempts: 0 });
+    expect(completion).not.toHaveBeenCalled();
+    expect(store.view(story.id).head_beat_id).toBe(story.head_beat_id);
+  });
+
+  test('completed replay stays free even after provider settings change', async () => {
+    const exposure = jest.fn().mockReturnValue({ provider: { id: 'reviewed' }, model_id: 'test' });
+    const completion = jest.fn().mockResolvedValue({ content: JSON.stringify({ prose: 'Mara waits.', summary: 'A pause.', effects: [] }), model: 'test', cost_usd: 0.01, billed_attempts: 1 });
+    const service = createFictionService({ store, chatCompletion: completion, providers: { exposure } });
+    const request = { gameId: story.id, expectedRevision: story.revision, idempotencyKey: 'reviewed', input: { kind: 'follow' }, providerId: 'reviewed', model: 'test' };
+    await service.reply(request);
+    exposure.mockReturnValue({ provider: { id: 'different' }, model_id: 'other' });
+    expect((await service.reply(request)).reused).toBe(true);
+    expect(completion).toHaveBeenCalledTimes(1);
+  });
+
   test('rejects overlapping actions while a paid response is pending', async () => {
     let release;
     const service = createFictionService({ store, chatCompletion: () => new Promise((resolve) => { release = resolve; }) });

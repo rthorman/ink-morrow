@@ -53,6 +53,9 @@ function createFictionStore(db) {
       branches: db.prepare('SELECT id, name, head_beat_id, fork_beat_id, parent_branch_id FROM fiction_branches WHERE game_id = ? ORDER BY created_at, rowid').all(id),
       beats: rows.map(publicBeat), has_earlier: Boolean(rows[0]?.parent_id),
       pending: Boolean(db.prepare("SELECT id FROM fiction_requests WHERE game_id = ? AND status = 'pending'").get(id)),
+      spend: db.prepare(`SELECT coalesce(sum(cost_usd), 0) AS known_usd,
+        coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts
+        FROM fiction_requests WHERE game_id = ?`).get(id),
       created_at: g.created_at, updated_at: g.updated_at,
     };
   }

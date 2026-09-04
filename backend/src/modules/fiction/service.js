@@ -12,7 +12,7 @@ function contextFacts(state, direction) {
   })).sort((a, b) => b.score - a.score || b.index - a.index).slice(0, 32).map(({ fact }) => fact);
 }
 
-function createFictionService({ store, chatCompletion }) {
+function createFictionService({ store, chatCompletion, providers = null }) {
   function buildMessages(context, intent) {
     const { game, branch, state } = context;
     const recent = store.historyRows(game.id, branch.head_beat_id, 12).map((row) => ({ kind: row.kind, prose: row.prose.slice(-1500), summary: row.summary }));
@@ -39,12 +39,16 @@ function createFictionService({ store, chatCompletion }) {
     ];
   }
 
-  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort }) {
-    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null });
+  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort, providerId = null }) {
+    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null, providerId });
     if (started.reused) return { ...store.requestResult(started.request), story: store.view(gameId), reused: true };
     const { request, context } = started;
     let usage = { costUsd: null, billedAttempts: 0, model: model ?? null };
     try {
+      if (providerId && providers) {
+        const selected = providers.exposure('scribe');
+        if (selected.provider?.id !== providerId || selected.model_id !== model) fail('The storyteller configuration changed. Refresh and review the new provider before continuing.', 'STORY_PROVIDER_CHANGED', 409);
+      }
       const intent = validateIntent(input, context.state);
       const result = await chatCompletion(buildMessages(context, intent), {
         model: model || undefined, reasoningEffort, temperature: 0.8,

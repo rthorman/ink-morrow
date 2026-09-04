@@ -325,6 +325,14 @@ overlapping work, rollback on invalid effects, restart interruption, and real
 authentication/CSRF routing. Later UI/director/portability batches must add their
 own checks rather than treating these backend tests as end-to-end proof.
 
+The reader batch adds twelve component tests for no-avatar creation, busy gating,
+cancel/failure drafts, route/lock races, explicit control, plaintext rendering,
+episode rest and real provider capabilities. Fourteen active browser tests cover
+the complete reader journeys, WCAG A/AA checks and narrow-screen reflow, on desktop
+and mobile Chrome. Superseded 4.x browser contracts are archived in the release
+folder; backend and component regressions remain active. Use installed Chrome or
+the CI browser image: do not download an additional browser for local validation.
+
 A change is done when code, schema, migrations, tests, documentation, generated artifacts, and operator expectations describe the same system; local required checks and final CI are green; review evidence is attached; rollback is understood; and there is no safe in-scope work left unfinished.
 
 The Scriptorium exists to serve the Story. Release machinery exists to ensure the Story survives the machinery.
