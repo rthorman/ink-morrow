@@ -13,7 +13,7 @@ process. The production entry point is backend/server.js; its default address is
 127.0.0.1:3000. It is a playable-fiction game, not the retired manuscript suite.
 Opening the interface, reading, local state changes and backup do not buy prose.
 
-The live surfaces are Your stories, Start a story, the reader and Settings.
+The live surfaces are Your stories, Visual Library, Start a story, the reader and Settings.
 The default player stays outside the cast. New narration is deliberate; there is
 no speculative next-page queue, automatic cast portrait backfill, audiobook
 queue or background memory extraction in the 5.0 runtime.
@@ -141,6 +141,12 @@ credentials, provider configuration, consent and pending request identities.
 Import always creates a new story. Keep saves private and unencrypted-file
 risks visible.
 
+Story saves also include frozen world/Scribe/character references, covers and
+portraits, but not the reusable catalogues or their separate painting journal.
+Use the full installation backup for catalogue entries and catalogue image spend.
+Deleting an entry scrubs its reusable content and image, retains its spend record,
+and leaves every story copy alone. This catalogue deletion has no in-app undo.
+
 A cold installation backup preserves the complete configured database and media
 roots, including auth and encrypted vault data. Stop the process and confirm it
 has exited before copying. If database and media use different roots, capture
@@ -161,6 +167,10 @@ files during startup preflight. It is not a backup service and not a substitute
 for stopping writers before an operator copy.
 
 ## Restore and update safely
+
+Schema 22 adds visual catalogues without rewriting schema-21 story history or
+earlier migration checksums. This is a supported 5.0 migration, not 4.x adoption.
+Keep a matched cold backup before updating; older code cannot read the new schema.
 
 For a playable save, use Import a playable save, check the preview, then Import
 as a new story. Verify an old moment, another path and an illustration. Configure

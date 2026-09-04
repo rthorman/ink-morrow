@@ -1,31 +1,31 @@
 {
   "schema": 1,
-  "source_sha256": "c71fe41cfac9f1e976cdfe67291e6c9e34387769f6a6c20027bf5bae70759de3",
+  "source_sha256": "bef1a71ebcf52e45120a98b4bc0987898096a365814a27c2517e5619508fbeea",
   "source_count": 50,
   "outputs": {
     "docs/pdf/Ink-Morrow-5.0-User-Guide.pdf": {
-      "sha256": "5619d4a3ee4a57bfae8fc55bc48140e2b6a2001c9fb6e920980ec4e5eac3e5cd",
-      "bytes": 2168268
+      "sha256": "7cc681732b596cbb040ea367f68a82268c17d2bb32a137f202666450a2b03158",
+      "bytes": 2178568
     },
     "docs/pdf/Ink-Morrow-5.0-Operations-and-Recovery-Handbook.pdf": {
-      "sha256": "ee11e7aa518d4ab18caaf393fa807fd1fc853551b63361cd68990020f36c4621",
-      "bytes": 1663007
+      "sha256": "070643763ef08f0daca77b225d5146843e861ea9c7dbdd3253f836c3963dddcc",
+      "bytes": 1664686
     },
     "docs/pdf/Ink-Morrow-5.0-System-Architecture.pdf": {
-      "sha256": "39686c64d6fcdd1d22c8688c5403288c50029a9e490c85c6335496133e2d5ac2",
-      "bytes": 1498545
+      "sha256": "351fd175b904038c3a4d6d8c204325a196550f0ea59f2ddd84097edd3e80f429",
+      "bytes": 1502669
     },
     "docs/pdf/Ink-Morrow-5.0-State-Machine-Atlas.pdf": {
-      "sha256": "76f45c7adfd19e045943a6960b6775944cbb8a52509963988cdcd80574780af4",
-      "bytes": 1660461
+      "sha256": "f572f6ea725360f0a9942647e26ce25ca040ca47aed65f7c379d55f82123f166",
+      "bytes": 1677417
     },
     "docs/pdf/Ink-Morrow-5.0-Security-Privacy-and-AI-Boundary.pdf": {
-      "sha256": "9b265c3ed7b9156a8373753553af0786f85ac11c6b713222216537ad2cfa7417",
-      "bytes": 2627638
+      "sha256": "a9ebbe5a05a7adf4b212fda7905ac2af435dd21947a068a3da9b58f58d71e991",
+      "bytes": 2629730
     },
     "docs/pdf/Ink-Morrow-5.0-Maintainer-Testing-and-Release-Handbook.pdf": {
-      "sha256": "ca436d65b4049195fff8d39eb0ea0c2b45014c25e9122f25d2a1e866ef87de2a",
-      "bytes": 2323203
+      "sha256": "b28e53727b91bd04ca7ebb3499f11b584c33467c2c02c84da51bab62a12696f9",
+      "bytes": 2339860
     }
   }
 }

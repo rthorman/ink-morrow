@@ -229,6 +229,7 @@ function renderOdt(document) {
 
 function renderEpub(document) {
   const assets = assetMap(document);
+  const coverKey = document.front_matter.find((section) => section.role === 'other' && section.title === 'Cover')?.blocks.find((block) => block.type === 'art')?.asset_key;
   const mediaEntries = [];
   const manifestImages = [];
   const sections = []; const included = new Set(); let body = [];
@@ -253,7 +254,7 @@ function renderEpub(document) {
       if (!included.has(asset.key)) {
         included.add(asset.key);
         mediaEntries.push({ name: `EPUB/${name}`, data: Buffer.from(asset.content_base64, 'base64') });
-        manifestImages.push(`<item id="${asset.key}" href="${name}" media-type="${asset.media_type}"/>`);
+        manifestImages.push(`<item id="${asset.key}" href="${name}" media-type="${asset.media_type}"${asset.key === coverKey ? ' properties="cover-image"' : ''}/>`);
       }
       flush();
       const id = `image-${sections.length + 1}`;

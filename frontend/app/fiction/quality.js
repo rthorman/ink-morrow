@@ -18,7 +18,7 @@ export function qualityPaidReview(story) {
     review: { action: 'Continue with optional consistency review', object: story.title,
       model: plan.roles.map((role) => `${role.label} · ${role.provider?.display_name || 'Unconfigured provider'} · ${role.model_id || 'No model'} (up to ${role.operation_count} calls)`).join('; '),
       quantity: `Up to ${plan.max_calls} model calls total; ${plan.calls_without_repair} if the first draft passes`,
-      sends: 'Bounded story context including hidden truth and motives, your direction, candidate prose and proposed changes to each selected role',
+      sends: 'Bounded story context including hidden truth, motives and frozen catalogue references, your direction, candidate prose and proposed changes to each selected role',
       estimate: 0.02 * plan.max_calls,
       note: 'A rough estimate, not a spending cap. More latency and cost; at most one repair followed by review. No transport retry or background continuation. Rejection can still be charged. The same model in two roles is not independent verification.',
     },

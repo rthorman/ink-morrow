@@ -23,7 +23,7 @@ describe('5.0 fresh data boundary', () => {
     return db;
   }
   test('new stores have the 5.0 family and independent default storage paths', () => {
-    const db = createDb(':memory:'); handles.push(db); expect(schemaIdentity(db)).toMatchObject({ family: 'ink-morrow-5', version: 21 }); expect(db.prepare('PRAGMA application_id').get().application_id).toBe(0x494D3530);
+    const db = createDb(':memory:'); handles.push(db); expect(schemaIdentity(db)).toMatchObject({ family: 'ink-morrow-5', version: 22 }); expect(db.prepare('PRAGMA application_id').get().application_id).toBe(0x494D3530);
     expect(storagePaths({}, '/project/backend')).toEqual({ dbPath: '/project/database-v5/ink-morrow-5.db', storageRoot: '/project/database-v5', ephemeral: false });
     expect(storagePaths({ DATA_DIR: '../private' }, '/project/backend')).toMatchObject({ dbPath: '/project/private/ink-morrow-5.db', storageRoot: '/project/private' });
     expect(storagePaths({ DB_PATH: '../custom/story.db' }, '/project/backend')).toMatchObject({ dbPath: '/project/custom/story.db', storageRoot: '/project/custom' });
@@ -44,7 +44,7 @@ describe('5.0 fresh data boundary', () => {
     const original = path.join(directory, 'source.db'); const db = createDb(original); handles.push(db);
     db.exec('PRAGMA wal_autocheckpoint=0'); db.exec("INSERT INTO fiction_games(id,title,premise,genre,initial_state_json) VALUES('wal-story','Committed in WAL','A quiet room.','drama','{}')");
     const file = path.join(directory, 'recover.db'); fs.copyFileSync(original, file); fs.copyFileSync(`${original}-wal`, `${file}-wal`);
-    const before = snapshot(file); expect(inspectExistingDatabase(file)).toMatchObject({ kind: 'recognized', version: 21 }); expect(snapshot(file)).toEqual(before);
+    const before = snapshot(file); expect(inspectExistingDatabase(file)).toMatchObject({ kind: 'recognized', version: 22 }); expect(snapshot(file)).toEqual(before);
     const recovered = createDb(file); handles.push(recovered); expect(recovered.prepare("SELECT title FROM fiction_games WHERE id='wal-story'").get().title).toBe('Committed in WAL');
   });
   test('orphan journals, symlinks and unrecognised SQLite files are not fresh data', () => {

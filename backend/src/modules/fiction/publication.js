@@ -19,6 +19,19 @@ function createFictionPublication({ store, media }) {
     const rows = store.publicationRows(gameId, branch.head_beat_id);
     const placements = new Map((state.illustrations || []).map((item) => [item.beat_id, item]));
     const assets = []; const chapters = []; const assetKeys = new Map(); let byteCount = 0;
+    const artBlock = (placed) => {
+      let key = assetKeys.get(placed.asset_id);
+      if (!key) {
+        const asset = media.read(gameId, placed.asset_id); byteCount += asset.byte_size;
+        if (byteCount > 64 * 1024 * 1024) fail('This illustrated book exceeds the 64 MB content limit.', 'BOOK_TOO_LARGE', 413);
+        key = `asset-${assets.length + 1}`; assetKeys.set(placed.asset_id, key);
+        assets.push({ key, media_type: asset.media_type, sha256: asset.sha256, width: asset.width, height: asset.height,
+          title: placed.caption || null, alt_text: placed.alt_text, content_base64: asset.buffer.toString('base64') });
+      }
+      return { type: 'art', asset_key: key, alt_text: placed.alt_text, position: 'before' };
+    };
+    const cover = (state.visuals || []).find((item) => item.kind === 'cover');
+    const frontMatter = cover ? [{ role: 'other', title: 'Cover', blocks: [artBlock(cover)] }] : [];
     for (const beat of rows) {
       if (!['opening', 'scene'].includes(beat.kind) || !beat.prose.trim()) continue;
       byteCount += Buffer.byteLength(beat.prose);
@@ -28,25 +41,14 @@ function createFictionPublication({ store, media }) {
         chapters.push(chapter);
       }
       const blocks = []; const placed = placements.get(beat.id);
-      if (placed) {
-        let key = assetKeys.get(placed.asset_id);
-        if (!key) {
-          const asset = media.read(gameId, placed.asset_id);
-          byteCount += asset.byte_size;
-          if (byteCount > 64 * 1024 * 1024) fail('This illustrated book exceeds the 64 MB content limit.', 'BOOK_TOO_LARGE', 413);
-          key = `asset-${assets.length + 1}`; assetKeys.set(placed.asset_id, key);
-          assets.push({ key, media_type: asset.media_type, sha256: asset.sha256, width: asset.width, height: asset.height,
-            title: placed.caption || null, alt_text: placed.alt_text, content_base64: asset.buffer.toString('base64') });
-        }
-        blocks.push({ type: 'art', asset_key: key, alt_text: placed.alt_text, position: 'before' });
-      }
+      if (placed) blocks.push(artBlock(placed));
       if (byteCount > 64 * 1024 * 1024) fail('This book exceeds the 64 MB content limit.', 'BOOK_TOO_LARGE', 413);
       blocks.push(...blocksOf(beat.prose));
       chapter.pages.push({ ordinal: chapter.pages.length + 1, blocks });
     }
     if (!chapters.length) fail('Continue the story before exporting its prose.');
     return validatePublicationDocument({ format: PUBLICATION_FORMAT, schema_version: PUBLICATION_SCHEMA_VERSION,
-      metadata: { title: game.title, author, language }, front_matter: [], back_matter: [], assets,
+      metadata: { title: game.title, author, language }, front_matter: frontMatter, back_matter: [], assets,
       volumes: [{ ordinal: 1, title: game.title, chapters: chapters.map(({ episode, ...chapter }) => chapter) }] });
   }
   return { document, export: async (id, format, input) => {
