@@ -2,6 +2,11 @@
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
+- Development is consolidated under WSL at `/home/rthorman/src/ink-morrow-5`,
+  with shared Git metadata in `/home/rthorman/src/ink-morrow/.git`. Windows
+  tooling may operate on that checkout; do not create another Windows copy.
+  The owner abandoned all older unmerged changes on 4 September. Do not recover
+  or import them into 5.0. Preserve new work based on `release/5.0.0`.
 - `release/5.0.0` is the integration branch for a new playable-fiction product.
   Substantial feature PRs target it, are verified and merged only on green CI,
   and subsequent batches start from its updated head. On 4 September the owner
@@ -23,6 +28,11 @@
   facts and immutable change records remain authoritative; bounded retrieval reads
   only the selected ancestry, honours corrections/retirements and does not erase
   evidence or force players to prune memory. Saves preserve those records.
+- Clear influence: Steer defaults to this moment; only explicit ongoing Steer
+  changes focus after success. Invitations fill drafts, never submit or overwrite
+  them. Challenge review is local and revision-bound; free repeated outcomes must
+  stay free even when the provider is unavailable. Reader recall and evidence
+  remain public-only and current-ancestry scoped; prior evidence remaps in saves.
 - The default player is a reader-director OUTSIDE the cast. Follow and Steer
   are complete first-class experiences; Inhabit is optional, explicit character
   control. No avatar, main character, or Session Zero is required to begin.

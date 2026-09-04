@@ -79,6 +79,17 @@ reunion,” “Show the sister's perspective,” or “Let the awkwardness breat
 Choose **Steer the story**, then **Send direction**. Ctrl/Command + Enter sends
 the same action while the direction box has focus.
 
+The default is **This moment only**: your direction shapes this response, not
+every later scene. Choose **Keep this focus** only for an ongoing instruction.
+It becomes visible above the direction box after a successful response. **Clear
+ongoing focus** releases it locally, without an AI request. A one-moment detour
+does not erase an existing focus. Failed requests keep both your text and scope.
+
+**Possible directions (optional)** offers a few intentions from reader-visible
+context. Choosing one fills the box for review; edit or send it when ready.
+Nothing has happened merely because you selected it. Existing drafts are not
+overwritten, and Continue never requires an invitation.
+
 Choose **Ask outside the story** for clarification. The answer is displayed as
 out-of-story discussion, not as an event that happened. It must not change world
 state or advance fictional time. Asking still uses the text provider and can cost
@@ -121,11 +132,12 @@ Do not assume a newer, larger or more expensive storyteller is a better referee.
 No models have yet been certified by an InkMorrow live comparison; recommendations
 must name the tested model version, settings and date rather than a timeless winner.
 
-The accepted next iteration offers Story-shaping and Living-world styles. The
-first honours desired developments within continuity; the second allows credible
-resistance based on motives, knowledge, relationships and circumstances. Neither
-requires you to become a character. The engine foundations are present in this
-batch; the reader controls are supplied in the following interface batch.
+Choose **Story-shaping** or **Living-world** when beginning, or change **Play style**
+in Story preferences. The first honours desired developments within continuity;
+the second allows credible resistance based on motives, knowledge, relationships
+and circumstances. Neither requires you to become a character. The selected style
+is visible in the reader. Changes apply to future play on this path; they do not
+reverse recorded outcomes. Rewind restores the style recorded at that moment.
 
 A royal guard should not grant entry simply because a request is repeated, but
 should reconsider genuinely sufficient authority. Structured challenge decisions
@@ -133,6 +145,13 @@ are application-owned, and repeating an unchanged decision makes no new provider
 request. This protection applies to explicit structured challenges, not a promise
 that every free-form character conversation is mechanically reliable. Contradictory
 generated sentences remain possible even when state cannot be changed that way.
+
+For stories with structured challenges, **Cast & story → Approaches to this
+situation** offers explicit approaches and shows recorded outcomes. The game first
+checks locally whether an existing ruling still applies. Unchanged rulings need no
+paid review or provider purchase; new attempts use the ordinary paid boundary.
+**Read the decision moment** opens its actual record. Controls concerning a person
+you inhabit do not supply that person's decisions for you.
 
 ## Optional character control
 
@@ -176,6 +195,17 @@ accumulated story on every call.
 
 ## Correct a mistake
 
+**Recall older facts** searches this path's public memory, including records no
+longer in the current working set. Enter distinctive words and choose **Search
+memory**. Results are bounded to 32; refine the words rather than loading the
+entire story. Secret and retired records and other paths are excluded. You can
+read a record's evidence, correct it, or explicitly retire it here without AI.
+
+**Read recorded evidence** opens the actual source moment. **What changed** links
+to the earlier record when a fact changed; an initial fact has no invented scene
+citation. Local correction records explain that earlier prose was not rewritten,
+and never display private correction reasons.
+
 Choose **Correct a story fact**. Select an existing reader-visible fact or add a
 missing one, state what is true, and give a reason. Save the correction.
 
@@ -200,9 +230,9 @@ you still want to matter.
 is separate from their private motive. Generated scenes can also introduce new
 named people, up to the 24-person cast bound. Neither route hands you a character.
 
-**Story preferences** changes pacing, consequence tone, content boundaries and
-narration voice on this path. The attention field shows a previous lasting Steer;
-clear it to release that focus. Preferences are restored with a rewind. Pacing
+**Story preferences** changes play style, pacing, consequence tone, content boundaries
+and narration voice on this path. The attention field shows a deliberately retained
+focus; clear it to release that focus. Preferences are restored with a rewind. Pacing
 does not change model randomness, and dramatic consequences do not imply constant
 danger. Voice guides style without overriding character control or boundaries.
 

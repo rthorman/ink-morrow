@@ -22,6 +22,7 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       { role: 'system', content: [
         'You narrate InkMorrow playable fiction. The user is normally a reader-director OUTSIDE the cast, never an assumed protagonist or avatar.',
         'Follow develops the cast naturally. Steer is an editorial request, not an in-world action. Act/Say expresses only the explicitly inhabited character\'s intent. Ask is out-of-story clarification: do not advance time or state.',
+        'A moment-scoped direction applies to this response only and takes priority over ongoing focus here. An ongoing direction replaces focus after a successful response. Do not treat earlier one-moment directions in history as permanent instructions.',
         'When a character is inhabited, never invent their decisions, speech, thoughts, commitments or completed actions. Continue may develop the surroundings and other people, then stop before a decision belonging to that character. Resolve only actions explicitly supplied by the user.',
         'Respect content boundaries. Maintain independent motives and established facts. Quiet expression needs a fitting response, not arbitrary permanent consequences. Plans and possibilities are not completed events. Do not force quests, danger, cliffhangers or a question at the end of every passage.',
         'In story-shaping, honour the requested development within continuity and character ownership. In living-world, honour the intent but not a demanded outcome: motives, knowledge, relationships and circumstances determine credible cooperation or refusal. Repetition alone is not new leverage; genuinely sufficient evidence may change a decision. Neither style requires conflict or an avatar.',
@@ -57,10 +58,6 @@ function createFictionService({ store, chatCompletion, providers = null }) {
     const { request, context } = started;
     let usage = { costUsd: null, billedAttempts: 0, model: model ?? null };
     try {
-      if (providerId && providers) {
-        const selected = providers.exposure('scribe');
-        if (selected.provider?.id !== providerId || selected.model_id !== model) fail('The storyteller configuration changed. Refresh and review the new provider before continuing.', 'STORY_PROVIDER_CHANGED', 409);
-      }
       const intent = validateIntent(input, context.state);
       const lookup = (id, includeRemoved = false) => store.memory.get(gameId, context.branch.head_beat_id, id, includeRemoved);
       const decision = adjudicate(context.state, intent, lookup, fail);
@@ -68,6 +65,10 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       if (decision && previous?.basis === decision.basis) {
         const beatId = store.completeRequest(request, { kind: 'clarification', prose: `The circumstances have not changed. ${previous.explanation}`, summary: 'The previous adjudication still applies. No AI request was made.', input: intent, state: context.state }, { costUsd: 0, billedAttempts: 0 });
         return { story: store.view(gameId), beat_id: beatId, cost_usd: 0, billed_attempts: 0, reused: false, repeated_adjudication: true };
+      }
+      if (providerId && providers) {
+        const selected = providers.exposure('scribe');
+        if (selected.provider?.id !== providerId || selected.model_id !== model) fail('The storyteller configuration changed. Refresh and review the new provider before continuing.', 'STORY_PROVIDER_CHANGED', 409);
       }
       const plan = chooseScene(context.game, context.state, intent);
       const messages = buildMessages(context, intent, plan, decision);
@@ -95,7 +96,7 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       const beatId = randomUUID();
       const { state, changes } = applyEffects(context.state, parsed.effects, { prose, input: intent, beatId, lookup });
       if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
-      if (intent.kind === 'steer') state.focus = intent.text.slice(0, 1500);
+      if (intent.kind === 'steer' && intent.direction_scope === 'ongoing') state.focus = intent.text.slice(0, 1500);
       recordScene(state, plan, beatId);
       const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose, summary, input: intent, state, changes }, usage);
       return { story: store.view(gameId), beat_id: committedId, cost_usd: usage.costUsd, billed_attempts: usage.billedAttempts, model: usage.model, reused: false };
@@ -110,7 +111,17 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       throw error;
     }
   }
-  return { reply, buildMessages };
+  function reviewChallenge(gameId, expectedRevision, input) {
+    const context = store.current(gameId);
+    if (context.game.revision !== expectedRevision) fail('The story changed. Refresh before reviewing this approach.', 'STORY_CHANGED', 409);
+    const intent = validateIntent(input, context.state);
+    const decision = adjudicate(context.state, intent, (id) => store.memory.get(gameId, context.branch.head_beat_id, id), fail);
+    if (!decision) fail('Choose a structured challenge.');
+    const previous = context.state.adjudications.find((entry) => entry.challenge_id === decision.challenge_id);
+    const repeated = previous?.basis === decision.basis;
+    return { requires_generation: !repeated, explanation: repeated ? previous.explanation : null, revision: expectedRevision };
+  }
+  return { reply, buildMessages, reviewChallenge };
 }
 
 module.exports = { createFictionService, contextFacts };

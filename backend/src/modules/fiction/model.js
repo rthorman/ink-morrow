@@ -91,16 +91,19 @@ function publicState(state) {
 }
 
 function validateIntent(input, state) {
-  keys(input, ['kind', 'text', 'challenge_id', 'approach_id'], 'Story direction');
+  keys(input, ['kind', 'text', 'challenge_id', 'approach_id', 'direction_scope'], 'Story direction');
   const kind = choice(input.kind, ['follow', 'steer', 'act', 'say', 'ask'], 'follow', 'Participation');
   const value = text(input.text, 'Direction', LIMITS.input, { optional: kind === 'follow' });
   if (['act', 'say'].includes(kind) && !state.control.character_id) fail('Take control of a character before acting or speaking as them.');
   if (kind === 'follow' && value) fail('Use Steer to give a narrative direction.');
+  if (input.direction_scope !== undefined && kind !== 'steer') fail('Only Steer can set an ongoing focus.');
+  const scope = kind === 'steer' ? choice(input.direction_scope, ['moment', 'ongoing'], 'moment', 'Direction scope') : null;
   if (input.challenge_id !== undefined || input.approach_id !== undefined) {
     if (kind !== 'steer' && kind !== 'act') fail('Use a direction or explicit character action for a challenge.');
     text(input.challenge_id, 'Challenge', 80); text(input.approach_id, 'Approach', 80);
   }
   return { kind, text: value, character_id: ['act', 'say'].includes(kind) ? state.control.character_id : null,
+    ...(scope ? { direction_scope: scope } : {}),
     ...(input.challenge_id ? { challenge_id: input.challenge_id, approach_id: input.approach_id } : {}) };
 }
 
@@ -132,6 +135,9 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
       let fact = state.facts.find((entry) => entry.id === effect.id);
       if (!fact) { const recalled = lookup(effect.id); if (recalled) { fact = structuredClone(recalled); state.facts.push(fact); } }
       if (!fact) fail('The change references an unknown fact.', 'INVALID_STORY_REPLY', 502);
+      const priorEvidence = fact.evidence_beat_id === beatId
+        ? changes.find((change) => change.fact?.id === fact.id)?.prior_evidence_beat_id || null
+        : fact.evidence_beat_id;
       if (effect.op === 'resolve') fact.status = 'resolved';
       else if (effect.op === 'reveal') {
         if (!Array.isArray(effect.known_by) || effect.known_by.some((id) => !state.cast.some((entry) => entry.id === id))) fail('A revelation references unknown characters.');
@@ -142,7 +148,7 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
         fact.value += effect.amount;
       } else fail('Unsupported story effect.', 'INVALID_STORY_REPLY', 502);
       fact.evidence_beat_id = beatId;
-      changes.push({ op: effect.op, fact: structuredClone(fact) });
+      changes.push({ op: effect.op, fact: structuredClone(fact), prior_evidence_beat_id: priorEvidence });
     }
   }
   compactFacts(state, LIMITS.facts);

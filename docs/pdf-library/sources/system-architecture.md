@@ -1,5 +1,20 @@
 # System Architecture & Design Rationale
 
+## 5.0 clear influence and evidence
+
+Reader directions carry moment or ongoing scope. Only a successful ongoing Steer
+replaces branch-local focus; one-moment detours and failures do not. Locally derived
+invitations use public state and fill drafts only. Explicit challenge review is a
+read-only, revision-checked endpoint: it reveals a prior ruling only when unchanged.
+Reply commits recheck that same revision, so a free review cannot silently become
+a newly billable attempt after a concurrent change. A free repeated ruling remains
+available when a former provider configuration is unavailable.
+
+Public memory search filters before its result bound, and source reads verify
+active ancestry. Changes can carry an earlier evidence identity; save validation
+requires it on parent ancestry and import remaps it. The shelf uses bounded
+80-story pages instead of silently hiding everything after 200 stories.
+
 ## 5.0 memory and adjudication foundations
 
 The bounded snapshot cache is not the only copy of story facts. Immutable initial

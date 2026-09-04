@@ -1,5 +1,18 @@
 # Operations & Recovery Handbook
 
+## 5.0 direction and memory support
+
+If a story keeps returning to a topic, inspect its visible ongoing focus. A new
+Steer defaults to this moment; Keep this focus must be selected explicitly.
+Clear ongoing focus is local and does not alter previous prose. Style changes
+affect future play and do not revoke an already granted structured outcome.
+
+Recall older facts searches public history without a model. Use distinctive words;
+results are bounded to 32. A missing fact may be retired, secret, or on another
+path, not lost through compaction. Source links distinguish local corrections from
+narrated evidence. Never retire a fact merely to keep the game running. Shelf
+pagination exposes older stories through More stories and Previous stories.
+
 ## 5.0 development-branch operator note
 
 The replacement root interface now opens Your stories, Start a story, the reader,

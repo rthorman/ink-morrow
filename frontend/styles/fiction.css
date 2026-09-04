@@ -75,3 +75,6 @@ body { margin: 0; background: #17151c; color: #eee5db; font-family: Inter, sans-
 .fiction-illustration { margin: 0 0 1.6rem; }
 .fiction-illustration img { display: block; width: 100%; height: auto; border-radius: .5rem; }
 .fiction-illustration figcaption { font: .9rem/1.5 var(--font-ui); margin-top: .6rem; }
+#fictionInvitations { display: grid; gap: 10px; }
+#fictionInvitations .btn { text-align: left; }
+#fictionFocus { border-left: 3px solid #d2b58c; padding-left: 16px; margin-top: 20px; overflow-wrap: anywhere; }

@@ -2,6 +2,7 @@ import { el, button, field, option } from './dom.js';
 import { createStoryDialogs } from './story-dialogs.js';
 import { createMediaDialogs } from './media.js';
 import { createSaveDialogs } from './saves.js';
+import { createInfluence } from './influence.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen'];
 
@@ -9,6 +10,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const $ = (id) => document.getElementById(id);
   let unlocked = false; let epoch = 0; let current = null; let busy = false; let poll = null; let earlierBusy = false;
   const drafts = new Map();
+  const scopes = new Map(); let shelfOffset = 0; let nextShelfOffset = null;
   const castRows = [];
   let scenario = null;
   const alive = (token) => unlocked && epoch === token;
@@ -30,9 +32,13 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     $('fictionActionStatus').textContent = busy ? 'Your action is being handled.' : current?.pending ? 'A response is in progress. You can leave and return.' : '';
     $('fictionComposer').setAttribute('aria-busy', String(Boolean(blocked && current)));
     for (const node of $('fictionCast').querySelectorAll('button')) node.disabled = blocked;
+    influence.controls(blocked);
   }
 
-  function renderShelf(stories) {
+  function renderShelf(stories, nextOffset = null) {
+    nextShelfOffset = nextOffset;
+    $('fictionShelfPrevious').hidden = shelfOffset === 0; $('fictionShelfNext').hidden = nextOffset === null;
+    $('fictionShelfPrevious').disabled = false; $('fictionShelfNext').disabled = false;
     const root = $('fictionShelf'); root.replaceChildren();
     if (!stories.length) root.append(el('p', 'Your next story starts here. Follow and steer without playing a character.', 'fiction-empty'));
     for (const story of stories) {
@@ -66,9 +72,14 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       } else article.append(el('p', beat.kind === 'clarification' ? `Outside the story: ${beat.prose}` : beat.summary, 'fiction-aside'));
       if (beat.changes?.length) {
         const details = el('details'); details.append(el('summary', 'What changed'));
-        for (const change of beat.changes) details.append(el('p', change.op === 'introduce' ? `Introduced: ${change.character.name}` : `${change.op === 'resolve' ? 'Resolved: ' : change.op === 'remove' ? 'Removed: ' : ''}${change.fact.text}`));
+        for (const change of beat.changes) {
+          details.append(el('p', change.op === 'introduce' ? `Introduced: ${change.character.name}` : `${change.op === 'resolve' ? 'Resolved: ' : change.op === 'remove' ? 'Removed: ' : ''}${change.fact.text}`));
+          if (change.prior_evidence_beat_id) details.append(influence.sourceButton(change.prior_evidence_beat_id, 'Read the earlier record this changed'));
+        }
         article.append(details);
       }
+      const decision = (current.state.adjudications || []).find((entry) => entry.beat_id === beat.id);
+      if (decision) article.append(el('p', `Recorded ruling: ${decision.explanation}`, 'fiction-aside'));
       root.append(article);
     }
   }
@@ -100,10 +111,12 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     for (const fact of story.state.facts) {
       const card = el('div', '', 'fiction-detail-card');
       card.append(el('p', `${fact.status === 'resolved' ? 'Resolved · ' : ''}${fact.text}${fact.value !== null ? ` (${fact.value})` : ''}`));
+      if (fact.evidence_beat_id) card.append(influence.sourceButton(fact.evidence_beat_id));
       $('fictionFacts').append(card);
     }
     if (!story.state.facts.length) $('fictionFacts').append(el('p', 'Important discoveries and commitments will appear here.'));
     renderProse(story.beats);
+    influence.render(story);
     $('fictionEarlier').hidden = !story.has_earlier;
     const ended = story.state.episode.status === 'ended';
     $('fictionComposer').hidden = ended; $('fictionEnded').hidden = !ended; $('fictionEndEpisode').hidden = ended;
@@ -143,15 +156,16 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const match = /^#\/story\/([A-Za-z0-9_-]+)$/.exec(hash);
       if (match) {
         showScreen('readerScreen'); $('fictionProse').replaceChildren(); $('fictionStoryTitle').textContent = 'Opening your story…';
-        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend']) $(id).replaceChildren();
+        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations']) $(id).replaceChildren();
         $('fictionDetails').hidden = true; $('fictionDetailsToggle').setAttribute('aria-expanded', 'false');
         controls();
         const data = await api(`/fiction/${match[1]}`);
         if (!alive(token)) return;
         renderStory(data.story); $('fictionDirection').value = drafts.get(data.story.id) || '';
+        $('fictionDirectionScope').value = scopes.get(data.story.id) || 'moment'; controls();
       } else {
         showScreen('shelfScreen'); $('fictionShelf').textContent = 'Opening your stories…';
-        const data = await api('/fiction'); if (alive(token)) renderShelf(data.stories);
+        const data = await api(shelfOffset ? `/fiction?offset=${shelfOffset}` : '/fiction'); if (alive(token)) renderShelf(data.stories, data.next_offset ?? null);
       }
     } catch (error) { if (alive(token)) { status(error.message, true); controls(); } }
   }
@@ -167,14 +181,21 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     finally { if (alive(token)) { busy = false; controls(); } }
   }
 
-  async function send(kind) {
+  async function send(kind, approach = null) {
     if (busy || !current || current.pending || current.state.episode.status !== 'active') return;
     const story = current; const token = epoch;
-    const direction = kind === 'follow' ? '' : $('fictionDirection').value.trim();
+    const direction = approach?.text || (kind === 'follow' ? '' : $('fictionDirection').value.trim());
     if (kind !== 'follow' && !direction) { $('fictionDirection').focus(); status('Add a direction or use Continue.'); return; }
     busy = true; controls(); status();
     try {
-      const approved = await dialogs.confirmPaid({
+      const input = { kind, text: direction, ...(kind === 'steer' ? { direction_scope: approach ? 'moment' : $('fictionDirectionScope').value } : {}), ...(approach ? { challenge_id: approach.challenge_id, approach_id: approach.approach_id } : {}) };
+      let free = false;
+      if (approach) {
+        const data = await api(`/fiction/${story.id}/challenge-review`, 'POST', { expected_revision: story.revision, input });
+        if (!alive(token)) return;
+        free = data.review.requires_generation === false;
+      }
+      const approved = free || await dialogs.confirmPaid({
         title: 'Let the story unfold?',
         body: 'This sends the premise, selected cast, boundaries, relevant facts (including hidden world truth), recent story text and your direction to your selected text provider. One completion is requested; cost depends on your provider and model. Invalid replies can still incur a charge. No automatic paid follow-up is started.',
         review: { action: 'Continue this story', object: story.title, model: story.generation?.provider ? `Storyteller (Scribe) · ${story.generation.provider.display_name} · ${story.generation.model_id}` : 'Your selected storyteller', quantity: 'One bounded narrative response', sends: 'Recent story, relevant facts (including hidden world truth), cast, boundaries and your direction', estimate: 0.02, note: 'A rough text-call estimate, not a spending cap. No automatic paid follow-up.' },
@@ -182,12 +203,12 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       });
       if (!approved || !alive(token)) return;
       const data = await api(`/fiction/${story.id}/replies`, 'POST', {
-        expected_revision: story.revision, idempotency_key: globalThis.crypto.randomUUID(), input: { kind, text: direction },
+        expected_revision: story.revision, idempotency_key: globalThis.crypto.randomUUID(), input,
         ...(story.generation?.provider ? { provider_id: story.generation.provider.id, model: story.generation.model_id } : {}),
       });
       if (!alive(token)) return;
-      if (kind !== 'follow' && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(story.id); }
-      renderStory(data.story); status('Story saved.');
+      if (!approach && kind !== 'follow' && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(story.id); $('fictionDirectionScope').value = 'moment'; scopes.delete(story.id); }
+      renderStory(data.story); status(data.repeated_adjudication ? 'The recorded ruling still applies. No AI request or charge.' : 'Story saved.');
       $('fictionProse').lastElementChild?.scrollIntoView?.({ block: 'start', behavior: 'instant' });
     } catch (error) {
       if (!alive(token)) return;
@@ -239,22 +260,26 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     ] });
   }
 
-  function correctionDialog() {
+  function correctionDialog(recalled = null) {
     if (busy || !current || current.pending) return;
     const select = field('Fact to correct', 'select');
-    select.control.append(option('', 'Add a missing fact'), ...current.state.facts.map((fact) => option(fact.id, fact.text.slice(0, 100))));
-    const value = field('What is true?', 'textarea', '', { maxLength: 1500, rows: 4 });
+    const facts = recalled?.id ? [recalled, ...current.state.facts.filter((fact) => fact.id !== recalled.id)] : current.state.facts;
+    select.control.append(option('', 'Add a missing fact'), ...facts.map((fact) => option(fact.id, fact.text.slice(0, 100))));
+    if (recalled?.id) select.control.value = recalled.id;
+    const value = field('What is true?', 'textarea', recalled?.text || '', { maxLength: 1500, rows: 4 });
     const reason = field('Why are you correcting it?', 'input', '', { maxLength: 1500 });
-    const facts = current.state.facts;
+    const error = el('p'); error.setAttribute('role', 'alert');
     select.control.addEventListener('change', () => { value.control.value = facts.find((fact) => fact.id === select.control.value)?.text || ''; });
     const id = current.id; const revision = current.revision;
-    dialogs.openDialog({ title: 'Correct a story fact', body: [el('p', 'Corrections affect future narration on this path. Earlier prose is preserved, and there is no in-story penalty.'), select.wrapper, value.wrapper, reason.wrapper], actions: [
+    dialogs.openDialog({ title: 'Correct a story fact', body: [el('p', 'Corrections affect future narration on this path. Earlier prose is preserved, and there is no in-story penalty.'), select.wrapper, value.wrapper, reason.wrapper, error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
-      { label: 'Save correction', className: 'btn-primary', onClick: async (close) => {
+      { label: 'Save correction', className: 'btn-primary', pendingLabel: 'Saving…', onClick: async (close) => {
         if (!value.control.value.trim() || !reason.control.value.trim()) { value.control.focus(); return; }
         const existing = facts.find((fact) => fact.id === select.control.value);
         const fact = { ...(existing || { id: globalThis.crypto.randomUUID(), kind: 'fact', visibility: 'public', known_by: [], status: 'active', actor_id: null, value: null }), text: value.control.value.trim() };
-        close(true); if (current?.id === id && current.revision === revision) await localAction('corrections', 'POST', { fact, reason: reason.control.value.trim() });
+        if (current?.id !== id || current.revision !== revision) { error.textContent = 'The story changed. Refresh before saving this correction.'; return; }
+        const result = await localAction('corrections', 'POST', { fact, reason: reason.control.value.trim() });
+        if (result?.ok) close(true); else error.textContent = result?.error || 'Not saved. Your correction is still here.';
       } },
     ] });
   }
@@ -303,7 +328,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const token = epoch; busy = true; $('startFiction').disabled = true; $('startFiction').textContent = 'Starting…'; status();
     try {
       const cast = castRows.map((row) => ({ id: row.id, name: row.name.control.value.trim(), description: row.description.control.value.trim(), motive: row.motive.control.value.trim() }));
-      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
+      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, play_style: $('fictionStartStyle').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
       const data = await api('/fiction', 'POST', payload);
       if (!alive(token)) return;
       $('fictionStartForm').reset(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null; $('scenarioNote').textContent = '';
@@ -328,18 +353,22 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   function clearPrivate() {
-    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; clearTimeout(poll); drafts.clear(); scenario = null; castRows.length = 0;
+    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
     dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
     $('fictionStartForm').reset(); $('fictionDirection').value = ''; status();
+    for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations']) $(id).replaceChildren();
+    $('fictionDirectionScope').value = 'moment';
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();
     $('scenarioNote').textContent = ''; $('scenarioChoices').replaceChildren();
   }
 
   const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
+  const influence = createInfluence({ api, dialogs, getCurrent: () => current, isBusy: () => busy, localAction, send, correct: correctionDialog,
+    setDirection: (value) => { $('fictionDirection').value = value; if (current) { drafts.set(current.id, value); scopes.set(current.id, 'moment'); } status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
   const saveDialogs = createSaveDialogs({ dialogs, getCurrent: () => current, getLive: () => { const token = epoch; return () => alive(token); }, runAction: runMediaAction });
   $('fictionDownloadSave').addEventListener('click', saveDialogs.save);
@@ -352,9 +381,13 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('addFictionCast').addEventListener('click', () => addCast());
   $('importFictionCast').addEventListener('click', templates);
   $('fictionRefresh').addEventListener('click', route);
+  $('fictionShelfPrevious').addEventListener('click', () => { shelfOffset = Math.max(0, shelfOffset - 80); $('fictionShelfPrevious').disabled = true; route(); });
+  $('fictionShelfNext').addEventListener('click', () => { if (nextShelfOffset !== null) { shelfOffset = nextShelfOffset; $('fictionShelfNext').disabled = true; route(); } });
   $('fictionContinue').addEventListener('click', () => send('follow'));
   $('fictionComposer').addEventListener('submit', (event) => { event.preventDefault(); send($('fictionInputKind').value); });
-  $('fictionDirection').addEventListener('input', () => { if (current) drafts.set(current.id, $('fictionDirection').value); });
+  $('fictionDirection').addEventListener('input', () => { if (current) drafts.set(current.id, $('fictionDirection').value); controls(); });
+  $('fictionDirectionScope').addEventListener('change', () => { if (current) scopes.set(current.id, $('fictionDirectionScope').value); });
+  $('fictionInputKind').addEventListener('change', controls);
   $('fictionDirection').addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); send($('fictionInputKind').value); } });
   $('fictionDetailsToggle').addEventListener('click', () => { const showing = $('fictionDetails').hidden; $('fictionDetails').hidden = !showing; $('fictionDetailsToggle').setAttribute('aria-expanded', String(showing)); });
   $('releaseFictionControl').addEventListener('click', () => localAction('control', 'PUT', { character_id: null }));

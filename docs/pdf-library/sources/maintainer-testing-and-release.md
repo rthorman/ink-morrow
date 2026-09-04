@@ -1,5 +1,20 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 clear-influence verification
+
+Cover the default one-moment direction, explicit ongoing focus, failure retention,
+local focus release, rewind and save-copy restoration. Invitations must not submit,
+overwrite drafts, reveal hidden facts or supply an inhabited person's decisions.
+Challenge preflight and repeat must make zero provider calls; stale preflight must
+not bypass paid consent. Test navigation during review as well as generation.
+
+Exercise recall beyond 128 working facts, public filtering before the 32-result
+limit, retirement and sibling-path rejection. Changed-fact citations must point to
+real earlier records, and portable copies must remap them. Exercise shelf paging
+beyond 200 stories, immediate loading feedback, keyboard operation and 320-pixel
+reflow. Automated accessibility scans supplement, not replace, human usability
+testing. All six books remain one regenerated artifact set per feature PR.
+
 ## 5.0 fair-resistance verification
 
 The deterministic royal-guard fixtures test twenty repeated/paraphrased requests

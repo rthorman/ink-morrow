@@ -146,19 +146,21 @@ function createFictionStore(db) {
     if (Boolean(input.fact) === Boolean(input.remove_id)) fail('Correct one fact or remove one fact.');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state); const beatId = randomUUID();
-      let fact;
+      let fact; let priorEvidence = null;
       if (input.remove_id) {
         fact = state.facts.find((entry) => entry.id === input.remove_id) || memory.get(id, context.branch.head_beat_id, input.remove_id);
         if (!fact) fail('Fact not found.', 'FACT_NOT_FOUND', 404);
+        priorEvidence = fact.evidence_beat_id;
         state.facts = state.facts.filter((entry) => entry.id !== input.remove_id);
       } else {
         fact = normalizeFact(input.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
+        priorEvidence = memory.get(id, context.branch.head_beat_id, fact.id)?.evidence_beat_id || null;
         const index = state.facts.findIndex((entry) => entry.id === fact.id);
         if (index < 0) state.facts.push(fact); else state.facts[index] = fact;
         compactFacts(state, LIMITS.facts);
       }
       // The reason may itself contain a secret. Keep it out of the reader view.
-      append(context, { id: beatId, kind: 'correction', summary: 'A story fact was corrected.', input: { reason }, state, changes: [{ op: input.remove_id ? 'remove' : 'correct', fact }] });
+      append(context, { id: beatId, kind: 'correction', summary: 'A story fact was corrected.', input: { reason }, state, changes: [{ op: input.remove_id ? 'remove' : 'correct', fact, prior_evidence_beat_id: priorEvidence }] });
     });
   }
   function episode(id, expected, input) {
@@ -279,9 +281,18 @@ function createFictionStore(db) {
   function reconcile() {
     return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
   }
-  const list = () => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 200').all();
+  const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset);
+  function recall(id, query) {
+    const context = current(id);
+    return memory.facts(id, context.branch.head_beat_id, { query: text(query, 'Memory search', 200, { optional: true }), publicOnly: true });
+  }
+  function evidence(id, beatId) {
+    const context = current(id);
+    if (!isAncestor(id, context.branch.head_beat_id, beatId)) fail('That evidence is not on this path.', 'BEAT_NOT_FOUND', 404);
+    return publicBeat(beat(id, beatId));
+  }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  return { create, list, recall, evidence, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };
