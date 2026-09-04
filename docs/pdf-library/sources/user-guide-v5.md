@@ -22,6 +22,68 @@ The same story, history, facts and paths continue whichever way you participate.
 The story text is the experience itself. It does not need a later conversion
 from a roleplay transcript into something that counts as the real story.
 
+## Optional consistency quality
+
+Standard play is the default: one storyteller call for each new passage or Ask.
+In **Cast & story → Story preferences**, Optional consistency quality offers
+four choices. The choice belongs to this path, restores on rewind, and travels
+with a playable save. It is independent of play style and fourth-wall permission.
+
+| Choice | When the first draft passes | Absolute call ceiling |
+|---|---|---|
+| Off — standard play | One storyteller call | 1 |
+| Standard-model review | Draft plus standard-model review | 4 |
+| Memory-support review | Draft plus memory-model review | 4 |
+| Both model roles | Draft plus both reviews | 6 |
+
+The standard reviewer focuses on motives, relationships, character ownership,
+credible cooperation or refusal, boundaries and fourth-wall permission. Memory
+support focuses on continuity, established truth, knowledge and commitments.
+Both roles receive bounded authoritative context and the candidate passage.
+Configure the storyteller and, when used, memory-support model separately in
+**Settings**. They may be different models or the same model in two roles.
+Using the same model twice is not independent verification.
+
+When a review identifies an evidenced conflict, the storyteller gets at most
+one repair attempt. Every selected reviewer then checks the replacement. A
+malformed first draft can use that same repair allowance; it does not earn an
+extra repair later. If the repair or review fails, nothing is added to the story.
+There is no automatic transport retry, paid follow-up or background analysis.
+
+Extra checks add latency and cost, and a rejected passage can still be charged.
+Before the first purchase for a configuration, the review names all roles,
+providers, models, maximum calls and data sent. It shows a rough estimate, not a
+price cap. A prior single-call approval does not authorise quality mode. The
+device remembers each approved configuration; changed model/provider settings or
+mode require review for the new configuration. Cancelling keeps your direction.
+
+Quality checks are a fallible second opinion, not a guarantee of better writing,
+perfect character behaviour or secret-safe prose. A reviewer can miss a problem
+or flag a harmless choice. Keep Off when speed and cost matter more; try a bounded
+quality choice for a difficult scene if you accept that tradeoff. No paid model
+benchmark or model ranking is claimed for this release.
+
+## Waiting, rejection and the real bill
+
+During a quality request, the action stays visibly busy. Progress identifies
+drafting, checking or repairing, the active role and its call number. These status
+reads are local server reads, not new model calls. Leaving the page does not
+cancel work already authorised; returning must never buy a replacement response.
+
+The story totals retain all known charges plus the count of attempts whose cost
+the provider did not report. **Recent model calls & costs** shows the latest
+twelve calls across the story's paths. A known draft charge is not lost merely
+because a later review has unknown cost. Interrupted and rejected work can cost
+money without adding a scene. Review details and rejected drafts are not part of
+the reader history. Playable saves carry aggregate spend, not request identities
+or authority to resume an interrupted purchase.
+
+If a role is unavailable, configure it in Settings and refresh the story before
+trying again. The application does not silently drop an enabled reviewer. An
+unchanged recorded challenge ruling remains free even with quality mode enabled
+and providers unavailable. New evidence can make a new narration appropriate;
+repeated pleading alone does not.
+
 ## People can care and still disagree
 
 InkMorrow distinguishes affection, trust, willingness to cooperate and expectations.
@@ -395,8 +457,9 @@ If another tab or action changed the story, refresh before continuing. A late
 reply cannot paint a different story you have opened. After a server restart,
 abandoned requests are marked interrupted rather than reported successful.
 Dispatched work whose response was lost remains an unknown-cost attempt, not a
-free one. Story purchases allow one transport attempt: even an uncertain network
-failure cannot silently trigger another request.
+free one. Each model call allows one transport attempt: even an uncertain network
+failure cannot silently trigger another request. Optional quality can buy its
+reviewed sequence of calls, but never retries an uncertain transport failure.
 
 Use Download a playable save for a complete game, not older manuscript export
 endpoints. Also keep operator-level cold backups of this isolated installation.
@@ -483,4 +546,9 @@ Illustrate a passage with an uploaded image or one explicit Illustrator request.
 Correct its description locally, export the selected reading path as EPUB, and
 download a private playable save. Import that save as a new story to verify that
 the alternate paths and image are present. Text/image provider actions are paid;
-upload, local changes, export and save/import are not.
+upload, local changes, export and save/import are not. To exercise optional quality,
+configure memory support too, select Both model roles in Story preferences, and
+review the six-call maximum before the next passage. A normal accepted draft uses
+three calls; the ceiling includes one repair and two replacement reviews. Compare
+the experience with Off or a single reviewer on an alternate path. This is a
+personal trial, not a controlled model evaluation or a promise of better results.

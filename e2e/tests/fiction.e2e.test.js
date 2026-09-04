@@ -38,6 +38,25 @@ test.describe('5.0 playable fiction', () => {
     expect(paid).toBe(0);
   });
 
+  test('optional quality uses a separate paid review, names both roles and preserves cancelled direction', async ({ page }) => {
+    await startFixture(page); let paid = 0;
+    await page.route('**/api/fiction/*/replies', async (route) => { paid++; await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'Fixture: no live provider request.', billed_attempts: 0 }) }); });
+    await page.evaluate(() => localStorage.setItem('im-paid-consent-v1', '1'));
+    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
+    await page.getByRole('dialog').getByLabel('Optional consistency quality', { exact: true }).selectOption('both');
+    await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden(); await expect(page.locator('#fictionQualityState')).toContainText('up to 6');
+    await page.locator('#fictionDirection').fill('Let the sisters take their time.'); await page.locator('#fictionSend').click();
+    await expect(page.getByRole('dialog')).toContainText('Memory support'); await expect(page.getByRole('dialog')).toContainText('Standard storyteller');
+    await expect(page.getByRole('dialog')).toContainText('Up to 6 model calls'); await expect(page.getByRole('dialog')).toContainText('hidden truth');
+    await page.getByRole('button', { name: 'Cancel', exact: true }).click(); expect(paid).toBe(0);
+    await expect(page.locator('#fictionDirection')).toHaveValue('Let the sisters take their time.');
+    await page.locator('#fictionSend').click(); await page.getByRole('button', { name: 'Continue with quality checks', exact: true }).click();
+    await expect(page.locator('#fictionStatus')).toContainText('Fixture: no live provider request'); expect(paid).toBe(1);
+    await page.reload(); await expect(page.locator('#fictionQualityState')).toContainText('Both model roles');
+  });
+
   test('resumes saved prose without administration or a provider request', async ({ page }) => {
     const story = await startFixture(page);
     await page.getByRole('link', { name: 'Your stories', exact: true }).click();

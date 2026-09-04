@@ -1,5 +1,26 @@
 # State Machine & Invariant Atlas
 
+## 5.0 optional quality transitions
+
+Off: dispatch draft → validate → commit or fail. Enabled: dispatch draft → validate
+→ selected review(s) → commit if approved. An evidenced rejection permits one
+repair → validate → all selected reviews → commit or fail. An invalid initial
+draft can consume the same sole repair before review. Invalid reviewer output,
+transport failure, stale state or changed provider configuration terminates work;
+none grants another call. One reviewer caps at four total calls, both at six.
+
+Each call moves pending → completed or failed; restart moves pending → interrupted.
+A late completion may replace interrupted billing uncertainty but cannot reactivate
+the parent request or append a scene. Dispatched unknown costs are not zero. Known
+charges remain counted when another call lacks a price. A parent with call rows
+is excluded from the parent-only spend sum. Exactly one accepted beat and state
+snapshot commit, regardless of how many draft/review calls were bought.
+
+An unchanged challenge ruling takes its local zero-call path before provider or
+quality availability checks. Successful idempotency replay also buys nothing.
+Quality consent is scoped to the server plan; old one-call consent and saved
+story data cannot authorise an expanded purchase.
+
 ## 5.0 people and episode transitions
 
 Relationship development: quoted passage/input evidence → existing relationship

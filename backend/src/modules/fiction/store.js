@@ -7,6 +7,8 @@ const { createMemory, compactFacts } = require('./memory');
 const { STYLES } = require('./resistance');
 const { FOURTH_WALL_MODES } = require('./fourth-wall');
 const { makeEpisode, returnRecap } = require('./episodes');
+const { QUALITY_MODES, callLimit } = require('./quality');
+const { createCallLedger } = require('./call-ledger');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
@@ -19,7 +21,7 @@ function createFictionStore(db) {
   const branch = (gameId, id) => db.prepare('SELECT * FROM fiction_branches WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Path not found.', 'PATH_NOT_FOUND', 404);
   const beat = (gameId, id) => db.prepare('SELECT * FROM fiction_beats WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Story moment not found.', 'BEAT_NOT_FOUND', 404);
   const stateAt = (g, headId) => {
-    const state = { play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null,
+    const state = { play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null, quality_mode: 'off',
       ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) };
     state.episode = { question: '', goal_ids: [], phase: 'opening', payoff_beat_id: null, ...state.episode };
     return state;
@@ -64,9 +66,17 @@ function createFictionStore(db) {
       branches: db.prepare('SELECT id, name, head_beat_id, fork_beat_id, parent_branch_id FROM fiction_branches WHERE game_id = ? ORDER BY created_at, rowid').all(id),
       beats: rows.map(publicBeat), has_earlier: Boolean(rows[0]?.parent_id),
       pending: Boolean(db.prepare("SELECT id FROM fiction_requests WHERE game_id = ? AND status = 'pending'").get(id)),
-      spend: db.prepare(`SELECT coalesce(sum(cost_usd), 0) AS known_usd,
+      spend: db.prepare(`WITH charges AS (
+        SELECT cost_usd, billed_attempts FROM fiction_requests r WHERE r.game_id = ? AND NOT EXISTS (SELECT 1 FROM fiction_calls c WHERE c.request_id = r.id)
+        UNION ALL SELECT c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id WHERE r.game_id = ?
+      ) SELECT coalesce(sum(cost_usd), 0) AS known_usd,
         coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts
-        FROM fiction_requests WHERE game_id = ?`).get(id),
+        FROM charges`).get(id, id),
+      recent_calls: db.prepare(`SELECT c.role, c.purpose, c.model, c.status, c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
+        WHERE r.game_id = ? ORDER BY c.rowid DESC LIMIT 12`).all(id),
+      pending_stage: db.prepare(`SELECT c.role, c.purpose, c.call_index FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
+        WHERE r.game_id = ? AND r.status = 'pending' ORDER BY c.rowid DESC LIMIT 1`).get(id) || null,
+      call_limit: callLimit(state.quality_mode || 'off'),
       created_at: g.created_at, updated_at: g.updated_at,
     };
   }
@@ -100,7 +110,7 @@ function createFictionStore(db) {
     return id;
   }
   function create(input) {
-    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall', 'episode_question'], 'New story');
+    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall', 'episode_question', 'quality_mode'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
     const premise = text(input.premise, 'Premise', 4000);
@@ -186,13 +196,14 @@ function createFictionStore(db) {
     });
   }
   function preferences(id, expected, input) {
-    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');
+    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall', 'quality_mode'], 'Story preferences');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
       state.pacing = choice(input.pacing, ['reflective', 'balanced', 'brisk'], state.pacing, 'Pacing');
       state.consequences = choice(input.consequences, ['gentle', 'dramatic'], state.consequences, 'Consequences');
       state.play_style = choice(input.play_style, STYLES, state.play_style || 'story-shaping', 'Play style');
       state.fourth_wall = choice(input.fourth_wall, FOURTH_WALL_MODES, state.fourth_wall || 'never', 'Fourth-wall setting');
+      state.quality_mode = choice(input.quality_mode, QUALITY_MODES, state.quality_mode || 'off', 'Consistency quality mode');
       for (const [key, max] of [['boundaries', 2000], ['voice', 1500], ['focus', 1500]]) if (input[key] !== undefined) state[key] = text(input[key], key, max, { optional: true });
       append(context, { kind: 'correction', summary: 'Story preferences were updated.', state });
     });
@@ -223,12 +234,17 @@ function createFictionStore(db) {
       return { request: db.prepare('SELECT * FROM fiction_requests WHERE id = ?').get(requestId), context, reused: false };
     });
   }
-  function completeRequest(request, result, usage = {}) {
-    return transaction(() => {
+  function assertRequestCurrent(request) {
       const pending = db.prepare("SELECT * FROM fiction_requests WHERE id = ? AND status = 'pending'").get(request.id);
       if (!pending) fail('This response is no longer active.', 'STORY_REQUEST_STALE', 409);
       const context = current(request.game_id); assertRevision(context.game, request.expected_revision);
       if (context.branch.id !== request.branch_id) fail('The active path changed.', 'STORY_CHANGED', 409);
+      return context;
+  }
+  const calls = createCallLedger({ db, transaction, assertRequestCurrent, fail });
+  function completeRequest(request, result, usage = {}) {
+    return transaction(() => {
+      const context = assertRequestCurrent(request);
       const beatId = append(context, typeof result === 'function' ? result(context) : result);
       db.prepare("UPDATE fiction_requests SET status = 'succeeded', beat_id = ?, model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?")
         .run(beatId, usage.model ?? null, usage.costUsd ?? null, usage.billedAttempts ?? 0, request.id);
@@ -287,7 +303,10 @@ function createFictionStore(db) {
       .run(code, usage.model ?? null, usage.costUsd ?? null, usage.billedAttempts ?? 0, requestId);
   }
   function reconcile() {
-    return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
+    return transaction(() => {
+      db.prepare("UPDATE fiction_calls SET status = 'interrupted', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run();
+      return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
+    });
   }
   const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset);
   function recall(id, query) {
@@ -308,8 +327,9 @@ function createFictionStore(db) {
     return { ...returnRecap(context.state, recent, memory.facts(id, head, { publicOnly: true, kind: 'commitment', status: 'active', limit: 6 })),
       relationships: memory.facts(id, head, { publicOnly: true, kind: 'relationship', status: 'active', limit: 12 }) };
   }
-  const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, recall, evidence, recap, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model,
+    ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
+  return { create, list, recall, evidence, recap, view, current, stateAt, memory, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };

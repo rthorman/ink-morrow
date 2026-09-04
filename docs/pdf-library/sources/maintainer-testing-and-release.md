@@ -1,5 +1,28 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 optional quality verification
+
+Fixture tests cover Off/Standard/Memory/Both, first-pass acceptance, the sole
+structural or consistency repair, replacement re-review and terminal rejection.
+Assert maximum totals of one/four/six, role-specific model routing and disabled
+transport retries. Reject malformed or unevidenced review JSON; approval must not
+bypass deterministic ownership, fourth-wall, state-effect or adjudication checks.
+No canon mutation may happen between draft and final acceptance.
+
+Test missing/stale plan identity, unavailable memory before the first purchase,
+provider changes after an already billed draft, mixed known/unknown costs,
+restart and late results, zero-call unchanged rulings and free idempotency replay.
+Rewind/save tests preserve quality choices and aggregate spend without carrying
+request authority. UI tests require fresh scoped review despite old global consent,
+cancelled-direction retention, free progress reads and lock/navigation fencing.
+Exercise the real preference API and both desktop/mobile browser journeys.
+
+These automated protocol fixtures make no paid provider requests and establish no
+model-quality ranking. Live comparisons need separate authorisation and versioned
+results: model/provider/date, repeated-persuasion and justified-cooperation cases,
+knowledge/ownership/continuity errors, review false positives, latency and actual
+known/unknown cost. Never claim the extra calls guarantee better play.
+
 ## 5.0 people and episode verification
 
 Exercise both authored openings from development to payoff and aftermath, with
@@ -28,14 +51,14 @@ preference saves and restored settings. Cover optional consecutive Freely
 addresses, the five intervening narrated scenes required by Rarely, and no
 cooldown advancement on failure or clarification. Reject unknown/inhabited
 speakers and effects evidenced only by an aside. Verify known charges survive
-rejection and no automatic extra request occurs.
+rejection and, with quality Off, no automatic extra request occurs.
 
 Reload, fork and save-copy must preserve branch-local settings and counters;
 reject future scene indices in imported saves. Addresses remain ordinary saved
 passage text for publication. Mocked protocol tests do not demonstrate semantic
-model compliance with Never or prove resistance quality. An optional higher-cost
-consistency mode is separately approved for assessment before final release;
-it is not implemented merely by this fourth-wall preference.
+model compliance with Never or prove resistance quality. The optional consistency
+pipeline has its own verification contract above; fourth-wall permission alone
+does not enable it or authorise another model call.
 
 ## 5.0 clear-influence verification
 

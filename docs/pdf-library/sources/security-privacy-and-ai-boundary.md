@@ -1,5 +1,28 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 optional reviewer exposure and authority
+
+Quality can send bounded story context, hidden truths and motives, direction,
+candidate prose and proposed effects to the standard model, memory-support model,
+or both. They can be different provider profiles. The review names every selected
+role/provider/model and its call ceiling before purchase. A provider credential
+remains transport-only; it is never story context or reviewer content.
+
+Quality is off by default. A per-configuration device consent cannot be inferred
+from the earlier one-call approval. The server checks the reviewed plan identity,
+all role availability and current story revision at every paid boundary. Browser
+consent is a user-experience record, not an authentication or CSRF substitute.
+Import never brings consent or pending request authority from another device.
+
+Reviewers are untrusted advisers: direct quotations support bounded issues but
+do not prove semantic accuracy. Story text and earlier dialogue are data, not
+permission to override the review contract. The original context remains binding
+during repair. Application validations still govern ownership, structured challenge
+outcomes and effect evidence. Unstructured prose can still be wrong or disclose
+a secret. Do not advertise perfect resistance or treat repeated model agreement
+as independent verification. Only call metadata and aggregate spend persist;
+rejected drafts and reviewer reasons do not become reader-visible history.
+
 ## 5.0 relationships, episodes and return recaps
 
 The public recap is behind the existing authentication and origin boundary. It
@@ -87,8 +110,9 @@ hidden truth is disclosed as part of the paid narrator's provider exposure.
 The client submits the provider/model shown in review. A changed storyteller role
 rejects the request before purchase; replaying a completed key remains free even
 after configuration changes. Paid consent follows the existing remembered-device
-policy: a review is not necessarily shown on every later click. One request allows
-one billable attempt, and failures retain known charges. Estimates are not caps.
+policy: a review is not necessarily shown on every later click. Off permits one
+billable attempt; enabled quality has its own reviewed four- or six-call ceiling.
+Failures retain known charges and unknown attempts. Estimates are not caps.
 
 <div class="frontmatter">
 
