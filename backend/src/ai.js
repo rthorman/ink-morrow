@@ -347,17 +347,17 @@ async function computeCostUsd(cfg, model, usage, onCatalogue = null) {
  */
 async function chatCompletion(
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts } = {}
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts } = {}
 ) {
   return chatCompletionWithConfig(aiConfig(), messages, {
-    temperature, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts,
+    temperature, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts,
   });
 }
 
 async function chatCompletionWithConfig(
   cfg,
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts } = {},
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts } = {},
   onCatalogue = null
 ) {
   if (!cfg.apiKey) {
@@ -412,7 +412,8 @@ async function chatCompletionWithConfig(
     return error;
   };
 
-  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
+  const attemptLimit = Number.isInteger(maxAttempts) && maxAttempts > 0 ? Math.min(maxAttempts, RETRY_ATTEMPTS) : RETRY_ATTEMPTS;
+  for (let attempt = 0; attempt < attemptLimit; attempt++) {
     if (attempt > 0) {
       await sleep(cfg.retryBaseDelay * attempt);
     }
@@ -507,7 +508,7 @@ async function chatCompletionWithConfig(
       // Some consumers advertise an exact paid retry ceiling. They may still
       // retry transport/429 failures before any completion is returned, but a
       // successfully billed empty/rejected output must respect that ceiling.
-      if (!retryable || billedAttempts >= billableAttemptLimit || attempt === RETRY_ATTEMPTS - 1) {
+      if (!retryable || billedAttempts >= billableAttemptLimit || attempt === attemptLimit - 1) {
         break;
       }
     }

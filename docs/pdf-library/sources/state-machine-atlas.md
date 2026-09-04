@@ -403,3 +403,14 @@ success -> render clears only the submitted draft; failure -> free reconciliatio
 preserves input. A route change invalidates late rendering but not server work.
 Lock invalidates every outstanding UI generation and clears private state. Pending
 server work is polled read-only; the browser never purchases a retry on a timer.
+
+Scene planning is pure. A successfully generated narrative advances
+the scene counter and bounded director history. Ask and failed work do not. Forking
+restores these fields with knowledge and commitments, preventing cooldown/history
+leaks across paths. Preferences and cast additions are local correction beats.
+Retirement removes a fact only from the new snapshot; past snapshots retain it.
+
+Before narrator dispatch the journal records a potentially billable attempt.
+Completion replaces uncertainty with available usage. Crash or lost response keeps
+unknown spend visible. `maxAttempts: 1` disables transport retries for fiction while
+the separate one-billable-response ceiling remains enforced.

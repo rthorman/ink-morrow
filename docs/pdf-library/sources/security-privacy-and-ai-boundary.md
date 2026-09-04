@@ -240,7 +240,8 @@ episode, bounded recent text and relevant facts to the selected text provider.
 Relevant secret world facts may cross that provider boundary to support narration;
 reader-facing state responses omit secret facts and private correction reasons.
 
-The model returns prose and evidenced state proposals. It cannot edit the cast,
+The model returns prose and evidenced state proposals. It may introduce a genuinely
+new named cast member with evidence, but cannot overwrite an existing person,
 transfer character control, change episode status, overwrite an existing fact, or
 invent a recorded commitment for an inhabited character without input evidence.
 These structural checks do not prove semantic fidelity of every generated sentence.
@@ -251,6 +252,14 @@ Paid work is idempotent, revision-checked, bounded to one successful provider
 completion per request, and charged honestly on local validation failure. There is
 no automatic paid follow-up. Complete 5.0 save portability is a later release batch;
 do not export these games with the older manuscript archive endpoints.
+
+Private character motives and hidden facts stay out of normal reader responses.
+The authored-opening catalogue contains neither solutions nor private motives.
+Scene plans remain provisional provider guidance, not factual authority. The model
+can still make semantic mistakes despite structural validation. Adding cast members,
+correcting facts or changing preferences does not call a provider. There is no
+manual prose-writing feature. Fiction disables automatic transport retries and retains
+uncertain spend after dispatch or restart instead of silently treating it as zero.
 
 A pull request changing authentication, provider calls, archives, uploads, publication, sharing, database identity, or network behavior must update its threat model and tests in the same change.
 

@@ -141,4 +141,20 @@ describe('5.0 reader-director interface', () => {
     expect(passwordInputs[0].value).toBe('');
     expect(document.getElementById('fictionProviderPanel').textContent).toBe('');
   });
+
+  test('scenario selection sends an ID without putting hidden world truth in the client', async () => {
+    window.history.replaceState({}, '', '#/new');
+    api.mockImplementation(async (path, method) => method === 'POST' ? { story: story() } : { scenarios: [{ id: 'drowned-bell', title: 'The Drowned Bell', premise: 'The sisters meet.', genre: 'mystery', tagline: 'A mystery.', boundaries: 'Gentle.' }] });
+    await app.start(); document.querySelector('#scenarioChoices button').click();
+    document.getElementById('fictionStartForm').dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })); await tick();
+    expect(api).toHaveBeenCalledWith('/fiction', 'POST', expect.objectContaining({ scenario_id: 'drowned-bell', cast: [] }));
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+  });
+
+  test('the game has no manual prose editor or hand-written opening field', async () => {
+    await app.start();
+    expect(document.getElementById('fictionCompose')).toBeNull();
+    expect(document.getElementById('fictionOpening')).toBeNull();
+    expect(document.getElementById('fictionContinue')).not.toBeNull();
+  });
 });

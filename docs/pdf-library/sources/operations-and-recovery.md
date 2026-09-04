@@ -16,6 +16,14 @@ go into browser storage. A story request reviews one response; the provider/mode
 must still match that review when the server starts the purchase. Failed response
 validation can still cost money. Refresh is free and never retries generation.
 
+The third batch adds two locally available curated openings, readable without a
+provider key. There is no manual prose editor. Story preferences, cast additions and fact
+retirement are also local. Long-running stories have a 128-fact working-state
+bound; retire genuinely unneeded reader-visible entries explicitly. Past prose
+and snapshots remain, but retired facts are no longer narrator context. The paid
+journal now marks dispatch before calling the provider, retaining unknown spend
+through restart, and fiction purchases disable even automatic transport retries.
+
 <div class="frontmatter">
 
 This handbook is the practical companion for the person who owns the Ink Morrow installation. It explains not only which command to run, but what that command changes, how to recognize a healthy result, and how to get back to safety when something does not behave as expected.

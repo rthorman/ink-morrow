@@ -1,8 +1,8 @@
 # InkMorrow 5.0 — User Guide
 
 > Development edition. This guide describes the reader-director interface on the
-> 5.0 release branch. The scene-director and complete portable-save batches are
-> still in development; their absence is called out rather than hidden.
+> 5.0 release branch. Complete portable saves and final fresh-storage identity
+> are still in development; their absence is called out rather than hidden.
 
 ## A story worth following
 
@@ -46,16 +46,23 @@ situation gives the narrator something to develop without requiring a world bibl
 Choose character drama, mystery, exploration or cozy discovery. Genre guides the
 narration; it is not a promise of a specific ruleset or dice system.
 
-Open **Cast, opening and story preferences** when you want more control. You can
-add a few characters, describe who they are and what they want, supply an opening
-passage, choose pacing, select gentle or dramatic consequences, and state tone or
+Two authored openings are available. **The Drowned Bell** begins a harbour mystery
+with a small cast and fixed hidden truths; **The Garden After Rain** offers quiet
+cooperation with no hidden catastrophe. Choose the opening, then Begin this story.
+Its cast, opening and facts are included without a provider call. Characters you
+add are additional people. **Use my own situation** clears the preset.
+
+Open **Cast and story preferences** when you want more control. You can
+add a few characters, describe who they are and what they want,
+choose pacing, select gentle or dramatic consequences, and state tone or
 content boundaries. None of the characters must represent you. Initial casts
 support at most 24 members. A current local character template can be copied into
 the starting cast; this does not link the story to future template edits.
 
-Starting and saving a supplied opening are local, free operations. They do not
-call a provider, paint a cover or prepare speculative prose. An empty opening is
-valid: Continue will invite the first generated passage when you explicitly use it.
+Starting is a local, free operation. It does not call a provider, paint a cover
+or prepare speculative prose. Curated scenarios include an opening to read.
+For your own situation, Continue invites the first generated passage explicitly.
+There is no manual prose editor or hand-written opening field.
 
 ## Follow, steer, or ask
 
@@ -120,6 +127,13 @@ runs the cast. Your existing story and history are not replaced or converted.
 
 ## What matters now
 
+A small scene director makes recorded history consequential. A live commitment
+can create a later opportunity or acknowledgement; a goal can make a new approach
+relevant. Cooldowns discourage immediate repetition. Genre and pacing also leave
+space for discovery, relationships, ordinary activity and aftermath. A suggested
+scene is a plan, not a fact or a guaranteed outcome. Only the resulting validated
+passage can record an event, fulfil a promise or reveal hidden truth.
+
 The **What matters now** panel shows reader-visible durable facts, commitments,
 relationships, goals and resources. Hidden truths are not listed. Characters'
 knowledge is tracked separately from the truth of a fact.
@@ -147,6 +161,23 @@ from deciding that you would rather have made another choice.
 State validation checks structure and evidence, not every possible semantic
 contradiction. A fluent response can still be mistaken. If something important is
 wrong, correct it explicitly rather than hoping repetition will repair it.
+
+**Retire a fact** removes an unneeded entry from current working memory, with a
+reason. Earlier prose and earlier path snapshots retain it. This frees a fact
+slot; merely resolving a fact does not. Do not retire commitments you still want
+to matter. Retired material is not automatically retrieved for future narration.
+
+## Cast and story preferences
+
+**Add to the cast** introduces another person locally. Reader-visible description
+is separate from their private motive. Generated scenes can also introduce new
+named people, up to the 24-person cast bound. Neither route hands you a character.
+
+**Story preferences** changes pacing, consequence tone, content boundaries and
+narration voice on this path. The attention field shows a previous lasting Steer;
+clear it to release that focus. Preferences are restored with a rewind. Pacing
+does not change model randomness, and dramatic consequences do not imply constant
+danger. Voice guides style without overriding character control or boundaries.
 
 ## Rewind and explore alternatives
 
@@ -177,8 +208,8 @@ Your story is saved. The world does not move forward while you are away, and
 characters do not punish absence from the app. When you want to continue, choose
 **Begin another episode** and name it. Cast, history and commitments remain.
 
-In this development batch, ending is explicitly reader-controlled. Richer
-history-driven scene direction and curated openings belong to the next batch.
+Ending remains explicitly reader-controlled. The scene director can invite a
+resting point after a resolved thread but cannot end the episode for you.
 
 ## Failures, costs and recovery
 
@@ -194,6 +225,9 @@ a new deliberate action.
 If another tab or action changed the story, refresh before continuing. A late
 reply cannot paint a different story you have opened. After a server restart,
 abandoned requests are marked interrupted rather than reported successful.
+Dispatched work whose response was lost remains an unknown-cost attempt, not a
+free one. Story purchases allow one transport attempt: even an uncertain network
+failure cannot silently trigger another request.
 
 Do not use older manuscript export endpoints as a backup of playable-fiction
 games. Complete 5.0 portable saves and book-style exports are a later batch. Until
@@ -202,14 +236,12 @@ installation after stopping its server. Do not overwrite older user data.
 
 ## Example journeys
 
-### A quiet, local beginning
+### Revisit without spending
 
-Start a cozy story with a supplied opening and two characters. Read it, record a
-missing fact, explore an alternate path and mark an episode's resting point. Skip
-Continue, Send, model browsing, art and narration. These local actions use no
-provider. The result is persisted in this development installation, not yet a
-portable 5.0 save. This is not an AI-free procedural adventure: generated
-continuation still requires an explicit provider action.
+Return to a saved story, reread earlier scenes, review discoveries and commitments,
+and compare existing paths. None of these actions calls a provider. You can also
+read a curated opening before configuring a storyteller. New generated scenes
+require AI: InkMorrow does not offer a separate non-AI game or manual writing mode.
 
 ### Follow a developing relationship
 
@@ -232,6 +264,7 @@ media and authoring tools. You remain in one persistent, readable story.
 Configure a provider and optional encrypted credential, supply cast and boundaries,
 alternate following with steering, ask an out-of-story question, briefly inhabit
 a character, inspect a change, correct a fact, compare paths, and end an episode.
-Only the explicitly submitted text-provider actions are paid. The final 5.0 guide
-will extend this journey with the director and portable-save features once those
-batches are actually implemented and verified.
+Try an authored opening, make a commitment through play, change
+voice and pacing, and notice how later narration can respond to that commitment.
+Only explicitly submitted text-provider actions are paid. The final 5.0 guide
+will extend this journey with portable saves once that batch is verified.

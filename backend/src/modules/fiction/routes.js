@@ -3,6 +3,7 @@
 const express = require('express');
 const { fail, keys, text } = require('./model');
 const { parseReasoningEffort } = require('../../core/validation');
+const { catalogue } = require('./scenarios');
 
 function createFictionRouter({ store, service, providers = null }) {
   const router = express.Router();
@@ -13,6 +14,7 @@ function createFictionRouter({ store, service, providers = null }) {
   const revision = (req) => req.body?.expected_revision;
   router.get('/api/fiction', (req, res) => res.json({ stories: store.list() }));
   router.post('/api/fiction', (req, res) => res.status(201).json({ story: expose(store.create(req.body)) }));
+  router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
   router.get('/api/fiction/:id', (req, res) => res.json({ story: expose(store.view(req.params.id, { before: req.query.before || null, limit: req.query.limit ? Number(req.query.limit) : 60 })) }));
   router.post('/api/fiction/:id/branches', (req, res) => {
     keys(req.body, ['expected_revision', 'name', 'beat_id'], 'Alternate path');
@@ -33,6 +35,15 @@ function createFictionRouter({ store, service, providers = null }) {
   router.post('/api/fiction/:id/episodes', (req, res) => {
     keys(req.body, ['expected_revision', 'action', 'title', 'summary'], 'Episode');
     res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary })) });
+  });
+  router.put('/api/fiction/:id/preferences', (req, res) => {
+    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus'], 'Story preferences');
+    const { expected_revision, ...input } = req.body;
+    res.json({ story: expose(store.preferences(req.params.id, expected_revision, input)) });
+  });
+  router.post('/api/fiction/:id/cast', (req, res) => {
+    keys(req.body, ['expected_revision', 'character'], 'Add cast member');
+    res.status(201).json({ story: expose(store.addCast(req.params.id, revision(req), req.body.character)) });
   });
   router.post('/api/fiction/:id/replies', async (req, res, next) => {
     try {
