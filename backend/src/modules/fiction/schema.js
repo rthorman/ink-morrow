@@ -85,4 +85,21 @@ DROP TABLE provider_role_assignments_previous;
 CREATE INDEX idx_provider_roles_profile ON provider_role_assignments(profile_id);
 `;
 
-module.exports = { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA };
+const FICTION_CALL_SCHEMA = `
+CREATE TABLE fiction_calls (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES fiction_requests(id) ON DELETE CASCADE,
+  call_index INTEGER NOT NULL CHECK (call_index BETWEEN 1 AND 6),
+  role TEXT NOT NULL CHECK (role IN ('scribe', 'archivist')),
+  purpose TEXT NOT NULL CHECK (purpose IN ('draft', 'review', 'repair')),
+  model TEXT,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'failed', 'interrupted')),
+  billed_attempts INTEGER NOT NULL DEFAULT 1 CHECK (billed_attempts >= 0),
+  cost_usd REAL CHECK (cost_usd IS NULL OR (cost_usd >= 0 AND cost_usd <= 1000000000)),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at TEXT,
+  UNIQUE(request_id, call_index)
+);
+`;
+
+module.exports = { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA };

@@ -159,7 +159,7 @@ function createApp(
   const ai = createAiClient({ providers });
   const fictionStore = createFictionStore(db);
   fictionStore.reconcile();
-  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, providers });
+  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, archivistCompletion: ai.archivistCompletion, providers });
   app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
   const { generateImage, generateIllustration, describeImageProvider } = createImageClient({ providers });
   const fictionMedia = createFictionMedia({ db, store: fictionStore, rootDir: imageDir, generateIllustration, providers });
@@ -340,6 +340,8 @@ function createApp(
       body.cost_usd = typeof error.costUsd === 'number' && Number.isFinite(error.costUsd)
         ? error.costUsd
         : null;
+      if (Number.isFinite(error.knownCostUsd)) body.known_cost_usd = error.knownCostUsd;
+      if (Number.isInteger(error.unknownAttempts)) body.unknown_attempts = error.unknownAttempts;
     }
     res.status(status).json(body);
   });

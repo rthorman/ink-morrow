@@ -17,6 +17,12 @@
   failure handling and actual spend visible. No unbounded retries or assumption
   that a second model proves semantic correctness; no live paid benchmark is
   authorised merely by permitting additional product-runtime calls.
+- Optional quality is branch-local Off/Standard/Memory/Both: Off stays one call;
+  a single reviewer caps at four total calls, Both at six. At most one repair,
+  followed by every selected review. No transport retry or silent reviewer drop.
+  Per-call durable accounting preserves mixed known/unknown costs and late-result
+  charges without permitting stale canon commits. Review consent is scoped to
+  the exact role/provider/model plan; prior one-call consent does not cover it.
 - Development is consolidated under WSL at `/home/rthorman/src/ink-morrow-5`,
   with shared Git metadata in `/home/rthorman/src/ink-morrow/.git`. Windows
   tooling may operate on that checkout; do not create another Windows copy.

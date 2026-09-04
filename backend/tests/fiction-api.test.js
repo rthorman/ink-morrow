@@ -59,6 +59,22 @@ describe('playable-fiction API boundary', () => {
     const invalid = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: changed.body.story.revision, play_style: 'always-refuse' });
     expect(invalid.status).toBe(400);
   });
+  test('quality choices expose every reviewed role and reject stale authority before dispatch', async () => {
+    fixture = createTestApp();
+    const started = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain' });
+    let story = started.body.story; expect(story.quality_generation).toMatchObject({ mode: 'off', max_calls: 1 });
+    for (const mode of ['standard', 'memory', 'both']) {
+      const changed = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: story.revision, quality_mode: mode });
+      expect(changed.status).toBe(200); story = changed.body.story;
+      expect(story.quality_generation).toMatchObject({ mode, max_calls: mode === 'both' ? 6 : 4 });
+      expect(story.quality_generation.roles.map((role) => role.role)).toEqual(mode === 'standard' ? ['scribe'] : ['scribe', 'archivist']);
+      expect(story.quality_generation.review_id).toMatch(/^[a-f0-9]{64}$/);
+    }
+    const invalid = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: story.revision, quality_mode: 'infinite' }); expect(invalid.status).toBe(400);
+    const paid = await request(fixture.app).post(`/api/fiction/${story.id}/replies`).send({ expected_revision: story.revision, idempotency_key: 'missing-quality-review', input: { kind: 'follow' } });
+    expect(paid.status).toBe(409); expect(paid.body).toMatchObject({ code: 'STORY_QUALITY_REVIEW_CHANGED' });
+    expect(fixture.db.prepare('SELECT count(*) AS n FROM fiction_calls').get().n).toBe(0);
+  });
   test('fourth-wall settings cross the real API without making a paid request', async () => {
     fixture = createTestApp();
     const started = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain', play_style: 'living-world', fourth_wall: 'freely' });

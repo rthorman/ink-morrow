@@ -46,6 +46,22 @@ export function createProviderPanel({ api }) {
       });
       root().append(profile.wrapper, model.wrapper, save, load, catalogue, status);
 
+      const memory = data.roles.find((role) => role.role === 'archivist');
+      const memoryProfile = field('Memory-support provider', 'select');
+      memoryProfile.control.append(...candidates.map((entry) => option(entry.id, `${entry.display_name} · ${entry.credential.state}`)));
+      if (memory) memoryProfile.control.value = memory.profile_id;
+      const memoryModel = field('Memory-support model identifier', 'input', memory?.model_id || '', { maxLength: 300 });
+      const saveMemory = button('Use this memory-support model', async () => {
+        if (saveMemory.disabled) return;
+        saveMemory.disabled = true; saveMemory.textContent = 'Saving memory model…'; status.textContent = '';
+        try {
+          await api('/providers/roles/archivist', 'PUT', { profile_id: memoryProfile.control.value, model_id: memoryModel.control.value.trim() });
+          if (live()) await render(isCurrent);
+        } catch (error) { if (live()) status.textContent = error.message; }
+        finally { if (live()) { saveMemory.disabled = false; saveMemory.textContent = 'Use this memory-support model'; } }
+      });
+      root().append(el('h2', 'Optional consistency support'), el('p', 'Standard play does not use this role. In Story preferences, optional quality checks can use the standard model, this memory-support model, or both. No background analysis is started by saving a model.'), memoryProfile.wrapper, memoryModel.wrapper, saveMemory);
+
       const illustrator = data.roles.find((role) => role.role === 'illustrator');
       const imageProfile = field('Image provider', 'select');
       imageProfile.control.append(...data.profiles.filter((entry) => entry.capabilities.includes('image')).map((entry) => option(entry.id, entry.display_name)));

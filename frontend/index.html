@@ -64,7 +64,7 @@
         </form>
       </section>
       <section id="readerScreen" class="fiction-screen" aria-labelledby="fictionStoryTitle" hidden>
-        <header class="fiction-story-header"><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionSpend"></p></header>
+        <header class="fiction-story-header"><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionQualityState" hidden></p><p class="fiction-muted" id="fictionSpend"></p></header>
         <div class="fiction-toolbar">
           <button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button>
           <button type="button" class="btn btn-secondary" id="fictionDetailsToggle" aria-expanded="false" aria-controls="fictionDetails">Cast &amp; story</button>
@@ -80,6 +80,7 @@
           <button class="btn btn-secondary" id="fictionCorrect" type="button">Correct a story fact</button>
           <button class="btn btn-secondary" id="fictionRetire" type="button">Retire a fact</button>
           <button class="btn btn-secondary" id="fictionPreferences" type="button">Story preferences</button>
+          <details id="fictionCallHistory" hidden><summary>Recent model calls and costs</summary><div id="fictionCalls"></div></details>
           <section id="fictionChallengeSection" hidden><h2>Approaches to this situation</h2><p>Optional attempts, not guaranteed outcomes. Repeating an unchanged approach reuses its ruling without an AI purchase. Free-form dialogue is less predictable; model prose can still disagree with a ruling.</p><div id="fictionChallenges"></div></section>
           <h2>Alternate paths</h2><label for="fictionBranch">Reading path</label><select id="fictionBranch"></select>
           <button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button>

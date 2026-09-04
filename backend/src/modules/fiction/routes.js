@@ -8,10 +8,11 @@ const { SAVE_MIME, MAX_PACKED } = require('./saves');
 const { fail, keys, text } = require('./model');
 const { parseReasoningEffort } = require('../../core/validation');
 const { catalogue } = require('./scenarios');
+const { qualityPlan } = require('./quality-plan');
 
 function createFictionRouter({ store, service, providers = null, media, publication, saves }) {
   const router = express.Router();
-  const expose = (story) => ({ ...story, generation: providers?.exposure('scribe', {
+  const expose = (story) => ({ ...story, quality_generation: qualityPlan(story.state, providers), generation: providers?.exposure('scribe', {
     data_categories: ['story premise', 'selected cast', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
     operation_count: 1,
   }) || null, illustration_generation: providers?.exposure('illustrator', {
@@ -103,7 +104,7 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary, question: req.body.question })) });
   });
   router.put('/api/fiction/:id/preferences', (req, res) => {
-    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');
+    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall', 'quality_mode'], 'Story preferences');
     const { expected_revision, ...input } = req.body;
     res.json({ story: expose(store.preferences(req.params.id, expected_revision, input)) });
   });
@@ -113,12 +114,14 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   });
   router.post('/api/fiction/:id/replies', async (req, res, next) => {
     try {
-      keys(req.body, ['expected_revision', 'idempotency_key', 'input', 'model', 'reasoning_effort', 'provider_id'], 'Continue story');
+      keys(req.body, ['expected_revision', 'idempotency_key', 'input', 'model', 'reasoning_effort', 'provider_id', 'quality_review'], 'Continue story');
       const model = req.body.model === undefined ? undefined : text(req.body.model, 'Model', 300);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
       if (req.body.reasoning_effort != null && !reasoningEffort) fail('The reasoning effort is not supported.');
       const providerId = req.body.provider_id === undefined ? null : text(req.body.provider_id, 'Provider ID', 80);
-      const result = await service.reply({ gameId: req.params.id, expectedRevision: revision(req), idempotencyKey: req.get('Idempotency-Key') || req.body.idempotency_key, input: req.body.input, model, reasoningEffort, providerId });
+      const qualityReview = req.body.quality_review === undefined ? null : text(req.body.quality_review, 'Quality review', 64);
+      if (qualityReview !== null && !/^[a-f0-9]{64}$/.test(qualityReview)) fail('Review the current quality configuration.');
+      const result = await service.reply({ gameId: req.params.id, expectedRevision: revision(req), idempotencyKey: req.get('Idempotency-Key') || req.body.idempotency_key, input: req.body.input, model, reasoningEffort, providerId, qualityReview });
       res.status(result.reused ? 200 : 201).json({ ...result, story: expose(result.story) });
     } catch (error) { next(error); }
   });

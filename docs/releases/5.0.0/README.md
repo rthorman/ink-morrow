@@ -9,7 +9,8 @@ new setting, remaining approved release work and green CI, not an immediate merg
 The owner also approved an optional consistency-quality mode with bounded extra
 LLM calls to the standard model, memory-support model, or both as useful. It is
 off by default and requires explicit role/call disclosure and full spend accounting.
-This is remaining implementation work, not a shipped feature or a model benchmark.
+The optional quality implementation is being verified for its own substantial PR;
+it is not a deployed feature or a model benchmark.
 
 The player is normally a reader-director, not a member of the cast. Follow and
 Steer must stand alone; Inhabit is optional and explicitly delegates character
@@ -112,9 +113,20 @@ these three PRs and the final green release PR into main.
   411 unique backend tests, 286 frontend tests and 42 browser tests; all six PDFs
   regenerated and passed QA. The current-head dependency audit passed after the
   previous run's registry timeout; no audit gate was bypassed.
-- **C — people and complete episodes:** implementation and verification in progress,
-  followed by optional consistency-quality mode, fresh-storage
-  cutover, the full six-book release edition and final hardening.
+- **C — people and complete episodes:** PR [#74](https://github.com/rthorman/ink-morrow/pull/74)
+  passed all five CI checks and merged as `bea7fa3` on 4 September 2026. It adds
+  qualitative relationship facets and development, episode questions/payoff,
+  quiet aftermath and local current-path return recaps. Local verification passed
+  420 backend tests, 289 frontend tests and 44 browser tests. All six PDFs passed
+  regeneration, freshness and QA.
+- **Optional consistency quality:** Off remains one call; Standard or Memory
+  review caps at four total calls and Both at six. One repair at most, followed by
+  all selected reviews; no transport retries or silent downgrade. Per-call durable
+  accounting, reviewed role/configuration identity, local progress, role-specific
+  settings and safe save/rewind restoration are implemented and under final
+  verification. No live paid model benchmark was performed. The separate
+  fresh-storage/version cutover, full six-book release edition and final hardening
+  remain before the release PR into main.
 
 Development is consolidated in WSL; Windows Chrome and PDF tooling may operate on
 the WSL checkout. The owner explicitly abandoned older unmerged changes during

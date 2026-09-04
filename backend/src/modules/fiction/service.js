@@ -6,6 +6,8 @@ const { chooseScene, recordScene } = require('./director');
 const { adjudicate } = require('./resistance');
 const { fourthWallContext, validateAside } = require('./fourth-wall');
 const { recordEpisode, episodeGoals } = require('./episodes');
+const { runQuality, reviewRoles } = require('./quality');
+const { qualityPlan } = require('./quality-plan');
 
 function contextFacts(state, direction) {
   const words = new Set(direction.toLowerCase().match(/[\p{L}]{3,}/gu) || []);
@@ -16,7 +18,7 @@ function contextFacts(state, direction) {
   })).sort((a, b) => b.score - a.score || b.index - a.index).slice(0, 32).map(({ fact }) => fact);
 }
 
-function createFictionService({ store, chatCompletion, providers = null }) {
+function createFictionService({ store, chatCompletion, archivistCompletion = null, providers = null }) {
   function buildMessages(context, intent, plan = chooseScene(context.game, context.state, intent), decision = null) {
     const { game, branch, state } = context;
     const recent = store.historyRows(game.id, branch.head_beat_id, 12).map((row) => ({ kind: row.kind, prose: row.prose.slice(-1500), summary: row.summary }));
@@ -60,11 +62,36 @@ function createFictionService({ store, chatCompletion, providers = null }) {
     ];
   }
 
-  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort, providerId = null }) {
-    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null, providerId });
+  function validateNarration(raw, context, intent, plan, decision, beatId, lookup) {
+    let parsed;
+    try { parsed = JSON.parse(raw); }
+    catch { fail('The narrator returned an unreadable story response. Nothing was added.', 'INVALID_STORY_REPLY', 502); }
+    keys(parsed, ['prose', 'summary', 'effects', 'aside', ...(decision ? ['resolution'] : [])], 'Narrator response');
+    const prose = text(parsed.prose, 'Story prose', LIMITS.prose);
+    const summary = text(parsed.summary, 'Story summary', 1000);
+    const aside = validateAside(parsed.aside, context.state, intent, { keys, text, fail });
+    const savedProse = aside ? `${prose}\n\n${aside.character.name}, to you: “${aside.text}”` : prose;
+    if (savedProse.length > LIMITS.prose) fail('The passage and fourth-wall address exceed the story limit.', 'INVALID_STORY_REPLY', 502);
+    if (decision) {
+      keys(parsed.resolution, ['outcome', 'evidence'], 'Resolution');
+      const evidence = text(parsed.resolution.evidence, 'Resolution evidence', 1000);
+      if (parsed.resolution.outcome !== decision.outcome || !prose.includes(evidence)) fail('The narrator did not honour the adjudicated outcome. Nothing was added.', 'INVALID_STORY_RESOLUTION', 502);
+    }
+    if (intent.kind === 'ask' && (!Array.isArray(parsed.effects) || parsed.effects.length)) fail('A clarification cannot advance story state.', 'INVALID_STORY_REPLY', 502);
+    const { state, changes } = applyEffects(context.state, parsed.effects, { prose, input: intent, beatId, lookup });
+    if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
+    if (intent.kind === 'steer' && intent.direction_scope === 'ongoing') state.focus = intent.text.slice(0, 1500);
+    recordScene(state, plan, beatId);
+    if (intent.kind !== 'ask') recordEpisode(state, changes, beatId, lookup);
+    if (aside) state.last_fourth_wall_scene = state.scene_count;
+    return { parsed, beat: { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes } };
+  }
+
+  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort, providerId = null, qualityReview = null }) {
+    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null, providerId, qualityReview });
     if (started.reused) return { ...store.requestResult(started.request), story: store.view(gameId), reused: true };
     const { request, context } = started;
-    let usage = { costUsd: null, billedAttempts: 0, model: model ?? null };
+    let storytellerModel = model ?? null;
     try {
       const intent = validateIntent(input, context.state);
       const lookup = (id, includeRemoved = false) => store.memory.get(gameId, context.branch.head_beat_id, id, includeRemoved);
@@ -78,49 +105,53 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         const selected = providers.exposure('scribe');
         if (selected.provider?.id !== providerId || selected.model_id !== model) fail('The storyteller configuration changed. Refresh and review the new provider before continuing.', 'STORY_PROVIDER_CHANGED', 409);
       }
+      const purchase = qualityPlan(context.state, providers);
+      if (purchase.mode !== 'off' && qualityReview !== purchase.review_id) fail('Review the selected quality mode and all model roles before continuing.', 'STORY_QUALITY_REVIEW_CHANGED', 409);
+      if (purchase.mode !== 'off' && model && purchase.roles[0].model_id && model !== purchase.roles[0].model_id) fail('The storyteller configuration changed. Review the current quality plan.', 'STORY_PROVIDER_CHANGED', 409);
+      if (reviewRoles(purchase.mode).includes('archivist') && !archivistCompletion) fail('Configure the memory-support model before using this quality mode.', 'MEMORY_MODEL_UNAVAILABLE', 503);
+      const assertPurchase = () => {
+        store.assertRequestCurrent(request);
+        if (qualityPlan(context.state, providers).review_id !== purchase.review_id) fail('The selected model roles changed. Refresh and review them before continuing.', 'STORY_PROVIDER_CHANGED', 409);
+        for (const role of purchase.roles) providers?.resolve?.(role.role, { capability: 'chat', model: role.role === 'scribe' ? model || role.model_id : role.model_id });
+      };
+      assertPurchase();
       const plan = chooseScene(context.game, context.state, intent);
       const messages = buildMessages(context, intent, plan, decision);
-      // Once dispatch may occur, a lost response or process crash means cost is
-      // unknown, not zero. There is no transport retry for this single purchase.
-      store.dispatchRequest(request.id, model); usage.billedAttempts = 1;
-      const result = await chatCompletion(messages, {
-        model: model || undefined, reasoningEffort, temperature: 0.8,
-        maxTokens: context.state.pacing === 'reflective' ? 2400 : context.state.pacing === 'brisk' ? 1400 : 1900,
-        responseFormat: { type: 'json_object' }, maxBillableAttempts: 1, maxAttempts: 1,
-      });
-      usage = { model: result.model || model || null, costUsd: result.cost_usd ?? null, billedAttempts: result.billed_attempts ?? 1 };
-      let parsed;
-      try { parsed = JSON.parse(result.content); }
-      catch { fail('The narrator returned an unreadable story response. Nothing was added.', 'INVALID_STORY_REPLY', 502); }
-      keys(parsed, ['prose', 'summary', 'effects', 'aside', ...(decision ? ['resolution'] : [])], 'Narrator response');
-      const prose = text(parsed.prose, 'Story prose', LIMITS.prose);
-      const summary = text(parsed.summary, 'Story summary', 1000);
-      const aside = validateAside(parsed.aside, context.state, intent, { keys, text, fail });
-      const savedProse = aside ? `${prose}\n\n${aside.character.name}, to you: “${aside.text}”` : prose;
-      if (savedProse.length > LIMITS.prose) fail('The passage and fourth-wall address exceed the story limit.', 'INVALID_STORY_REPLY', 502);
-      if (decision) {
-        keys(parsed.resolution, ['outcome', 'evidence'], 'Resolution');
-        const evidence = text(parsed.resolution.evidence, 'Resolution evidence', 1000);
-        if (parsed.resolution.outcome !== decision.outcome || !prose.includes(evidence)) fail('The narrator did not honour the adjudicated outcome. Nothing was added.', 'INVALID_STORY_RESOLUTION', 502);
-      }
-      if (intent.kind === 'ask' && (!Array.isArray(parsed.effects) || parsed.effects.length)) fail('A clarification cannot advance story state.', 'INVALID_STORY_REPLY', 502);
       const beatId = randomUUID();
-      const { state, changes } = applyEffects(context.state, parsed.effects, { prose, input: intent, beatId, lookup });
-      if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
-      if (intent.kind === 'steer' && intent.direction_scope === 'ongoing') state.focus = intent.text.slice(0, 1500);
-      recordScene(state, plan, beatId);
-      if (intent.kind !== 'ask') recordEpisode(state, changes, beatId, lookup);
-      if (aside) state.last_fourth_wall_scene = state.scene_count;
-      const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes }, usage);
-      return { story: store.view(gameId), beat_id: committedId, cost_usd: usage.costUsd, billed_attempts: usage.billedAttempts, model: usage.model, reused: false };
+      const call = async (role, purpose, callMessages, options) => {
+        assertPurchase();
+        const selected = purchase.roles.find((entry) => entry.role === role);
+        const selectedModel = role === 'scribe' ? model || selected.model_id : selected.model_id;
+        const callId = store.calls.dispatch(request, role, purpose, selectedModel);
+        try {
+          const response = await (role === 'archivist' ? archivistCompletion : chatCompletion)(callMessages, {
+            ...options, model: selectedModel || undefined, responseFormat: { type: 'json_object' }, maxBillableAttempts: 1, maxAttempts: 1,
+          });
+          store.calls.finish(callId, { model: response.model || selectedModel, costUsd: response.cost_usd, billedAttempts: response.billed_attempts });
+          if (role === 'scribe' && purpose !== 'review') storytellerModel = response.model || selectedModel || null;
+          assertPurchase(); return response;
+        } catch (error) {
+          store.calls.finish(callId, { costUsd: error.costUsd, billedAttempts: error.billedAttempts }, true);
+          throw error;
+        }
+      };
+      const accepted = await runQuality({ mode: purchase.mode, messages, call, validation: { keys, text, fail },
+        narrationOptions: { reasoningEffort, temperature: 0.8, maxTokens: context.state.pacing === 'reflective' ? 2400 : context.state.pacing === 'brisk' ? 1400 : 1900 },
+        validate: (raw) => validateNarration(raw, context, intent, plan, decision, beatId, lookup) });
+      assertPurchase();
+      const usage = { ...store.calls.usage(request.id), model: storytellerModel };
+      const committedId = store.completeRequest(request, accepted.beat, usage);
+      return { story: store.view(gameId), beat_id: committedId, cost_usd: usage.costUsd, known_cost_usd: usage.knownCostUsd, unknown_attempts: usage.unknownAttempts,
+        billed_attempts: usage.billedAttempts, model: storytellerModel, calls: store.calls.rows(request.id), reused: false };
     } catch (error) {
-      if (Number.isInteger(error.billedAttempts)) usage = { ...usage, billedAttempts: error.billedAttempts, costUsd: error.costUsd ?? null };
+      const usage = { ...store.calls.usage(request.id), model: storytellerModel };
       // Provider output validation is a bad upstream response, not a user's
       // input mistake. Preserve the actual known charge even when no beat saves.
       if (usage.billedAttempts && error.statusCode === 400) { error.statusCode = 502; error.code = 'INVALID_STORY_REPLY'; }
       store.failRequest(request.id, error.code || 'STORY_REQUEST_FAILED', usage);
       error.billedAttempts = usage.billedAttempts;
       error.costUsd = usage.costUsd;
+      error.knownCostUsd = usage.knownCostUsd; error.unknownAttempts = usage.unknownAttempts;
       throw error;
     }
   }

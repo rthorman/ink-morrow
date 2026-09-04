@@ -3,6 +3,7 @@ import { createStoryDialogs } from './story-dialogs.js';
 import { createMediaDialogs } from './media.js';
 import { createSaveDialogs } from './saves.js';
 import { createInfluence } from './influence.js';
+import { qualityPaidReview, renderQuality } from './quality.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen'];
 
@@ -13,6 +14,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const scopes = new Map(); let shelfOffset = 0; let nextShelfOffset = null;
   const castRows = [];
   let scenario = null;
+  let progressTimer = null; let progressSerial = 0;
+  const stopProgress = () => { progressSerial++; clearTimeout(progressTimer); progressTimer = null; };
   const alive = (token) => unlocked && epoch === token;
   const status = (message = '', error = false) => { $('fictionStatus').textContent = message; $('fictionStatus').dataset.error = String(error); };
   function syncFourthWallStart() {
@@ -122,6 +125,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const phases = { opening: 'Opening', developing: 'Developing', payoff: 'A recorded payoff', aftermath: 'Room for aftermath' };
     $('fictionEpisodeFocus').textContent = `${story.state.episode.question || 'Follow what matters to the cast.'} ${phases[story.state.episode.phase] || ''} — you can linger, redirect or end the episode when ready.`;
     renderProse(story.beats);
+    renderQuality(story);
     influence.render(story);
     $('fictionEarlier').hidden = !story.has_earlier;
     const ended = story.state.episode.status === 'ended';
@@ -141,7 +145,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   async function route() {
     if (!unlocked) return;
-    const token = ++epoch; clearTimeout(poll); busy = false; earlierBusy = false; current = null;
+    const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; current = null;
     dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
     $('importFictionCast').disabled = false; $('importFictionCast').textContent = 'Choose a character template';
@@ -162,7 +166,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const match = /^#\/story\/([A-Za-z0-9_-]+)$/.exec(hash);
       if (match) {
         showScreen('readerScreen'); $('fictionProse').replaceChildren(); $('fictionStoryTitle').textContent = 'Opening your story…';
-        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus']) $(id).replaceChildren();
+        for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus', 'fictionQualityState', 'fictionCalls']) $(id).replaceChildren();
         $('fictionDetails').hidden = true; $('fictionDetailsToggle').setAttribute('aria-expanded', 'false');
         controls();
         const data = await api(`/fiction/${match[1]}`);
@@ -193,6 +197,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const direction = approach?.text || (kind === 'follow' ? '' : $('fictionDirection').value.trim());
     if (kind !== 'follow' && !direction) { $('fictionDirection').focus(); status('Add a direction or use Continue.'); return; }
     busy = true; controls(); status();
+    const operation = ++progressSerial;
     try {
       const input = { kind, text: direction, ...(kind === 'steer' ? { direction_scope: approach ? 'moment' : $('fictionDirectionScope').value } : {}), ...(approach ? { challenge_id: approach.challenge_id, approach_id: approach.approach_id } : {}) };
       let free = false;
@@ -201,16 +206,33 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         if (!alive(token)) return;
         free = data.review.requires_generation === false;
       }
-      const approved = free || await dialogs.confirmPaid({
+      const quality = (story.state.quality_mode || 'off') !== 'off';
+      if (!free && quality && (!story.quality_generation?.available || story.quality_generation.mode !== story.state.quality_mode)) { status('The selected quality roles are unavailable. Configure them in Settings and refresh this story before continuing.', true); return; }
+      const approved = free || await dialogs.confirmPaid(qualityPaidReview(story) || {
         title: 'Let the story unfold?',
         body: 'This sends the premise, selected cast, boundaries, relevant facts (including hidden world truth), recent story text and your direction to your selected text provider. One completion is requested; cost depends on your provider and model. Invalid replies can still incur a charge. No automatic paid follow-up is started.',
         review: { action: 'Continue this story', object: story.title, model: story.generation?.provider ? `Storyteller (Scribe) · ${story.generation.provider.display_name} · ${story.generation.model_id}` : 'Your selected storyteller', quantity: 'One bounded narrative response', sends: 'Recent story, relevant facts (including hidden world truth), cast, boundaries and your direction', estimate: 0.02, note: 'A rough text-call estimate, not a spending cap. No automatic paid follow-up.' },
         confirmLabel: 'Continue with AI',
       });
       if (!approved || !alive(token)) return;
+      if (quality && !free) {
+        const updateProgress = async () => {
+          if (!alive(token) || progressSerial !== operation || !busy) return;
+          try {
+            const data = await api(`/fiction/${story.id}`);
+            if (!alive(token) || progressSerial !== operation || !busy) return;
+            const step = data.story.pending_stage;
+            if (step) $('fictionActionStatus').textContent = `${step.purpose === 'review' ? 'Checking consistency' : step.purpose === 'repair' ? 'Repairing the draft' : 'Writing the draft'} · ${step.role === 'archivist' ? 'memory support' : 'standard model'} · call ${step.call_index} of at most ${data.story.call_limit}.`;
+            if (!data.story.pending) return;
+          } catch { /* progress reads never retry a paid operation */ }
+          if (alive(token) && progressSerial === operation && busy) progressTimer = setTimeout(updateProgress, 1500);
+        };
+        progressTimer = setTimeout(updateProgress, 1500);
+      }
       const data = await api(`/fiction/${story.id}/replies`, 'POST', {
         expected_revision: story.revision, idempotency_key: globalThis.crypto.randomUUID(), input,
         ...(story.generation?.provider ? { provider_id: story.generation.provider.id, model: story.generation.model_id } : {}),
+        ...(quality ? { quality_review: story.quality_generation?.review_id } : {}),
       });
       if (!alive(token)) return;
       if (!approach && kind !== 'follow' && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(story.id); $('fictionDirectionScope').value = 'moment'; scopes.delete(story.id); }
@@ -222,7 +244,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       // A lost response is reconciled by a free read, never by re-sending a
       // paid action or inventing a replacement generation.
       try { const data = await api(`/fiction/${story.id}`); if (alive(token)) renderStory(data.story); } catch { /* keep the visible error and draft */ }
-    } finally { if (alive(token)) { busy = false; controls(); } }
+    } finally { if (progressSerial === operation) stopProgress(); if (alive(token)) { busy = false; controls(); } }
   }
 
   async function runMediaAction(work) {
@@ -378,7 +400,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
     $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
-    for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus']) $(id).replaceChildren();
+    stopProgress();
+    for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus', 'fictionQualityState', 'fictionCalls']) $(id).replaceChildren();
     $('fictionDirectionScope').value = 'moment';
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();

@@ -18,27 +18,29 @@ function createDialogManager() {
   let closing = false;
   let lastSpec = null; // the open dialog's spec, for dirty-guard recovery
   let pendingAction = null; // async action token; blocks duplicate clicks/free close
-  let paidConsentForSession = false; // private-mode fallback if storage rejects writes
+  const paidConsentForSession = new Set(); // private-mode fallback if storage rejects writes
+  const consentKey = (scope = '') => scope ? `${PAID_CONSENT_KEY}:${scope}` : PAID_CONSENT_KEY;
 
-  function hasPaidConsent() {
-    if (paidConsentForSession) return true;
+  function hasPaidConsent(scope = '') {
+    const key = consentKey(scope);
+    if (paidConsentForSession.has(key)) return true;
     try {
-      return localStorage.getItem(PAID_CONSENT_KEY) === '1';
+      return localStorage.getItem(key) === '1';
     } catch {
       return false;
     }
   }
 
-  function rememberPaidConsent() {
-    paidConsentForSession = true;
+  function rememberPaidConsent(scope = '') {
+    const key = consentKey(scope); paidConsentForSession.add(key);
     try {
-      localStorage.setItem(PAID_CONSENT_KEY, '1');
+      localStorage.setItem(key, '1');
     } catch {
       // Private/restricted storage: remember it for this running session.
     }
   }
 
-  function paidReviewContent(body, review) {
+  function paidReviewContent(body, review, scope = '') {
     let nodes;
     if (review) {
       nodes = reviewBody(review);
@@ -51,7 +53,7 @@ function createDialogManager() {
     }
     const consent = document.createElement('p');
     consent.className = 'review-consent';
-    consent.textContent = 'Approve once: this device remembers your consent until its site data is cleared. Future paid actions run without another approval.';
+    consent.textContent = scope ? 'Approve once for this quality configuration on this device. Changing its mode or model/provider configuration requires a new review. Site data removal clears this consent.' : 'Approve once: this device remembers your consent until its site data is cleared. Future paid actions run without another approval.';
     nodes.push(consent);
     return nodes;
   }
@@ -246,17 +248,17 @@ function createDialogManager() {
   // what will be spent and sent; later actions bypass the modal on this device.
   // `body` is plain copy; `review` is the structured shared grammar (see
   // core/cost.js reviewBody) rendered as uniform rows.
-  function confirmPaid({ title, body, review, confirmLabel, cancelLabel = 'Cancel', disabled = false }) {
-    if (!disabled && hasPaidConsent()) return Promise.resolve(true);
+  function confirmPaid({ title, body, review, confirmLabel, cancelLabel = 'Cancel', disabled = false, consentScope = '' }) {
+    if (!disabled && hasPaidConsent(consentScope)) return Promise.resolve(true);
     return new Promise((resolve) => {
       openDialog({
         title,
-        body: paidReviewContent(body, review),
+        body: paidReviewContent(body, review, consentScope),
         variant: 'cost',
         onFreeClose: () => resolve(false), // Escape/backdrop = a deliberate no
         actions: [
           { label: cancelLabel, className: 'btn-secondary', autofocus: true, onClick: () => { close(true); resolve(false); } },
-          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { rememberPaidConsent(); close(true); resolve(true); } },
+          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { rememberPaidConsent(consentScope); close(true); resolve(true); } },
         ],
       });
     });

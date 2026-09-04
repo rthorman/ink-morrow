@@ -8,6 +8,7 @@ const { assertTechnicalInput } = require('../imagery/art-store');
 const { keys, text, choice, fail, normalizeCast, normalizeFact, GENRES } = require('./model');
 const { STYLES, normalizeChallenges } = require('./resistance');
 const { FOURTH_WALL_MODES } = require('./fourth-wall');
+const { QUALITY_MODES } = require('./quality');
 
 const SAVE_FORMAT = 'ink-morrow-fiction-save';
 const SAVE_MIME = 'application/vnd.inkmorrow.fiction-save';
@@ -97,9 +98,11 @@ function validateSave(value) {
   };
   function state(state, head) {
     record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count',
+      ...(Object.hasOwn(state, 'quality_mode') ? ['quality_mode'] : []),
       ...(Object.hasOwn(state, 'fourth_wall') ? ['fourth_wall', 'last_fourth_wall_scene'] : []),
       ...(Object.hasOwn(state, 'play_style') ? ['play_style', 'challenges', 'adjudications'] : [])], 'Saved state');
     if (state.version !== 1) fail('Unsupported story-state version.', 'SAVE_VERSION_UNSUPPORTED');
+    if (state.quality_mode !== undefined) choice(state.quality_mode, QUALITY_MODES, null, 'Consistency quality mode');
     list(state.cast, 24, 'cast').forEach((person) => record(person, ['id', 'name', 'description', 'motive'], 'Character'));
     state.cast.forEach((person) => { savedText(person.description, 'description', 2000); savedText(person.motive, 'motive', 1000); });
     const cast = normalizeCast(state.cast);

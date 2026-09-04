@@ -40,7 +40,26 @@ from published books. Reader illustrations remain above text, and EPUB illustrat
 remain separate pages immediately before their text. No 4.x data compatibility is
 required, and historical user data must remain untouched.
 
-## Findings in the current development code
+## Optional quality implementation contract
+
+Quality is Off by default and selected per path. Standard review uses the
+storyteller for both drafting and character/world review; Memory review uses the
+separate memory-support role for continuity/knowledge checks; Both uses both.
+An accepted first draft takes one, two or three calls respectively. One reviewer
+allows at most four total calls and Both at most six, including a single repair
+and reviews of the replacement. Review rejection cannot silently commit a draft.
+
+The browser reviews every selected role/provider/model and the server verifies
+the plan identity before dispatch. Earlier single-call consent cannot authorise
+quality mode. No transport retry, background continuation or silent role fallback
+is allowed. Durable per-call billing preserves known partial charges and unknown
+later attempts through rejection, staleness and restart. Unchanged challenge
+rulings and successful request replay still take zero-call paths first.
+
+Protocol and browser fixtures establish these boundaries, not measured improvement
+in real-model character consistency. No live paid benchmark has been authorised.
+
+## Findings before this iteration (historical design input)
 
 - `backend/src/modules/fiction/service.js` supplies narrator instructions about
   independent motives, hidden knowledge and control boundaries. Structured-effect

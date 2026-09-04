@@ -1,5 +1,29 @@
 # System Architecture & Design Rationale
 
+## 5.0 bounded consistency pipeline
+
+Branch snapshots select quality_mode off, standard, memory or both. A server-owned
+plan hashes mode, role/provider/model identities, endpoint, timeout and maximum
+calls into a review identity. Quality replies require that identity. Credentials
+are never part of the hash or public plan. All required roles are resolved before
+dispatch and every subsequent boundary; stale story or provider changes abort.
+
+The pipeline proposes a draft, validates its structured effects without mutation,
+then optionally asks the selected standard and/or memory roles to review it.
+Reviewers return approval or bounded issues with direct candidate quotations,
+never canon changes. A single repair uses the original authoritative context.
+The replacement passes the same structural checks and every selected review.
+Only the final accepted beat enters the ordinary atomic commit. Model approval
+does not bypass application-owned adjudication, evidence or character ownership.
+
+Schema 21 adds fiction_calls beneath fiction_requests. Each call has a bounded
+index, role, purpose, model, status and billing data. Off caps at one call, one
+reviewer at four, and both at six. Transport retries are disabled. Spend is the
+union of call rows and legacy parent-only purchases, not their double-counted sum.
+Mixed known/unknown costs survive failure and restart. Reader APIs expose bounded
+call metadata, not candidates or review explanations. Saves export aggregate
+spend and the branch setting, never call/replay identities or consent.
+
 ## 5.0 people and episode framing
 
 Relationship facts optionally identify a qualitative facet and a directed cast

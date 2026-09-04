@@ -4,6 +4,13 @@
 > replacement of the remaining historical documentation are in progress. See the
 > [release plan](docs/releases/5.0.0/README.md). Do not use a 4.x database here.
 
+Optional consistency quality is off by default. Story preferences can select
+review by the standard model, memory-support model, or both; Settings configures
+those roles separately. A single reviewer caps at four total calls, both at six,
+with one repair at most. Expanded purchases require their own role/model review;
+known and unknown costs remain visible even when a draft is rejected. These are
+bounded checks, not a guarantee of model correctness or a paid benchmark result.
+
 <p align="center">
   <img src="frontend/brand/ink-morrow-lockup.svg" alt="Ink Morrow - where stories grow claws" width="520">
 </p>

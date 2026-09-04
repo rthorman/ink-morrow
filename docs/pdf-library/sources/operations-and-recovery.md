@@ -1,5 +1,29 @@
 # Operations & Recovery Handbook
 
+## 5.0 optional consistency operations
+
+Quality is off by default. Story preferences select Standard, Memory or Both;
+Settings assigns the standard storyteller and memory-support provider/model
+independently. Saving a role or changing a preference makes no model call. All
+selected roles must resolve before a paid operation begins, and are rechecked
+between calls and before commit. A changed role, missing credential, locked vault
+or changed story stops work rather than silently downgrading quality.
+
+Off permits one call. A single reviewer role permits four total calls; Both
+permits six. A first-pass acceptance needs two or three respectively. The sole
+repair is followed by all selected reviews. Invalid reviewer output or transport
+failure stops immediately, with no automatic retry. Review shows the role models,
+bounded private context exposure and cost/latency tradeoff; previous standard-play
+consent is not authority for quality purchases.
+
+Inspect story totals and Recent model calls & costs after failure. Each dispatched
+call is journalled before transport. Known earlier charges and later unknown
+attempts remain separate; do not interpret a failed scene as free. Restart marks
+pending calls and their parent request interrupted. A late return may improve
+billing knowledge but cannot save the abandoned draft. Use a new explicit action
+only after reviewing the error; never replay paid POSTs to recover a lost response.
+No rejected draft or reviewer explanation is persisted as story history.
+
 ## 5.0 episode and relationship support
 
 Catch me up is a local read, not an AI repair pipeline. It returns current-path
@@ -16,8 +40,8 @@ goal is not treated as an automatically completed one.
 Rewind and playable saves preserve these fields and remap payoff evidence into
 the copied story. Failed path and episode saves retain their dialog text. Refresh
 after a conflicting change; no automatic paid retry or alternate-path creation
-is attempted. Extra consistency-model calls remain a separately approved optional
-feature awaiting implementation before the final release.
+is attempted. Optional consistency-model calls follow the reviewed quality
+pipeline described above; local path and episode actions never start that pipeline.
 
 ## 5.0 fourth-wall support
 
