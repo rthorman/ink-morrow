@@ -1,3 +1,9 @@
+> **5.0 development branch:** the active interface is playable fiction, not the
+> historical writing workspace described farther below. The six PDFs now carry
+> 5.0 filenames and development-edition labels. Final product/storage cutover and
+> replacement of the remaining historical documentation are in progress. See the
+> [release plan](docs/releases/5.0.0/README.md). Do not use a 4.x database here.
+
 <p align="center">
   <img src="frontend/brand/ink-morrow-lockup.svg" alt="Ink Morrow - where stories grow claws" width="520">
 </p>
@@ -15,10 +21,10 @@
 
 <p align="center">
   <a href="#quick-start">Quick start</a> ·
-  <a href="docs/pdf/Ink-Morrow-4.0-User-Guide.pdf">User guide</a> ·
+  <a href="docs/pdf/Ink-Morrow-5.0-User-Guide.pdf">User guide</a> ·
   <a href="#documentation-library">Documentation library</a> ·
   <a href="#screenshots">Screenshots</a> ·
-  <a href="docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf">Operations</a> ·
+  <a href="docs/pdf/Ink-Morrow-5.0-Operations-and-Recovery-Handbook.pdf">Operations</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="CONTRIBUTING.md">Contributing</a> ·
   <a href="docs/releases/4.0.0/KNOWN-ISSUES.md">Known limits</a>
@@ -59,8 +65,8 @@ installation, backup, restore, and sharing guidance is in
 the original 4.0 limits record in
 [docs/releases/4.0.0/KNOWN-ISSUES.md](docs/releases/4.0.0/KNOWN-ISSUES.md).
 
-The task-oriented [Ink Morrow 4.x User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf)
-explains the main authoring flows with the approved interface and branding.
+The task-oriented [InkMorrow 5.0 User Guide](docs/pdf/Ink-Morrow-5.0-User-Guide.pdf)
+explains the reader-director development edition with the approved visual system.
 
 ## Documentation library
 
@@ -70,12 +76,12 @@ practice so each audience can get to the useful answer quickly.
 
 | Book | Use it for |
 |---|---|
-| [User Guide](docs/pdf/Ink-Morrow-4.0-User-Guide.pdf) | Everyday authoring, Chronicle, Codex, Gallery, Gate, and Scriptorium lore |
-| [Operations & Recovery Handbook](docs/pdf/Ink-Morrow-4.0-Operations-and-Recovery-Handbook.pdf) | Installation, configuration, HTTPS, backup, update, diagnosis, and restore |
-| [System Architecture & Design Rationale](docs/pdf/Ink-Morrow-4.0-System-Architecture.pdf) | System boundaries, canon transactions, storage, publication, and design decisions |
-| [State Machine & Invariant Atlas](docs/pdf/Ink-Morrow-4.0-State-Machine-Atlas.pdf) | Durable states, guards, retry/restart behavior, invariants, and test traceability |
-| [Security, Privacy & AI Boundary](docs/pdf/Ink-Morrow-4.0-Security-Privacy-and-AI-Boundary.pdf) | Data exposure, provider trust, secrets, uploads, archives, and public snapshots |
-| [Maintainer, Testing & Release Handbook](docs/pdf/Ink-Morrow-4.0-Maintainer-Testing-and-Release-Handbook.pdf) | Contribution design, test layers, CI, release evidence, and automation boundaries |
+| [User Guide](docs/pdf/Ink-Morrow-5.0-User-Guide.pdf) | Following, steering, optional inhabitation, images, books and saves |
+| [Operations & Recovery Handbook](docs/pdf/Ink-Morrow-5.0-Operations-and-Recovery-Handbook.pdf) | Isolated development, backup and recovery; inherited sections marked |
+| [System Architecture & Design Rationale](docs/pdf/Ink-Morrow-5.0-System-Architecture.pdf) | State, memory, adjudication and publication; inherited sections marked |
+| [State Machine & Invariant Atlas](docs/pdf/Ink-Morrow-5.0-State-Machine-Atlas.pdf) | Durable states, guards, restart behaviour and invariants |
+| [Security, Privacy & AI Boundary](docs/pdf/Ink-Morrow-5.0-Security-Privacy-and-AI-Boundary.pdf) | Provider trust, knowledge, credentials, images and private saves |
+| [Maintainer, Testing & Release Handbook](docs/pdf/Ink-Morrow-5.0-Maintainer-Testing-and-Release-Handbook.pdf) | Test layers, model evaluation, CI and release evidence |
 
 Sources, rendering instructions, and PDF QA requirements are in
 [`docs/pdf-library/`](docs/pdf-library/).

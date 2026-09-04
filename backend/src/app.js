@@ -118,7 +118,7 @@ function createApp(
   // The manual is deliberately public: a locked-out owner may need its setup,
   // recovery, and network guidance before they can authenticate.
   app.get('/user-manual.pdf', (req, res) => {
-    const manualPath = path.join(__dirname, '../../docs/pdf/Ink-Morrow-4.0-User-Guide.pdf');
+    const manualPath = path.join(__dirname, '../../docs/pdf/Ink-Morrow-5.0-User-Guide.pdf');
     res.setHeader('Cache-Control', 'no-cache');
     res.download(manualPath, 'Ink-Morrow-User-Manual.pdf');
   });

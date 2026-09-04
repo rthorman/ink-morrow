@@ -26,11 +26,18 @@ missing/corrupt media. See `docs/fiction-media-saves.md` for bounds and recovery
 
 The third batch adds two locally available curated openings, readable without a
 provider key. There is no manual prose editor. Story preferences, cast additions and fact
-retirement are also local. Long-running stories have a 128-fact working-state
-bound; retire genuinely unneeded reader-visible entries explicitly. Past prose
-and snapshots remain, but retired facts are no longer narrator context. The paid
+retirement are also local. Long-running stories have a 128-fact working-set
+bound, not a lifetime fact limit. Older facts remain in immutable changes and are
+retrieved from the current ancestry when relevant. Do not prune records or ask
+players to retire facts to make room. Explicitly retired facts are excluded from
+retrieval; corrections supersede earlier values without erasing history. The paid
 journal now marks dispatch before calling the provider, retaining unknown spend
 through restart, and fiction purchases disable even automatic transport retries.
+
+Structured challenge decisions now restore with branches and saves. An unchanged
+repeated decision is local and free, not a new AI attempt. Inspect the recorded
+outcome and reader-safe explanation rather than treating a model's prose as a
+permission token. No live-model resistance ranking has yet been established.
 
 <div class="frontmatter">
 

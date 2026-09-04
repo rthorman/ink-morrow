@@ -1,5 +1,21 @@
 # State Machine & Invariant Atlas
 
+## 5.0 resistance and memory transitions
+
+Explicit approach: validate intent and challenge -> resolve requirements against
+current-ancestry facts -> determine outcome and stable basis. An unchanged prior
+decision -> local clarification, zero provider attempts, unchanged fictional scene
+count. New grounds -> one reviewed narration -> check returned outcome/evidence ->
+atomic prose, state, adjudication and usage. Wrong structured outcomes fail without
+a partial commit; known charges remain. Grants remain recorded after later changes
+to the grounds; rewind restores the previous decision set rather than rerolling it.
+
+Facts: append evidence -> keep immutable change -> retain a bounded working set.
+Historical retrieval chooses the latest fact version on the active ancestry.
+Correction supersedes; retirement hides from retrieval; neither deletes history.
+Forks cannot retrieve a sibling's future. Saves preserve challenge definitions and
+adjudication evidence, validate ancestry and remap moment identities on import.
+
 ## 5.0 illustrated-path and save transitions
 
 Local upload: validate target -> normalize raster -> stage private file -> append

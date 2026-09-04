@@ -1,6 +1,8 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { compactFacts } = require('./memory');
+const { STYLES, normalizeChallenges, publicChallenges } = require('./resistance');
 
 const LIMITS = Object.freeze({ cast: 24, facts: 128, branches: 40, prose: 24000, input: 4000 });
 const GENRES = ['drama', 'mystery', 'exploration', 'cozy'];
@@ -72,6 +74,8 @@ function initialState(input) {
   if (new Set(facts.map((fact) => fact.id)).size !== facts.length) fail('Fact IDs must be unique.');
   return {
     version: 1, cast, facts, illustrations: [], control: { character_id: null },
+    play_style: choice(input.play_style, STYLES, 'story-shaping', 'Play style'),
+    challenges: normalizeChallenges(input.challenges, cast.map((person) => person.id), { keys, text, fail }), adjudications: [],
     pacing: choice(input.pacing, ['reflective', 'balanced', 'brisk'], 'balanced', 'Pacing'),
     consequences: choice(input.consequences, ['gentle', 'dramatic'], 'gentle', 'Consequences'),
     boundaries: text(input.boundaries, 'Boundaries', 2000, { optional: true }),
@@ -81,21 +85,28 @@ function initialState(input) {
 }
 
 function publicState(state) {
-  return { ...state, cast: state.cast.map(({ motive: _motive, ...character }) => character), facts: state.facts.filter((fact) => fact.visibility === 'public'), scene_history: [] };
+  return { ...state, play_style: state.play_style || 'story-shaping', challenges: publicChallenges(state),
+    adjudications: (state.adjudications || []).map(({ basis: _basis, ...entry }) => entry),
+    cast: state.cast.map(({ motive: _motive, ...character }) => character), facts: state.facts.filter((fact) => fact.visibility === 'public'), scene_history: [] };
 }
 
 function validateIntent(input, state) {
-  keys(input, ['kind', 'text'], 'Story direction');
+  keys(input, ['kind', 'text', 'challenge_id', 'approach_id'], 'Story direction');
   const kind = choice(input.kind, ['follow', 'steer', 'act', 'say', 'ask'], 'follow', 'Participation');
   const value = text(input.text, 'Direction', LIMITS.input, { optional: kind === 'follow' });
   if (['act', 'say'].includes(kind) && !state.control.character_id) fail('Take control of a character before acting or speaking as them.');
   if (kind === 'follow' && value) fail('Use Steer to give a narrative direction.');
-  return { kind, text: value, character_id: ['act', 'say'].includes(kind) ? state.control.character_id : null };
+  if (input.challenge_id !== undefined || input.approach_id !== undefined) {
+    if (kind !== 'steer' && kind !== 'act') fail('Use a direction or explicit character action for a challenge.');
+    text(input.challenge_id, 'Challenge', 80); text(input.approach_id, 'Approach', 80);
+  }
+  return { kind, text: value, character_id: ['act', 'say'].includes(kind) ? state.control.character_id : null,
+    ...(input.challenge_id ? { challenge_id: input.challenge_id, approach_id: input.approach_id } : {}) };
 }
 
 // Effects are narrow, evidenced proposals. Introducing a named person is not
 // a control handoff. Plans never become completed events just by being selected.
-function applyEffects(original, effects, { prose, input, beatId }) {
+function applyEffects(original, effects, { prose, input, beatId, lookup = () => null }) {
   if (!Array.isArray(effects) || effects.length > 12) fail('A scene may have at most twelve state changes.', 'INVALID_STORY_REPLY', 502);
   const state = structuredClone(original);
   const changes = [];
@@ -111,14 +122,15 @@ function applyEffects(original, effects, { prose, input, beatId }) {
       changes.push({ op: 'introduce', character: { id: character.id, name: character.name, description: character.description } });
     } else if (effect.op === 'remember') {
       const fact = normalizeFact(effect.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
-      if (state.facts.some((entry) => entry.id === fact.id)) fail('A new fact cannot overwrite existing truth.', 'INVALID_STORY_REPLY', 502);
+      if (state.facts.some((entry) => entry.id === fact.id) || lookup(fact.id, true)) fail('A new fact cannot overwrite existing truth.', 'INVALID_STORY_REPLY', 502);
       if (fact.kind === 'commitment' && fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) {
         fail('The narrator cannot invent a commitment for an inhabited character.', 'OWNED_CHARACTER_BOUNDARY', 502);
       }
       state.facts.push(fact);
       changes.push({ op: 'remember', fact });
     } else {
-      const fact = state.facts.find((entry) => entry.id === effect.id);
+      let fact = state.facts.find((entry) => entry.id === effect.id);
+      if (!fact) { const recalled = lookup(effect.id); if (recalled) { fact = structuredClone(recalled); state.facts.push(fact); } }
       if (!fact) fail('The change references an unknown fact.', 'INVALID_STORY_REPLY', 502);
       if (effect.op === 'resolve') fact.status = 'resolved';
       else if (effect.op === 'reveal') {
@@ -133,7 +145,7 @@ function applyEffects(original, effects, { prose, input, beatId }) {
       changes.push({ op: effect.op, fact: structuredClone(fact) });
     }
   }
-  if (state.facts.length > LIMITS.facts) fail('The story fact limit has been reached. Retire an unneeded fact in Cast & story before continuing.', 'STORY_STATE_FULL', 409);
+  compactFacts(state, LIMITS.facts);
   return { state, changes };
 }
 

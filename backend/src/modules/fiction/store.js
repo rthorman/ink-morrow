@@ -3,8 +3,11 @@
 const { randomUUID, createHash } = require('node:crypto');
 const { LIMITS, GENRES, fail, text, choice, keys, initialState, publicState, normalizeCast, normalizeFact } = require('./model');
 const { scenarioInput } = require('./scenarios');
+const { createMemory, compactFacts } = require('./memory');
+const { STYLES } = require('./resistance');
 
 function createFictionStore(db) {
+  const memory = createMemory(db);
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; }
@@ -13,7 +16,8 @@ function createFictionStore(db) {
   const game = (id) => db.prepare('SELECT * FROM fiction_games WHERE id = ?').get(id) || fail('Story not found.', 'STORY_NOT_FOUND', 404);
   const branch = (gameId, id) => db.prepare('SELECT * FROM fiction_branches WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Path not found.', 'PATH_NOT_FOUND', 404);
   const beat = (gameId, id) => db.prepare('SELECT * FROM fiction_beats WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Story moment not found.', 'BEAT_NOT_FOUND', 404);
-  const stateAt = (g, headId) => JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json);
+  const stateAt = (g, headId) => ({ play_style: 'story-shaping', challenges: [], adjudications: [],
+    ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) });
   const current = (id) => {
     const g = game(id);
     const b = branch(id, g.active_branch_id);
@@ -90,7 +94,7 @@ function createFictionStore(db) {
     return id;
   }
   function create(input) {
-    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id'], 'New story');
+    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
     const premise = text(input.premise, 'Premise', 4000);
@@ -144,14 +148,14 @@ function createFictionStore(db) {
       const state = structuredClone(context.state); const beatId = randomUUID();
       let fact;
       if (input.remove_id) {
-        fact = state.facts.find((entry) => entry.id === input.remove_id);
+        fact = state.facts.find((entry) => entry.id === input.remove_id) || memory.get(id, context.branch.head_beat_id, input.remove_id);
         if (!fact) fail('Fact not found.', 'FACT_NOT_FOUND', 404);
         state.facts = state.facts.filter((entry) => entry.id !== input.remove_id);
       } else {
         fact = normalizeFact(input.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
         const index = state.facts.findIndex((entry) => entry.id === fact.id);
         if (index < 0) state.facts.push(fact); else state.facts[index] = fact;
-        if (state.facts.length > LIMITS.facts) fail('The story fact limit has been reached.');
+        compactFacts(state, LIMITS.facts);
       }
       // The reason may itself contain a secret. Keep it out of the reader view.
       append(context, { id: beatId, kind: 'correction', summary: 'A story fact was corrected.', input: { reason }, state, changes: [{ op: input.remove_id ? 'remove' : 'correct', fact }] });
@@ -173,11 +177,12 @@ function createFictionStore(db) {
     });
   }
   function preferences(id, expected, input) {
-    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus'], 'Story preferences');
+    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style'], 'Story preferences');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
       state.pacing = choice(input.pacing, ['reflective', 'balanced', 'brisk'], state.pacing, 'Pacing');
       state.consequences = choice(input.consequences, ['gentle', 'dramatic'], state.consequences, 'Consequences');
+      state.play_style = choice(input.play_style, STYLES, state.play_style || 'story-shaping', 'Play style');
       for (const [key, max] of [['boundaries', 2000], ['voice', 1500], ['focus', 1500]]) if (input[key] !== undefined) state[key] = text(input[key], key, max, { optional: true });
       append(context, { kind: 'correction', summary: 'Story preferences were updated.', state });
     });
@@ -276,7 +281,7 @@ function createFictionStore(db) {
   }
   const list = () => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 200').all();
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, view, current, stateAt, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  return { create, list, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };

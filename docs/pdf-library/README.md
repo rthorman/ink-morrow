@@ -1,4 +1,9 @@
-# Ink Morrow 4.0 PDF documentation library
+# Ink Morrow 5.0 PDF documentation library
+
+The current set is explicitly labelled **5.0 Development Edition**. Filenames,
+covers, metadata, headers, links and freshness output names use 5.0. The five
+technical books still mark their inherited 4.x sections as transitional material;
+the complete replacement is a final release requirement, not completed by renaming.
 
 The published PDFs are committed in [`docs/pdf/`](../pdf/) so readers do not
 need a documentation toolchain. Their version-controlled sources live in
@@ -8,7 +13,7 @@ Scriptorium art for denser technical writing.
 
 | Book | Primary reader |
 |---|---|
-| User Guide | Authors using Ink Morrow |
+| User Guide | Readers and directors playing InkMorrow |
 | Operations & Recovery Handbook | Owner-operator |
 | System Architecture & Design Rationale | Maintainer and technical reviewer |
 | State Machine & Invariant Atlas | Implementer, tester, incident investigator |
@@ -60,9 +65,10 @@ After every source or theme change:
    product naming.
 6. Keep the PDFs and sources in the same pull request.
 
-The User Guide keeps its art-directed fixed-page HTML source in
-[`sources/user-guide.html`](sources/user-guide.html), while the five denser
-technical books use Markdown sources plus the shared theme. All six books are
+The active User Guide is [`sources/user-guide-v5.md`](sources/user-guide-v5.md).
+The previous fixed-page HTML guide is retained as a historical content/visual
+baseline, not a current authoring workflow. All six active books use Markdown
+sources plus the shared theme. All six books are
 declared in [`books.mjs`](books.mjs), rendered through the same
 [`render.mjs`](render.mjs) entry point, published together in
 [`docs/pdf/`](../pdf/), and covered by the same freshness manifest and QA pass.
@@ -79,12 +85,16 @@ Every release-level User Guide must include end-to-end example journeys that:
 
 1. use no optional AI or provider-backed features;
 2. use the complete applicable feature set together; and
-3. use logical subsets for recognizable goals, such as AI-assisted drafting,
-   continuity-led revision, or illustration and publication of existing prose.
+3. use logical subsets for recognizable goals, such as reader-director discovery,
+   optional character inhabitation, or illustration and publication of a path.
+
+For 5.0, a free journey means revisiting, exploring recorded paths, local uploads,
+correction, saves or exports. It does not restore manual prose writing or promise
+a separate non-AI game mode. Newly generated passages require a provider.
 
 Each journey states its goal, prerequisites, enabled features, deliberately
 unused features, ordered actions, provider/cost boundary, and final preservation
 or delivery step. Do not shorten or remove those journeys to match an older PDF.
 
-The current 4.1 User Guide is accepted at **exactly 35 A4 pages**. Treat that as
-this edition's render acceptance criterion, not as a ceiling for future releases.
+The historical 4.1 User Guide was accepted at **exactly 35 A4 pages**. That is not
+a ceiling for the final 5.0 edition; favour complete, legible task coverage.

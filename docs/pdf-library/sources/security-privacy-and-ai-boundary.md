@@ -1,5 +1,20 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 resistance is not a security boundary
+
+A character's refusal is a game-design contract, not an access-control mechanism
+for the real application. Story text, pleas and claimed authority cannot write
+the application-owned challenge decision directly. Evidence must exist as recorded
+world state, but models can still misinterpret how narrative evidence arose.
+Outcome-field and quotation checks are useful structural safeguards, not a proof
+of semantic consistency. Do not describe the system as immune to persuasion.
+
+Private challenge motives, requirements and basis hashes are omitted from reader
+responses. Selected challenge definitions and relevant historical facts may enter
+the reviewed narrator context; they also belong in the private playable save, not
+reader-facing books. No new credentials, background calls or telemetry are added.
+World corrections remain explicit owner actions outside the fictional contest.
+
 ## 5.0 images and saves
 
 Image upload and binary save import remain behind authentication, same-origin and

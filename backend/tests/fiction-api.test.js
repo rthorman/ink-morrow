@@ -50,4 +50,13 @@ describe('playable-fiction API boundary', () => {
     expect(response.status).toBe(404);
     expect(fixture.db.prepare('SELECT count(*) AS n FROM fiction_beats').get().n).toBe(before);
   });
+  test('the preference API records and validates the selected play style', async () => {
+    fixture = createTestApp();
+    const started = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain' });
+    const story = started.body.story;
+    const changed = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: story.revision, play_style: 'living-world' });
+    expect(changed.status).toBe(200); expect(changed.body.story.state.play_style).toBe('living-world');
+    const invalid = await request(fixture.app).put(`/api/fiction/${story.id}/preferences`).send({ expected_revision: changed.body.story.revision, play_style: 'always-refuse' });
+    expect(invalid.status).toBe(400);
+  });
 });
