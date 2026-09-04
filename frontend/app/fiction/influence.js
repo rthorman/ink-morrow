@@ -83,6 +83,24 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     ] });
     query.control.focus();
   }
+  function recap() {
+    const story = getCurrent(); if (!story || isBusy()) return;
+    const body = el('div'); body.append(el('p', 'Gathering the recent story…')); body.setAttribute('role', 'status');
+    dialogs.openDialog({ title: 'Return to this story', body: [body], actions: [{ label: 'Close', className: 'btn-secondary', onClick: (close) => close(true) }] });
+    api(`/fiction/${story.id}/recap`).then(({ recap }) => {
+      if (!same(story)) return;
+      body.replaceChildren(el('p', 'Time away does not advance the story. Already requested work may finish. This recap uses existing records; no AI request was made.'));
+      if (recap.question) body.append(el('h3', 'The episode question'), el('p', recap.question));
+      body.append(el('h3', 'Recently'));
+      for (const item of recap.recent || []) body.append(el('p', item.summary), sourceButton(item.beat_id));
+      if (!recap.recent?.length) body.append(el('p', 'No narrated moments have been recorded yet.'));
+      body.append(el('h3', 'Open commitments'));
+      for (const item of recap.commitments || []) { body.append(el('p', item.text)); if (item.evidence_beat_id) body.append(sourceButton(item.evidence_beat_id)); }
+      if (!recap.commitments?.length) body.append(el('p', 'No current public commitments are recorded.'));
+      if (recap.relationships?.length) body.append(el('h3', 'People and expectations'), el('p', 'These descriptions are separate aspects, not affection scores. Caring, trusting and cooperating can differ.'));
+      for (const item of recap.relationships || []) { body.append(el('p', `${item.facet || 'Relationship'} · ${item.text}`)); if (item.evidence_beat_id) body.append(sourceButton(item.evidence_beat_id)); }
+    }).catch((error) => { if (same(story)) body.textContent = error.message; });
+  }
   function render(story) {
     const style = story.state.play_style || 'story-shaping';
     $('fictionPlayStyle').textContent = style === 'living-world' ? 'Living-world · Attempts can meet credible resistance.' : 'Story-shaping · Your direction guides developments.';
@@ -111,9 +129,10 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     for (const node of $('fictionInvitations').querySelectorAll('button')) node.disabled = Boolean(blocked || ended || $('fictionDirection').value.trim());
     for (const node of $('fictionChallenges').querySelectorAll('button')) node.disabled = Boolean(blocked || ended);
     for (const node of document.querySelectorAll('[data-fiction-read]')) node.disabled = Boolean(blocked);
-    $('fictionRecall').disabled = Boolean(blocked); $('fictionClearFocus').disabled = Boolean(blocked);
+    $('fictionRecall').disabled = Boolean(blocked); $('fictionRecap').disabled = Boolean(blocked); $('fictionClearFocus').disabled = Boolean(blocked);
   }
   $('fictionRecall').addEventListener('click', recall);
+  $('fictionRecap').addEventListener('click', recap);
   $('fictionClearFocus').addEventListener('click', () => localAction('preferences', 'PUT', { focus: '' }));
   return { render, controls, sourceButton };
 }

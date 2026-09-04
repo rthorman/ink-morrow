@@ -27,17 +27,19 @@ function createMemory(db) {
   ), ranked AS (
     SELECT *, row_number() OVER (PARTITION BY json_extract(fact, '$.id') ORDER BY depth, ordinal DESC) AS n FROM versions
   )`;
-  function facts(gameId, headId, { query = '', id = null, includeRemoved = false, publicOnly = false, limit = 32 } = {}) {
+  function facts(gameId, headId, { query = '', id = null, kind = null, status = null, includeRemoved = false, publicOnly = false, limit = 32 } = {}) {
     const words = [...new Set(query.toLowerCase().match(/[\p{L}]{3,}/gu) || [])].slice(0, 12);
     const match = words.length ? words.map(() => "CASE WHEN instr(lower(json_extract(fact, '$.text')), ?) > 0 THEN 3 ELSE 0 END").join(' + ') : '0';
     const rows = db.prepare(`${cte} SELECT fact, op FROM ranked WHERE n = 1
       AND (? IS NULL OR json_extract(fact, '$.id') = ?) AND (? OR op != 'remove')
       AND (? = 0 OR json_extract(fact, '$.visibility') = 'public')
+      AND (? IS NULL OR json_extract(fact, '$.kind') = ?)
+      AND (? IS NULL OR json_extract(fact, '$.status') = ?)
       AND (? = 0 OR (${match}) > 0)
       ORDER BY (${match}) + CASE WHEN json_extract(fact, '$.visibility') = 'secret' THEN 2 ELSE 0 END
         + CASE WHEN json_extract(fact, '$.status') = 'active' THEN 4 ELSE 0 END
         + CASE WHEN json_extract(fact, '$.kind') IN ('commitment', 'goal') THEN 3 ELSE 0 END DESC, depth, ordinal DESC LIMIT ?`)
-      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), Number(publicOnly && words.length > 0), ...words, ...words, Math.max(1, Math.min(128, limit)));
+      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), kind, kind, status, status, Number(publicOnly && words.length > 0), ...words, ...words, Math.max(1, Math.min(128, limit)));
     return rows.map((row) => ({ ...JSON.parse(row.fact), ...(row.op === 'remove' ? { retired: true } : {}) }));
   }
   return { facts, get: (gameId, headId, id, includeRemoved = false) => facts(gameId, headId, { id, includeRemoved, limit: 1 })[0] || null };

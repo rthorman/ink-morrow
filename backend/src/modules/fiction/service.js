@@ -5,6 +5,7 @@ const { LIMITS, fail, keys, text, validateIntent, applyEffects } = require('./mo
 const { chooseScene, recordScene } = require('./director');
 const { adjudicate } = require('./resistance');
 const { fourthWallContext, validateAside } = require('./fourth-wall');
+const { recordEpisode, episodeGoals } = require('./episodes');
 
 function contextFacts(state, direction) {
   const words = new Set(direction.toLowerCase().match(/[\p{L}]{3,}/gu) || []);
@@ -35,6 +36,9 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         'Return a JSON object with prose (readable story text), summary (one reader-safe sentence), and effects (array, empty when nothing durable changes), plus the optional aside described above. Only when adjudication is supplied, also include resolution as specified above; otherwise no other fields. No Markdown fences. Aim for 120–220 words of prose, or 80–140 when brisk; at most four concise effects normally. Finish the complete JSON within the output budget.',
         'Effects: remember uses {op:"remember",fact:{id,kind,text,visibility,known_by,status,actor_id,value},evidence}; resolve uses {op:"resolve",id,evidence}; reveal uses {op:"reveal",id,known_by,evidence}; adjust uses {op:"adjust",id,amount,evidence}.',
         'Fact kind is fact|commitment|relationship|goal|resource; visibility public|secret; status active|resolved; actor_id is a cast ID or null; value is numeric for resources, otherwise null. known_by contains cast IDs. IDs are short alphanumeric identifiers with hyphens or underscores.',
+        'Relationship facts may name facet general|affection|trust|cooperation|expectation and toward_id (another cast ID or null). Non-general relationships name actor_id; affection, trust and cooperation also name toward_id. These are qualitative descriptions, never scores. Caring for someone does not automatically mean trusting or cooperating with them. Expectations concern what that person reasonably anticipates from recorded experience, not guaranteed future events.',
+        'Use {op:"develop",id,text,evidence} to update an existing relationship description when this passage or the user\'s own input directly justifies it. Its identity, aspect, people, visibility and knowledge remain unchanged. This cannot rewrite a world fact. Never create or change the inhabited character\'s feelings, expectations or promises without their explicit input. NPC views of that character may change based on experience.',
+        'The episode question and episode_goals provide focus, not a mandatory plot. Resolve a goal only when the passage actually fulfils it, not merely because someone plans to try. Episode phase follows recorded changes, not a timer. Allow a payoff and aftermath without ending the episode, forcing a cliffhanger, or penalising rest. The player may linger, redirect or stop early.',
         'Every effect evidence must be an exact quotation from this response\'s prose or the user\'s input. Remember creates a NEW fact ID and cannot rewrite existing truth. Do not invent commitments for an inhabited character. Never emit control or episode changes.',
         'A genuinely new person appearing by name may use {op:"introduce",character:{id,name,description,motive},evidence}. Reuse existing people; never duplicate names. Describe only reader-visible traits, keep private motives in motive. Introduction never hands control to the user.',
         'The scene_plan is a provisional opportunity, not an event that has happened. Its target facts should causally shape this beat when appropriate. Respect the user direction and owned-character boundary over the suggested pattern. Narration voice changes style, not authority. The remaining_fact_slots limit is per response, not a lifetime story limit.',
@@ -46,7 +50,7 @@ function createFictionService({ store, chatCompletion, providers = null }) {
         control: state.control, boundaries: state.boundaries, pacing: state.pacing, consequences: state.consequences,
         play_style: state.play_style || 'story-shaping', challenges: state.challenges || [], adjudications: state.adjudications || [], adjudication: decision,
         fourth_wall: fourthWallContext(state, intent),
-        episode: state.episode, focus: state.focus, narration_voice: state.voice || '',
+        episode: state.episode, episode_goals: episodeGoals(state, (id) => store.memory.get(game.id, branch.head_beat_id, id)), focus: state.focus, narration_voice: state.voice || '',
         facts: [...new Map([...state.facts.filter((fact) => plan.fact_ids.includes(fact.id)),
           ...store.memory.facts(game.id, branch.head_beat_id, { query: `${intent.text} ${state.focus}` }),
           ...contextFacts(state, `${intent.text} ${state.focus}`)].map((fact) => [fact.id, fact])).values()].slice(0, 32),
@@ -105,6 +109,7 @@ function createFictionService({ store, chatCompletion, providers = null }) {
       if (decision) state.adjudications = [...(state.adjudications || []).filter((entry) => entry.challenge_id !== decision.challenge_id), { ...decision, beat_id: beatId }];
       if (intent.kind === 'steer' && intent.direction_scope === 'ongoing') state.focus = intent.text.slice(0, 1500);
       recordScene(state, plan, beatId);
+      if (intent.kind !== 'ask') recordEpisode(state, changes, beatId, lookup);
       if (aside) state.last_fourth_wall_scene = state.scene_count;
       const committedId = store.completeRequest(request, { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes }, usage);
       return { story: store.view(gameId), beat_id: committedId, cost_usd: usage.costUsd, billed_attempts: usage.billedAttempts, model: usage.model, reused: false };

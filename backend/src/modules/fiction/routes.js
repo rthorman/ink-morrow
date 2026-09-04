@@ -27,6 +27,7 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   router.post('/api/fiction', (req, res) => res.status(201).json({ story: expose(store.create(req.body)) }));
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
   router.get('/api/fiction/:id/memory', (req, res) => res.json({ facts: store.recall(req.params.id, req.query.q || '') }));
+  router.get('/api/fiction/:id/recap', (req, res) => res.json({ recap: store.recap(req.params.id) }));
   router.get('/api/fiction/:id/evidence/:beat', (req, res) => res.json({ beat: store.evidence(req.params.id, req.params.beat) }));
   router.post('/api/fiction/:id/challenge-review', (req, res) => {
     keys(req.body, ['expected_revision', 'input'], 'Review challenge');
@@ -98,8 +99,8 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     res.status(201).json({ story: expose(store.correct(req.params.id, revision(req), { fact: req.body.fact, remove_id: req.body.remove_id, reason: req.body.reason })) });
   });
   router.post('/api/fiction/:id/episodes', (req, res) => {
-    keys(req.body, ['expected_revision', 'action', 'title', 'summary'], 'Episode');
-    res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary })) });
+    keys(req.body, ['expected_revision', 'action', 'title', 'summary', 'question'], 'Episode');
+    res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary, question: req.body.question })) });
   });
   router.put('/api/fiction/:id/preferences', (req, res) => {
     keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');

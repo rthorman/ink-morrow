@@ -1,5 +1,24 @@
 # Operations & Recovery Handbook
 
+## 5.0 episode and relationship support
+
+Catch me up is a local read, not an AI repair pipeline. It returns current-path
+public reminders and evidence links. A temporarily unreachable server can prevent
+the recap from loading, but opening it never buys narration. Private motives and
+other paths are excluded. Return after an absence does not advance the world.
+
+Relationship descriptions distinguish caring, trust, cooperation and expectations.
+Check recorded evidence before correcting an apparent disagreement. Corrections
+do not rewrite earlier prose. Episode phases describe development, payoff and
+aftermath; only the player ends an episode. Ending early is valid, and a retired
+goal is not treated as an automatically completed one.
+
+Rewind and playable saves preserve these fields and remap payoff evidence into
+the copied story. Failed path and episode saves retain their dialog text. Refresh
+after a conflicting change; no automatic paid retry or alternate-path creation
+is attempted. Extra consistency-model calls remain a separately approved optional
+feature awaiting implementation before the final release.
+
 ## 5.0 fourth-wall support
 
 In Living-world Story preferences, Characters may break the fourth wall offers

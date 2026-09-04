@@ -1,5 +1,23 @@
 # State Machine & Invariant Atlas
 
+## 5.0 people and episode transitions
+
+Relationship development: quoted passage/input evidence → existing relationship
+identity → ownership check → new description with unchanged aspect, people and
+visibility → immutable change with prior provenance. World-fact replacement is
+not a develop transition. Affection does not imply trust or cooperation.
+
+Episode opening → public developments → narrated resolution of its recorded goals
+→ payoff → subsequent aftermath. These are descriptive opportunities, not forced
+story beats. No transition ends the episode: the player explicitly ends it or
+starts the next one. Quiet turns and local goal corrections do not fabricate a
+payoff. Rewind restores the earlier snapshot; saves remap payoff evidence and
+reject missing, cross-path or non-scene payoff references.
+
+Catch me up → public current-path read → bounded existing summaries and records.
+There is no purchased recap, autonomous absence step or simulated offline progress.
+Failed path/episode writes retain their local dialog drafts and create no new path.
+
 ## 5.0 fourth-wall transitions
 
 Local preference change → snapshot the Never/Rarely/Freely choice, leaving the

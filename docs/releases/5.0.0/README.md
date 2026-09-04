@@ -104,12 +104,16 @@ these three PRs and the final green release PR into main.
   passed all five CI gates and merged as `499e23a` on 4 September 2026. Local
   verification passed 394 backend tests, 277 frontend tests and 36 browser tests.
   The six PDFs now use 5.0 filenames and development-edition covers.
-- **B — clear influence:** implementation includes visible play styles, moment
+- **B — clear influence:** PR [#73](https://github.com/rthorman/ink-morrow/pull/73)
+  passed all five CI gates and merged as `2e6cd3b` on 4 September 2026. It includes visible play styles, moment
   versus ongoing direction, local invitations, free repeated-challenge review,
   current-path recall and earlier-evidence links. PR #73 also includes the new
-  Never/Rarely/Freely Living-world fourth-wall setting. Verification and PR delivery
-  are in progress; this entry is not a merge claim.
-- **C — people and complete episodes:** remains planned, followed by fresh-storage
+  Never/Rarely/Freely Living-world fourth-wall setting. Local verification covered
+  411 unique backend tests, 286 frontend tests and 42 browser tests; all six PDFs
+  regenerated and passed QA. The current-head dependency audit passed after the
+  previous run's registry timeout; no audit gate was bypassed.
+- **C — people and complete episodes:** implementation and verification in progress,
+  followed by optional consistency-quality mode, fresh-storage
   cutover, the full six-book release edition and final hardening.
 
 Development is consolidated in WSL; Windows Chrome and PDF tooling may operate on
