@@ -7,14 +7,22 @@ and Settings. The remainder of this handbook retains the 4.x operational baselin
 until the final identity/portability batch; do not interpret old Desk or Gate steps
 as controls in the new reader. The separate development checkout must use isolated
 data and a separate port. Do not repoint it at the running 4.x database. New games
-are not included in the old manuscript archive. Until complete playable saves ship,
-stop the isolated instance and copy its complete data directory for a cold backup.
+are not included in the old manuscript archive. Download a private `.inkmorrow5`
+save for every playable story, and also stop the isolated instance and copy its
+complete data directory for a cold backup. Import creates a separate copy and
+never resumes a paid request. Saves exclude credentials and provider settings.
 
 Settings supports chat-capable provider profiles, a storyteller role/model,
 session-only or encrypted-vault credentials, and vault unlock. Credentials never
 go into browser storage. A story request reviews one response; the provider/model
 must still match that review when the server starts the purchase. Failed response
 validation can still cost money. Refresh is free and never retries generation.
+
+Illustrations now use a separate Illustrator role. Uploads and description changes
+are local; painting is one explicit request. Store normalized files and the database
+together: branch snapshots may refer to older image assets. Do not prune files merely
+because the currently selected path does not show them. Exports fail honestly on
+missing/corrupt media. See `docs/fiction-media-saves.md` for bounds and recovery.
 
 The third batch adds two locally available curated openings, readable without a
 provider key. There is no manual prose editor. Story preferences, cast additions and fact

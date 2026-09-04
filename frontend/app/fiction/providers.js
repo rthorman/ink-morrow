@@ -46,14 +46,33 @@ export function createProviderPanel({ api }) {
       });
       root().append(profile.wrapper, model.wrapper, save, load, catalogue, status);
 
+      const illustrator = data.roles.find((role) => role.role === 'illustrator');
+      const imageProfile = field('Image provider', 'select');
+      imageProfile.control.append(...data.profiles.filter((entry) => entry.capabilities.includes('image')).map((entry) => option(entry.id, entry.display_name)));
+      if (illustrator) imageProfile.control.value = illustrator.profile_id;
+      const imageModel = field('Image model identifier', 'input', illustrator?.model_id || '', { maxLength: 300 });
+      const saveImage = button('Use this illustrator', async () => {
+        if (saveImage.disabled) return;
+        saveImage.disabled = true; saveImage.textContent = 'Saving illustrator…'; status.textContent = '';
+        try {
+          await api('/providers/roles/illustrator', 'PUT', { profile_id: imageProfile.control.value, model_id: imageModel.control.value.trim() });
+          if (live()) await render(isCurrent);
+        } catch (error) { if (live()) status.textContent = error.message; }
+        finally { if (live()) { saveImage.disabled = false; saveImage.textContent = 'Use this illustrator'; } }
+      });
+      root().append(el('h2', 'Optional illustrations'), el('p', 'Image generation is separate from the storyteller. Nothing is painted automatically.'), imageProfile.wrapper, imageModel.wrapper, saveImage);
+
       const credentials = el('details'); credentials.append(el('summary', 'Credentials and providers'));
+      const credentialProfile = field('Provider to configure credentials for', 'select');
+      credentialProfile.control.append(...data.profiles.map((entry) => option(entry.id, entry.display_name)));
+      credentialProfile.control.value = profile.control.value;
       const credentialNote = el('p');
       const secret = field('API key', 'input', '', { type: 'password', autocomplete: 'off', maxLength: 12000 });
       const source = field('Keep this credential', 'select'); source.control.append(option('session', 'Until the server restarts'), option('vault', 'Encrypted in the local vault'));
       const password = field('Owner password (only for encrypted storage)', 'input', '', { type: 'password', autocomplete: 'current-password', maxLength: 128 });
       const credentialSave = button('Save credential', async () => {
         if (credentialSave.disabled) return;
-        const selected = profile.control.value;
+        const selected = credentialProfile.control.value;
         credentialSave.disabled = true; credentialSave.textContent = 'Saving credential…'; status.textContent = '';
         try {
           await api(`/providers/${selected}/credential`, 'PUT', { source: source.control.value, credential: secret.control.value, password: password.control.value || undefined });
@@ -63,26 +82,28 @@ export function createProviderPanel({ api }) {
         finally { if (live()) { credentialSave.disabled = false; credentialSave.textContent = 'Save credential'; } }
       });
       const updateCredential = () => {
-        const selected = candidates.find((entry) => entry.id === profile.control.value);
+        const selected = data.profiles.find((entry) => entry.id === credentialProfile.control.value);
         const readOnly = selected?.credential.read_only;
         credentialNote.textContent = readOnly ? 'This provider uses a read-only environment credential. Add a separate profile below to use a key entered here.' : 'The key is sent only to your own server for provider use. It is never saved in browser storage.';
         secret.control.disabled = Boolean(readOnly); source.control.disabled = Boolean(readOnly); password.control.disabled = Boolean(readOnly); credentialSave.disabled = Boolean(readOnly);
         secret.control.value = ''; password.control.value = ''; catalogue.replaceChildren();
       };
-      profile.control.addEventListener('change', updateCredential); updateCredential();
-      credentials.append(credentialNote, secret.wrapper, source.wrapper, password.wrapper, credentialSave);
+      profile.control.addEventListener('change', () => { credentialProfile.control.value = profile.control.value; updateCredential(); });
+      credentialProfile.control.addEventListener('change', updateCredential); updateCredential();
+      credentials.append(credentialProfile.wrapper, credentialNote, secret.wrapper, source.wrapper, password.wrapper, credentialSave);
       const name = field('New provider name', 'input', 'My OpenRouter', { maxLength: 200 });
       const endpoint = field('OpenAI-compatible endpoint', 'input', 'https://openrouter.ai/api/v1', { maxLength: 1000 });
+      const supportsImages = field('This provider also supports image generation', 'input', '', { type: 'checkbox' });
       const create = button('Add provider profile', async () => {
         if (create.disabled) return;
         create.disabled = true; create.textContent = 'Adding provider…'; status.textContent = '';
         try {
-          await api('/providers', 'POST', { display_name: name.control.value, base_url: endpoint.control.value, capabilities: ['chat', 'catalog'], enabled: true });
+          await api('/providers', 'POST', { display_name: name.control.value, base_url: endpoint.control.value, capabilities: ['chat', 'catalog', ...(supportsImages.control.checked ? ['image'] : [])], enabled: true });
           if (live()) await render(isCurrent);
         } catch (error) { if (live()) status.textContent = error.message; }
         finally { if (live()) { create.disabled = false; create.textContent = 'Add provider profile'; } }
       });
-      credentials.append(el('h3', 'Add a provider'), name.wrapper, endpoint.wrapper, create);
+      credentials.append(el('h3', 'Add a provider'), name.wrapper, endpoint.wrapper, supportsImages.wrapper, create);
       root().append(credentials);
       if (data.vault.state === 'locked') {
         const unlock = field('Unlock saved credentials with your owner password', 'input', '', { type: 'password', autocomplete: 'current-password', maxLength: 128 });

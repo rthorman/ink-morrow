@@ -231,7 +231,16 @@ function renderEpub(document) {
   const assets = assetMap(document);
   const mediaEntries = [];
   const manifestImages = [];
-  const body = [];
+  const sections = []; const included = new Set(); let body = [];
+  const language = xml(document.metadata.language);
+  const title = xml(document.metadata.title);
+  const xhtml = (content, fixed = false) => `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml" lang="${language}" xml:lang="${language}"><head><title>${title}</title>${fixed ? '<meta name="viewport" content="width=1200,height=1600"/>' : ''}<link rel="stylesheet" href="style.css"/></head><body${fixed ? ' class="image-page"' : ''}>${content}</body></html>`;
+  const flush = () => {
+    if (!body.length) return;
+    const id = sections.length ? `text-${sections.length + 1}` : 'book';
+    sections.push({ id, href: `${id}.xhtml`, fixed: false, content: xhtml(body.join('\n')) }); body = [];
+  };
   for (const line of publicationLines(document)) {
     const level = headingLevel(line.kind);
     if (level) body.push(`<h${level}>${xml(line.text)}</h${level}>`);
@@ -241,16 +250,18 @@ function renderEpub(document) {
       if (!asset) continue;
       const ext = extensionFor(asset);
       const name = `images/${asset.key}.${ext}`;
-      mediaEntries.push({ name: `EPUB/${name}`, data: Buffer.from(asset.content_base64, 'base64') });
-      manifestImages.push(`<item id="${asset.key}" href="${name}" media-type="${asset.media_type}"/>`);
-      body.push(`<figure><img src="${name}" alt="${xml(asset.alt_text)}"/><figcaption>${xml(line.text)}</figcaption></figure>`);
+      if (!included.has(asset.key)) {
+        included.add(asset.key);
+        mediaEntries.push({ name: `EPUB/${name}`, data: Buffer.from(asset.content_base64, 'base64') });
+        manifestImages.push(`<item id="${asset.key}" href="${name}" media-type="${asset.media_type}"/>`);
+      }
+      flush();
+      const id = `image-${sections.length + 1}`;
+      sections.push({ id, href: `${id}.xhtml`, fixed: true,
+        content: xhtml(`<figure><img src="${name}" alt="${xml(asset.alt_text)}"/><figcaption>${xml(line.text)}</figcaption></figure>`, true) });
     } else body.push(`<p>${xml(line.text).replace(/\n/g, '<br/>')}</p>`);
   }
-  const language = xml(document.metadata.language);
-  const title = xml(document.metadata.title);
-  const book = `<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" lang="${language}" xml:lang="${language}"><head><title>${title}</title><link rel="stylesheet" href="style.css"/></head><body>${body.join('\n')}</body></html>`;
+  flush();
   const nav = `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="${language}" xml:lang="${language}"><head><title>${title}</title></head><body><nav epub:type="toc" id="toc"><h1>${title}</h1><ol><li><a href="book.xhtml">${title}</a></li></ol></nav></body></html>`;
@@ -259,14 +270,16 @@ function renderEpub(document) {
     ? `${document.metadata.date.slice(0, 10)}T00:00:00Z`
     : '2000-01-01T00:00:00Z';
   const opf = `<?xml version="1.0" encoding="utf-8"?>
-<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="${language}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${identifier}</dc:identifier><dc:title>${title}</dc:title><dc:language>${language}</dc:language>${document.metadata.author ? `<dc:creator>${xml(document.metadata.author)}</dc:creator>` : ''}<meta property="dcterms:modified">${modified}</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="book" href="book.xhtml" media-type="application/xhtml+xml"/><item id="css" href="style.css" media-type="text/css"/>${manifestImages.join('')}</manifest><spine><itemref idref="book"/></spine></package>`;
+<package xmlns="http://www.idpf.org/2007/opf" prefix="rendition: http://www.idpf.org/vocab/rendition/#" version="3.0" unique-identifier="book-id" xml:lang="${language}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${identifier}</dc:identifier><dc:title>${title}</dc:title><dc:language>${language}</dc:language>${document.metadata.author ? `<dc:creator>${xml(document.metadata.author)}</dc:creator>` : ''}<meta property="dcterms:modified">${modified}</meta><meta property="rendition:layout">reflowable</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${sections.map((section) => `<item id="${section.id}" href="${section.href}" media-type="application/xhtml+xml"/>`).join('')}<item id="css" href="style.css" media-type="text/css"/>${manifestImages.join('')}</manifest><spine>${sections.map((section) => `<itemref idref="${section.id}"${section.fixed ? ' properties="rendition:layout-pre-paginated rendition:spread-none"' : ''}/>`).join('')}</spine></package>`;
   return zipStore([
     { name: 'mimetype', data: 'application/epub+zip' },
     { name: 'META-INF/container.xml', data: `<?xml version="1.0" encoding="utf-8"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="EPUB/package.opf" media-type="application/oebps-package+xml"/></rootfiles></container>` },
     { name: 'EPUB/package.opf', data: opf },
     { name: 'EPUB/nav.xhtml', data: nav },
-    { name: 'EPUB/book.xhtml', data: book },
-    { name: 'EPUB/style.css', data: 'body{font-family:serif;line-height:1.55;margin:5%;}p{orphans:2;widows:2;}img{max-width:100%;height:auto;}figure{break-inside:avoid;text-align:center;}hr{border:0;text-align:center;}hr:after{content:"* * *";}' },
+    ...sections.map((section) => ({ name: `EPUB/${section.href}`, data: section.content })),
+    // EPUB 3.3 §8.2: each illustration is one fixed-layout spine page;
+    // prose remains reflowable and never shares that image resource.
+    { name: 'EPUB/style.css', data: 'body{font-family:serif;line-height:1.55;margin:5%;}p{orphans:2;widows:2;}img{max-width:100%;height:auto;}figure{break-inside:avoid;text-align:center;}body.image-page{width:1200px;height:1600px;margin:0;}.image-page figure{margin:0;padding:60px;box-sizing:border-box;height:1600px;}.image-page img{width:1080px;height:1000px;object-fit:contain;}.image-page figcaption{font-size:18px;line-height:1.35;overflow-wrap:anywhere;margin-top:30px;}hr{border:0;text-align:center;}hr:after{content:"* * *";}' },
     ...mediaEntries,
   ]);
 }
@@ -417,6 +430,10 @@ function validateEpub(buffer) {
   for (const match of opf.matchAll(/href="([^"]+)"/g)) {
     if (!entries.has(`EPUB/${match[1]}`)) errors.push(`Missing manifest resource ${match[1]}`);
   }
+  const ids = new Set([...opf.matchAll(/<item\s+id="([^"]+)"/g)].map((match) => match[1]));
+  const spine = [...opf.matchAll(/<itemref\s+idref="([^"]+)"/g)];
+  if (!spine.length) errors.push('Spine is empty');
+  for (const match of spine) if (!ids.has(match[1])) errors.push(`Unknown spine item ${match[1]}`);
   return { valid: errors.length === 0, errors };
 }
 
@@ -432,19 +449,21 @@ function validatePdf(buffer) {
 }
 
 async function adapterDocument(document, format) {
-  if (!['docx', 'odt', 'rtf', 'pdf'].includes(format) || !document.assets.some((asset) => asset.media_type === 'image/webp')) {
+  if (!['docx', 'odt', 'rtf', 'pdf', 'epub'].includes(format) || !document.assets.some((asset) => asset.media_type === 'image/webp')) {
     return document;
   }
-  const assets = await Promise.all(document.assets.map(async (asset) => {
-    if (asset.media_type !== 'image/webp') return asset;
+  const assets = [];
+  for (const asset of document.assets) {
+    if (asset.media_type !== 'image/webp') { assets.push(asset); continue; }
     const image = sharp(Buffer.from(asset.content_base64, 'base64'));
     const converted = format === 'pdf' ? await image.jpeg({ quality: 88 }).toBuffer() : await image.png().toBuffer();
-    return {
+    assets.push({
       ...asset,
       media_type: format === 'pdf' ? 'image/jpeg' : 'image/png',
       content_base64: converted.toString('base64'),
-    };
-  }));
+      sha256: createHash('sha256').update(converted).digest('hex'),
+    });
+  }
   return { ...document, assets };
 }
 
@@ -584,9 +603,13 @@ function rereadPublication(format, buffer) {
   if (format === 'rtf') return rtfTextSequence(source.toString('ascii'));
   const entries = storedZipEntries(source);
   if (format === 'epub') {
-    const book = entries.get('EPUB/book.xhtml');
-    if (!book) throw new Error('EPUB has no EPUB/book.xhtml.');
-    return htmlTextSequence(book.toString('utf8'));
+    const opf = entries.get('EPUB/package.opf')?.toString('utf8') || '';
+    const items = new Map([...opf.matchAll(/<item\s+id="([^"]+)"\s+href="([^"]+)"/g)].map((match) => [match[1], match[2]]));
+    return [...opf.matchAll(/<itemref\s+idref="([^"]+)"/g)].flatMap((match) => {
+      const content = entries.get(`EPUB/${items.get(match[1])}`);
+      if (!content) throw new Error('EPUB spine resource is missing.');
+      return htmlTextSequence(content.toString('utf8'));
+    });
   }
   if (format === 'docx') {
     const documentXml = entries.get('word/document.xml');

@@ -1,20 +1,74 @@
 'use strict';
 
 const express = require('express');
+const fs = require('node:fs');
+const path = require('node:path');
+const { receiveImageUpload } = require('../imagery/upload');
+const { SAVE_MIME, MAX_PACKED } = require('./saves');
 const { fail, keys, text } = require('./model');
 const { parseReasoningEffort } = require('../../core/validation');
 const { catalogue } = require('./scenarios');
 
-function createFictionRouter({ store, service, providers = null }) {
+function createFictionRouter({ store, service, providers = null, media, publication, saves }) {
   const router = express.Router();
   const expose = (story) => ({ ...story, generation: providers?.exposure('scribe', {
     data_categories: ['story premise', 'selected cast', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
     operation_count: 1,
+  }) || null, illustration_generation: providers?.exposure('illustrator', {
+    data_categories: ['selected story passage', 'art direction'], operation_count: 1,
   }) || null });
   const revision = (req) => req.body?.expected_revision;
   router.get('/api/fiction', (req, res) => res.json({ stories: store.list() }));
   router.post('/api/fiction', (req, res) => res.status(201).json({ story: expose(store.create(req.body)) }));
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
+  const saveBody = express.raw({ type: SAVE_MIME, limit: MAX_PACKED });
+  router.post('/api/fiction/saves/preview', saveBody, async (req, res, next) => {
+    try { res.json({ preview: await saves.preview(req.body) }); } catch (error) { next(error); }
+  });
+  router.post('/api/fiction/saves/import', saveBody, async (req, res, next) => {
+    try { res.status(201).json({ story: expose(await saves.importSave(req.body)) }); } catch (error) { next(error); }
+  });
+  router.get('/api/fiction/:id/save', async (req, res, next) => {
+    try { res.set('Cache-Control', 'private, no-store').attachment('InkMorrow-story.inkmorrow5').type(SAVE_MIME).send(await saves.exportSave(req.params.id)); }
+    catch (error) { next(error); }
+  });
+  router.get('/api/fiction/:id/images/:asset', (req, res) => {
+    const image = media.read(req.params.id, req.params.asset);
+    res.set('Cache-Control', 'private, no-store').type(image.media_type).send(image.buffer);
+  });
+  router.post('/api/fiction/:id/images/upload', async (req, res, next) => {
+    let upload;
+    try {
+      upload = await receiveImageUpload(req, path.join(media.directory, 'staging'));
+      keys(upload.fields, ['expected_revision', 'beat_id', 'alt_text', 'caption'], 'Illustration upload');
+      if (!/^\d+$/.test(upload.fields.expected_revision || '')) fail('The current story revision is required.');
+      const { expected_revision, ...placement } = upload.fields;
+      const story = await media.upload(req.params.id, Number(expected_revision), upload, placement);
+      res.status(201).json({ story: expose(story) });
+    } catch (error) { next(error); }
+    finally { if (upload) { try { fs.unlinkSync(upload.path); } catch { /* already cleaned */ } } }
+  });
+  router.post('/api/fiction/:id/images/generate', async (req, res, next) => {
+    try {
+      keys(req.body, ['expected_revision', 'idempotency_key', 'input'], 'Illustrate story');
+      const result = await media.generate(req.params.id, revision(req), req.get('Idempotency-Key') || req.body.idempotency_key, req.body.input);
+      res.status(result.reused ? 200 : 201).json({ ...result, story: expose(result.story) });
+    } catch (error) { next(error); }
+  });
+  router.post('/api/fiction/:id/images/remove', (req, res) => {
+    keys(req.body, ['expected_revision', 'beat_id'], 'Remove illustration');
+    res.json({ story: expose(store.removeIllustration(req.params.id, revision(req), text(req.body.beat_id, 'Moment', 80))) });
+  });
+  router.post('/api/fiction/:id/images/describe', (req, res) => {
+    keys(req.body, ['expected_revision', 'beat_id', 'alt_text'], 'Describe illustration');
+    res.json({ story: expose(store.describeIllustration(req.params.id, revision(req), req.body)) });
+  });
+  router.get('/api/fiction/:id/book/:format', async (req, res, next) => {
+    try {
+      const exported = await publication.export(req.params.id, req.params.format, req.query);
+      res.set('Cache-Control', 'private, no-store').attachment(`InkMorrow-story.${exported.extension}`).type(exported.contentType).send(exported.buffer);
+    } catch (error) { next(error); }
+  });
   router.get('/api/fiction/:id', (req, res) => res.json({ story: expose(store.view(req.params.id, { before: req.query.before || null, limit: req.query.limit ? Number(req.query.limit) : 60 })) }));
   router.post('/api/fiction/:id/branches', (req, res) => {
     keys(req.body, ['expected_revision', 'name', 'beat_id'], 'Alternate path');

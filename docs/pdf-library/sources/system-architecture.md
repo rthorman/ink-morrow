@@ -1,5 +1,21 @@
 # System Architecture & Design Rationale
 
+## 5.0 media and portability boundary
+
+The new game owns immutable branch-state illustration placements and story-scoped
+normalized raster assets. Media never becomes prose or truth. A dedicated Illustrator
+role uses the game request journal and exact revision/path checks. Upload/description
+changes remain local. Files are staged under random keys; asset insertion, placement
+snapshot and terminal paid accounting share one database transaction.
+
+The game projects only the selected ancestry's prose and placements into the existing
+PublicationDocument. EPUB splits images into individual fixed-layout spine items;
+prose stays reflowable. All adapters share one privacy-filtered document. Playable
+saves are separate bounded gzip-JSON graphs carrying every snapshot and image, with
+no credentials or request authority. Validation uses ancestry intervals to reject
+future/cross-path evidence before a transactional copy with remapped identities.
+The historical infrastructure account below is being replaced in the final 5.0 book.
+
 <div class="frontmatter">
 
 Ink Morrow is a self-hosted writing system whose hardest problem is not text generation. Its hardest problem is keeping authored prose, remembered story truth, revision history, provider spend, and recoverability honest while all of them change at different speeds.

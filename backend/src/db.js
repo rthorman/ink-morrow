@@ -10,7 +10,7 @@ const {
   SQLITE_APPLICATION_ID,
 } = require('./release');
 const { reconcileInterruptedOperations } = require('./core/operation-journal');
-const { FICTION_SCHEMA } = require('./modules/fiction/schema');
+const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA } = require('./modules/fiction/schema');
 
 const LEGACY_TABLES = new Set([
   'worlds',
@@ -1911,6 +1911,12 @@ const MIGRATIONS = Object.freeze([
     name: 'playable fiction state',
     checksumSource: FICTION_SCHEMA,
     up(db) { db.exec(FICTION_SCHEMA); },
+  }),
+  Object.freeze({
+    version: 20,
+    name: 'playable fiction illustrations',
+    checksumSource: FICTION_MEDIA_SCHEMA,
+    up(db) { db.exec(FICTION_MEDIA_SCHEMA); },
   }),
 ]);
 

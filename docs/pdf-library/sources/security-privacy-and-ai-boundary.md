@@ -1,5 +1,23 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 images and saves
+
+Image upload and binary save import remain behind authentication, same-origin and
+CSRF checks before body parsing. Uploaded rasters are container-checked, pixel/byte
+bounded, stripped of metadata/animation and normalized. Image reads are story-scoped,
+authenticated and no-store. SVG, forged containers and broken digests fail closed.
+
+Painting sends only the selected passage and art direction to the reviewed
+Illustrator; it does not send private facts, motives or uploaded references. Each
+press permits one attempt. A rejection after provider completion still records its
+known charge; uncertain dispatch is not reported free.
+
+A playable save is unencrypted and contains spoilers, private motives and directions
+across all paths. It excludes credentials, provider configuration, consent and live
+request authority. Books exclude those private game surfaces altogether. Import
+has hard compressed/expanded bounds, validates all references and media, and creates
+a new copy transactionally without interpreting paths or storage keys from the file.
+
 ## 5.0 reader boundary
 
 The new reader starts private requests only after unlock. Lock clears prose, cast,

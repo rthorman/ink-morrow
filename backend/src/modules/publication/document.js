@@ -159,8 +159,7 @@ function validatePublicationDocument(document) {
         !Number.isSafeInteger(asset.height) || asset.height < 1 || asset.height > 4096 ||
         !bounded(asset.title, 300, { nullable: true }) || !bounded(asset.alt_text, 1000) ||
         typeof asset.content_base64 !== 'string' ||
-        asset.content_base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4 ||
-        !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(asset.content_base64)) {
+        asset.content_base64.length > Math.ceil(MAX_IMAGE_BYTES / 3) * 4 + 4) {
       throw invalid(`${label} does not match schema 1`);
     }
     const content = Buffer.from(asset.content_base64, 'base64');

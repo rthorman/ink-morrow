@@ -1,8 +1,8 @@
 # InkMorrow 5.0 — User Guide
 
 > Development edition. This guide describes the reader-director interface on the
-> 5.0 release branch. Complete portable saves and final fresh-storage identity
-> are still in development; their absence is called out rather than hidden.
+> 5.0 release branch. Illustrated stories, playable saves and book export are
+> included. The final fresh-storage/version cutover is still in development.
 
 ## A story worth following
 
@@ -229,10 +229,54 @@ Dispatched work whose response was lost remains an unknown-cost attempt, not a
 free one. Story purchases allow one transport attempt: even an uncertain network
 failure cannot silently trigger another request.
 
-Do not use older manuscript export endpoints as a backup of playable-fiction
-games. Complete 5.0 portable saves and book-style exports are a later batch. Until
-that batch lands, use an operator-level backup of this isolated development
-installation after stopping its server. Do not overwrite older user data.
+Use Download a playable save for a complete game, not older manuscript export
+endpoints. Also keep operator-level cold backups of this isolated installation.
+Never overwrite older user data.
+
+## Illustrate a moment
+
+In Cast & story, choose Illustrate a moment. The dialog opens immediately. Select
+a loaded story passage and supply an image description. Read earlier moments first
+to illustrate an older passage. Images appear **above** their associated prose.
+
+Upload image accepts a local raster file up to 20 MB and makes no provider request.
+The server removes metadata/animation, normalizes orientation and stores a bounded
+WebP. Unsupported or unsafe files are refused without changing the story.
+
+Paint with AI uses the separate Illustrator provider/model in Settings. The
+selected passage and art direction are sent; hidden facts, motives, other passages
+and uploaded image references are not. It buys one image attempt, with no automatic
+retry. Cancellation and failure retain your direction. Charges may still occur on
+failure. Check the result and use Save description only to correct its accessible
+description without buying another image.
+
+Replacing or removing an image changes only the current path. Earlier snapshots
+retain the old illustration. Rewind can restore it. There is a 200-illustrated-moment
+limit per path and a 400-image limit per story including historical assets.
+
+## Export a reading path or keep a playable save
+
+Choose Export this reading path for a book: EPUB, PDF, HTML, DOCX, ODT, RTF,
+Markdown, plain text or JSON. Supply an optional author credit and language tag.
+Only current-path prose and placed images are included—not private facts, motives,
+questions, directions or other paths. No AI request is made. EPUB images each have
+a separate page immediately before their prose; text remains resizable. Text-only
+formats describe illustrations instead of embedding pixels. Missing media makes
+export fail visibly rather than silently producing a broken book.
+
+Choose Download a playable save to preserve **all** paths and continue elsewhere.
+The `.inkmorrow5` file includes cast, hidden truth, commitments, knowledge, control,
+episodes, director history, illustrations and aggregate known/unknown spend. It
+excludes credentials, provider configuration, payment consent and pending requests.
+It is unencrypted: keep it private, and use a book to share with ordinary readers.
+
+On Your stories, choose Import a playable save. Select the file, Check this save,
+review its story/path/moment/image counts, then Import as a new story. The original
+is never overwritten. No provider call starts. Configure credentials separately
+on the destination. Older `.inkmorrow` archives and databases are not accepted.
+Portable saves support up to 10,000 moments, 40 paths, 64 MB compressed and 128 MB
+expanded, with conservative preflight for unusually large stories. Keep a cold
+operator backup as well. A downloaded book cannot restore the playable world.
 
 ## Example journeys
 
@@ -266,5 +310,8 @@ alternate following with steering, ask an out-of-story question, briefly inhabit
 a character, inspect a change, correct a fact, compare paths, and end an episode.
 Try an authored opening, make a commitment through play, change
 voice and pacing, and notice how later narration can respond to that commitment.
-Only explicitly submitted text-provider actions are paid. The final 5.0 guide
-will extend this journey with portable saves once that batch is verified.
+Illustrate a passage with an uploaded image or one explicit Illustrator request.
+Correct its description locally, export the selected reading path as EPUB, and
+download a private playable save. Import that save as a new story to verify that
+the alternate paths and image are present. Text/image provider actions are paid;
+upload, local changes, export and save/import are not.

@@ -36,6 +36,7 @@
           <img src="brand/vesper-threshold.webp" alt="" width="1672" height="941">
         </div>
         <h2>Your stories</h2>
+        <button class="btn btn-secondary" id="fictionImportSave" type="button">Import a playable save</button>
         <div id="fictionShelf" class="fiction-shelf"></div>
       </section>
       <section id="startScreen" class="fiction-screen" aria-labelledby="startTitle" hidden>
@@ -78,7 +79,10 @@
           <button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button>
           <p>Both preserve the current path. A new path restores facts, commitments and control at the selected moment.</p>
           <h2>Episodes</h2><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
-          <div id="fictionSaveControls"></div>
+          <h2>Illustrations and books</h2>
+          <button class="btn btn-secondary" id="fictionIllustrate" type="button">Illustrate a moment</button>
+          <button class="btn btn-secondary" id="fictionExportBook" type="button">Export this reading path</button>
+          <div id="fictionSaveControls"><h2>Keep your story</h2><p>Reading progress is saved automatically on this server. Download a private save to preserve every path and continue elsewhere.</p><button class="btn btn-secondary" id="fictionDownloadSave" type="button">Download a playable save</button></div>
         </aside>
         <div id="fictionProse" class="fiction-prose" aria-label="The story"></div>
         <section id="fictionEnded" class="fiction-ended" hidden><h2>A good place to stop.</h2><p id="fictionEpisodeSummary"></p><p>Your story is saved. Nothing moves forward while you are away.</p><button class="btn btn-primary" id="fictionNextEpisode" type="button">Begin another episode</button></section>

@@ -1,5 +1,24 @@
 # State Machine & Invariant Atlas
 
+## 5.0 illustrated-path and save transitions
+
+Local upload: validate target -> normalize raster -> stage private file -> append
+placement snapshot and asset metadata atomically. Failure before commit removes
+only the staged file. Describe/remove appends another snapshot; no prose is edited.
+Fork/rewind restores the exact placement set at that moment. Historical assets stay.
+
+Paid painting: journal pending -> check reviewed Illustrator -> mark dispatched ->
+one provider attempt -> validate raster -> compare revision/path -> atomically save
+asset, placement and terminal usage. Failure/interruption retains known or unknown
+spend and never retries. Completed keys replay for free even after path changes.
+
+Save: idle story -> complete graph/media snapshot -> bounded gzip file. Import:
+bounded decompression -> strict graph/media validation -> read-only preview ->
+explicit copy -> stage new media -> single deferred-FK transaction -> new story.
+Rollback removes its staged files, never original data. Imported aggregate spend is
+terminal; request keys, credentials and consent do not travel. Books are a separate
+read-only active-path projection, with EPUB image-only spine pages before text.
+
 <div class="frontmatter">
 
 Ink Morrow turns uncertain work - networks, providers, browsers, filesystems, and human revision - into durable, inspectable states. This atlas names those states and the invariants between them.

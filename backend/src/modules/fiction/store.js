@@ -67,6 +67,21 @@ function createFictionStore(db) {
       UNION ALL SELECT b.id, b.parent_id FROM fiction_beats b JOIN path ON b.id = path.parent_id WHERE b.game_id = ?
     ) SELECT id FROM path WHERE id = ? LIMIT 1`).get(headId, gameId, gameId, targetId));
   }
+  function publicationRows(gameId, headId) {
+    const cte = `WITH RECURSIVE path(id, parent_id, depth) AS (
+      SELECT id, parent_id, 0 FROM fiction_beats WHERE id = ? AND game_id = ?
+      UNION ALL SELECT b.id, b.parent_id, path.depth + 1 FROM fiction_beats b JOIN path ON b.id = path.parent_id
+      WHERE b.game_id = ? AND path.depth < 100000
+    )`;
+    const args = [headId, gameId, gameId];
+    const size = db.prepare(`${cte} SELECT count(*) AS n, coalesce(sum(length(CAST(b.prose AS BLOB))), 0) AS bytes
+      FROM path JOIN fiction_beats b ON b.id = path.id`).get(...args);
+    if (size.n > 100000 || size.bytes > 64 * 1024 * 1024) fail('This path exceeds the book export limit.', 'BOOK_TOO_LARGE', 413);
+    return db.prepare(`${cte} SELECT b.id, b.kind, b.prose,
+      json_extract(b.state_json, '$.episode.number') AS episode_number,
+      json_extract(b.state_json, '$.episode.title') AS episode_title
+      FROM path JOIN fiction_beats b ON b.id = path.id WHERE b.kind IN ('opening', 'scene') ORDER BY path.depth DESC`).all(...args);
+  }
   function append({ game: g, branch: b }, { id = randomUUID(), kind, prose = '', summary, input = {}, state, changes = [] }) {
     db.prepare(`INSERT INTO fiction_beats (id, game_id, branch_id, parent_id, kind, prose, summary, input_json, state_json, changes_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, g.id, b.id, b.head_beat_id, kind, prose, summary, JSON.stringify(input), JSON.stringify(state), JSON.stringify(changes));
@@ -187,7 +202,7 @@ function createFictionStore(db) {
         return { request: previous, reused: true };
       }
       const context = current(id); assertRevision(context.game, expected); assertIdle(id);
-      if (context.state.episode.status !== 'active') fail('This episode has ended. Begin the next episode when ready.', 'EPISODE_ENDED', 409);
+      if (context.state.episode.status !== 'active' && payload.operation !== 'image') fail('This episode has ended. Begin the next episode when ready.', 'EPISODE_ENDED', 409);
       const requestId = randomUUID();
       db.prepare(`INSERT INTO fiction_requests (id, game_id, branch_id, idempotency_key, fingerprint, expected_revision, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(requestId, id, context.branch.id, key, fingerprint, expected);
       return { request: db.prepare('SELECT * FROM fiction_requests WHERE id = ?').get(requestId), context, reused: false };
@@ -199,7 +214,7 @@ function createFictionStore(db) {
       if (!pending) fail('This response is no longer active.', 'STORY_REQUEST_STALE', 409);
       const context = current(request.game_id); assertRevision(context.game, request.expected_revision);
       if (context.branch.id !== request.branch_id) fail('The active path changed.', 'STORY_CHANGED', 409);
-      const beatId = append(context, result);
+      const beatId = append(context, typeof result === 'function' ? result(context) : result);
       db.prepare("UPDATE fiction_requests SET status = 'succeeded', beat_id = ?, model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ?")
         .run(beatId, usage.model ?? null, usage.costUsd ?? null, usage.billedAttempts ?? 0, request.id);
       return beatId;
@@ -208,6 +223,49 @@ function createFictionStore(db) {
   function dispatchRequest(requestId, model) {
     const result = db.prepare("UPDATE fiction_requests SET billed_attempts = 1, model = ? WHERE id = ? AND status = 'pending'").run(model || null, requestId);
     if (!result.changes) fail('This response is no longer active.', 'STORY_REQUEST_STALE', 409);
+  }
+  function illustrationTarget(id, beatId) {
+    const context = current(id);
+    if (!isAncestor(id, context.branch.head_beat_id, beatId)) fail('Choose a moment on the current path.');
+    const target = beat(id, beatId);
+    if (!['opening', 'scene'].includes(target.kind)) fail('Illustrate a story passage, not a control or clarification.');
+    if ((context.state.illustrations || []).filter((entry) => entry.beat_id !== beatId).length >= 200) fail('A path supports at most 200 illustrated moments.');
+    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+    return target;
+  }
+  function illustrate(id, expected, { asset, beat_id, alt_text, caption = '' }, request = null, usage = {}) {
+    const alt = text(alt_text, 'Image description', 1000);
+    const label = text(caption, 'Caption', 500, { optional: true });
+    const result = (context) => {
+      illustrationTarget(id, beat_id);
+      const state = structuredClone(context.state);
+      const placements = (state.illustrations || []).filter((entry) => entry.beat_id !== beat_id);
+      if (placements.length >= 200) fail('A path supports at most 200 illustrated moments.');
+      if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+      db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
+      state.illustrations = [...placements, { beat_id, asset_id: asset.id, alt_text: alt, caption: label }];
+      return { kind: 'correction', summary: 'An illustration was added above a story passage.', state };
+    };
+    if (request) { completeRequest(request, result, usage); return view(id); }
+    return mutate(id, expected, (context) => append(context, result(context)));
+  }
+  function removeIllustration(id, expected, beatId) {
+    return mutate(id, expected, (context) => {
+      const state = structuredClone(context.state);
+      state.illustrations = (state.illustrations || []).filter((entry) => entry.beat_id !== beatId);
+      append(context, { kind: 'correction', summary: 'An illustration was removed from this path. Earlier snapshots retain it.', state });
+    });
+  }
+  function describeIllustration(id, expected, input) {
+    const alt = text(input.alt_text, 'Image description', 1000);
+    return mutate(id, expected, (context) => {
+      const state = structuredClone(context.state);
+      const placed = state.illustrations.find((entry) => entry.beat_id === input.beat_id);
+      if (!placed) fail('This moment has no illustration.', 'IMAGE_NOT_FOUND', 404);
+      placed.alt_text = alt;
+      append(context, { kind: 'correction', summary: 'An illustration description was corrected.', state });
+    });
   }
   function failRequest(requestId, code, usage = {}) {
     db.prepare("UPDATE fiction_requests SET status = 'failed', error_code = ?, model = ?, cost_usd = ?, billed_attempts = ?, finished_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'pending'")
@@ -218,7 +276,7 @@ function createFictionStore(db) {
   }
   const list = () => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 200').all();
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, view, current, stateAt, historyRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat };
+  return { create, list, view, current, stateAt, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };

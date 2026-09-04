@@ -60,4 +60,29 @@ CREATE TABLE fiction_requests (
 CREATE UNIQUE INDEX fiction_one_pending ON fiction_requests(game_id) WHERE status = 'pending';
 `;
 
-module.exports = { FICTION_SCHEMA };
+const FICTION_MEDIA_SCHEMA = `
+CREATE TABLE fiction_assets (
+  id TEXT PRIMARY KEY,
+  game_id TEXT NOT NULL REFERENCES fiction_games(id) ON DELETE CASCADE,
+  media_type TEXT NOT NULL CHECK (media_type IN ('image/webp', 'image/png', 'image/jpeg')),
+  sha256 TEXT NOT NULL CHECK (length(sha256) = 64),
+  byte_size INTEGER NOT NULL CHECK (byte_size > 0 AND byte_size <= 20971520),
+  width INTEGER NOT NULL CHECK (width BETWEEN 1 AND 4096),
+  height INTEGER NOT NULL CHECK (height BETWEEN 1 AND 4096),
+  storage_key TEXT NOT NULL UNIQUE,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX fiction_assets_game ON fiction_assets(game_id);
+ALTER TABLE provider_role_assignments RENAME TO provider_role_assignments_previous;
+CREATE TABLE provider_role_assignments (
+  role TEXT PRIMARY KEY CHECK (role IN ('scribe', 'archivist', 'narrator', 'illustrator')),
+  profile_id TEXT NOT NULL REFERENCES provider_profiles(id) ON DELETE RESTRICT,
+  model_id TEXT NOT NULL CHECK (length(trim(model_id)) BETWEEN 1 AND 500),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+INSERT INTO provider_role_assignments SELECT * FROM provider_role_assignments_previous;
+DROP TABLE provider_role_assignments_previous;
+CREATE INDEX idx_provider_roles_profile ON provider_role_assignments(profile_id);
+`;
+
+module.exports = { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA };
