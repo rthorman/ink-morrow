@@ -22,7 +22,7 @@
   "license": "AGPL-3.0-only",
   "private": true,
   "devDependencies": {
-    "eslint": "^9.39.5",
+    "eslint": "^10.9.1",
     "globals": "^15.15.0"
   }
 }
