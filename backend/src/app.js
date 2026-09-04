@@ -28,6 +28,9 @@ const { createSoloToolRouter } = require('./modules/play/solo-tool-routes');
 const { createCampaignStore } = require('./modules/campaign/store');
 const { createCampaignService } = require('./modules/campaign/service');
 const { createCampaignRouter } = require('./modules/campaign/routes');
+const { createFictionStore } = require('./modules/fiction/store');
+const { createFictionService } = require('./modules/fiction/service');
+const { createFictionRouter } = require('./modules/fiction/routes');
 const { createContinuityStore } = require('./modules/continuity/store');
 const { createContinuityService } = require('./modules/continuity/service');
 const { createContinuityRouter } = require('./modules/continuity/routes');
@@ -151,6 +154,9 @@ function createApp(
   const playStore = createPlayStore(db, { stories });
   const soloTools = createSoloToolStore(db, { stories, playStore });
   const ai = createAiClient({ providers });
+  const fictionStore = createFictionStore(db);
+  fictionStore.reconcile();
+  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion });
   app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
   const { generateImage, describeImageProvider } = createImageClient({ providers });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
@@ -270,6 +276,7 @@ function createApp(
   app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
   app.use(createSoloToolRouter({ stories, store: soloTools, transactions: writingTransactions }));
   app.use(createCampaignRouter({ stories, campaign, service: campaignService, transactions: writingTransactions }));
+  app.use(createFictionRouter({ store: fictionStore, service: fiction }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
