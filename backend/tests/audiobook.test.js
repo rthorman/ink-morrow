@@ -37,7 +37,7 @@ beforeEach(async () => {
   axios.post.mockReset();
   axios.get.mockReset();
   db = createDb(':memory:');
-  app = createApp(db, { staticDir: null, imageDir: fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-images-')), audioDir });
+  app = createApp(db, { legacyEnabled: true, staticDir: null, imageDir: fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-images-')), audioDir });
   close = () => db.close();
   for (const f of fs.existsSync(audioDir) ? fs.readdirSync(audioDir) : []) fs.unlinkSync(path.join(audioDir, f));
 
@@ -338,7 +338,7 @@ describe('Audiobook queue and cancellation', () => {
     const fileDb = path.join(os.tmpdir(), `im-ab-boot-${Date.now()}.db`);
     const bootDb = createDb(fileDb);
     const bootImages = fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-b-'));
-    const bootApp = createApp(bootDb, { staticDir: null, imageDir: bootImages, audioDir });
+    const bootApp = createApp(bootDb, { legacyEnabled: true, staticDir: null, imageDir: bootImages, audioDir });
     const world = await createWorld(bootApp, { name: 'Boot Realm' });
     const story = await createStory(bootApp, world.id, [], { title: 'Boot Tale' });
     await request(bootApp).post(`/api/stories/${story.id}/pages`).send({ content: 'Interrupted words.' }).expect(201);
@@ -351,7 +351,7 @@ describe('Audiobook queue and cancellation', () => {
 
     // Simulate the restart: a fresh app on the same database
     const reopened = createDb(fileDb);
-    const reopenedApp = createApp(reopened, { staticDir: null, imageDir: bootImages, audioDir });
+    const reopenedApp = createApp(reopened, { legacyEnabled: true, staticDir: null, imageDir: bootImages, audioDir });
     const res = await request(reopenedApp).get(`/api/stories/${story.id}/audiobook`).expect(200);
     expect(res.body.audiobook.status).toBe('failed');
     expect(res.body.audiobook.error).toContain('Interrupted');

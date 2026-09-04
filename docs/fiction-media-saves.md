@@ -80,7 +80,8 @@ All graph checks precede writes. Staged image files receive random server-owned
 names; database import is one transaction; rollback cleans only its new files.
 
 No 4.x database, `.inkmorrow` archive or earlier playable story is accepted by this
-save importer. The final release identity/storage cutover is a separate batch.
+save importer. The production database uses the separate ink-morrow-5 family
+and defaults to database-v5/ink-morrow-5.db; older database files are refused.
 
 ## Verification
 

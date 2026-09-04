@@ -1,6 +1,247 @@
 # Operations & Recovery Handbook
 
-## 5.0 optional consistency operations
+<div class="frontmatter">
+
+Operate a private, single-owner InkMorrow 5.0 installation. Protect data first, distinguish a failed purchase from a free operation, and recover without replaying work.
+
+</div>
+
+## The installation you are operating
+
+InkMorrow serves its static browser interface and authenticated API from one Node
+process. The production entry point is backend/server.js; its default address is
+127.0.0.1:3000. It is a playable-fiction game, not the retired manuscript suite.
+Opening the interface, reading, local state changes and backup do not buy prose.
+
+The live surfaces are Your stories, Start a story, the reader and Settings.
+The default player stays outside the cast. New narration is deliberate; there is
+no speculative next-page queue, automatic cast portrait backfill, audiobook
+queue or background memory extraction in the 5.0 runtime.
+
+Use one process per data directory. SQLite state, normalized images and encrypted
+provider-vault records form one installation. Downloaded .inkmorrow5 saves are
+portable story copies, not full installation backups.
+
+For this project's development, the authoritative checkout is
+/home/rthorman/src/ink-morrow-5 under WSL. Windows tools may operate on that tree;
+do not maintain an independent Windows source copy. Production deployment and
+starting a server remain explicit operator actions, separate from merging code.
+
+## Install without touching old data
+
+Use a supported Node 22 runtime providing node:sqlite and a compatible sharp
+binary; the package declares Node 22.5 or newer. Verify the actual installed
+runtime, especially when mixing WSL and Windows tools. The setup script checks
+prerequisites and prints actionable errors instead of starting a partial server.
+
+From the repository root, run bash setup.sh. It installs production dependencies,
+creates missing configuration and prepares the new data location. An existing
+dependency tree is updated in place; --dev includes developer packages.
+Only explicit --clean authorises replacing the listed node_modules directories.
+Do not use clean setup as a casual response to a runtime error.
+
+Review backend/.env before the first launch. Supply a provider key only if you
+want generated play; a curated opening and existing local records can be read
+without one. Do not copy an old DATA_DIR or DB_PATH override unnoticed.
+
+The default new database is database-v5/ink-morrow-5.db relative to the repository.
+A recognized 4.x database is refused without adoption. Keep older installations
+and data separate; there is no supported in-place upgrade from that series.
+
+When you are ready to run, npm start from the repository launches the backend.
+Keep the printed one-time setup code private and use it in the browser to set
+the owner password. A successful launch is not permission to expose the port
+to the internet.
+
+## Resolve configuration and storage
+
+backend/.env is loaded by the executable and password-reset command. Existing
+process environment values take precedence. Both resolve relative DATA_DIR and
+DB_PATH values from backend/, not from the shell's current directory.
+
+| Configuration | Database | Media root |
+|---|---|---|
+| Neither override | database-v5/ink-morrow-5.db | database-v5 |
+| DATA_DIR only | DATA_DIR/ink-morrow-5.db | DATA_DIR |
+| DB_PATH only | That exact file | Its containing directory |
+| Both | That exact file | DATA_DIR |
+| DB_PATH=:memory:, no DATA_DIR | In-memory database | Unique disposable temporary directory |
+
+DATA_DIR must be a directory, never :memory:. In-memory mode is for isolated
+tests and deliberate ephemeral use; it is not persistent storage. An explicit
+DATA_DIR with an in-memory database does not make its story records durable.
+
+PORT defaults to 3000 and HOST to 127.0.0.1. OPENROUTER_API_KEY supplies the
+built-in read-only credential; Settings stores explicit role assignments and
+optional vault credentials. AI_TIMEOUT_MS and IMAGE_TIMEOUT_MS bound individual
+calls, not a guaranteed end-to-end completion time.
+
+CONTINUITY_MODEL and old authoring/retry settings do not revive the retired
+runtime. Memory support is assigned through Settings. Quality Off makes no
+separate memory request; enabling quality is a story-path choice.
+
+## First-run and access recovery
+
+First-run setup requires the terminal code and a 15–128-character password.
+Use a distinctive passphrase. Browser sessions use an HttpOnly, SameSite=Strict
+cookie; state-changing requests also need the session CSRF token and same-origin
+request. The executable remains sealed even with NODE_ENV=test.
+
+Lock revokes the current browser session. Password change revokes other sessions.
+After a process restart, a remembered browser login may still be valid while
+vault credentials remain locked; re-enter the owner password to unlock them.
+Do not overwrite a provider profile merely to solve a locked vault.
+
+If the password is lost, stop the exact installation, confirm its DATA_DIR and
+DB_PATH, and keep a cold backup. From backend, run
+npm run auth:reset -- --yes. This removes the owner, browser sessions and saved
+provider credentials from the selected database. Stories and media remain.
+The next start prints a new setup code.
+
+The reset command refuses a missing database or :memory: and never creates a
+blank recovery database. An old family is rejected before any reset. If it says
+nothing was removed, inspect the path rather than deleting files or guessing.
+
+Terminal access is powerful: someone able to read or replace the data files is
+outside the browser-password security boundary. Use operating-system protections
+and encrypted storage where appropriate.
+
+## Provider roles and explicit purchases
+
+Settings separates the storyteller (internal Scribe role), memory support
+(Archivist role) and Illustrator. A role names one provider profile and model.
+Saving a choice is local; browsing its model catalogue contacts that provider
+but does not purchase story generation.
+
+The built-in OpenRouter profile reads environment credentials. User-supplied
+profiles can use process-session credentials or the encrypted vault. An
+unavailable role is not silently replaced. Do not place secrets in story fields
+or assume an arbitrary OpenAI-compatible endpoint supports every operation.
+
+Standard play purchases one text response. Quality can add bounded checks using
+standard, memory or both roles. Painting is a separate one-attempt operation.
+There is no auto-retry after uncertain transport failure, automatic successor,
+or background recap generation.
+
+Before authorising a request, read its role/model, data exposure and call ceiling.
+An estimate is not a price cap; configure an upstream spending limit where
+supported. Failed or rejected work can still have known or unknown charges.
+Changing providers does not refund a previous attempt.
+
+Use a fresh explicit action only after free state reconciliation. Do not replay
+a POST with a new idempotency key merely because the browser waited too long.
+
+## Two different backup products
+
+Download a playable save for each important story. It contains all paths,
+cast, private facts, settings, illustrations and aggregate spend. It excludes
+credentials, provider configuration, consent and pending request identities.
+Import always creates a new story. Keep saves private and unencrypted-file
+risks visible.
+
+A cold installation backup preserves the complete configured database and media
+roots, including auth and encrypted vault data. Stop the process and confirm it
+has exited before copying. If database and media use different roots, capture
+both. Protect a separate copy of necessary configuration; provider keys in .env
+are secrets and should not enter ordinary issue attachments or shared archives.
+
+Copy the database with any associated -wal, -shm and -journal files still present
+after shutdown. Never discard a WAL because the main database looks complete.
+Keep the directory relationship intact. A live ordinary filesystem copy is not
+a transactionally coherent SQLite backup.
+
+Name and date backups, record the app version, and keep a copy off the same
+device when device-loss recovery matters. Test restoration to a separate
+location. A synced folder or downloaded EPUB alone is not proof of recovery.
+
+The application's private scratch-copy database inspection protects older source
+files during startup preflight. It is not a backup service and not a substitute
+for stopping writers before an operator copy.
+
+## Restore and update safely
+
+For a playable save, use Import a playable save, check the preview, then Import
+as a new story. Verify an old moment, another path and an illustration. Configure
+provider roles separately and review any future purchase. Import never starts
+an interrupted operation.
+
+For an installation restore, stop the target process and retain its current
+data in a separate recoverable location. Restore the complete cold backup into
+a fresh destination, including media and any retained database sidecars. Point
+the matching application version at that destination. Do not overlay files from
+two backups or replace only the database while leaving mismatched media.
+
+Check the family/version acceptance, unlock, inspect several stories and paths,
+and export a reading copy before declaring success. A refused database is a
+reason to investigate its provenance, not to edit the family marker manually.
+
+Before updating within 5.0, record the exact code revision, stop the process,
+take a cold backup, and read release notes. Test on an isolated copy where
+practical. Migration checksums and SQLite integrity checks must pass; failure
+does not authorise ledger surgery.
+
+Rolling back code alone is not a safe schema rollback. Use a matched prior
+code-and-data backup in a separate destination if a later version cannot be
+read. The 4.x line is not a rollback target for a newly created 5.0 database.
+
+## Network exposure is an operator decision
+
+Keep the default loopback bind for local use. WSL and Windows networking details
+can differ; verify the actual listening address rather than assuming a terminal
+message proves remote reachability or firewall isolation.
+
+For remote access, prefer an HTTPS reverse proxy on loopback with an explicit
+ALLOWED_HOSTS list and TRUST_PROXY=1. Trust is limited to the loopback proxy,
+not arbitrary client-supplied forwarding headers. Configure the proxy and its
+certificate deliberately, then verify Secure cookies and rejected unapproved
+Host headers.
+
+Direct non-loopback HTTP requires ALLOW_INSECURE_LAN=1. This is a warning-bearing
+opt-in, not encryption. Passwords, sessions, story content and provider traffic
+to the local application would cross that connection in clear text. Do not
+expose it directly to the public internet.
+
+This is one local owner's installation, not a hosted multi-user account system.
+The access password does not encrypt the database, media or downloaded files.
+Do not treat Living-world resistance as a security control; fictional authority
+does not govern real API access.
+
+The Security handbook describes the threat boundaries. Changing exposure,
+proxy trust or credential handling is a security change requiring verification,
+not an incidental convenience setting.
+
+## Incident triage and healthy completion
+
+First identify whether the problem is access, storage, provider configuration,
+network transport, invalid model output or stale story state. Record the visible
+error code and request time without exporting private prose or credentials.
+
+| Symptom | Safe next check |
+|---|---|
+| Database refused | Verify family, path, version and stopped writers |
+| Vault unavailable after restart | Re-enter the owner password |
+| Missing model role | Inspect its saved provider/model assignment |
+| Reply failed or timed out | Refresh freely; inspect known/unknown call costs |
+| Repeated approach unchanged | Read the existing ruling; no purchase is needed |
+| Image/book unavailable | Check the exact retained media files and storage |
+| Fact seems missing | Check path, visibility, retirement and older recall |
+| Another tab changed the story | Refresh before another deliberate mutation |
+
+Do not run the old continuity repair pipeline, restore manual APIs, or remove
+history to solve a 5.0 memory complaint. The working set is bounded, but immutable
+fact history remains available for retrieval. Corrections are explicit local
+records, not paid background extraction.
+
+A healthy maintenance result includes an accepted 5.0 database, successful
+unlock, local reading, correct path state, intact illustrations and a verified
+save. Test a paid operation only with explicit spending authority; deterministic
+fixtures are sufficient for regression checks.
+
+Keep the prior backup until the owner has verified the result. Report exactly
+what changed, what was tested and what remains uncertain. A successful code merge
+does not mean the running installation was deployed or restarted.
+
+## Optional consistency operations
 
 Quality is off by default. Story preferences select Standard, Memory or Both;
 Settings assigns the standard storyteller and memory-support provider/model
@@ -24,7 +265,7 @@ billing knowledge but cannot save the abandoned draft. Use a new explicit action
 only after reviewing the error; never replay paid POSTs to recover a lost response.
 No rejected draft or reviewer explanation is persisted as story history.
 
-## 5.0 episode and relationship support
+## Episode and relationship support
 
 Catch me up is a local read, not an AI repair pipeline. It returns current-path
 public reminders and evidence links. A temporarily unreachable server can prevent
@@ -43,7 +284,7 @@ after a conflicting change; no automatic paid retry or alternate-path creation
 is attempted. Optional consistency-model calls follow the reviewed quality
 pipeline described above; local path and episode actions never start that pipeline.
 
-## 5.0 fourth-wall support
+## Fourth-wall support
 
 In Living-world Story preferences, Characters may break the fourth wall offers
 Never, Rarely and Freely. Never is the default. Rarely is permission for at most
@@ -58,7 +299,7 @@ text; its charge can still count. Refresh does not retry it. Ordinary model pros
 can still violate instructions; inspect the selected mode and storyteller, and
 never represent this control as proof that a model will preserve immersion.
 
-## 5.0 direction and memory support
+## Direction and memory support
 
 If a story keeps returning to a topic, inspect its visible ongoing focus. A new
 Steer defaults to this moment; Keep this focus must be selected explicitly.
@@ -70,358 +311,3 @@ results are bounded to 32. A missing fact may be retired, secret, or on another
 path, not lost through compaction. Source links distinguish local corrections from
 narrated evidence. Never retire a fact merely to keep the game running. Shelf
 pagination exposes older stories through More stories and Previous stories.
-
-## 5.0 development-branch operator note
-
-The replacement root interface now opens Your stories, Start a story, the reader,
-and Settings. The remainder of this handbook retains the 4.x operational baseline
-until the final identity/portability batch; do not interpret old Desk or Gate steps
-as controls in the new reader. The separate development checkout must use isolated
-data and a separate port. Do not repoint it at the running 4.x database. New games
-are not included in the old manuscript archive. Download a private `.inkmorrow5`
-save for every playable story, and also stop the isolated instance and copy its
-complete data directory for a cold backup. Import creates a separate copy and
-never resumes a paid request. Saves exclude credentials and provider settings.
-
-Settings supports chat-capable provider profiles, a storyteller role/model,
-session-only or encrypted-vault credentials, and vault unlock. Credentials never
-go into browser storage. A story request reviews one response; the provider/model
-must still match that review when the server starts the purchase. Failed response
-validation can still cost money. Refresh is free and never retries generation.
-
-Illustrations now use a separate Illustrator role. Uploads and description changes
-are local; painting is one explicit request. Store normalized files and the database
-together: branch snapshots may refer to older image assets. Do not prune files merely
-because the currently selected path does not show them. Exports fail honestly on
-missing/corrupt media. See `docs/fiction-media-saves.md` for bounds and recovery.
-
-The third batch adds two locally available curated openings, readable without a
-provider key. There is no manual prose editor. Story preferences, cast additions and fact
-retirement are also local. Long-running stories have a 128-fact working-set
-bound, not a lifetime fact limit. Older facts remain in immutable changes and are
-retrieved from the current ancestry when relevant. Do not prune records or ask
-players to retire facts to make room. Explicitly retired facts are excluded from
-retrieval; corrections supersede earlier values without erasing history. The paid
-journal now marks dispatch before calling the provider, retaining unknown spend
-through restart, and fiction purchases disable even automatic transport retries.
-
-Structured challenge decisions now restore with branches and saves. An unchanged
-repeated decision is local and free, not a new AI attempt. Inspect the recorded
-outcome and reader-safe explanation rather than treating a model's prose as a
-permission token. No live-model resistance ranking has yet been established.
-
-<div class="frontmatter">
-
-This handbook is the practical companion for the person who owns the Ink Morrow installation. It explains not only which command to run, but what that command changes, how to recognize a healthy result, and how to get back to safety when something does not behave as expected.
-
-**Scope:** Ink Morrow 4.x, single-owner self-hosting, Windows/macOS/Linux, current Google Chrome.
-
-**Reading paths:** New operators should read Chapters 1-4 and 7. Experienced operators can begin with the checklists. During an incident, start with Chapter 10 and resist the urge to improvise destructive database repairs.
-
-> The operational rule is simple: protect the whole data directory, change one thing at a time, and make the application prove that the result is healthy before writing resumes.
-
-</div>
-
-## The installation in plain language
-
-Ink Morrow is one Node.js program. It serves the browser interface and its private API from the same address, stores structured information in one SQLite database, and stores images, audio, transfers, and safety backups beside it in a data directory. There is no Ink Morrow cloud account.
-
-| Part | What it does | What the operator protects |
-|---|---|---|
-| Application checkout | Program code and documentation | The reviewed commit or release tag |
-| `DATA_DIR` | Home for the database and media | Copy it as one indivisible unit |
-| SQLite database | Manuscripts, revisions, canon, settings, job records | Never edit it while Ink Morrow is running |
-| Media directories | Art, audio, staged transfers, safety backups | Keep them paired with their database |
-| Browser | Presents the application | Current Chrome is the tested client |
-| AI provider | Optional paid drafting, memory, imagery, narration | Provider key, limits, compatible models |
-
-Ink Morrow binds to `127.0.0.1` by default. That address means "this computer only." Another device cannot reach it unless you deliberately configure a safe network path.
-
-::: warning Tested boundaries
-Google Chrome is the only browser tested. OpenRouter is the only AI supplier tested. A current standards-respecting browser should work. Another OpenAI-compatible supplier may omit model discovery, image generation, narration, reasoning controls, or may not work at all.
-:::
-
-## Before installation
-
-Install Node.js 22.5 or newer and Git. Choose two locations:
-
-1. A checkout directory for the code. It can be replaced by a fresh clone.
-2. A private data directory for the irreplaceable manuscripts and media. It must be included in backups.
-
-Record these facts in a small operator note:
-
-- checkout path;
-- `DATA_DIR` and any `DB_PATH` override;
-- installed commit (`git rev-parse HEAD`);
-- Node version (`node --version`);
-- listening host and port;
-- public origin and reverse proxy, if any;
-- where cold backups are stored; and
-- who can access the provider account.
-
-::: danger Do not reuse 3.x storage
-Ink Morrow 4.0 is a clean data-contract break. It refuses a 3.x database before mutation. Keep the historical installation and its data intact. Do not rename a 3.x database and expect its identity to change.
-:::
-
-## Install and first start
-
-Clone and install from the repository root:
-
-```
-git clone https://github.com/rthorman/ink-morrow.git
-cd ink-morrow
-npm ci
-cd backend && npm ci
-cd ../frontend && npm ci
-cd ../e2e && npm ci
-cd ..
-```
-
-Copy `backend/.env.example` to `backend/.env`, then set only values you understand. Start with loopback defaults. A minimal local installation normally needs no network-facing host override.
-
-```
-npm start
-```
-
-On first start, the terminal prints a one-time setup code. Open `http://localhost:3000` in Chrome, enter that code, and create the owner passphrase. The passphrase protects the private application and can also unlock locally saved provider credentials.
-
-### First-start acceptance check
-
-- The terminal reports the exact local URL and no database refusal.
-- The browser shows the Ink Morrow threshold, not a raw error or directory listing.
-- Setup creates the owner and then stops accepting the one-time code.
-- Lock, unlock, and refresh behave consistently.
-- Library opens without an AI key.
-- `DATA_DIR` contains the expected database and application-owned folders.
-
-## Configuration without guesswork
-
-Environment values are read when the process starts. Editing `.env` does nothing until Ink Morrow restarts.
-
-| Setting | Purpose | Safe default |
-|---|---|---|
-| `HOST` | Interface on which the server listens | `127.0.0.1` |
-| `PORT` | Local TCP port | `3000` |
-| `DATA_DIR` | Complete application-data root | Explicit private path |
-| `DB_PATH` | Advanced database-only override | Leave unset |
-| `ALLOWED_HOSTS` | Host names accepted by the server | Local host names only |
-| `TRUST_PROXY` | Trust proxy-supplied HTTPS information | Off unless a reviewed proxy is present |
-| `PUBLIC_ORIGIN` | Address used for public snapshot links | HTTPS URL when sharing is enabled |
-| `OPENROUTER_API_KEY` | Environment-provided provider credential | Dedicated, spending-limited key |
-| `CONTINUITY_MODEL` | Server-owned Archivist model | A verified JSON-capable OpenRouter model |
-
-The configured continuity model is validated against OpenRouter before the server begins listening. A typo or unavailable explicit model causes startup to fail. This is deliberate: silently choosing a different model would make memory behavior and cost unpredictable.
-
-::: note Credentials in `.env`
-An environment key is convenient but is plain text on disk. Restrict file permissions. Prefer a dedicated provider key with a hard upstream spending limit. Never paste real keys into bug reports, screenshots, command history, or repository files.
-:::
-
-## Provider setup and model roles
-
-Ink Morrow has three logical roles:
-
-| Role | Work | Important capability |
-|---|---|---|
-| Scribe | Prose drafting, direction, preparation | Long context and reliable text generation |
-| Archivist | Chronicle memory and Codex impact summaries | Strict JSON/schema following |
-| Narrator | Read-aloud and audiobook jobs | Supported audio output and voice |
-
-One model may fill several roles, but the roles remain separate configuration decisions. In particular, Chronicle must use the server-configured Archivist. A model selected in one browser tab must not silently replace it.
-
-Before the first paid action, confirm the provider, model, data categories, references, operation count, and estimated cost. Estimates are guidance, not invoices. Provider-side hard limits are the actual financial boundary.
-
-## Backup strategy: two different safety nets
-
-Use both portable and cold backups. They solve different problems.
-
-### Portable `.inkmorrow` archive
-
-Create it in Gate. For a full-fidelity project backup, select visuals, audio, and working history. The archive is a versioned ZIP container with a manifest, ordinary JSON, and selected media. It is designed for reviewed transfer and restore.
-
-It deliberately excludes owner credentials, sessions, provider secrets, saved paid consent, recovery suffixes, undo credentials, and local share capabilities. It is unencrypted; store it as sensitively as the manuscript.
-
-### Cold `DATA_DIR` copy
-
-Stop Ink Morrow, then copy the complete data directory as one unit. This is the disaster-recovery image. It preserves local-only owner, session, vault, recovery, share, media, and database state.
-
-Never combine a database from one date with media folders from another. Their references are a single consistency boundary.
-
-### Recommended cadence
-
-| Event | Portable archive | Cold copy |
-|---|---|---|
-| Normal writing | After meaningful sessions | Daily or automated snapshot |
-| Before update | Required | Required with application stopped |
-| Before full replace import | Ink Morrow also creates a safety archive | Recommended |
-| Before storage move | Required | Required |
-| After major recovery | Validate and create anew | Create after validation |
-
-## Safe updates
-
-1. Finish or cancel visible provider and publication jobs.
-2. Create and download a full Gate backup.
-3. Stop Ink Morrow.
-4. Make a dated cold copy of the whole `DATA_DIR`.
-5. Record current commit and Node version.
-6. Fetch the reviewed change and install exact lockfile dependencies with `npm ci`.
-7. Start once and read the complete startup result.
-8. Verify Library counts, manuscript title, cast, Chronicle coverage, Codex facts, placed art, and Gate formats.
-9. Only then resume authoring.
-
-### The 4.1.0 schema-13 update
-
-Ink Morrow 4.1.0 upgrades a valid 4.0.x schema-12 database in place. The catalogue does **not** empty. Schema 13 verifies that every manuscript page and Chronicle memory row has a complete canonical revision record, repairs a safe partial backfill when possible, and only then retires the duplicate writable page and memory tables. The `.inkmorrow` archive stays at version 2 because its portable JSON contract is unchanged.
-
-Use the checklist above exactly: make the full Gate backup while the old version is running, stop the application, and make the cold `DATA_DIR` copy before pulling or starting 4.1.0. Start 4.1.0 against that same 4.0.x data directory once. If startup refuses the database, stop and preserve the complete message. Do not rename, delete, or manually edit the database.
-
-Rollback means stopping the app, restoring the **entire** pre-update cold copy, and running the old code. Do not mix a schema-13 database with an older media directory, and do not expect 4.0.x to open the newer schema.
-
-Earlier 4.0 beta databases from before the Ink Morrow naming change are adopted only after their 4.0 identity and migration checksums are proven. Before changing identity, startup writes a complete `*.pre-ink-morrow-v4.bak` SQLite snapshot beside the database and prints its location.
-
-::: warning Stop on identity errors
-Do not solve a family/version refusal by editing metadata, renaming files, or deleting the new database. Preserve the exact error and paths. Identity checks exist to prevent the wrong migrations from touching the wrong data.
-:::
-
-## Restore and transfer
-
-Open Gate and preflight the archive before committing it. Preflight validates the archive family/version, declared files, hashes, paths, expansion limits, and collisions without changing the catalogue.
-
-Collision choices are whole-entity choices: add, reuse identical data, keep, copy with new IDs, or replace. Ink Morrow does not attempt field-level world/character merges or page splicing. A copied manuscript is remapped as one dependency graph.
-
-**Replace everything** is reserved for a deliberate full restore. Ink Morrow first creates a persistent safety archive of the current installation under the transfer backup directory. Download that safety archive before considering cleanup.
-
-After restore, validate:
-
-- manuscript hierarchy and page order;
-- active and historical revisions;
-- main/support/background cast tiers and character facts;
-- world facts and events;
-- continuity coverage and corrections;
-- prepared page identity;
-- placed and unplaced media;
-- publication snapshots; and
-- sanitized settings.
-
-## Network access and HTTPS
-
-HTTP moves readable traffic. HTTPS encrypts traffic between a browser and the public front door and authenticates the site certificate. It matters because an Ink Morrow session, private prose, provider actions, and public capability links should not be exposed to other devices on the route.
-
-For another device or public reading links, keep Ink Morrow on loopback and put a reviewed HTTPS reverse proxy in front:
-
-```
-HOST=127.0.0.1
-PORT=3000
-ALLOWED_HOSTS=ink.example.com
-TRUST_PROXY=1
-PUBLIC_ORIGIN=https://ink.example.com
-```
-
-The proxy must preserve `Host`, set `X-Forwarded-Proto: https`, forward authorization, and avoid logging or caching share capabilities. Public snapshot creation fails closed when the configured origin is insecure. `ALLOW_INSECURE_LAN=1` is a temporary private-LAN escape hatch, not an Internet deployment plan.
-
-::: danger Capability links are keys
-Anyone holding a live public snapshot URL can read that immutable snapshot. Do not put the token in analytics, logs, screenshots, or public messages. Revoke a link that may have escaped.
-:::
-
-## Routine health and housekeeping
-
-Weekly:
-
-- confirm a recent portable archive opens in preflight;
-- confirm a recent cold backup exists outside the live disk;
-- review provider spend at the provider, not only in Ink Morrow;
-- review failed Chronicle entries and unfinished publication jobs;
-- check free disk space, especially before image/audio work;
-- inspect startup and application logs for repeated errors; and
-- confirm the installed commit is the intended reviewed version.
-
-Monthly or before a release:
-
-- restore a backup into a separate empty `DATA_DIR`;
-- open representative DOCX, EPUB, PDF, and `.inkmorrow` outputs;
-- revoke obsolete share links;
-- apply supported Node/security updates in a tested branch; and
-- document any known workaround.
-
-## Incident triage
-
-First protect evidence: stop repeated clicks, note the exact time and manuscript, capture the complete visible error, record commit/configuration without secrets, and make a cold copy if corruption is suspected.
-
-| Symptom | First checks | Safe response |
-|---|---|---|
-| Server refuses to start | First error, model spelling, data identity, port use | Correct configuration; never delete data to silence the check |
-| Chronicle says Memory failed | Click the error; inspect reason/model; compare heavy cast | Repair the specific page in Codex; keep Main Character perspective anchor |
-| Repair repeatedly fails | JSON/schema capability, provider response, context pressure | Use verified Archivist; capture sanitized diagnostics; do not replay whole novel |
-| Browser cannot connect | Server process, URL, host/port, firewall/proxy | Test `localhost` on server first, then each network layer |
-| Another device behaves differently | Chrome version, viewport, cached assets, network | Reproduce in current Chrome; preserve exact manuscript size/cast facts |
-| Job appears stuck after restart | Job state and startup reconciliation | Allow reconciliation; retry only from the visible action |
-| Archive import fails | Preflight reason, version, hash, free space | Keep original archive unchanged; fix the source or use matching version |
-| Database reports wrong family | Exact filename and identity evidence | Restore known matching pair; ask for review before any conversion |
-
-### Chronicle-specific diagnosis
-
-Memory is per canonical page revision. A heavier manuscript and cast can produce different results on another device even with the same model because the relevant prompt is larger. Ink Morrow prioritizes the Main Character, then support cast, then background setting and background cast. If the story is Main Character driven, that perspective anchor is always included whether or not the page names the Main Character.
-
-A clickable failure records the error code, reason, model, and route to repair. Information entropy can make repair difficult, but repeated failure is not proof that the manuscript is corrupt. Diagnose the exact page, evidence, prompt pressure, and model response.
-
-## Recovery decision tree
-
-1. **Is current data readable?** If yes, export a portable backup before changing anything.
-2. **Is this a configuration or provider failure?** If yes, fix configuration; do not restore data.
-3. **Is only one job/revision affected?** Use the product's repair, retry, undo, or recovery path.
-4. **Was canon truncated?** Use immediate undo or Chronicle recovery while the surviving-head fingerprint matches.
-5. **Did an update/storage operation fail?** Stop the app and restore the complete pre-change cold copy.
-6. **Is the latest backup uncertain?** Restore into a separate directory and compare; never experiment on the only copy.
-
-::: good Definition of recovered
-The application starts without refusal, catalogue counts and hierarchy are correct, active prose and revisions agree, Chronicle coverage is understood, Codex corrections remain, media resolves, a fresh archive validates, and normal work has not resumed until these checks pass.
-:::
-
-## Command reference
-
-```
-# start
-npm start
-
-# full local verification (does not run browser E2E)
-npm test
-
-# explicit browser suite
-npm run test:e2e
-
-# brand residue guard
-npm run check:brand
-
-# record exact code
-git rev-parse HEAD
-
-# record Node
-node --version
-```
-
-Do not run repair SQL found on the Internet. Do not use destructive Git commands against the data directory. Do not test with a real provider key unless the test is explicitly paid and bounded.
-
-## Operator checklists
-
-### Before writing
-
-- Correct installation and data directory.
-- Recent backup exists.
-- Provider role/model and spending limit are intentional.
-- No unresolved startup error.
-- Correct manuscript and cast are visible.
-
-### Before maintenance
-
-- Active work stopped.
-- Full Gate archive downloaded.
-- Complete cold data copy made.
-- Current commit/configuration recorded.
-- Rollback build available.
-
-### Before declaring success
-
-- Startup, unlock, Library, Desk, Chronicle, Codex, Gallery, and Gate checked.
-- Representative export opened.
-- Backup preflight succeeds.
-- Logs contain no secrets or repeated unexpected failures.
-- New state is documented.

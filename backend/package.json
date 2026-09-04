@@ -1,6 +1,6 @@
 {
   "name": "ink-morrow-backend",
-  "version": "4.1.0",
+  "version": "5.0.0",
   "description": "Backend API for Ink Morrow",
   "main": "server.js",
   "scripts": {

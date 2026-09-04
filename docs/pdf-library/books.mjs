@@ -1,12 +1,12 @@
 export const edition = '5.0';
-export const editionLabel = '5.0 Development Edition';
+export const editionLabel = '5.0 Edition';
 export const books = [
   {
     slug: 'user-guide',
     title: 'User Guide',
     format: 'markdown',
     subtitle: 'Follow the cast, steer the story, return to a living world',
-    audience: 'For readers and directors of the 5.0 development edition',
+    audience: 'For readers and directors of playable fiction',
     cover: '../../frontend/brand/vesper-threshold.webp',
     source: 'sources/user-guide-v5.md',
     output: `Ink-Morrow-${edition}-User-Guide.pdf`,
@@ -14,7 +14,7 @@ export const books = [
   {
     slug: 'operations-and-recovery',
     title: 'Operations & Recovery Handbook',
-    subtitle: 'Operate the isolated development edition and protect historical data',
+    subtitle: 'Operate the new game, recover safely and protect historical data',
     audience: 'For the owner-operator',
     cover: '../../frontend/brand/vesper-threshold.webp',
     source: 'sources/operations-and-recovery.md',

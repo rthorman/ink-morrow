@@ -4,7 +4,29 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
-## Unreleased
+## 5.0.0
+
+- New playable-fiction product: reader-director Follow/Steer, optional Inhabit,
+  two curated openings, one durable readable history and exact alternate paths.
+- Story-shaping and Living-world styles; structured resistance reuses unchanged
+  rulings for free, while genuine new grounds can change an outcome.
+- Durable public/private fact history, evidence and recall beyond the bounded
+  working set; qualitative relationships, episode questions, payoff and aftermath.
+- Never/Rarely/Freely fourth-wall permission for Living-world.
+- Optional consistency quality: Off, Standard, Memory or Both. Separate plan
+  review, one repair, one/four/six total-call ceilings and durable mixed-cost
+  accounting. No live-model quality ranking is claimed.
+- Branch-local illustration upload/painting, images above reader prose and
+  separate preceding EPUB image pages, nine book formats and private all-path
+  .inkmorrow5 save/copy import.
+- Fresh ink-morrow-5 storage at database-v5/ink-morrow-5.db; old databases and
+  sidecars remain untouched. No 4.x database/archive/template migration.
+- Removed production manual authoring and the old writing/catalogue/audio/share
+  runtime. No speculative successor, background extraction or portrait backfill.
+- Consolidated README, app, authentication and all six manuals on the canonical
+  SVG lockup. Expanded current-product guide and complete technical-book rewrite.
+
+## Historical 4.x development notes (superseded by 5.0)
 
 ### Added
 

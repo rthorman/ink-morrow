@@ -10,7 +10,7 @@ const { parseReasoningEffort } = require('../../core/validation');
 const { catalogue } = require('./scenarios');
 const { qualityPlan } = require('./quality-plan');
 
-function createFictionRouter({ store, service, providers = null, media, publication, saves }) {
+function createFictionRouter({ store, service, providers = null, media, publication, saves, allowManualOpening = false }) {
   const router = express.Router();
   const expose = (story) => ({ ...story, quality_generation: qualityPlan(story.state, providers), generation: providers?.exposure('scribe', {
     data_categories: ['story premise', 'selected cast', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
@@ -25,7 +25,10 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     const stories = store.list(offset);
     res.json({ stories: stories.slice(0, 80), next_offset: stories.length > 80 ? offset + 80 : null });
   });
-  router.post('/api/fiction', (req, res) => res.status(201).json({ story: expose(store.create(req.body)) }));
+  router.post('/api/fiction', (req, res) => {
+    if (!allowManualOpening && Object.hasOwn(req.body || {}, 'opening')) fail('Manual prose writing is not part of InkMorrow 5.0. Choose a curated opening or supply a situation.', 'MANUAL_PROSE_RETIRED');
+    res.status(201).json({ story: expose(store.create(req.body)) });
+  });
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
   router.get('/api/fiction/:id/memory', (req, res) => res.json({ facts: store.recall(req.params.id, req.query.q || '') }));
   router.get('/api/fiction/:id/recap', (req, res) => res.json({ recap: store.recap(req.params.id) }));

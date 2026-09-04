@@ -1,9 +1,10 @@
 # Ink Morrow 5.0 PDF documentation library
 
-The current set is explicitly labelled **5.0 Development Edition**. Filenames,
-covers, metadata, headers, links and freshness output names use 5.0. The five
-technical books still mark their inherited 4.x sections as transitional material;
-the complete replacement is a final release requirement, not completed by renaming.
+The current set is the **5.0 Edition**. All six active books describe the
+playable-fiction product, including fresh storage and the retired-route boundary.
+Filenames, covers, metadata, headers, links and freshness output names use 5.0.
+All product-logo placements reuse frontend/brand/ink-morrow-lockup.svg, the exact
+artwork at the top of GitHub README, including its embedded font and tagline.
 
 The published PDFs are committed in [`docs/pdf/`](../pdf/) so readers do not
 need a documentation toolchain. Their version-controlled sources live in
@@ -96,5 +97,6 @@ Each journey states its goal, prerequisites, enabled features, deliberately
 unused features, ordered actions, provider/cost boundary, and final preservation
 or delivery step. Do not shorten or remove those journeys to match an older PDF.
 
-The historical 4.1 User Guide was accepted at **exactly 35 A4 pages**. That is not
-a ceiling for the final 5.0 edition; favour complete, legible task coverage.
+The 5.0 User Guide targets **35 A4 pages**, with 33 task/journey chapters plus
+cover and contents. This is verified after rendering, not by compressing text
+to fit a historical template. Future editions may grow when coverage requires it.

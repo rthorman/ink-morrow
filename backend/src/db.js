@@ -10,6 +10,7 @@ const {
   SQLITE_APPLICATION_ID,
 } = require('./release');
 const { reconcileInterruptedOperations } = require('./core/operation-journal');
+const { inspectCopy, hasDatabaseSidecars } = require('./core/database-inspection');
 const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA } = require('./modules/fiction/schema');
 
 const LEGACY_TABLES = new Set([
@@ -22,31 +23,21 @@ const LEGACY_TABLES = new Set([
   'auth_owner',
 ]);
 
-// The public rebrand changed the durable 4.0 identity without first adding an
-// upgrade bridge. Keep the retired identity private and assembled so it can
-// never leak back into UI, documentation, archives, or source-search policy.
-const PRE_REBRAND_V4 = Object.freeze({
-  schemaTable: ['scr', 'ibe_schema'].join(''),
-  family: ['scr', 'ibetr', 'ibe-4'].join(''),
-  applicationId: 0x53543430,
-});
 
-// PR 01 establishes the durable 4.0 identity and empty target-domain tables.
-// The 3.2.2-shaped catalogue tables remain as a temporary runtime seam so the
-// release branch stays bootable while PRs 02–06 move behavior onto the new
-// hierarchy/revision/operation model. A database made by 3.x is still refused:
-// these tables are created only inside a database already branded ink-morrow-4.
+// The fresh 5.0 family reuses the tested incremental schema construction.
+// Historical tables support tested internal reuse, not live writing routes or
+// old-product compatibility. They are constructed only in the ink-morrow-5 family.
 const SCHEMA_V1 = `
 CREATE TABLE ink_morrow_schema (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-  family TEXT NOT NULL CHECK (family = 'ink-morrow-4'),
+  family TEXT NOT NULL CHECK (family = 'ink-morrow-5'),
   version INTEGER NOT NULL CHECK (version >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT INTO ink_morrow_schema (singleton, family, version)
-VALUES (1, 'ink-morrow-4', 0);
+VALUES (1, 'ink-morrow-5', 0);
 
 CREATE TABLE schema_migrations (
   version INTEGER PRIMARY KEY CHECK (version > 0),
@@ -1945,21 +1936,12 @@ function migrationChecksum(migration) {
     .digest('hex');
 }
 
-function preRebrandMigrationChecksum(migration) {
-  if (migration.version !== 1) return migrationChecksum(migration);
-  const source = String(migration.checksumSource || migration.up.toString())
-    .replaceAll('ink_morrow_schema', PRE_REBRAND_V4.schemaTable)
-    .replaceAll(DATABASE_FAMILY, PRE_REBRAND_V4.family);
-  return createHash('sha256')
-    .update(`${migration.version}\n${migration.name}\n${source}`)
-    .digest('hex');
-}
 
 function databaseMessage(dbPath, detail) {
   const displayPath = dbPath === ':memory:' ? dbPath : path.resolve(dbPath);
   return `${detail} Database: ${displayPath}. ` +
     'The database was not modified. Set DATA_DIR to a new empty directory ' +
-    '(or DB_PATH to a new file), or use the historical 3.2.2 build with existing 3.x data.';
+    '(or DB_PATH to a new file). InkMorrow 5.0 does not open older databases or development-edition data.';
 }
 
 function verifyMigrationLedger(db, version, migrations = MIGRATIONS, checksumOf = migrationChecksum) {
@@ -1985,147 +1967,46 @@ function verifyMigrationLedger(db, version, migrations = MIGRATIONS, checksumOf 
 }
 
 function inspectExistingDatabase(dbPath, migrations = MIGRATIONS) {
-  if (dbPath === ':memory:' || !fs.existsSync(dbPath)) return { kind: 'empty', version: 0 };
+  if (dbPath === ':memory:') return { kind: 'empty', version: 0 };
   const resolved = path.resolve(dbPath);
-  const stat = fs.statSync(resolved);
-  if (!stat.isFile()) {
-    throw new DatabaseCompatibilityError(
-      'INVALID_DATABASE',
-      databaseMessage(resolved, 'Ink Morrow needs a database file, but this path is not a regular file.')
-    );
+  const reject = (code, detail) => { throw new DatabaseCompatibilityError(code, databaseMessage(resolved, detail)); };
+  let stat;
+  try { stat = fs.lstatSync(resolved); }
+  catch (error) { if (error.code !== 'ENOENT') reject('INVALID_DATABASE', 'The database path could not be inspected.'); }
+  if (!stat) {
+    if (hasDatabaseSidecars(resolved)) reject('INVALID_DATABASE', 'A missing database has journal sidecars. Recover with its original version.');
+    return { kind: 'empty', version: 0 };
   }
-  if (stat.size === 0) return { kind: 'empty', version: 0 };
-
-  let db;
+  if (!stat.isFile() || stat.isSymbolicLink()) reject('INVALID_DATABASE', 'Use a regular database file, not a directory or symbolic link.');
+  if (stat.size === 0) {
+    if (hasDatabaseSidecars(resolved)) reject('INVALID_DATABASE', 'An empty database has journal sidecars and is not fresh storage.');
+    return { kind: 'empty', version: 0 };
+  }
   try {
-    db = new DatabaseSync(resolved, { readOnly: true });
-    const tables = db.prepare(`
-      SELECT name FROM sqlite_master
-       WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
-       ORDER BY name
-    `).all().map((row) => row.name);
-    if (tables.length === 0) return { kind: 'empty', version: 0 };
-
-    const preRebrand = !tables.includes('ink_morrow_schema') && tables.includes(PRE_REBRAND_V4.schemaTable);
-    if (!tables.includes('ink_morrow_schema') && !preRebrand) {
-      const isLegacy = tables.some((name) => LEGACY_TABLES.has(name));
-      throw new DatabaseCompatibilityError(
-        isLegacy ? 'LEGACY_DATABASE' : 'UNRECOGNIZED_DATABASE',
-        databaseMessage(
-          resolved,
-          isLegacy
-            ? 'Ink Morrow 4.0 found a 3.x database and will not reinterpret it.'
-            : 'Ink Morrow 4.0 could not verify this database family.'
-        )
-      );
-    }
-
-    if (!tables.includes('schema_migrations')) {
-      throw new DatabaseCompatibilityError(
-        'INVALID_DATABASE_IDENTITY',
-        databaseMessage(resolved, 'The Ink Morrow 4.0 schema identity is incomplete.')
-      );
-    }
-    const schemaTable = preRebrand ? PRE_REBRAND_V4.schemaTable : 'ink_morrow_schema';
-    const identity = db.prepare(`SELECT family, version FROM "${schemaTable}" WHERE singleton = 1`).get();
-    const expectedFamily = preRebrand ? PRE_REBRAND_V4.family : DATABASE_FAMILY;
-    if (!identity || identity.family !== expectedFamily || !Number.isSafeInteger(Number(identity.version))) {
-      throw new DatabaseCompatibilityError(
-        'UNSUPPORTED_DATABASE_FAMILY',
-        databaseMessage(resolved, 'This database does not have a supported Ink Morrow 4.0 identity.')
-      );
-    }
-    const version = Number(identity.version);
-    if (version > DATABASE_SCHEMA_VERSION) {
-      throw new DatabaseCompatibilityError(
-        'FUTURE_DATABASE',
-        databaseMessage(
-          resolved,
-          `This database uses future schema version ${version}; this build supports through ${DATABASE_SCHEMA_VERSION}.`
-        )
-      );
-    }
-    if (version < 1) {
-      throw new DatabaseCompatibilityError(
-        'INVALID_DATABASE_IDENTITY',
-        databaseMessage(resolved, `This database records invalid schema version ${version}.`)
-      );
-    }
-    const applicationId = Number(db.prepare('PRAGMA application_id').get().application_id);
-    const userVersion = Number(db.prepare('PRAGMA user_version').get().user_version);
-    const expectedApplicationId = preRebrand ? PRE_REBRAND_V4.applicationId : SQLITE_APPLICATION_ID;
-    if (applicationId !== expectedApplicationId || userVersion !== version) {
-      throw new DatabaseCompatibilityError(
-        'INVALID_DATABASE_IDENTITY',
-        databaseMessage(resolved, 'The SQLite and Ink Morrow schema identities disagree.')
-      );
-    }
-    verifyMigrationLedger(db, version, migrations, preRebrand ? preRebrandMigrationChecksum : migrationChecksum);
-    return { kind: preRebrand ? 'pre-rebrand-v4' : 'recognized', version };
+    return inspectCopy(resolved, (copied) => {
+      let db;
+      try {
+        // Recovery and SHM creation can occur only inside the private copy.
+        db = new DatabaseSync(copied);
+        const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name").all().map((row) => row.name);
+        if (!tables.includes('ink_morrow_schema')) reject(tables.some((name) => LEGACY_TABLES.has(name)) ? 'LEGACY_DATABASE' : 'UNRECOGNIZED_DATABASE', 'InkMorrow 5.0 could not verify this database family. Older data is not upgraded.');
+        if (!tables.includes('schema_migrations')) reject('INVALID_DATABASE_IDENTITY', 'The 5.0 schema identity is incomplete.');
+        const identity = db.prepare('SELECT family, version FROM ink_morrow_schema WHERE singleton = 1').get();
+        if (!identity || identity.family !== DATABASE_FAMILY || !Number.isSafeInteger(Number(identity.version))) reject('UNSUPPORTED_DATABASE_FAMILY', 'This is not an InkMorrow 5.0 release database.');
+        const version = Number(identity.version);
+        if (version > DATABASE_SCHEMA_VERSION) reject('FUTURE_DATABASE', `This database uses future schema version ${version}; this build supports through ${DATABASE_SCHEMA_VERSION}.`);
+        if (version < 1) reject('INVALID_DATABASE_IDENTITY', 'This database records an invalid schema version.');
+        const applicationId = Number(db.prepare('PRAGMA application_id').get().application_id);
+        const userVersion = Number(db.prepare('PRAGMA user_version').get().user_version);
+        if (applicationId !== SQLITE_APPLICATION_ID || userVersion !== version) reject('INVALID_DATABASE_IDENTITY', 'The SQLite and InkMorrow identities disagree.');
+        verifyMigrationLedger(db, version, migrations);
+        validateDatabaseIntegrity(db);
+        return { kind: 'recognized', version };
+      } finally { db?.close(); }
+    });
   } catch (error) {
     if (error instanceof DatabaseCompatibilityError) throw error;
-    throw new DatabaseCompatibilityError(
-      'INVALID_DATABASE',
-      databaseMessage(resolved, `Ink Morrow 4.0 could not safely read this database (${error.message}).`)
-    );
-  } finally {
-    try { db?.close(); } catch { /* read-only inspection was already closed */ }
-  }
-}
-
-function availableBackupPath(dbPath) {
-  const base = `${path.resolve(dbPath)}.pre-ink-morrow-v4.bak`;
-  if (!fs.existsSync(base)) return base;
-  for (let suffix = 2; suffix < 1000; suffix += 1) {
-    const candidate = `${base}.${suffix}`;
-    if (!fs.existsSync(candidate)) return candidate;
-  }
-  throw new Error('Could not allocate a unique pre-upgrade database backup path');
-}
-
-function upgradePreRebrandV4(db, dbPath, version, migrations = MIGRATIONS) {
-  const backupPath = availableBackupPath(dbPath);
-  // VACUUM INTO produces a complete SQLite snapshot, including committed WAL
-  // content, without relying on a potentially inconsistent file copy.
-  db.prepare('VACUUM INTO ?').run(backupPath);
-  try { fs.chmodSync(backupPath, 0o600); } catch { /* permissions are best-effort off POSIX */ }
-
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    db.exec(`
-      CREATE TABLE ink_morrow_schema (
-        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-        family TEXT NOT NULL CHECK (family = 'ink-morrow-4'),
-        version INTEGER NOT NULL CHECK (version >= 0),
-        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
-    db.prepare(`
-      INSERT INTO ink_morrow_schema (singleton, family, version, created_at, updated_at)
-      SELECT singleton, ?, version, created_at, CURRENT_TIMESTAMP
-        FROM "${PRE_REBRAND_V4.schemaTable}"
-       WHERE singleton = 1
-    `).run(DATABASE_FAMILY);
-    db.exec(`DROP TABLE "${PRE_REBRAND_V4.schemaTable}"`);
-    db.prepare('UPDATE schema_migrations SET checksum = ? WHERE version = 1')
-      .run(migrationChecksum(migrations[0]));
-    db.exec(`PRAGMA application_id = ${SQLITE_APPLICATION_ID}`);
-    db.exec(`PRAGMA user_version = ${version}`);
-    verifyMigrationLedger(db, version, migrations);
-    const violation = db.prepare('PRAGMA foreign_key_check').get();
-    if (violation) throw new Error('The 4.0 identity upgrade violates a foreign key constraint');
-    db.exec('COMMIT');
-    return backupPath;
-  } catch (error) {
-    try { db.exec('ROLLBACK'); } catch { /* transaction was already rolled back */ }
-    const wrapped = new DatabaseCompatibilityError(
-      'PRE_REBRAND_V4_UPGRADE_FAILED',
-      `Ink Morrow could not upgrade this verified earlier 4.0 database (${error.message}). ` +
-      `The upgrade was rolled back. Backup: ${backupPath}.`
-    );
-    wrapped.cause = error;
-    throw wrapped;
+    reject('INVALID_DATABASE', `InkMorrow 5.0 could not safely inspect this database (${error.message}).`);
   }
 }
 
@@ -2233,9 +2114,6 @@ function createDb(dbPath, {
   try {
     db.exec('PRAGMA foreign_keys = ON');
     db.exec('PRAGMA busy_timeout = 5000');
-    const identityUpgradeBackupPath = inspection.kind === 'pre-rebrand-v4'
-      ? upgradePreRebrandV4(db, dbPath, inspection.version, migrations)
-      : null;
     try {
       db.exec('PRAGMA journal_mode = WAL');
     } catch {
@@ -2247,12 +2125,6 @@ function createDb(dbPath, {
     if (reconcileOperations) reconcileInterruptedOperations(db);
     if (dbPath !== ':memory:') {
       try { fs.chmodSync(path.resolve(dbPath), 0o600); } catch { /* permissions are best-effort off POSIX */ }
-    }
-    if (identityUpgradeBackupPath) {
-      Object.defineProperty(db, 'identityUpgradeBackupPath', {
-        value: identityUpgradeBackupPath,
-        enumerable: false,
-      });
     }
     return db;
   } catch (error) {

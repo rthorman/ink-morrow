@@ -1,10 +1,10 @@
-# InkMorrow 5.0 — User Guide
+# User Guide
 
 <div class="frontmatter">
 
-> Development edition. This guide describes the reader-director interface on the
-> 5.0 release branch. Illustrated stories, playable saves and book export are
-> included. The final fresh-storage/version cutover is still in development.
+> InkMorrow 5.0. Follow the cast, steer what matters, and return to a world whose
+> history belongs to the path you played. This guide covers the complete game,
+> optional model calls, private saves and practical end-to-end journeys.
 
 </div>
 
@@ -22,146 +22,6 @@ The same story, history, facts and paths continue whichever way you participate.
 The story text is the experience itself. It does not need a later conversion
 from a roleplay transcript into something that counts as the real story.
 
-## Optional consistency quality
-
-Standard play is the default: one storyteller call for each new passage or Ask.
-In **Cast & story → Story preferences**, Optional consistency quality offers
-four choices. The choice belongs to this path, restores on rewind, and travels
-with a playable save. It is independent of play style and fourth-wall permission.
-
-| Choice | When the first draft passes | Absolute call ceiling |
-|---|---|---|
-| Off — standard play | One storyteller call | 1 |
-| Standard-model review | Draft plus standard-model review | 4 |
-| Memory-support review | Draft plus memory-model review | 4 |
-| Both model roles | Draft plus both reviews | 6 |
-
-The standard reviewer focuses on motives, relationships, character ownership,
-credible cooperation or refusal, boundaries and fourth-wall permission. Memory
-support focuses on continuity, established truth, knowledge and commitments.
-Both roles receive bounded authoritative context and the candidate passage.
-Configure the storyteller and, when used, memory-support model separately in
-**Settings**. They may be different models or the same model in two roles.
-Using the same model twice is not independent verification.
-
-When a review identifies an evidenced conflict, the storyteller gets at most
-one repair attempt. Every selected reviewer then checks the replacement. A
-malformed first draft can use that same repair allowance; it does not earn an
-extra repair later. If the repair or review fails, nothing is added to the story.
-There is no automatic transport retry, paid follow-up or background analysis.
-
-Extra checks add latency and cost, and a rejected passage can still be charged.
-Before the first purchase for a configuration, the review names all roles,
-providers, models, maximum calls and data sent. It shows a rough estimate, not a
-price cap. A prior single-call approval does not authorise quality mode. The
-device remembers each approved configuration; changed model/provider settings or
-mode require review for the new configuration. Cancelling keeps your direction.
-
-Quality checks are a fallible second opinion, not a guarantee of better writing,
-perfect character behaviour or secret-safe prose. A reviewer can miss a problem
-or flag a harmless choice. Keep Off when speed and cost matter more; try a bounded
-quality choice for a difficult scene if you accept that tradeoff. No paid model
-benchmark or model ranking is claimed for this release.
-
-## Waiting, rejection and the real bill
-
-During a quality request, the action stays visibly busy. Progress identifies
-drafting, checking or repairing, the active role and its call number. These status
-reads are local server reads, not new model calls. Leaving the page does not
-cancel work already authorised; returning must never buy a replacement response.
-
-The story totals retain all known charges plus the count of attempts whose cost
-the provider did not report. **Recent model calls & costs** shows the latest
-twelve calls across the story's paths. A known draft charge is not lost merely
-because a later review has unknown cost. Interrupted and rejected work can cost
-money without adding a scene. Review details and rejected drafts are not part of
-the reader history. Playable saves carry aggregate spend, not request identities
-or authority to resume an interrupted purchase.
-
-If a role is unavailable, configure it in Settings and refresh the story before
-trying again. The application does not silently drop an enabled reviewer. An
-unchanged recorded challenge ruling remains free even with quality mode enabled
-and providers unavailable. New evidence can make a new narration appropriate;
-repeated pleading alone does not.
-
-## People can care and still disagree
-
-InkMorrow distinguishes affection, trust, willingness to cooperate and expectations.
-These are short descriptions of the relationship, not points to collect. Iona may
-care deeply about Mara while distrusting a decision made on her behalf. Jo may
-agree to label seedlings without wanting to lead the neighbourhood or becoming
-close friends. A willing response is not a promise of unlimited future agreement.
-
-Developments need evidence in the passage or your explicit input. A later scene
-can revise a relationship description while retaining its identity and linking to
-earlier evidence. It cannot use that mechanism to change a fixed world fact.
-When you inhabit someone, their feelings and expectations belong to you; the
-narrator must not choose those for you. Other people's views of them may change.
-Model prose remains fallible even with structured checks.
-
-Use **Cast & story** and evidence links to inspect what is recorded. **Catch me up**
-also gathers current relationships, including older records. If something was
-recorded incorrectly, use a factual correction or return to an earlier path.
-Disagreeing with a character is not itself evidence that the game needs repair.
-
-## An episode with room to breathe
-
-An episode can have an organising question. The authored openings supply one;
-when beginning another episode you can optionally supply your own. It frames what
-is interesting, not a command to achieve a fixed ending. Existing public goals
-help the storyteller notice opportunities. You can turn aside or follow a quiet
-conversation without losing progress to a timer.
-
-The descriptive stages are Opening, Developing, A recorded payoff and Room for
-aftermath. Development follows public changes. Payoff requires a narrated event
-that resolves the episode's recorded goals; merely waiting, planning or locally
-marking a fact resolved does not fabricate a played resolution. A missing or
-retired goal is not silently treated as a victory. Aftermath makes room for what
-the changes mean to the people involved.
-
-None of these stages ends the episode. You may stop early, linger after a payoff,
-or begin another question when ready. **End this episode** is a local resting
-point with an optional short recap, not another paid request. Your cast, facts,
-relationships, promises, settings and paths continue into the next episode.
-
-## Two ways to reach a satisfying pause
-
-In **The Drowned Bell**, follow or steer the sisters as they investigate the chart
-sale and the bell. Public survey traces provide a fair starting point; the hidden
-answer is fixed. Learning who bought the chart does not automatically repair
-trust. Allow the sisters to decide a next step together, then linger over what
-their new understanding means. Vale's optional survey-record approach can refuse
-a plain appeal in Living-world and reconsider when relevant evidence is publicly
-established. Repeating the unchanged appeal makes no new AI purchase. You do not
-need to inhabit either sister.
-
-In **The Garden After Rain**, explore the working tap, space for a bench and the
-neighbours' different wishes. Jo can decline a group role without being hostile.
-A genuinely agreed quiet task can create a different basis for cooperation. Let
-the layout become welcoming and give each person room to join a first shared
-pause on their own terms. Tea and seedlings are sufficient; no surprise catastrophe,
-affection meter or compulsory romance is needed to make this a complete episode.
-
-These are possible journeys, not fixed scripts or guaranteed model behaviour.
-Story-shaping gives requested developments more influence; Living-world allows
-credible refusal. Both support quiet care, alternative paths and stopping without
-an avatar. Each new narrated passage is a reviewed AI request. Reading, recaps,
-evidence, episode controls and saved-path management are local.
-
-## Return without catching up on chores
-
-Choose **Catch me up** beside the reader controls. It opens immediately, then
-collects the last three narrated summaries, up to six open public commitments
-and up to twelve public relationship records from this path. Local corrections
-and character-control entries do not push narrated moments out of the recap.
-Follow the source links when you need the actual earlier passage.
-
-Time away does not advance the world; a request you already approved may still
-finish while you are away. The recap does not call a model, reveal
-private motives, draw on another path or generate a new story continuation.
-These are bounded reminders, not a second full manuscript: **Recall older facts**
-and the reader's earlier moments remain available for a particular detail.
-
 ## Installation and the private threshold
 
 The local application serves its interface and API together. The production
@@ -171,15 +31,46 @@ owner password. This is a private, single-owner installation, not a multi-user
 account service. Keep the server local unless you deliberately configure secure
 network access using the Operations and Security handbooks.
 
-The 5.0 programme is a new-product release. Do not point development builds at an
-older installation's database. Use a separate checkout and fresh data. Opening
-older databases and story saves is not a 5.0 compatibility commitment. During
-development, the package/schema cutover is a later release-hardening batch.
+Version 5.0 uses a separate data location, `database-v5/ink-morrow-5.db` by
+default. It refuses 4.x databases instead of upgrading them. Keep old installations
+and their data separate; choosing an old path is an error, not a migration step.
+The operator can choose another fresh location using DATA_DIR or DB_PATH.
+See the Operations handbook for installation, backup and password recovery.
 
 After unlocking, the story shelf is the starting point. Lock closes the private
 interface, clears its private working state and revokes that browser session.
 Remembered login does not imply that encrypted provider credentials remain
 unlocked after the server restarts.
+
+## Your first ten minutes
+
+Begin with **The Garden After Rain** if you want a quiet first session, or
+**The Drowned Bell** for a mystery. Give the story a title, leave character control
+alone and keep Optional consistency quality Off. Starting and reading the curated
+opening are free. The situation, cast and initial records are already there.
+
+Open Settings and assign a storyteller before requesting new narration. If the
+operator supplied a provider credential, you may only need to choose its model.
+Otherwise add your provider and credential. The app does not supply credits.
+Use a limited-spend provider account and understand what context will leave your
+machine before approving a purchase.
+
+Return to the story and press Continue once. The button becomes busy immediately;
+wait for the outcome. Read the passage before deciding whether to continue. If
+you want to linger, select Steer and write: “Stay with this conversation; give
+both people room to answer.” Leave the scope at This moment only.
+
+Open What changed if a development surprises you. Follow an evidence link to its
+source. If the record is wrong, make a factual correction; if it is merely an
+outcome you dislike, consider a different approach or a new path. Those are
+different choices, and neither needs a penalty.
+
+After a few passages, end the episode. Download a playable save if you want a
+portable copy. You have completed a real session without inhabiting anyone,
+creating an illustration or mastering every panel.
+
+The objective is an interesting experience, not a high turn count. There is no
+attendance streak, catch-up debt or requirement to exhaust every feature.
 
 ## Start with a situation
 
@@ -200,13 +91,43 @@ Open **Cast and story preferences** when you want more control. You can
 add a few characters, describe who they are and what they want,
 choose pacing, select gentle or dramatic consequences, and state tone or
 content boundaries. None of the characters must represent you. Initial casts
-support at most 24 members. A current local character template can be copied into
-the starting cast; this does not link the story to future template edits.
+support at most 24 members. Describe new people in the starting cast; the retired
+4.x character-template catalogue is not part of this product.
 
 Starting is a local, free operation. It does not call a provider, paint a cover
 or prepare speculative prose. Curated scenarios include an opening to read.
 For your own situation, Continue invites the first generated passage explicitly.
 There is no manual prose editor or hand-written opening field.
+
+## Choose the experience you want
+
+Play style, participation, consequence tone and quality are separate choices.
+You do not have to accept a difficult world merely to avoid playing an avatar,
+or buy extra reviews merely to use Living-world.
+
+| Choice | Useful starting point | What it does not imply |
+|---|---|---|
+| Story-shaping | You want strong influence over the direction | Permission to erase established truth |
+| Living-world | You enjoy people and circumstances resisting | Constant hostility, punishment or randomness |
+| Reader-director | You want to follow and occasionally steer | Passive failure or lack of agency |
+| Inhabit | You want to choose one person's words and actions | Guaranteed success or control of everyone |
+| Gentle consequences | You prefer recoverable, lower-pressure developments | Everyone must agree |
+| Dramatic consequences | You welcome more consequential tension | A crisis in every scene |
+| Quality Off | Speed and lower cost are the priority | Guaranteed flawless prose |
+| A quality reviewer | You accept extra checks and possible repair | Independent proof that a passage is correct |
+
+For a welcoming first session, choose Story-shaping, gentle consequences and Off.
+For a mystery with credible boundaries, choose Living-world and Never for
+fourth-wall addresses. These are starting suggestions, not ranks of serious play.
+
+Change preferences when your mood changes. They apply to future responses on
+this path and are recorded in its history. They do not rewrite the opening or
+erase a previous refusal. To compare two styles from the same situation, create
+an alternative path first, then change the style there.
+
+A satisfying session might end with a small reconciliation, a useful discovery,
+or an unresolved question worth returning to. InkMorrow does not define success
+as obedience, exhaustive exploration or relentless escalation.
 
 ## Follow, steer, or ask
 
@@ -293,6 +214,104 @@ paid review or provider purchase; new attempts use the ordinary paid boundary.
 **Read the decision moment** opens its actual record. Controls concerning a person
 you inhabit do not supply that person's decisions for you.
 
+## Optional consistency quality
+
+Standard play is the default: one storyteller call for each new passage or Ask.
+In **Cast & story → Story preferences**, Optional consistency quality offers
+four choices. The choice belongs to this path, restores on rewind, and travels
+with a playable save. It is independent of play style and fourth-wall permission.
+
+| Choice | When the first draft passes | Absolute call ceiling |
+|---|---|---|
+| Off — standard play | One storyteller call | 1 |
+| Standard-model review | Draft plus standard-model review | 4 |
+| Memory-support review | Draft plus memory-model review | 4 |
+| Both model roles | Draft plus both reviews | 6 |
+
+The standard reviewer focuses on motives, relationships, character ownership,
+credible cooperation or refusal, boundaries and fourth-wall permission. Memory
+support focuses on continuity, established truth, knowledge and commitments.
+Both roles receive bounded authoritative context and the candidate passage.
+Configure the storyteller and, when used, memory-support model separately in
+**Settings**. They may be different models or the same model in two roles.
+Using the same model twice is not independent verification.
+
+When a review identifies an evidenced conflict, the storyteller gets at most
+one repair attempt. Every selected reviewer then checks the replacement. A
+malformed first draft can use that same repair allowance; it does not earn an
+extra repair later. If the repair or review fails, nothing is added to the story.
+There is no automatic transport retry, paid follow-up or background analysis.
+
+Extra checks add latency and cost, and a rejected passage can still be charged.
+Before the first purchase for a configuration, the review names all roles,
+providers, models, maximum calls and data sent. It shows a rough estimate, not a
+price cap. A prior single-call approval does not authorise quality mode. The
+device remembers each approved configuration; changed model/provider settings or
+mode require review for the new configuration. Cancelling keeps your direction.
+
+Quality checks are a fallible second opinion, not a guarantee of better writing,
+perfect character behaviour or secret-safe prose. A reviewer can miss a problem
+or flag a harmless choice. Keep Off when speed and cost matter more; try a bounded
+quality choice for a difficult scene if you accept that tradeoff. No paid model
+benchmark or model ranking is claimed for this release.
+
+## Waiting, rejection and the real bill
+
+During a quality request, the action stays visibly busy. Progress identifies
+drafting, checking or repairing, the active role and its call number. These status
+reads are local server reads, not new model calls. Leaving the page does not
+cancel work already authorised; returning must never buy a replacement response.
+
+The story totals retain all known charges plus the count of attempts whose cost
+the provider did not report. **Recent model calls & costs** shows the latest
+twelve calls across the story's paths. A known draft charge is not lost merely
+because a later review has unknown cost. Interrupted and rejected work can cost
+money without adding a scene. Review details and rejected drafts are not part of
+the reader history. Playable saves carry aggregate spend, not request identities
+or authority to resume an interrupted purchase.
+
+If a role is unavailable, configure it in Settings and refresh the story before
+trying again. The application does not silently drop an enabled reviewer. An
+unchanged recorded challenge ruling remains free even with quality mode enabled
+and providers unavailable. New evidence can make a new narration appropriate;
+repeated pleading alone does not.
+
+## A small, honest model comparison
+
+Models can write beautiful prose and still be poor at consistent resistance.
+Test the behaviours important to your game instead of treating price or apparent
+confidence as a quality score. A personal trial is useful; it is not certification.
+
+Create two alternatives from the same moment. Keep style, boundaries, context,
+control and quality settings comparable. In Settings, explicitly assign the
+model before each trial and note the actual provider/model identifier. Changing
+a global role affects future purchases, not the identity of already saved prose.
+
+Try a compact set of situations:
+
+- An unchanged plea should not overturn an explicit structured refusal.
+- Genuinely sufficient new grounds should allow reconsideration.
+- A hidden fact should not become character knowledge without a discovery.
+- Affection should not automatically imply trust or cooperation.
+- An inhabited person's words and commitments must remain yours.
+- A quiet scene should remain interesting without invented danger.
+- Fourth-wall permission should respect Never or the Rarely allowance.
+
+Inspect recorded state as well as prose. A well-written sentence may contradict
+the game record; a valid record may accompany awkward writing. Record failures,
+latency and known/unknown costs separately. Repeat enough to notice variability,
+but choose your own spending ceiling before beginning.
+
+First compare with quality Off. If you then test quality, hold the storyteller
+constant and compare Off, one selected reviewer, or Both on comparable paths.
+Using the same model twice is not an independent judgment, and a second model
+may share the first one's weaknesses.
+
+InkMorrow's release tests use deterministic fixtures. They prove bounded calls,
+state guards and failure handling, not that any live commercial model wins this
+comparison. No model ranking is implied by an example identifier in a test or
+configuration file.
+
 ## Let characters address the reader
 
 Living-world has a separate **Characters may break the fourth wall** setting.
@@ -325,7 +344,8 @@ rewind and save-copy restore the setting and cooldown on the selected path.
 These checks constrain structured addresses. A model can still disobey instructions
 in ordinary prose; **Never** is not a proof of semantic model compliance. If it
 repeatedly breaks immersion, switch to Never, review the storyteller choice and
-use an alternative path as appropriate. No automatic paid repair is purchased.
+use an alternative path as appropriate. With quality Off there is no paid repair. An explicitly enabled quality mode can
+attempt its one disclosed repair, but it cannot guarantee semantic compliance.
 
 ## Optional character control
 
@@ -342,6 +362,26 @@ but generated sentences can still be wrong: retain your editorial judgment.
 
 **Return to reader-director** releases the role explicitly. The narrator again
 runs the cast. Your existing story and history are not replaced or converted.
+
+## People can care and still disagree
+
+InkMorrow distinguishes affection, trust, willingness to cooperate and expectations.
+These are short descriptions of the relationship, not points to collect. Iona may
+care deeply about Mara while distrusting a decision made on her behalf. Jo may
+agree to label seedlings without wanting to lead the neighbourhood or becoming
+close friends. A willing response is not a promise of unlimited future agreement.
+
+Developments need evidence in the passage or your explicit input. A later scene
+can revise a relationship description while retaining its identity and linking to
+earlier evidence. It cannot use that mechanism to change a fixed world fact.
+When you inhabit someone, their feelings and expectations belong to you; the
+narrator must not choose those for you. Other people's views of them may change.
+Model prose remains fallible even with structured checks.
+
+Use **Cast & story** and evidence links to inspect what is recorded. **Catch me up**
+also gathers current relationships, including older records. If something was
+recorded incorrectly, use a factual correction or return to an earlier path.
+Disagreeing with a character is not itself evidence that the game needs repair.
 
 ## What matters now
 
@@ -429,6 +469,50 @@ These operations are local and free. They are refused while a paid response is
 pending, or when another tab has changed the story since the displayed revision.
 Refresh rather than repeatedly pressing the same action.
 
+## An episode with room to breathe
+
+An episode can have an organising question. The authored openings supply one;
+when beginning another episode you can optionally supply your own. It frames what
+is interesting, not a command to achieve a fixed ending. Existing public goals
+help the storyteller notice opportunities. You can turn aside or follow a quiet
+conversation without losing progress to a timer.
+
+The descriptive stages are Opening, Developing, A recorded payoff and Room for
+aftermath. Development follows public changes. Payoff requires a narrated event
+that resolves the episode's recorded goals; merely waiting, planning or locally
+marking a fact resolved does not fabricate a played resolution. A missing or
+retired goal is not silently treated as a victory. Aftermath makes room for what
+the changes mean to the people involved.
+
+None of these stages ends the episode. You may stop early, linger after a payoff,
+or begin another question when ready. **End this episode** is a local resting
+point with an optional short recap, not another paid request. Your cast, facts,
+relationships, promises, settings and paths continue into the next episode.
+
+## Two ways to reach a satisfying pause
+
+In **The Drowned Bell**, follow or steer the sisters as they investigate the chart
+sale and the bell. Public survey traces provide a fair starting point; the hidden
+answer is fixed. Learning who bought the chart does not automatically repair
+trust. Allow the sisters to decide a next step together, then linger over what
+their new understanding means. Vale's optional survey-record approach can refuse
+a plain appeal in Living-world and reconsider when relevant evidence is publicly
+established. Repeating the unchanged appeal makes no new AI purchase. You do not
+need to inhabit either sister.
+
+In **The Garden After Rain**, explore the working tap, space for a bench and the
+neighbours' different wishes. Jo can decline a group role without being hostile.
+A genuinely agreed quiet task can create a different basis for cooperation. Let
+the layout become welcoming and give each person room to join a first shared
+pause on their own terms. Tea and seedlings are sufficient; no surprise catastrophe,
+affection meter or compulsory romance is needed to make this a complete episode.
+
+These are possible journeys, not fixed scripts or guaranteed model behaviour.
+Story-shaping gives requested developments more influence; Living-world allows
+credible refusal. Both support quiet care, alternative paths and stopping without
+an avatar. Each new narrated passage is a reviewed AI request. Reading, recaps,
+evidence, episode controls and saved-path management are local.
+
 ## End an episode and return later
 
 An episode is a useful stopping point, not an obligation to keep generating.
@@ -442,28 +526,19 @@ characters do not punish absence from the app. When you want to continue, choose
 Ending remains explicitly reader-controlled. The scene director can invite a
 resting point after a resolved thread but cannot end the episode for you.
 
-## Failures, costs and recovery
+## Return without catching up on chores
 
-If a reply fails, your direction remains in the input box. Invalid provider output
-can still incur a charge. The interface reports the failure and makes a free read
-to reconcile the story; it never automatically buys a replacement response.
+Choose **Catch me up** beside the reader controls. It opens immediately, then
+collects the last three narrated summaries, up to six open public commitments
+and up to twelve public relationship records from this path. Local corrections
+and character-control entries do not push narrated moments out of the recap.
+Follow the source links when you need the actual earlier passage.
 
-The story header distinguishes known provider spend from attempts whose actual
-cost is unknown. Unknown cost is not zero. Returning to a completed request with
-the same operation key does not buy another completion; failed requests require
-a new deliberate action.
-
-If another tab or action changed the story, refresh before continuing. A late
-reply cannot paint a different story you have opened. After a server restart,
-abandoned requests are marked interrupted rather than reported successful.
-Dispatched work whose response was lost remains an unknown-cost attempt, not a
-free one. Each model call allows one transport attempt: even an uncertain network
-failure cannot silently trigger another request. Optional quality can buy its
-reviewed sequence of calls, but never retries an uncertain transport failure.
-
-Use Download a playable save for a complete game, not older manuscript export
-endpoints. Also keep operator-level cold backups of this isolated installation.
-Never overwrite older user data.
+Time away does not advance the world; a request you already approved may still
+finish while you are away. The recap does not call a model, reveal
+private motives, draw on another path or generate a new story continuation.
+These are bounded reminders, not a second full manuscript: **Recall older facts**
+and the reader's earlier moments remain available for a particular detail.
 
 ## Illustrate a moment
 
@@ -510,45 +585,307 @@ Portable saves support up to 10,000 moments, 40 paths, 64 MB compressed and 128 
 expanded, with conservative preflight for unusually large stories. Keep a cold
 operator backup as well. A downloaded book cannot restore the playable world.
 
-## Example journeys
+## Check your save before you need it
 
-### Revisit without spending
+A download is only the first half of a useful backup check. Keep both a playable
+save for each important story and a cold installation backup maintained by the
+operator. They solve different problems.
 
-Return to a saved story, reread earlier scenes, review discoveries and commitments,
-and compare existing paths. None of these actions calls a provider. You can also
-read a curated opening before configuring a storyteller. New generated scenes
-require AI: InkMorrow does not offer a separate non-AI game or manual writing mode.
+Before saving, wait for any paid request to reach an outcome and reconcile the
+story. Download a playable save to a private folder. It contains hidden world
+facts, cast motives and all alternatives, not merely the visible reading path.
 
-### Follow a developing relationship
+On Your stories, choose Import a playable save and Check this save. Read the
+reported title and path, moment and image counts. Import as a new story. The
+existing story remains unchanged and no provider request begins.
 
-Choose a configured storyteller, start a character drama and supply a small cast.
-Continue through the reunion, then steer toward the part that interests you.
-Leave character control unused. Consult What changed only when useful, correct
-an important mistake and stop at an episode ending. Paid text calls send bounded
-story context; local state actions are free. Return to the same path tomorrow.
+Open the imported copy. Confirm the current passage, a named alternative,
+a relationship or commitment, and a placed image if present. Check the play
+style, fourth-wall choice and optional quality preference. Imported credentials,
+provider assignments and paid consent are intentionally absent: configure and
+review future purchases separately.
 
-### Step into one conversation
+Download an EPUB or another book format too if you want an independent readable
+copy. Open it in a reader and inspect at least one illustrated passage. A book
+is easier to share safely, but it cannot reconstruct hidden state or alternate
+paths and cannot be imported as a playable save.
 
-Begin as reader-director. At a conversation you care about, inhabit one cast
-member explicitly, supply their words, and let the narrator portray the response.
-Release the role when you want to lean back again. Fork before a commitment if
-you want to explore an alternative without losing the original. Skip unrelated
-media and authoring tools. You remain in one persistent, readable story.
+Very large stories can exceed the save format's conservative limits. A failed
+preflight should not overwrite anything; retain the original installation and
+ask the operator for a cold backup. Do not manually edit the save payload or
+checksums to force acceptance.
 
-### Use all current reader features
+Store copies off the same physical device if recovery from device failure matters.
+The application does not upload backups for you, encrypt downloaded files, or
+prove that a synchronisation service retained a complete copy.
 
-Configure a provider and optional encrypted credential, supply cast and boundaries,
-alternate following with steering, ask an out-of-story question, briefly inhabit
-a character, inspect a change, correct a fact, compare paths, and end an episode.
-Try an authored opening, make a commitment through play, change
-voice and pacing, and notice how later narration can respond to that commitment.
-Illustrate a passage with an uploaded image or one explicit Illustrator request.
-Correct its description locally, export the selected reading path as EPUB, and
-download a private playable save. Import that save as a new story to verify that
-the alternate paths and image are present. Text/image provider actions are paid;
-upload, local changes, export and save/import are not. To exercise optional quality,
-configure memory support too, select Both model roles in Story preferences, and
-review the six-call maximum before the next passage. A normal accepted draft uses
-three calls; the ceiling includes one repair and two replacement reviews. Compare
-the experience with Off or a single reviewer on an alternate path. This is a
-personal trial, not a controlled model evaluation or a promise of better results.
+## Failures, costs and recovery
+
+If a reply fails, your direction remains in the input box. Invalid provider output
+can still incur a charge. The interface reports the failure and makes a free read
+to reconcile the story; it never automatically buys a replacement response.
+
+The story header distinguishes known provider spend from attempts whose actual
+cost is unknown. Unknown cost is not zero. Returning to a completed request with
+the same operation key does not buy another completion; failed requests require
+a new deliberate action.
+
+If another tab or action changed the story, refresh before continuing. A late
+reply cannot paint a different story you have opened. After a server restart,
+abandoned requests are marked interrupted rather than reported successful.
+Dispatched work whose response was lost remains an unknown-cost attempt, not a
+free one. Each model call allows one transport attempt: even an uncertain network
+failure cannot silently trigger another request. Optional quality can buy its
+reviewed sequence of calls, but never retries an uncertain transport failure.
+
+Use Download a playable save for a complete game, not older manuscript export
+endpoints. Also keep operator-level cold backups of this isolated installation.
+Never overwrite older user data.
+
+## Reading on a phone or with a keyboard
+
+The same reader-director experience works on narrow and wide screens.
+The header may wrap; the story, path and available actions should remain readable
+without horizontal page scrolling. The canonical InkMorrow logo is an image,
+not a substitute font that changes between screens.
+
+Use the labelled navigation to return to Your stories or Settings. Within a
+story, read earlier moments rather than expecting the browser to download every
+past passage at once. Returning to a different story must not show a late answer
+from the story you just left.
+
+Dialogs keep the task in one place. Use their labelled controls, Tab and
+Shift+Tab to move between fields, and Escape to close when permitted. Closing
+an ordinary form is not a paid submission. When a paid operation is already
+running, leaving its view does not undo its provider charge.
+
+In the direction box, Ctrl/Command + Enter invokes the same deliberate send
+action as the button. Select the input kind and scope first. Do not assume a
+keyboard shortcut changes Steer into Say or makes an approach automatically
+succeed.
+
+Busy text is meaningful: a disabled button protects against duplicate purchases.
+If the interface reports failure, keep the draft and inspect the reconciled
+story before choosing another attempt. Repeated taps do not make the model
+respond faster.
+
+Use informative illustration descriptions, especially for details that matter
+to a reader. Describe the image, not hidden facts absent from it. Correcting
+that description is local. In EPUB, the illustration's separate page should
+still be followed by selectable, resizable prose.
+
+If a layout or focus problem blocks you, report the action, screen size and
+browser, without including keys or private story material. The Maintainer
+handbook describes the keyboard, mobile and delayed-response regression checks.
+
+## Journey: no optional provider features
+
+**Goal:** enjoy an existing story and make a portable reading copy without a new
+AI purchase. This journey is deliberately not a manual-writing replacement.
+
+1. Unlock the installation and open a story you already have. If none exists,
+start a curated opening, or import a trusted 5.0 playable save.
+2. Read the available moments. Use Catch me up, What matters now and Recall older
+facts when you want context. These are local reads.
+3. Compare saved paths. You can create an alternative at an earlier moment, but
+without a provider you cannot generate what happens next on it.
+4. Correct a genuinely mistaken record or its accessible illustration description.
+This changes local future context, not earlier prose.
+5. Optionally upload an illustration you already own. Uploading sends the file
+to your local server for validation and normalization, not to a model provider.
+6. Export the chosen path as EPUB or PDF. Download a playable save separately
+if you need every path and the ability to continue later.
+
+**Used:** reading, recap, evidence, paths, local correction, optional local image
+upload, book export and playable saves. **Skipped:** Continue, Steer, Ask, AI
+painting and all quality reviews. Those new generated responses require providers.
+
+No model selection or catalogue browsing is necessary for these actions.
+Catalogue browsing itself contacts a provider even though it does not buy prose,
+so leave Settings alone for a fully local session.
+
+The resulting book contains the selected reading path. The save contains private
+world state and every path: keep it private. Your owner password does not encrypt
+either downloaded file. No background world simulation advances while you read.
+
+If the imported story has quality enabled, local reading is still free. Configure
+the required roles only when you later decide to request new narration.
+
+## Journey: a quiet relationship story
+
+**Goal:** a low-pressure evening about people, not a puzzle or an optimisation
+exercise. Start The Garden After Rain with gentle consequences. Stay a
+reader-director. Choose Story-shaping if you want your intended scene to lead;
+choose Living-world if you want differing preferences to shape the conversation.
+
+Follow the first exchange. Steer toward a small shared activity: “Let them work
+out where a bench would be useful, without making anyone volunteer for more than
+they want.” A character declining a group role need not reject friendship.
+
+Read affection, trust, cooperation and expectations as different descriptions.
+You are not trying to fill a relationship meter. If Jo agrees to label seedlings,
+that does not establish leadership or permanent agreement. Let later scenes
+show whether a small promise was kept and what that means.
+
+Keep quality Off for the simplest, fastest experience. If repeated contradictions
+become distracting, first inspect the recorded facts and storyteller settings.
+A single standard-model review is an optional experiment, not a compulsory
+upgrade. Do not enable both roles simply because more must be better.
+
+Skip Inhabit, structured challenges, AI painting and extensive worldbuilding.
+Never for fourth-wall addresses suits an immersive tone; Rarely is available if
+a gentle acknowledgment of the reader belongs in this story.
+
+When the group reaches a comfortable pause, linger over tea or the newly useful
+space, then end the episode. There need not be a catastrophe, romance or revelation.
+A short recap in your own words is a local note, not a prose-writing workflow.
+
+**Used:** curated cast, Follow, Steer, relationships, commitments, episode controls
+and a playable save. **Skipped:** avatar control and optional media/model calls.
+**Cost:** one storyteller call per new response with quality Off. **Outcome:** a
+story worth returning to, with its relationships and unfinished promises intact.
+
+## Journey: a mystery with fair resistance
+
+**Goal:** discover an answer through credible evidence while remaining outside
+the cast. Start The Drowned Bell in Living-world, with fourth-wall permission
+Never. Keep a clear boundary between what you as reader suspect, what characters
+know, and what the world records as true.
+
+Follow the opening and inspect public clues. Steer an investigation rather than
+dictating its solution: “Have them compare the survey traces with what Vale
+actually remembers.” Ask can clarify the available information, but is not a
+secret-answer command.
+
+Use Approaches to this situation for the authored structured challenge.
+A refusal should be read as a result with reasons, not an invitation to hammer
+the button. Unchanged grounds reuse that ruling without another AI purchase.
+Relevant new authority, evidence or circumstances may legitimately change it.
+The game should allow earned cooperation as reliably as it allows refusal.
+
+If ordinary generated dialogue contradicts the structured result, recognise the
+limit: application-owned adjudication cannot prove every sentence semantically
+consistent. Review the evidence, correct a recording error when appropriate, or
+branch before the scene. Repeated nagging is not a reliable correction tool.
+
+For a difficult continuity-heavy scene, try Memory review on an alternative path.
+It checks the candidate against bounded relevant records and may miss something.
+Standard review focuses more on character behaviour; Both adds both checks and
+its larger call ceiling. No mode is a substitute for a suitable storyteller.
+
+Skip character inhabitation unless you specifically want to choose one person's
+speech. Learning the answer does not force every relationship to resolve with it.
+Allow aftermath before deciding the episode is finished.
+
+**Used:** public evidence, knowledge, structured approaches, paths and optional
+memory review. **Skipped:** forced avatar play and optional illustration.
+**Outcome:** a discovered reading path, plus a private save that still contains
+hidden truth and alternatives. Share the book, not the save, with an unspoiled
+reader.
+
+## Journey: inhabit one conversation
+
+**Goal:** make one person's decisions while retaining a readable story before
+and after that moment. Begin as reader-director and follow until a conversation
+matters enough that you want to choose the words yourself.
+
+Create an alternative path before a consequential exchange if you want to
+preserve the original possibility. In Cast & story, choose Inhabit for the
+person and confirm the handoff. Check the reader's control label before sending
+anything: a direction addressed to the storyteller and a character's spoken
+line are different kinds of input.
+
+Choose Say for speech, or Act for an intention. An action is not a declaration
+that the desired outcome has already happened. In Living-world, another person
+may refuse credibly; in Story-shaping, the requested direction has stronger
+influence within the established context.
+
+The storyteller owns the surroundings and other people, not your controlled
+person's inner decisions. If a response invents their commitment, feeling or
+speech, treat that as an error rather than silently surrendering control.
+Structured checks help, and optional Standard review may catch additional
+problems, but neither is a guarantee about every sentence.
+
+Release the role with Return to reader-director when the conversation is over.
+You are not leaving a separate minigame: the same prose, facts, relationships and
+history continue. You can end the episode without switching control if you wish;
+the saved path preserves the handoff.
+
+**Used:** Follow, optional fork, explicit control, Act/Say, evidence and episode
+closure. **Skipped:** unrelated worldbuilding, painting and constant review.
+**Cost:** new responses use the reviewed storyteller sequence; taking or releasing
+control and creating a path are local. **Outcome:** a continuous reading experience
+with one deliberately player-controlled exchange, preserved in a playable save.
+
+## Journey: the complete feature set
+
+**Goal:** explore the full game and finish with both a readable book and a tested
+playable copy. Spread this journey over several sessions; features are options,
+not a checklist the game expects you to perform every night.
+
+1. Configure storyteller, memory-support and Illustrator roles. Choose session
+credentials or the encrypted vault deliberately, and set an upstream spend limit.
+2. Start The Drowned Bell. Review its cast and boundaries, choose Living-world,
+and leave yourself outside the cast.
+3. Follow once, steer a single moment, then retain a focus explicitly. Select an
+optional possible direction, edit it, and send only when satisfied.
+4. Ask a clarification outside the story. Inspect a recorded change and its
+evidence. Search older facts; correct only an actual mistake.
+5. Try an explicit approach to the situation. Observe a recorded refusal if the
+grounds are insufficient. Repeating unchanged grounds is free, not a new roll.
+6. Inhabit one person for a conversation, then return to reader-director.
+Allow Rarely for fourth-wall addresses if that suits the tone; absence of an
+aside is allowed.
+7. Create an alternative path. Change style or quality there to explore a
+different experience without replacing the first.
+8. Select Both quality roles, review its six-call ceiling, and request a passage.
+The ordinary passing path uses three calls; one repair can raise that to six.
+A failed review can cost money without producing a scene.
+9. Upload one image and explicitly paint another moment. Correct descriptions
+locally. Notice that the reader places each image above its passage.
+10. Reach a satisfying pause, end the episode, and later begin another question.
+Use Catch me up on return rather than buying a recap.
+11. Export a reading path as EPUB and inspect its separate illustration pages.
+Download a private save, check it, import it as a new story, and verify an
+alternate path and image.
+
+**Cost boundary:** new narration, Ask, selected quality calls and AI painting are
+paid. The remaining actions are local. **Outcome:** one reader-facing book and
+one private, verified, all-path continuation copy. Nothing is published publicly
+by these actions.
+
+## Coming from the 4 series
+
+Version 5.0 is a new game, not a new layout for the old writing suite.
+Your usual position is reader-director outside the cast. Follow and Steer are
+complete ways to play; Inhabit is optional.
+
+Manual prose editing, manuscript import, reusable world/character catalogues,
+prepared successor pages, Chronicle/Codex/Gallery/Gate rooms, narration,
+audiobooks and public snapshot sharing are not the 5.0 production workflow.
+Natural-language direction, starting situations, cast descriptions, factual
+correction and short episode recaps remain because they support play.
+
+The database family is ink-morrow-5. The default location is
+database-v5/ink-morrow-5.db, separate from the old database directory. Pointing
+5.0 at a 4.x database fails closed; it does not migrate or erase that file.
+Keep the old application with its old data if you still need to read it there.
+
+Old .inkmorrow manuscript archives are not accepted. New .inkmorrow5 saves
+preserve playable stories and all their paths. Character-template import from
+the old series is not provided as a release feature. No conversion is required
+or promised before you can enjoy a new story.
+
+Images are now attached to playable moments. They appear above their associated
+prose in the reader, and on a separate preceding page in EPUB. A book is a
+selected-path reading export; a save is an unencrypted, private continuation
+package. Neither includes credentials.
+
+If an older bookmark names Desk, Gallery or a retired API, return to the new
+story shelf. Do not try to revive the writing system by changing a URL or
+environment setting. The production server exposes the game, while inherited
+internal modules remain only for tested implementation reuse.
+
+The short version: start fresh, keep old data separate, and use the new save
+format for 5.0 continuity. Historical release records stay in the repository
+for reference; they are not current operating instructions.

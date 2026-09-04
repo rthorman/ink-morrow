@@ -2,6 +2,26 @@
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
+- RELEASE CUTOVER: the production entry point always uses authentication and
+  legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
+  runtime are not mounted. Only explicitly opted-in inherited tests use
+  legacy-runtime.js; do not revive manual prose through an API or test-mode server.
+- Fresh storage is family ink-morrow-5, schema 21, SQLite application ID IM50,
+  default database-v5/ink-morrow-5.db. Server and password reset share the same
+  DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
+  DB/WAL/journal files only through a private scratch copy before acceptance;
+  read-only SQLite itself may create SHM. Refuse older families, orphan journals,
+  invalid ledgers and failed preflight without modifying source files or falling
+  back to adoption. This preflight is not a live-backup mechanism.
+- Current manuals describe 5.0 throughout. The User Guide targets 35 A4 pages
+  with full local/all-feature/subset journeys. Retained 4.x contracts below and
+  older fixed HTML/PDF source material are historical, not current workflows.
+- LATEST VISUAL REQUIREMENT (4 September 2026): consolidate product text logos,
+  including the running app and all six manuals, on the existing logo at the top
+  of the GitHub README: `frontend/brand/ink-morrow-lockup.svg`. Reuse that canonical
+  artwork rather than re-typesetting the name or generating a new logo. Ordinary
+  product-name mentions remain text. Verify responsive sizing, accessibility and
+  PDF appearance before the final release-to-main merge.
 - LATEST OWNER DIRECTION (4 September 2026): add a Living-world setting allowing
   characters to address the user across the fourth wall: Never, Rarely or Freely.
   The owner briefly cancelled final main integration, then explicitly restored
@@ -100,7 +120,10 @@
   Do not describe planned features as implemented or mark a batch complete
   until its tests and actual GitHub merge have been verified.
 
-Persistent notes for this project (Ink Morrow, ~/src/ink-morrow).
+## Historical implementation notes — superseded where 5.0 differs
+
+Persistent notes for earlier Ink Morrow versions follow. Current 5.0 contracts
+above and the active six-book library take precedence.
 
 ## Project overview
 

@@ -300,6 +300,7 @@ describe('encrypted persistent provider vault', () => {
     const db = createDb(':memory:');
     const logger = { log: jest.fn(), error: jest.fn() };
     const appOptions = {
+      legacyEnabled: true,
       staticDir: null,
       authRequired: true,
       authOptions: {

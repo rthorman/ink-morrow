@@ -37,6 +37,7 @@ function isolatedApp(label) {
   const transferDir = path.join(root, 'transfers');
   const db = createDb(':memory:');
   const app = createApp(db, {
+    legacyEnabled: true,
     staticDir: null,
     imageDir,
     audioDir,

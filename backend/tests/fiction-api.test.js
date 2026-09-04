@@ -1,7 +1,8 @@
 'use strict';
 
 const request = require('supertest');
-const { createTestApp, setupOwner } = require('./helpers');
+const { createTestApp: createFixture, setupOwner } = require('./helpers');
+const createTestApp = (options = {}) => createFixture({ ...options, legacyEnabled: false });
 
 describe('playable-fiction API boundary', () => {
   let fixture;
