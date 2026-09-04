@@ -35,13 +35,20 @@ main integration and production deployment require a separate decision.
    passed. All six PDFs regenerated.
 3. **History-driven scenes** — curated openings, genre-aware scene patterns,
    persistent commitments and payoffs, bounded generation, episode endings,
-   pacing, failure/spend accounting and causal regression tests. Status: in progress;
-   also includes cast additions and local preferences. Manual prose authoring
-   was explicitly rejected by the owner and removed, not merely hidden.
-4. **Portability and release hardening** — complete 5.0 save/export/import,
-   new-product database isolation and version identity, supporting surfaces,
-   all six books regenerated, integration/browser/accessibility checks and final
-   release evidence. Status: planned.
+   pacing, failure/spend accounting and causal regression tests. Status: PR #70
+   passed all five CI gates and merged as `282cded` on 4 September 2026:
+   https://github.com/rthorman/ink-morrow/pull/70. Local 358 backend tests,
+   273 frontend tests and 32 browser tests passed. All six PDFs regenerated.
+   Includes cast additions and preferences. Manual prose authoring was explicitly
+   rejected by the owner and removed, not merely hidden.
+4. **Illustrated stories and portable saves** — branch-local illustrations,
+   explicit Illustrator purchases, safe local uploads, complete 5.0 save/import,
+   reader-safe book exports and separate EPUB image pages. Status: implemented
+   locally; final validation and PR pending. See `docs/fiction-media-saves.md`.
+5. **New-product release completion** — fresh database isolation and version
+   identity, supporting surfaces, complete six-book rewrite/regeneration,
+   integration/browser/accessibility checks and final release evidence.
+   Status: planned.
 
 Additional 5.0 presentation requirement: illustrations appear above their associated
 story text in the reader/manuscript, but on a separate page immediately before that

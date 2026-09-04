@@ -18,6 +18,18 @@
   EPUB places the illustration on a separate image page immediately before the
   associated text. Test this representation difference; do not copy inline reader
   markup into EPUB unchanged.
+- Playable saves use `.inkmorrow5` / `ink-morrow-fiction-save` version 1,
+  not legacy manuscript archives. They contain all paths, private state and
+  normalized illustrations, but no credentials, consent or resumable requests.
+  Import validates bounded media and the complete ancestry graph before a
+  transactional copy with fresh IDs. Never overwrite an existing story.
+- Fiction illustrations use an explicit Illustrator provider role. Upload and
+  description correction are local. AI painting is one reviewed, journalled,
+  stale-checked request with no retry; only the selected passage and art direction
+  cross the provider boundary. Placements are part of each path snapshot.
+- Books use the existing PublicationDocument adapters, with only active-path
+  opening/scene prose and current placements. EPUB image pages are separate
+  fixed-layout spine items; prose remains reflowable. Exports are not saves.
 - One durable narrative unifies readable prose and playable history. Important
   commitments, knowledge, relationships, episodes, control handoffs, corrections,
   and alternate timelines belong to the same branch-local state engine.

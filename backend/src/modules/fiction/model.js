@@ -71,7 +71,7 @@ function initialState(input) {
   const facts = factsInput.map((fact) => normalizeFact(fact, cast.map((entry) => entry.id)));
   if (new Set(facts.map((fact) => fact.id)).size !== facts.length) fail('Fact IDs must be unique.');
   return {
-    version: 1, cast, facts, control: { character_id: null },
+    version: 1, cast, facts, illustrations: [], control: { character_id: null },
     pacing: choice(input.pacing, ['reflective', 'balanced', 'brisk'], 'balanced', 'Pacing'),
     consequences: choice(input.consequences, ['gentle', 'dramatic'], 'gentle', 'Consequences'),
     boundaries: text(input.boundaries, 'Boundaries', 2000, { optional: true }),

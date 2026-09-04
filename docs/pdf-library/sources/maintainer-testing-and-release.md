@@ -1,5 +1,22 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 illustrated-save verification
+
+Keep the media/save batch substantial. Test synchronous dialog feedback, prevented
+duplicate image purchases, retained drafts on failure, late-response route/lock
+isolation, exact path-local placements, safe upload and local description correction.
+Test EPUB image-only spine resources before associated prose, while manuscript/HTML
+places the image above that prose. Re-read the whole EPUB spine, not only book.xhtml.
+
+Save tests must round-trip hidden truth, knowledge, commitments, resources, control,
+episodes, preferences, director history, all branches, illustrations and known/unknown
+spend. Reject malformed versions/fields, cycles, dangling/future/cross-path references,
+unsafe media and corrupt digests before writes. Inject import transaction failure
+and verify both database rollback and cleanup of only newly staged image files.
+Browser journeys must upload, export, download a private save and import a copy.
+Never use real provider spending to satisfy deterministic tests. Final 5.0 identity
+and the full replacement documentation remain a separate release-hardening batch.
+
 <div class="frontmatter">
 
 Ink Morrow grew from a playful afternoon into a serious stateful system. This handbook turns that seriousness into repeatable contribution and release practice without pretending the project has a large permanent team.

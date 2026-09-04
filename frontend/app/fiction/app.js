@@ -1,5 +1,7 @@
 import { el, button, field, option } from './dom.js';
 import { createStoryDialogs } from './story-dialogs.js';
+import { createMediaDialogs } from './media.js';
+import { createSaveDialogs } from './saves.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen'];
 
@@ -21,8 +23,9 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   function controls() {
     const blocked = busy || !current || current.pending;
-    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire']) $(id).disabled = blocked;
+    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
     $('fictionEarlier').disabled = Boolean(blocked || earlierBusy);
+    $('fictionDownloadSave').disabled = Boolean(blocked);
     $('fictionContinue').textContent = busy ? 'Working…' : current?.pending ? 'Story unfolding…' : 'Continue';
     $('fictionActionStatus').textContent = busy ? 'Your action is being handled.' : current?.pending ? 'A response is in progress. You can leave and return.' : '';
     $('fictionComposer').setAttribute('aria-busy', String(Boolean(blocked && current)));
@@ -46,6 +49,15 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     for (const beat of beats) {
       const article = el('article', '', 'fiction-beat'); article.dataset.beatId = beat.id;
       if (['opening', 'scene'].includes(beat.kind)) {
+        const placed = current.state.illustrations?.find((item) => item.beat_id === beat.id);
+        if (placed) {
+          const figure = el('figure', '', 'fiction-illustration'); const img = el('img');
+          img.src = `/api/fiction/${encodeURIComponent(current.id)}/images/${encodeURIComponent(placed.asset_id)}`;
+          img.alt = placed.alt_text; img.loading = 'lazy';
+          img.addEventListener('error', () => { img.hidden = true; figure.append(el('p', `Illustration unavailable: ${placed.alt_text}`)); }, { once: true });
+          figure.append(img); if (placed.caption) figure.append(el('figcaption', placed.caption));
+          article.append(figure);
+        }
         if (beat.input?.kind && beat.input.kind !== 'follow') {
           const attribution = ['act', 'say'].includes(beat.input.kind) ? 'Character action' : 'Your direction';
           article.append(el('p', attribution, 'fiction-beat-meta'));
@@ -186,6 +198,24 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     } finally { if (alive(token)) { busy = false; controls(); } }
   }
 
+  async function runMediaAction(work) {
+    if (busy || !current || current.pending) return { ok: false, error: 'Another action is in progress.' };
+    const token = epoch; const story = current; busy = true; controls(); status();
+    try {
+      const data = await work(() => alive(token));
+      if (!alive(token)) return { ok: false, stale: true };
+      if (!data) return { ok: false, cancelled: true };
+      if (data.story) renderStory(data.story);
+      status('Done.'); return { ok: true };
+    } catch (error) {
+      if (!alive(token)) return { ok: false, stale: true };
+      const message = `${error.message}${error.billedAttempts ? ' The provider may have charged for this attempt.' : ''}`;
+      status(message, true);
+      try { const data = await api(`/fiction/${story.id}`); if (alive(token)) renderStory(data.story); } catch { /* free reconciliation only */ }
+      return { ok: false, error: message };
+    } finally { if (alive(token)) { busy = false; controls(); } }
+  }
+
   function confirmControl(character) {
     if (busy || !current || current.pending) return;
     const id = current.id; const revision = current.revision;
@@ -302,7 +332,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
-    for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary', 'fictionSaveControls']) $(id).replaceChildren();
+    for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionTemplatePicker', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary']) $(id).replaceChildren();
     $('fictionStartForm').reset(); $('fictionDirection').value = ''; status();
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();
@@ -310,6 +340,12 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
+  const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
+  const saveDialogs = createSaveDialogs({ dialogs, getCurrent: () => current, getLive: () => { const token = epoch; return () => alive(token); }, runAction: runMediaAction });
+  $('fictionDownloadSave').addEventListener('click', saveDialogs.save);
+  $('fictionImportSave').addEventListener('click', saveDialogs.importSave);
+  $('fictionIllustrate').addEventListener('click', mediaDialogs.illustrate);
+  $('fictionExportBook').addEventListener('click', mediaDialogs.exportBook);
   for (const [id, action] of [['fictionPreferences', 'preferences'], ['fictionAddCast', 'cast'], ['fictionRetire', 'retire']]) $(id).addEventListener('click', storyDialogs[action]);
 
   $('fictionStartForm').addEventListener('submit', startStory);

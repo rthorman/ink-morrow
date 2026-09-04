@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { AxeBuilder } from '@axe-core/playwright';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { openUnlocked, apiPost, E2E_PASSWORD } from '../auth.js';
 
 async function startFixture(page, overrides = {}) {
@@ -44,6 +46,61 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionDetails')).toBeHidden();
     await page.reload();
     await expect(page.locator('#fictionProse')).toContainText('Her sister has not arrived.');
+  });
+
+  test('illustrated manuscript and EPUB use different image layouts, and a save restores the whole story', async ({ page }, testInfo) => {
+    test.setTimeout(60000);
+    const story = await startFixture(page);
+    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('Mara waits beside the bell.');
+    await page.getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles({ name: 'cast.webp', mimeType: 'image/webp', buffer: readFileSync(path.join(__dirname, '../../frontend/brand/cinder-cast.webp')) });
+    await page.getByRole('button', { name: 'Upload image', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    const image = page.locator('.fiction-illustration img'); await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute('alt', 'Mara waits beside the bell.');
+    expect(await page.locator('.fiction-beat').first().evaluate((node) => node.firstElementChild.tagName)).toBe('FIGURE');
+    await page.screenshot({ path: testInfo.outputPath('illustrated-reader.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Export this reading path', exact: true }).click();
+    const bookEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download book', exact: true }).click();
+    const book = readFileSync(await (await bookEvent).path()).toString('utf8');
+    expect(book).toContain('rendition:layout-pre-paginated'); expect(book).toContain('image-2.xhtml'); expect(book).toContain('text-3.xhtml');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.getByRole('button', { name: 'Download a playable save', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('hidden story truth');
+    const saveEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download private save', exact: true }).click();
+    const save = await saveEvent; const buffer = readFileSync(await save.path());
+    await page.getByRole('link', { name: 'Your stories', exact: true }).click();
+    await page.getByRole('button', { name: 'Import a playable save', exact: true }).click();
+    await page.getByLabel('InkMorrow 5 save file (up to 64 MB)', { exact: true }).setInputFiles({ name: 'story.inkmorrow5', mimeType: 'application/vnd.inkmorrow.fiction-save', buffer });
+    await page.getByRole('button', { name: 'Check this save', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('1 paths');
+    await page.getByRole('button', { name: 'Import as a new story', exact: true }).click();
+    await expect(page.locator('#fictionStoryTitle')).toHaveText(story.title);
+    expect(page.url()).not.toContain(story.id);
+    await expect(page.locator('.fiction-illustration img')).toBeVisible();
+  });
+
+  test('painting shows immediate feedback, prevents duplicates and keeps direction after failure', async ({ page }) => {
+    await startFixture(page); let attempts = 0; let finish;
+    await page.route('**/api/fiction/*/images/generate', async (route) => {
+      attempts++; await new Promise((resolve) => { finish = resolve; });
+      await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'Illustrator unavailable.', billed_attempts: 1, cost_usd: null }) });
+    });
+    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+    await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('The quay.');
+    await page.getByLabel('Art direction (AI only)', { exact: true }).fill('A blue watercolor.');
+    await page.getByRole('button', { name: 'Paint with AI', exact: true }).click();
+    await page.getByRole('button', { name: 'Paint this image', exact: true }).click();
+    await expect(page.locator('#fictionIllustrate')).toBeDisabled();
+    await expect(page.locator('#fictionActionStatus')).toContainText('being handled');
+    await expect.poll(() => attempts).toBe(1); finish();
+    await expect(page.getByRole('dialog')).toContainText('Illustrator unavailable');
+    await expect(page.getByLabel('Art direction (AI only)', { exact: true })).toHaveValue('A blue watercolor.');
+    expect(attempts).toBe(1);
   });
 
   test('authored openings include a cast without requiring an avatar or exposing the solution', async ({ page }) => {

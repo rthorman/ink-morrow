@@ -32,6 +32,47 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDetails').hidden).toBe(true);
   });
 
+  test('the manuscript puts the associated image above its prose and reports missing media honestly', async () => {
+    const value = story(); value.state.illustrations = [{ beat_id: 'opening', asset_id: 'picture', alt_text: 'The quay.', caption: '' }];
+    api.mockResolvedValue({ story: value }); await app.start();
+    const article = document.querySelector('.fiction-beat');
+    expect(article.firstElementChild.tagName).toBe('FIGURE');
+    expect(article.querySelector('img').getAttribute('src')).toBe('/api/fiction/one/images/picture');
+    article.querySelector('img').dispatchEvent(new Event('error'));
+    expect(article.textContent).toContain('Illustration unavailable: The quay.');
+    expect(article.textContent).toContain('Mara waits');
+  });
+
+  test('illustration dialog opens synchronously and cancellation retains its art direction without purchasing', async () => {
+    const value = story(); value.illustration_generation = { provider: { id: 'p', display_name: 'Painter' }, model_id: 'image' };
+    api.mockResolvedValue({ story: value }); await app.start();
+    const before = api.mock.calls.length; document.getElementById('fictionIllustrate').click();
+    expect(dialogs.openDialog).toHaveBeenCalledTimes(1); expect(api.mock.calls.length).toBe(before);
+    const spec = dialogs.openDialog.mock.calls[0][0];
+    const controls = spec.body.flatMap((node) => [...node.querySelectorAll('textarea')]);
+    controls[0].value = 'The quay.'; controls[1].value = 'Blue watercolor.';
+    dialogs.confirmPaid.mockResolvedValue(false);
+    await spec.actions.find((item) => item.label === 'Paint with AI').onClick(jest.fn());
+    expect(api.mock.calls.filter(([, method]) => method === 'POST')).toHaveLength(0);
+    expect(controls[1].value).toBe('Blue watercolor.');
+    expect(dialogs.openDialog).toHaveBeenCalledTimes(2);
+    expect(document.getElementById('fictionIllustrate').disabled).toBe(false);
+  });
+
+  test('late image completion cannot reopen a dialog or paint a different story', async () => {
+    const value = story(); value.illustration_generation = { provider: { id: 'p', display_name: 'Painter' }, model_id: 'image' };
+    api.mockResolvedValue({ story: value }); await app.start();
+    document.getElementById('fictionIllustrate').click(); const spec = dialogs.openDialog.mock.calls[0][0];
+    spec.body.flatMap((node) => [...node.querySelectorAll('textarea')])[0].value = 'The quay.';
+    let resolve; api.mockImplementation((path, method) => method === 'POST' ? new Promise((done) => { resolve = done; }) : Promise.resolve({ story: story('two') }));
+    const close = jest.fn(); const pending = spec.actions.find((item) => item.label === 'Paint with AI').onClick(close); await tick();
+    expect(document.getElementById('fictionIllustrate').disabled).toBe(true);
+    window.history.replaceState({}, '', '#/story/two'); await app.route();
+    resolve({ story: value }); await pending;
+    expect(document.getElementById('fictionStoryTitle').textContent).toBe('Story two');
+    expect(close).not.toHaveBeenCalled(); expect(dialogs.openDialog).toHaveBeenCalledTimes(1);
+  });
+
   test('Continue immediately shows busy state and cannot double-submit', async () => {
     await app.start();
     let resolve;
@@ -91,6 +132,14 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionProse').textContent).toBe('');
     expect(app.getCurrent()).toBeNull();
     expect(document.getElementById('readerScreen').hidden).toBe(true);
+  });
+
+  test('lock and unlock preserve static save controls while private content is cleared', async () => {
+    await app.start(); app.lock();
+    expect(document.getElementById('fictionDownloadSave')).not.toBeNull();
+    await app.start();
+    expect(document.getElementById('fictionStoryTitle').textContent).toBe('Story one');
+    expect(document.getElementById('fictionDownloadSave').disabled).toBe(false);
   });
 
   test('taking a character is explicit and only then adds Act and Say', async () => {

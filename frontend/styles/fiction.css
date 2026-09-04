@@ -72,3 +72,6 @@ body { margin: 0; background: #17151c; color: #eee5db; font-family: Inter, sans-
   .fiction-details, .fiction-composer { padding: 18px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; } }
+.fiction-illustration { margin: 0 0 1.6rem; }
+.fiction-illustration img { display: block; width: 100%; height: auto; border-radius: .5rem; }
+.fiction-illustration figcaption { font: .9rem/1.5 var(--font-ui); margin-top: .6rem; }

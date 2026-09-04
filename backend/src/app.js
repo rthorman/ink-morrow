@@ -31,6 +31,9 @@ const { createCampaignRouter } = require('./modules/campaign/routes');
 const { createFictionStore } = require('./modules/fiction/store');
 const { createFictionService } = require('./modules/fiction/service');
 const { createFictionRouter } = require('./modules/fiction/routes');
+const { createFictionMedia } = require('./modules/fiction/media');
+const { createFictionPublication } = require('./modules/fiction/publication');
+const { createFictionSaves } = require('./modules/fiction/saves');
 const { createContinuityStore } = require('./modules/continuity/store');
 const { createContinuityService } = require('./modules/continuity/service');
 const { createContinuityRouter } = require('./modules/continuity/routes');
@@ -158,7 +161,10 @@ function createApp(
   fictionStore.reconcile();
   const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, providers });
   app.locals.validateStartup = () => providers.validateStartup(ai.listModelsForProfile);
-  const { generateImage, describeImageProvider } = createImageClient({ providers });
+  const { generateImage, generateIllustration, describeImageProvider } = createImageClient({ providers });
+  const fictionMedia = createFictionMedia({ db, store: fictionStore, rootDir: imageDir, generateIllustration, providers });
+  const fictionPublication = createFictionPublication({ store: fictionStore, media: fictionMedia });
+  const fictionSaves = createFictionSaves({ db, store: fictionStore, media: fictionMedia });
   // Automatic continuity is silenced in ordinary unit tests so old one-call
   // provider mocks remain deterministic. Dedicated continuity tests opt in.
   const autoContinuityEnabled = process.env.NODE_ENV !== 'test' || process.env.ENABLE_CONTINUITY_EXTRACTION === '1';
@@ -276,7 +282,7 @@ function createApp(
   app.use(createPlayRouter({ stories, store: playStore, service: play, transactions: writingTransactions }));
   app.use(createSoloToolRouter({ stories, store: soloTools, transactions: writingTransactions }));
   app.use(createCampaignRouter({ stories, campaign, service: campaignService, transactions: writingTransactions }));
-  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers }));
+  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves }));
   app.use(createContinuityRouter({ stories, store: continuityStore, continuity }));
   app.use(createWritingRouter({ catalog, stories, writing, transactions: writingTransactions, ai }));
   app.use(createImageryRouter({ stories, imagery, imageStore, artStore, imageDir }));
