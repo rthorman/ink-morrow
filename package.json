@@ -23,6 +23,6 @@
   "private": true,
   "devDependencies": {
     "eslint": "^9.39.5",
-    "globals": "^15.15.0"
+    "globals": "^17.11.0"
   }
 }
