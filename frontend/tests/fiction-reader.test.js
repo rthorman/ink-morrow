@@ -32,6 +32,52 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDetails').hidden).toBe(true);
   });
 
+  test('paginates prose locally, preserves drafts and follows a newly generated passage', async () => {
+    const value = story();
+    value.beats.push({ ...value.beats[0], id: 'second', kind: 'scene', prose: 'The second passage.' });
+    value.head_beat_id = 'second'; api.mockResolvedValue({ story: value }); await app.start();
+    expect(document.querySelectorAll('.fiction-beat')).toHaveLength(1);
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 2 of 2');
+    expect(document.getElementById('fictionProse').textContent).toContain('second passage');
+    document.getElementById('fictionDirection').value = 'My direction.';
+    const reads = api.mock.calls.length;
+    document.getElementById('fictionPreviousPage').click();
+    expect(document.getElementById('fictionProse').textContent).toContain('Mara waits');
+    expect(document.getElementById('fictionPreviousPage').disabled).toBe(true);
+    expect(document.getElementById('fictionPageContext').hidden).toBe(false);
+    app.renderStory({ ...value, revision: 2 });
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 1 of 2');
+    document.getElementById('fictionLatestPage').click();
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 2 of 2');
+    expect(document.getElementById('fictionDirection').value).toBe('My direction.');
+    expect(api.mock.calls).toHaveLength(reads);
+    const next = { ...value, head_beat_id: 'third', beats: [...value.beats, { ...value.beats[0], id: 'third', kind: 'scene', prose: 'A new passage.' }] };
+    app.renderStory(next); expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 3 of 3');
+    expect(document.querySelectorAll('.fiction-beat')).toHaveLength(1);
+    app.lock(); expect(document.getElementById('fictionPageLabel').textContent).toBe('No pages yet');
+  });
+
+  test('previous fetches older history at the boundary without accumulating rendered pages', async () => {
+    const value = story(); value.has_earlier = true;
+    api.mockResolvedValue({ story: value }); await app.start();
+    api.mockResolvedValue({ story: { ...value, has_earlier: false, beats: [{ ...value.beats[0], id: 'older', prose: 'An earlier passage.' }] } });
+    document.getElementById('fictionPreviousPage').click(); await tick();
+    expect(api.mock.calls.at(-1)[0]).toBe('/fiction/one?before=opening');
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 1 of 2');
+    expect(document.querySelectorAll('.fiction-beat')).toHaveLength(1);
+    expect(document.getElementById('fictionProse').textContent).toContain('earlier passage');
+    document.getElementById('fictionNextPage').click();
+    expect(document.getElementById('fictionProse').textContent).toContain('Mara waits');
+  });
+
+  test('local metadata changes do not replace the reading page with a history entry', async () => {
+    await app.start(); const value = story();
+    value.head_beat_id = 'correction'; value.beats.push({ id: 'correction', kind: 'correction', prose: '', summary: 'Fact corrected.' });
+    app.renderStory(value);
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 1 of 1');
+    expect(document.getElementById('fictionProse').textContent).toContain('Mara waits');
+  });
+
   test('return recap opens immediately, uses only existing records and cannot cross a story switch', async () => {
     await app.start(); let resolve;
     api.mockImplementation((path) => path.endsWith('/recap') ? new Promise((done) => { resolve = done; }) : Promise.resolve({ story: story('two') }));
@@ -144,6 +190,40 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDirection').value).toBe('Let them talk.');
     expect(api.mock.calls.filter(([, method]) => method === 'POST')).toHaveLength(1);
     expect(document.getElementById('fictionStatus').textContent).toContain('Connection lost');
+  });
+
+  test('Continue keeps provider errors beside the button after reconciliation and control updates', async () => {
+    await app.start();
+    api.mockImplementation(async (path, method) => {
+      if (method === 'POST') throw new Error('The AI provider rejected its API key (401). Check Settings.');
+      return { story: story() };
+    });
+    document.getElementById('fictionContinue').click(); await tick();
+    const feedback = document.getElementById('fictionActionStatus');
+    expect(feedback.textContent).toContain('API key (401)');
+    expect(feedback.dataset.error).toBe('true');
+    expect(document.getElementById('fictionContinue').disabled).toBe(false);
+    document.getElementById('fictionDirection').value = 'Wait for Mara.';
+    document.getElementById('fictionDirection').dispatchEvent(new Event('input'));
+    expect(feedback.textContent).toContain('API key (401)');
+    expect(api.mock.calls.filter(([, method]) => method === 'POST')).toHaveLength(1);
+    window.history.replaceState({}, '', '#/story/two'); await app.route();
+    expect(feedback.textContent).toBe('');
+    expect(feedback.dataset.error).toBe('false');
+  });
+
+  test('a new action replaces prior failure feedback with progress and then its result', async () => {
+    await app.start();
+    api.mockImplementation(async (path, method) => { if (method === 'POST') throw new Error('Offline.'); return { story: story() }; });
+    await app.send('follow');
+    let resolve;
+    api.mockImplementation((path, method) => method === 'POST' ? new Promise((done) => { resolve = done; }) : Promise.resolve({ story: story() }));
+    const pending = app.send('follow'); await tick();
+    expect(document.getElementById('fictionActionStatus').textContent).toContain('being handled');
+    expect(document.getElementById('fictionActionStatus').dataset.error).toBe('false');
+    resolve({ story: story() }); await pending;
+    expect(document.getElementById('fictionActionStatus').textContent).toBe('Story saved.');
+    app.lock(); expect(document.getElementById('fictionActionStatus').textContent).toBe('');
   });
 
   test('late generation cannot paint another story', async () => {

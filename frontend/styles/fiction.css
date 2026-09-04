@@ -44,6 +44,9 @@ body { margin: 0; background: #17151c; color: #eee5db; font-family: Inter, sans-
 .fiction-details .btn { margin: 12px 8px 6px 0; }
 .fiction-detail-card { border-bottom: 1px solid #514652; padding: 12px 0; }
 .fiction-prose { color: var(--fiction-ink); background: var(--fiction-paper); border-radius: 12px; padding: clamp(24px, 6vw, 66px); max-width: 780px; margin: 24px auto; font: var(--fiction-reading-size)/1.85 Literata, Georgia, serif; overflow-wrap: anywhere; }
+.fiction-pagination { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; max-width: 780px; margin: 16px auto; padding: 12px; background: #25202c; border: 1px solid #65536a; border-radius: 12px; }
+.fiction-page-context { max-width: 780px; margin: 12px auto; }
+#fictionProse { scroll-margin-top: 140px; }
 .fiction-prose p { margin: 0 0 1.25em; line-height: 1.85; }
 .fiction-beat + .fiction-beat { border-top: 1px solid #b9a78f; margin-top: 32px; padding-top: 32px; }
 .fiction-prose .fiction-aside { font: 14px/1.6 Inter, sans-serif; color: #554558; background: #e3d6c6; border-radius: 8px; padding: 16px; }
@@ -57,7 +60,8 @@ body { margin: 0; background: #17151c; color: #eee5db; font-family: Inter, sans-
 .fiction-composer label { margin-top: 20px; }
 .fiction-ended { max-width: 780px; margin: 24px auto; border: 1px solid #a68b62; border-radius: 12px; padding: 28px; }
 #fictionStatus { min-height: 24px; overflow-wrap: anywhere; color: #f5dba8; }
-#fictionStatus[data-error='true'] { color: #ffc4bd; }
+#fictionStatus[data-error='true'], #fictionActionStatus[data-error='true'] { color: #ffc4bd; }
+#fictionActionStatus { overflow-wrap: anywhere; min-width: 0; }
 .fiction-footer { padding: 32px 0; color: #bfb2c2; font-size: 12px; border-top: 1px solid #514652; margin-top: 30px; }
 .fiction-footer img { display: block; width: min(220px, 100%); height: auto; }
 .fiction-empty { padding: 24px; border: 1px dashed #7a657d; border-radius: 10px; }

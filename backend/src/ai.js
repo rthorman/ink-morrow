@@ -532,11 +532,15 @@ async function chatCompletionWithConfig(
     throw attachSpend(err);
   }
 
+  const authenticationFailed = lastError?.response?.status === 401;
   const err = new Error(
-    lastError?.response?.status
+    authenticationFailed
+      ? 'The AI provider rejected its API key (401). Check the provider credential in Settings. Your InkMorrow login is still valid.'
+      : lastError?.response?.status
       ? `AI API error ${lastError.response.status}. The provider rejected or failed the request.`
       : 'AI API request failed before a usable response was received.'
   );
+  if (authenticationFailed) err.code = 'AI_PROVIDER_AUTH_FAILED';
   // Callers with a capability fallback (for example JSON Schema → strict
   // plain JSON) need the provider status without parsing our friendly text.
   err.upstreamStatus = lastError?.response?.status || null;

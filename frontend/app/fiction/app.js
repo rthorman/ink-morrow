@@ -14,10 +14,21 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const scopes = new Map(); let shelfOffset = 0; let nextShelfOffset = null;
   const castRows = [];
   let scenario = null;
+  let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
+  let actionFeedback = ''; let actionError = false;
   const stopProgress = () => { progressSerial++; clearTimeout(progressTimer); progressTimer = null; };
   const alive = (token) => unlocked && epoch === token;
-  const status = (message = '', error = false) => { $('fictionStatus').textContent = message; $('fictionStatus').dataset.error = String(error); };
+  function actionStatus() {
+    $('fictionActionStatus').textContent = actionFeedback || (busy ? 'Your action is being handled.' : current?.pending ? 'A response is in progress. You can leave and return.' : '');
+    $('fictionActionStatus').dataset.error = String(actionError);
+  }
+  const status = (message = '', error = false) => {
+    $('fictionStatus').textContent = message; $('fictionStatus').dataset.error = String(error);
+    // Keep outcomes at the point of action, not only above a long manuscript.
+    // Reconciliation and enabling the controls must not erase the explanation.
+    actionFeedback = current ? message : ''; actionError = Boolean(current && error); actionStatus();
+  };
   function syncFourthWallStart() {
     const hidden = $('fictionStartStyle').value !== 'living-world';
     $('fictionFourthWallField').hidden = hidden; $('fictionFourthWall').disabled = hidden;
@@ -36,10 +47,34 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     $('fictionEarlier').disabled = Boolean(blocked || earlierBusy);
     $('fictionDownloadSave').disabled = Boolean(blocked);
     $('fictionContinue').textContent = busy ? 'Working…' : current?.pending ? 'Story unfolding…' : 'Continue';
-    $('fictionActionStatus').textContent = busy ? 'Your action is being handled.' : current?.pending ? 'A response is in progress. You can leave and return.' : '';
+    actionStatus();
     $('fictionComposer').setAttribute('aria-busy', String(Boolean(blocked && current)));
     for (const node of $('fictionCast').querySelectorAll('button')) node.disabled = blocked;
     influence.controls(blocked);
+    pageControls();
+  }
+
+  const readingPages = (beats = current?.beats || []) => beats.filter((beat) => ['opening', 'scene', 'clarification'].includes(beat.kind));
+  function pageControls() {
+    const beats = readingPages();
+    const index = beats.findIndex((beat) => beat.id === shownBeatId);
+    const blocked = busy || earlierBusy || !current || current.pending;
+    $('fictionPreviousPage').disabled = blocked || (index <= 0 && !current?.has_earlier);
+    $('fictionNextPage').disabled = blocked || index < 0 || index === beats.length - 1;
+    $('fictionLatestPage').disabled = blocked || index < 0 || index === beats.length - 1;
+    $('fictionPageLabel').textContent = index < 0 ? 'No pages yet' : `Page ${index + 1} of ${beats.length}${current.has_earlier ? ' loaded' : ''}`;
+    $('fictionPageContext').hidden = index < 0 || index === beats.length - 1;
+  }
+
+  function showPage(index, scroll = true) {
+    const pages = readingPages();
+    if (!pages[index]) return;
+    shownBeatId = pages[index].id;
+    renderProse([pages[index]]); pageControls();
+    if (scroll) {
+      $('fictionProse').scrollIntoView?.({ block: 'start', behavior: 'instant' });
+      $('fictionProse').focus({ preventScroll: true });
+    }
   }
 
   function renderShelf(stories, nextOffset = null) {
@@ -92,6 +127,9 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   function renderStory(story) {
+    const pages = readingPages(story.beats);
+    const preservePage = current?.id === story.id && current.active_branch_id === story.active_branch_id && readingPages().at(-1)?.id === pages.at(-1)?.id;
+    if (!preservePage || !pages.some((beat) => beat.id === shownBeatId)) shownBeatId = pages.at(-1)?.id || null;
     current = story;
     $('fictionStoryTitle').textContent = story.title;
     $('fictionEpisode').textContent = `Episode ${story.state.episode.number} · ${story.state.episode.title}`;
@@ -124,7 +162,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     if (!story.state.facts.length) $('fictionFacts').append(el('p', 'Important discoveries and commitments will appear here.'));
     const phases = { opening: 'Opening', developing: 'Developing', payoff: 'A recorded payoff', aftermath: 'Room for aftermath' };
     $('fictionEpisodeFocus').textContent = `${story.state.episode.question || 'Follow what matters to the cast.'} ${phases[story.state.episode.phase] || ''} — you can linger, redirect or end the episode when ready.`;
-    renderProse(story.beats);
+    renderProse(story.beats.filter((beat) => beat.id === shownBeatId));
     renderQuality(story);
     influence.render(story);
     $('fictionEarlier').hidden = !story.has_earlier;
@@ -145,7 +183,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   async function route() {
     if (!unlocked) return;
-    const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; current = null;
+    const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; current = null; shownBeatId = null;
     dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
     $('fictionEarlier').disabled = false;
@@ -239,6 +277,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       $('fictionProse').lastElementChild?.scrollIntoView?.({ block: 'start', behavior: 'instant' });
     } catch (error) {
       if (!alive(token)) return;
+      stopProgress();
       status(`${error.message}${error.billedAttempts ? ' The provider may have charged for this attempt.' : ''} Your direction is still here.`, true);
       // A lost response is reconciled by a free read, never by re-sending a
       // paid action or inventing a replacement generation.
@@ -379,7 +418,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
+    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
     dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
@@ -391,6 +430,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     for (const id of SCREEN_IDS) $(id).hidden = true;
     providerPanel?.clear();
     $('scenarioNote').textContent = ''; $('scenarioChoices').replaceChildren();
+    pageControls();
   }
 
   const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
@@ -424,14 +464,30 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionCorrect').addEventListener('click', correctionDialog);
   $('fictionEndEpisode').addEventListener('click', () => episodeDialog(false));
   $('fictionNextEpisode').addEventListener('click', () => episodeDialog(true));
-  $('fictionEarlier').addEventListener('click', async () => {
+  async function loadEarlier() {
     if (!current || $('fictionEarlier').disabled) return;
     const token = epoch; const story = current; earlierBusy = true; controls();
     try {
       const data = await api(`/fiction/${story.id}?before=${encodeURIComponent(story.beats[0].id)}`);
-      if (alive(token) && current.revision === story.revision && current.active_branch_id === story.active_branch_id && data.story.revision === story.revision) renderStory({ ...data.story, beats: [...data.story.beats, ...story.beats] });
+      if (alive(token) && current.revision === story.revision && current.active_branch_id === story.active_branch_id && data.story.revision === story.revision) {
+        renderStory({ ...data.story, beats: [...data.story.beats, ...story.beats] });
+        const earlierPages = readingPages(data.story.beats);
+        if (earlierPages.length) showPage(earlierPages.length - 1);
+      }
     } catch (error) { if (alive(token)) status(error.message, true); }
     finally { if (alive(token)) { earlierBusy = false; controls(); } }
+  }
+  $('fictionEarlier').addEventListener('click', loadEarlier);
+  $('fictionPreviousPage').addEventListener('click', () => {
+    if ($('fictionPreviousPage').disabled) return;
+    const index = readingPages().findIndex((beat) => beat.id === shownBeatId);
+    if (index > 0) showPage(index - 1); else loadEarlier();
+  });
+  $('fictionNextPage').addEventListener('click', () => {
+    if (!$('fictionNextPage').disabled) showPage(readingPages().findIndex((beat) => beat.id === shownBeatId) + 1);
+  });
+  $('fictionLatestPage').addEventListener('click', () => {
+    if (!$('fictionLatestPage').disabled) showPage(readingPages().length - 1);
   });
   $('fictionTextSize').addEventListener('change', () => {
     const size = $('fictionTextSize').value;

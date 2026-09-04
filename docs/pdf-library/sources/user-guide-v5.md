@@ -132,8 +132,10 @@ as obedience, exhaustive exploration or relentless escalation.
 ## Follow, steer, or ask
 
 **Continue** invites the narrator to develop the cast and situation. You can read
-several moments without typing a direction. You are not failing to participate by
-leaning back and enjoying what happens.
+without typing a direction. The reader shows one passage at a time: **Previous**,
+**Next** and **Latest** turn pages without AI calls. Previous loads older moments
+when needed; “loaded” means the page count covers only the retrieved history.
+Continue always extends the latest moment, even while you read an earlier page.
 
 The direction box lets you intervene as a reader-director: “Stay with their
 reunion,” “Show the sister's perspective,” or “Let the awkwardness breathe.”
@@ -621,9 +623,10 @@ prove that a synchronisation service retained a complete copy.
 
 ## Failures, costs and recovery
 
-If a reply fails, your direction remains in the input box. Invalid provider output
-can still incur a charge. The interface reports the failure and makes a free read
-to reconcile the story; it never automatically buys a replacement response.
+If a reply fails, your direction stays in the input box and the explanation stays
+beside Continue. The app makes a free reconciliation read, never an automatic
+paid retry. Invalid output can still cost money. A provider API-key rejection
+(401) requires a valid credential in Settings; it is not an InkMorrow login error.
 
 The story header distinguishes known provider spend from attempts whose actual
 cost is unknown. Unknown cost is not zero. Returning to a completed request with

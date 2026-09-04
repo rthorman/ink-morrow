@@ -23,6 +23,22 @@ describe('quality through the real API and role-specific AI client', () => {
     expect(response.status).toBe(201); return response.body.story;
   }
   const purchase = (story) => request(fixture.app).post(`/api/fiction/${story.id}/replies`).send({ expected_revision: story.revision, idempotency_key: 'reviewed-purchase', quality_review: story.quality_generation.review_id, input: { kind: 'follow' } });
+  test('standard Continue explains provider authentication failure without treating it as an owner logout', async () => {
+    const created = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain' });
+    const story = created.body.story;
+    axios.post.mockRejectedValueOnce({ response: { status: 401, data: { error: 'private upstream detail fixture-only-key' } } });
+    const result = await purchase(story);
+    expect(result.status).toBe(502);
+    expect(result.body.code).toBe('AI_PROVIDER_AUTH_FAILED');
+    expect(result.body.error).toMatch(/API key.*401.*Settings/);
+    expect(result.body.error).toContain('login');
+    expect(result.body.state).toBeUndefined();
+    expect(JSON.stringify(result.body)).not.toMatch(/fixture-only-key|private upstream detail/);
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    const reread = await request(fixture.app).get(`/api/fiction/${story.id}`);
+    expect(reread.body.story.revision).toBe(story.revision);
+    expect(reread.body.story.pending).toBe(false);
+  });
   test('Memory review actually reaches the memory model and exposes only safe call metadata', async () => {
     const story = await start();
     axios.post.mockResolvedValueOnce(providerResponse({ prose: 'Jo waters the seedlings.', summary: 'Quiet work.', effects: [] })).mockResolvedValueOnce(providerResponse({ approved: true, issues: [] }));

@@ -91,7 +91,14 @@
           <button class="btn btn-secondary" id="fictionExportBook" type="button">Export this reading path</button>
           <div id="fictionSaveControls"><h2>Keep your story</h2><p>Reading progress is saved automatically on this server. Download a private save to preserve every path and continue elsewhere.</p><button class="btn btn-secondary" id="fictionDownloadSave" type="button">Download a playable save</button></div>
         </aside>
-        <div id="fictionProse" class="fiction-prose" aria-label="The story"></div>
+        <nav class="fiction-pagination" aria-label="Story pages">
+          <button id="fictionPreviousPage" class="btn btn-secondary" type="button">Previous</button>
+          <span id="fictionPageLabel" role="status" aria-live="polite"></span>
+          <button id="fictionNextPage" class="btn btn-secondary" type="button">Next</button>
+          <button id="fictionLatestPage" class="btn btn-secondary" type="button">Latest</button>
+        </nav>
+        <p id="fictionPageContext" class="fiction-page-context fiction-muted" hidden>Reading an earlier page. Continue extends the latest moment; use Rewind to change the path.</p>
+        <div id="fictionProse" class="fiction-prose" aria-label="The story" tabindex="-1"></div>
         <section id="fictionEnded" class="fiction-ended" hidden><h2>A good place to stop.</h2><p id="fictionEpisodeSummary"></p><p>Your story is saved. Nothing moves forward while you are away.</p><button class="btn btn-primary" id="fictionNextEpisode" type="button">Begin another episode</button></section>
         <form id="fictionComposer" class="fiction-composer">
           <div class="fiction-continue-row"><button class="btn btn-primary" id="fictionContinue" type="button">Continue</button><span id="fictionActionStatus" role="status" aria-live="polite"></span></div>

@@ -42,7 +42,9 @@ Do not use clean setup as a casual response to a runtime error.
 
 Review backend/.env before the first launch. Supply a provider key only if you
 want generated play; a curated opening and existing local records can be read
-without one. Do not copy an old DATA_DIR or DB_PATH override unnoticed.
+without one. Placeholder keys cannot generate. A provider rejection (401) means
+repair its credential, not the owner login. Use a separate profile for a UI-entered
+key; the environment profile is read-only. Do not copy old storage overrides.
 
 The default new database is database-v5/ink-morrow-5.db relative to the repository.
 A recognized 4.x database is refused without adoption. Keep older installations

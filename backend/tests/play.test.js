@@ -162,7 +162,7 @@ describe('optional scene play sessions', () => {
     expect(fixture.db.prepare('SELECT speaker, content FROM play_turns WHERE session_id = ?').all(session.id))
       .toEqual([{ speaker: 'owner', content: 'Frame the sealed door.' }]);
     expect(fixture.db.prepare('SELECT status, error_code FROM play_ai_requests WHERE session_id = ?').get(session.id))
-      .toEqual({ status: 'failed', error_code: 'PLAY_PROVIDER_FAILED' });
+      .toEqual({ status: 'failed', error_code: 'AI_PROVIDER_AUTH_FAILED' });
   });
 
   it('forks immutable turn history and prepares only an explicitly selected successor as noncanonical prose', async () => {
