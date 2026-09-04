@@ -119,15 +119,64 @@ test.describe('5.0 playable fiction', () => {
     await page.getByRole('button', { name: 'Cast & story' }).click();
     await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
     await page.getByRole('dialog').getByLabel('Pacing', { exact: true }).selectOption('reflective');
+    await page.getByRole('dialog').getByLabel('Play style', { exact: true }).selectOption('living-world');
     await page.getByRole('dialog').getByLabel('Narration voice', { exact: true }).fill('Warm, unhurried prose.');
     await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     const saved = await (await page.request.get(`/api/fiction/${story.id}`)).json();
     expect(saved.story.state.voice).toBe('Warm, unhurried prose.');
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Living-world');
     await page.getByRole('button', { name: 'Retire a fact', exact: true }).click();
     await page.getByLabel('Reason for retiring it').fill('No longer relevant.');
     await page.getByRole('button', { name: 'Retire this fact', exact: true }).click();
     await expect(page.locator('#fictionFacts')).not.toContainText('An old detail.');
+  });
+  test('play style, direction scope and optional invitations are explicit without requiring a role', async ({ page }) => {
+    await page.getByRole('link', { name: 'Start a story', exact: true }).click();
+    await page.getByRole('button', { name: 'Begin with The Garden After Rain', exact: true }).click();
+    await page.getByLabel('Play style', { exact: true }).selectOption('living-world');
+    await page.getByRole('button', { name: 'Begin this story', exact: true }).click();
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Living-world');
+    await expect(page.locator('#fictionControl')).toContainText('reader-director');
+    await expect(page.locator('#fictionDirectionScope')).toHaveValue('moment');
+    await page.getByText('Possible directions (optional)', { exact: true }).click();
+    await page.locator('#fictionInvitations button').first().click();
+    await expect(page.locator('#fictionDirection')).not.toHaveValue('');
+    await expect(page.locator('#fictionStatus')).toContainText('nothing has happened');
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await page.locator('#fictionDirectionScope').selectOption('ongoing');
+    await page.getByRole('button', { name: 'Send direction', exact: true }).click();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#fictionDirectionScope')).toHaveValue('ongoing');
+    await expect(page.locator('#fictionDirection')).not.toHaveValue('');
+  });
+  test('older memory is searchable and evidence is readable without an AI call', async ({ page }) => {
+    const story = await startFixture(page);
+    await apiPost(page, `/api/fiction/${story.id}/corrections`, { expected_revision: story.revision, fact: { id: 'promise', text: 'Mara promised to bring tea.' }, reason: 'A private repair reason.' });
+    await page.reload(); await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.getByRole('button', { name: 'Recall older facts', exact: true }).click();
+    await page.getByLabel('Find a remembered fact', { exact: true }).fill('bring tea');
+    await page.getByRole('button', { name: 'Search memory', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Mara promised to bring tea.');
+    await page.getByRole('dialog').getByRole('button', { name: 'Read recorded evidence', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('earlier prose was not rewritten');
+    await expect(page.getByRole('dialog')).not.toContainText('A private repair reason');
+  });
+
+  test('fourth-wall preference is Living-world only and survives reload without purchasing', async ({ page }) => {
+    const story = await startFixture(page); let paid = 0;
+    await page.route('**/api/fiction/*/replies', () => { paid++; });
+    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
+    const setting = page.getByRole('dialog').getByLabel('Characters may break the fourth wall', { exact: true });
+    await expect(setting).toBeHidden();
+    await page.getByRole('dialog').getByLabel('Play style', { exact: true }).selectOption('living-world');
+    await expect(setting).toBeVisible(); await expect(setting).toHaveValue('never');
+    await setting.selectOption('rarely'); await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Fourth-wall dialogue: Rarely');
+    await page.reload(); await expect(page.locator('#fictionStoryTitle')).toHaveText(story.title);
+    await expect(page.locator('#fictionPlayStyle')).toContainText('Fourth-wall dialogue: Rarely'); expect(paid).toBe(0);
   });
 
   test('character inhabiting requires an explicit handoff and can be released', async ({ page }) => {

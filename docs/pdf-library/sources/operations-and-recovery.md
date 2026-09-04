@@ -1,5 +1,33 @@
 # Operations & Recovery Handbook
 
+## 5.0 fourth-wall support
+
+In Living-world Story preferences, Characters may break the fourth wall offers
+Never, Rarely and Freely. Never is the default. Rarely is permission for at most
+one structured address in six narrated passages, not a promise to produce an
+address on schedule. It stays inactive in Story-shaping and for outside-story
+Ask. Changing the setting costs nothing and does not reset its cooldown.
+
+The preference and cooldown restore through reload, rewind and playable saves.
+The character's named address remains in its passage and book exports. If a
+provider returns a forbidden address, the response fails without saving partial
+text; its charge can still count. Refresh does not retry it. Ordinary model prose
+can still violate instructions; inspect the selected mode and storyteller, and
+never represent this control as proof that a model will preserve immersion.
+
+## 5.0 direction and memory support
+
+If a story keeps returning to a topic, inspect its visible ongoing focus. A new
+Steer defaults to this moment; Keep this focus must be selected explicitly.
+Clear ongoing focus is local and does not alter previous prose. Style changes
+affect future play and do not revoke an already granted structured outcome.
+
+Recall older facts searches public history without a model. Use distinctive words;
+results are bounded to 32. A missing fact may be retired, secret, or on another
+path, not lost through compaction. Source links distinguish local corrections from
+narrated evidence. Never retire a fact merely to keep the game running. Shelf
+pagination exposes older stories through More stories and Previous stories.
+
 ## 5.0 development-branch operator note
 
 The replacement root interface now opens Your stories, Start a story, the reader,

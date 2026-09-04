@@ -1,5 +1,32 @@
 # Security, Privacy & AI Boundary
 
+## 5.0 characters addressing the user
+
+Fourth-wall dialogue is an optional Living-world presentation permission, not an
+authentication, knowledge or authority exception. The same narration purchase
+covers an optional bounded address. Never rejects structured addresses; Rarely
+adds a durable scene-gap check; Freely removes that gap but not cast/ownership
+validation. The narrator may not supply an inhabited character's address.
+
+Instructions prohibit hidden-truth disclosure, invented user speech, pressure to
+return or spend, and using an aside to override resistance. Asides cannot be
+evidence for effects or adjudication. Structural enforcement is not a semantic
+guarantee for the model's unrestricted prose. Addresses form part of readable
+prose and therefore appear in exported books; they are not private annotations.
+
+## 5.0 influence and recall boundary
+
+The new memory, evidence and challenge-review routes use the same authentication,
+same-origin and CSRF middleware as the game. Memory search filters secret and
+retired facts before limiting results; evidence reads reject other paths. Private
+correction reasons and challenge requirements remain absent. An invitation is
+constructed only from reader-visible facts and never makes a provider request.
+
+Challenge review grants no authority to change state. The submitted reply still
+requires its exact reviewed revision, and changed grounds cannot turn a free
+repeat into a paid action behind the player's back. No new telemetry or provider
+logging is introduced. Model prose remains fallible despite validated rulings.
+
 ## 5.0 resistance is not a security boundary
 
 A character's refusal is a game-design contract, not an access-control mechanism

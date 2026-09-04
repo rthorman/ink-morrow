@@ -18,9 +18,20 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     data_categories: ['selected story passage', 'art direction'], operation_count: 1,
   }) || null });
   const revision = (req) => req.body?.expected_revision;
-  router.get('/api/fiction', (req, res) => res.json({ stories: store.list() }));
+  router.get('/api/fiction', (req, res) => {
+    const offset = Number(req.query.offset || 0);
+    if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000000) fail('Invalid story page.');
+    const stories = store.list(offset);
+    res.json({ stories: stories.slice(0, 80), next_offset: stories.length > 80 ? offset + 80 : null });
+  });
   router.post('/api/fiction', (req, res) => res.status(201).json({ story: expose(store.create(req.body)) }));
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
+  router.get('/api/fiction/:id/memory', (req, res) => res.json({ facts: store.recall(req.params.id, req.query.q || '') }));
+  router.get('/api/fiction/:id/evidence/:beat', (req, res) => res.json({ beat: store.evidence(req.params.id, req.params.beat) }));
+  router.post('/api/fiction/:id/challenge-review', (req, res) => {
+    keys(req.body, ['expected_revision', 'input'], 'Review challenge');
+    res.json({ review: service.reviewChallenge(req.params.id, revision(req), req.body.input) });
+  });
   const saveBody = express.raw({ type: SAVE_MIME, limit: MAX_PACKED });
   router.post('/api/fiction/saves/preview', saveBody, async (req, res, next) => {
     try { res.json({ preview: await saves.preview(req.body) }); } catch (error) { next(error); }
@@ -91,7 +102,7 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     res.status(201).json({ story: expose(store.episode(req.params.id, revision(req), { action: req.body.action, title: req.body.title, summary: req.body.summary })) });
   });
   router.put('/api/fiction/:id/preferences', (req, res) => {
-    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style'], 'Story preferences');
+    keys(req.body, ['expected_revision', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');
     const { expected_revision, ...input } = req.body;
     res.json({ story: expose(store.preferences(req.params.id, expected_revision, input)) });
   });

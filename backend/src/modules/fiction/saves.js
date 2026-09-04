@@ -7,6 +7,7 @@ const sharp = require('sharp');
 const { assertTechnicalInput } = require('../imagery/art-store');
 const { keys, text, choice, fail, normalizeCast, normalizeFact, GENRES } = require('./model');
 const { STYLES, normalizeChallenges } = require('./resistance');
+const { FOURTH_WALL_MODES } = require('./fourth-wall');
 
 const SAVE_FORMAT = 'ink-morrow-fiction-save';
 const SAVE_MIME = 'application/vnd.inkmorrow.fiction-save';
@@ -88,6 +89,7 @@ function validateSave(value) {
   };
   function state(state, head) {
     record(state, ['version', 'cast', 'facts', 'illustrations', 'control', 'pacing', 'consequences', 'boundaries', 'voice', 'focus', 'episode', 'scene_history', 'scene_count',
+      ...(Object.hasOwn(state, 'fourth_wall') ? ['fourth_wall', 'last_fourth_wall_scene'] : []),
       ...(Object.hasOwn(state, 'play_style') ? ['play_style', 'challenges', 'adjudications'] : [])], 'Saved state');
     if (state.version !== 1) fail('Unsupported story-state version.', 'SAVE_VERSION_UNSUPPORTED');
     list(state.cast, 24, 'cast').forEach((person) => record(person, ['id', 'name', 'description', 'motive'], 'Character'));
@@ -118,6 +120,10 @@ function validateSave(value) {
     record(state.episode, ['number', 'title', 'status', 'summary'], 'Episode');
     integer(state.episode.number, 1, 1000000, 'episode'); text(state.episode.title, 'Episode title', 200); savedText(state.episode.summary, 'Episode summary', 2000);
     choice(state.episode.status, ['active', 'ended'], null, 'Episode status'); integer(state.scene_count, 0, 1000000, 'scene count');
+    if (state.fourth_wall !== undefined) {
+      choice(state.fourth_wall, FOURTH_WALL_MODES, null, 'Fourth-wall setting');
+      if (state.last_fourth_wall_scene !== null) integer(state.last_fourth_wall_scene, 1, state.scene_count, 'fourth-wall scene');
+    }
     for (const entry of list(state.scene_history, 12, 'director history')) {
       record(entry, ['kind', 'fact_ids', 'beat_id', 'episode'], 'Director history');
       choice(entry.kind, ['response', 'commitment', 'quiet', 'opportunity', 'rest', 'discovery', 'connection', 'exploration', 'relationship'], null, 'Scene kind');
@@ -139,7 +145,11 @@ function validateSave(value) {
     choice(beat.kind, ['opening', 'scene', 'clarification', 'correction', 'control', 'episode'], null, 'Moment kind');
     savedText(beat.prose, 'Prose', 24000); savedText(beat.summary, 'Summary', 2000);
     if (['opening', 'scene', 'clarification'].includes(beat.kind)) text(beat.prose, 'Prose', 24000);
-    keys(beat.input, ['kind', 'text', 'character_id', 'reason', 'challenge_id', 'approach_id'], 'Saved input');
+    keys(beat.input, ['kind', 'text', 'character_id', 'reason', 'challenge_id', 'approach_id', 'direction_scope'], 'Saved input');
+    if (beat.input.direction_scope !== undefined) {
+      if (beat.input.kind !== 'steer') fail('Only direction inputs have a scope.', 'INVALID_SAVE');
+      choice(beat.input.direction_scope, ['moment', 'ongoing'], null, 'Direction scope');
+    }
     if (beat.input.kind !== undefined) choice(beat.input.kind, ['follow', 'steer', 'act', 'say', 'ask'], null, 'Input kind');
     if (beat.input.text !== undefined) savedText(beat.input.text, 'Direction', 4000);
     if (beat.input.reason !== undefined) savedText(beat.input.reason, 'Reason', 1500);
@@ -150,7 +160,8 @@ function validateSave(value) {
     if (beat.input.character_id != null && !beat.state.cast?.some((person) => person.id === beat.input.character_id)) fail('Invalid input character.', 'INVALID_SAVE');
     state(beat.state, beat.id);
     for (const change of list(beat.changes, 12, 'state change')) {
-      record(change, change.op === 'introduce' ? ['op', 'character'] : ['op', 'fact'], 'State change');
+      record(change, change.op === 'introduce' ? ['op', 'character'] : ['op', 'fact', ...(Object.hasOwn(change, 'prior_evidence_beat_id') ? ['prior_evidence_beat_id'] : [])], 'State change');
+      if (Object.hasOwn(change, 'prior_evidence_beat_id')) evidence(beat.parent_id, change.prior_evidence_beat_id);
       choice(change.op, ['remember', 'resolve', 'reveal', 'adjust', 'correct', 'remove', 'introduce'], null, 'State change');
       if (change.op === 'introduce') { keys(change.character, ['id', 'name', 'description'], 'Introduced character'); normalizeCast([change.character]); }
       else fact(change.fact, beat.state.cast, beat.id);
@@ -233,7 +244,7 @@ function createFictionSaves({ db, store, media }) {
         for (const branch of value.branches) db.prepare('INSERT INTO fiction_branches (id, game_id, name, parent_branch_id, fork_beat_id, head_beat_id) VALUES (?, ?, ?, ?, ?, ?)')
           .run(branchIds.get(branch.id), gameId, branch.name, branch.parent_branch_id === null ? null : branchIds.get(branch.parent_branch_id), beatRef(branch.fork_beat_id), beatRef(branch.head_beat_id));
         for (const beat of value.beats) db.prepare('INSERT INTO fiction_beats (id, game_id, branch_id, parent_id, kind, prose, summary, input_json, state_json, changes_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(beatIds.get(beat.id), gameId, branchIds.get(beat.branch_id), beatRef(beat.parent_id), beat.kind, beat.prose, beat.summary, JSON.stringify(beat.input), JSON.stringify(remapState(beat.state)), JSON.stringify(beat.changes.map((change) => change.fact ? { ...change, fact: remapFact(change.fact) } : change)));
+          .run(beatIds.get(beat.id), gameId, branchIds.get(beat.branch_id), beatRef(beat.parent_id), beat.kind, beat.prose, beat.summary, JSON.stringify(beat.input), JSON.stringify(remapState(beat.state)), JSON.stringify(beat.changes.map((change) => change.fact ? { ...change, fact: remapFact(change.fact), ...(Object.hasOwn(change, 'prior_evidence_beat_id') ? { prior_evidence_beat_id: beatRef(change.prior_evidence_beat_id) } : {}) } : change)));
         for (const asset of staged) db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
           .run(asset.id, gameId, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
         // Carry accounting, not request keys, provider configuration or authority.

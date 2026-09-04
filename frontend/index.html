@@ -16,7 +16,7 @@
 </head>
 <body class="im-gated">
   <a class="skip-link" href="#fictionMain">Skip to the story</a>
-  <div id="authRoot" class="auth-root"></div>
+  <div id="authRoot" class="auth-root"><p role="status">Opening InkMorrow securely…</p></div>
   <div class="container fiction-app">
     <header class="fiction-header">
       <a class="fiction-brand" href="#/stories" aria-label="InkMorrow stories">InkMorrow<span>Playable fiction</span></a>
@@ -38,6 +38,7 @@
         <h2>Your stories</h2>
         <button class="btn btn-secondary" id="fictionImportSave" type="button">Import a playable save</button>
         <div id="fictionShelf" class="fiction-shelf"></div>
+        <nav class="fiction-toolbar" aria-label="Story pages"><button class="btn btn-secondary" id="fictionShelfPrevious" type="button" hidden>Previous stories</button><button class="btn btn-secondary" id="fictionShelfNext" type="button" hidden>More stories</button></nav>
       </section>
       <section id="startScreen" class="fiction-screen" aria-labelledby="startTitle" hidden>
         <p class="eyebrow">No avatar required</p><h1 id="startTitle">Where shall we begin?</h1>
@@ -47,6 +48,9 @@
           <label for="fictionTitle">Story title</label><input id="fictionTitle" name="title" required maxlength="200" autocomplete="off">
           <label for="fictionPremise">The situation</label><textarea id="fictionPremise" name="premise" required maxlength="4000" rows="4" placeholder="Two old friends meet again. One has something to confess."></textarea>
           <label for="fictionGenre">What kind of story?</label><select id="fictionGenre"><option value="drama">Character drama</option><option value="mystery">Mystery</option><option value="exploration">Exploration</option><option value="cozy">Cozy discovery</option></select>
+          <label for="fictionStartStyle">Play style</label><select id="fictionStartStyle" aria-describedby="fictionStyleHelp"><option value="story-shaping">Story-shaping — guide the outcome</option><option value="living-world">Living-world — discover what is possible</option></select>
+          <p id="fictionStyleHelp" class="fiction-muted">Story-shaping follows your desired developments within continuity and boundaries. Living-world allows credible refusal and failure: asking a guard repeatedly is not new authority, but a verified warrant can change the answer. Both styles allow quiet cooperation and neither requires an avatar.</p>
+          <div id="fictionFourthWallField" hidden><label for="fictionFourthWall">Characters may break the fourth wall</label><select id="fictionFourthWall" disabled aria-describedby="fictionFourthWallHelp"><option value="never">Never</option><option value="rarely">Rarely</option><option value="freely">Freely</option></select><p id="fictionFourthWallHelp" class="fiction-muted">In Living-world, characters may knowingly address you, the reader. Rarely permits at most one address in six narrated passages; Freely allows it when fitting. Neither weakens resistance, reveals secrets or makes you an avatar.</p></div>
           <details><summary>Cast and story preferences</summary>
             <p>Add a few people if you like. Nobody has to represent you.</p><div id="fictionCastDraft"></div>
             <button class="btn btn-secondary" id="addFictionCast" type="button">Add a character</button>
@@ -60,7 +64,7 @@
         </form>
       </section>
       <section id="readerScreen" class="fiction-screen" aria-labelledby="fictionStoryTitle" hidden>
-        <header class="fiction-story-header"><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p class="fiction-muted" id="fictionSpend"></p></header>
+        <header class="fiction-story-header"><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionSpend"></p></header>
         <div class="fiction-toolbar">
           <button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button>
           <button type="button" class="btn btn-secondary" id="fictionDetailsToggle" aria-expanded="false" aria-controls="fictionDetails">Cast &amp; story</button>
@@ -71,9 +75,11 @@
           <button class="btn btn-secondary" id="releaseFictionControl" type="button" hidden>Return to reader-director</button>
           <button class="btn btn-secondary" id="fictionAddCast" type="button">Add to the cast</button>
           <h2>What matters now</h2><div id="fictionFacts"></div>
+          <button class="btn btn-secondary" id="fictionRecall" type="button">Recall older facts</button>
           <button class="btn btn-secondary" id="fictionCorrect" type="button">Correct a story fact</button>
           <button class="btn btn-secondary" id="fictionRetire" type="button">Retire a fact</button>
           <button class="btn btn-secondary" id="fictionPreferences" type="button">Story preferences</button>
+          <section id="fictionChallengeSection" hidden><h2>Approaches to this situation</h2><p>Optional attempts, not guaranteed outcomes. Repeating an unchanged approach reuses its ruling without an AI purchase. Free-form dialogue is less predictable; model prose can still disagree with a ruling.</p><div id="fictionChallenges"></div></section>
           <h2>Alternate paths</h2><label for="fictionBranch">Reading path</label><select id="fictionBranch"></select>
           <button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button>
           <button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button>
@@ -88,9 +94,12 @@
         <section id="fictionEnded" class="fiction-ended" hidden><h2>A good place to stop.</h2><p id="fictionEpisodeSummary"></p><p>Your story is saved. Nothing moves forward while you are away.</p><button class="btn btn-primary" id="fictionNextEpisode" type="button">Begin another episode</button></section>
         <form id="fictionComposer" class="fiction-composer">
           <div class="fiction-continue-row"><button class="btn btn-primary" id="fictionContinue" type="button">Continue</button><span id="fictionActionStatus" role="status" aria-live="polite"></span></div>
+          <div id="fictionFocus" hidden><p id="fictionFocusText"></p><button class="btn btn-secondary" id="fictionClearFocus" type="button">Clear ongoing focus</button></div>
+          <details><summary>Possible directions (optional)</summary><p>Choose one to fill the box, then edit or send it. These are intentions, not promises. Continue needs no selection.</p><div id="fictionInvitations"></div></details>
           <label for="fictionDirection" id="fictionDirectionLabel">Or steer the story</label>
           <textarea id="fictionDirection" rows="3" maxlength="4000" placeholder="Stay with their reunion. Let the awkwardness breathe."></textarea>
           <div class="fiction-send-row"><label class="sr-only" for="fictionInputKind">How to contribute</label><select id="fictionInputKind"><option value="steer">Steer the story</option><option value="ask">Ask outside the story</option></select><button class="btn btn-secondary" id="fictionSend" type="submit">Send direction</button></div>
+          <label for="fictionDirectionScope">How long should this direction guide the story?</label><select id="fictionDirectionScope"><option value="moment">This moment only</option><option value="ongoing">Keep this focus</option></select>
           <p class="fiction-muted">Continue and Send use your selected AI provider. Ctrl/⌘ + Enter sends your direction.</p>
         </form>
       </section>

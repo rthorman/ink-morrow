@@ -1,5 +1,36 @@
 # Maintainer, Testing & Release Handbook
 
+## 5.0 fourth-wall verification
+
+Test default Never, invalid choices, Living-world-only UI visibility, local
+preference saves and restored settings. Cover optional consecutive Freely
+addresses, the five intervening narrated scenes required by Rarely, and no
+cooldown advancement on failure or clarification. Reject unknown/inhabited
+speakers and effects evidenced only by an aside. Verify known charges survive
+rejection and no automatic extra request occurs.
+
+Reload, fork and save-copy must preserve branch-local settings and counters;
+reject future scene indices in imported saves. Addresses remain ordinary saved
+passage text for publication. Mocked protocol tests do not demonstrate semantic
+model compliance with Never or prove resistance quality. An optional higher-cost
+consistency mode is separately approved for assessment before final release;
+it is not implemented merely by this fourth-wall preference.
+
+## 5.0 clear-influence verification
+
+Cover the default one-moment direction, explicit ongoing focus, failure retention,
+local focus release, rewind and save-copy restoration. Invitations must not submit,
+overwrite drafts, reveal hidden facts or supply an inhabited person's decisions.
+Challenge preflight and repeat must make zero provider calls; stale preflight must
+not bypass paid consent. Test navigation during review as well as generation.
+
+Exercise recall beyond 128 working facts, public filtering before the 32-result
+limit, retirement and sibling-path rejection. Changed-fact citations must point to
+real earlier records, and portable copies must remap them. Exercise shelf paging
+beyond 200 stories, immediate loading feedback, keyboard operation and 320-pixel
+reflow. Automated accessibility scans supplement, not replace, human usability
+testing. All six books remain one regenerated artifact set per feature PR.
+
 ## 5.0 fair-resistance verification
 
 The deterministic royal-guard fixtures test twenty repeated/paraphrased requests

@@ -1,4 +1,5 @@
 import { el, field, option } from './dom.js';
+import { styleField, styleDescription, fourthWallField } from './influence.js';
 
 export function createStoryDialogs({ dialogs, getCurrent, isBusy, localAction }) {
   function open(title, make) {
@@ -27,12 +28,14 @@ export function createStoryDialogs({ dialogs, getCurrent, isBusy, localAction })
       return { path: 'corrections', label: 'Retire this fact', body: [el('p', 'Remove a fact from current working memory. Earlier prose and earlier path snapshots keep it. Retired facts are no longer supplied to the narrator; do not retire a promise you still want to matter.'), fact.wrapper, reason.wrapper], payload: () => fact.control.value && reason.control.value.trim() ? { remove_id: fact.control.value, reason: reason.control.value.trim() } : null };
     }),
     preferences: () => open('Story preferences', (story) => {
+      const style = styleField(story.state.play_style);
+      const fourthWall = fourthWallField(style, story.state.fourth_wall);
       const pacing = field('Pacing', 'select'); pacing.control.append(option('reflective', 'Room to linger'), option('balanced', 'Balanced'), option('brisk', 'Keep moving')); pacing.control.value = story.state.pacing;
       const consequences = field('Consequences', 'select'); consequences.control.append(option('gentle', 'Gentle complications'), option('dramatic', 'Dramatic consequences')); consequences.control.value = story.state.consequences;
       const boundaries = field('Tone and boundaries', 'textarea', story.state.boundaries || '', { maxLength: 2000, rows: 3 });
       const voice = field('Narration voice', 'textarea', story.state.voice || '', { maxLength: 1500, rows: 3 });
       const focus = field('Keep attention on (clear to release a previous direction)', 'textarea', story.state.focus || '', { maxLength: 1500, rows: 2 });
-      return { path: 'preferences', method: 'PUT', label: 'Save preferences', body: [el('p', 'These preferences shape future narration on this path. Pacing is not randomness. Dramatic consequences do not force danger or make success harder through temperature.'), pacing.wrapper, consequences.wrapper, boundaries.wrapper, voice.wrapper, focus.wrapper], payload: () => ({ pacing: pacing.control.value, consequences: consequences.control.value, boundaries: boundaries.control.value, voice: voice.control.value, focus: focus.control.value }) };
+      return { path: 'preferences', method: 'PUT', label: 'Save preferences', body: [el('p', 'These preferences shape future narration on this path and restore on rewind. Changing style does not reverse a recorded outcome. Pacing is not randomness.'), style.wrapper, el('p', styleDescription), fourthWall.wrapper, pacing.wrapper, consequences.wrapper, boundaries.wrapper, voice.wrapper, focus.wrapper], payload: () => ({ play_style: style.control.value, fourth_wall: fourthWall.control.value, pacing: pacing.control.value, consequences: consequences.control.value, boundaries: boundaries.control.value, voice: voice.control.value, focus: focus.control.value }) };
     }),
   };
 }

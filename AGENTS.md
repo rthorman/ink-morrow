@@ -2,6 +2,26 @@
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
+- LATEST OWNER DIRECTION (4 September 2026): add a Living-world setting allowing
+  characters to address the user across the fourth wall: Never, Rarely or Freely.
+  The owner briefly cancelled final main integration, then explicitly restored
+  approval AFTER implementation is complete. Finish this setting and the remaining
+  approved 5.0 programme, pass CI, and only then merge the release into main.
+- The owner is willing to allow additional LLM calls when they improve character
+  and world consistency, and explicitly selected an OPTIONAL quality mode (not
+  enabled by default). Assess bounded quality-review/repair before the final
+  merge using the standard model, the memory-support model, or both as useful;
+  the owner's permission is not restricted to extra calls to the standard model.
+  The earlier universal one-call restriction may be superseded by an
+  explicitly reviewed quality mode. Keep maximum calls, latency/cost tradeoffs,
+  failure handling and actual spend visible. No unbounded retries or assumption
+  that a second model proves semantic correctness; no live paid benchmark is
+  authorised merely by permitting additional product-runtime calls.
+- Development is consolidated under WSL at `/home/rthorman/src/ink-morrow-5`,
+  with shared Git metadata in `/home/rthorman/src/ink-morrow/.git`. Windows
+  tooling may operate on that checkout; do not create another Windows copy.
+  The owner abandoned all older unmerged changes on 4 September. Do not recover
+  or import them into 5.0. Preserve new work based on `release/5.0.0`.
 - `release/5.0.0` is the integration branch for a new playable-fiction product.
   Substantial feature PRs target it, are verified and merged only on green CI,
   and subsequent batches start from its updated head. On 4 September the owner
@@ -23,6 +43,11 @@
   facts and immutable change records remain authoritative; bounded retrieval reads
   only the selected ancestry, honours corrections/retirements and does not erase
   evidence or force players to prune memory. Saves preserve those records.
+- Clear influence: Steer defaults to this moment; only explicit ongoing Steer
+  changes focus after success. Invitations fill drafts, never submit or overwrite
+  them. Challenge review is local and revision-bound; free repeated outcomes must
+  stay free even when the provider is unavailable. Reader recall and evidence
+  remain public-only and current-ancestry scoped; prior evidence remaps in saves.
 - The default player is a reader-director OUTSIDE the cast. Follow and Steer
   are complete first-class experiences; Inhabit is optional, explicit character
   control. No avatar, main character, or Session Zero is required to begin.

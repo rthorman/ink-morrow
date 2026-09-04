@@ -206,4 +206,103 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionOpening')).toBeNull();
     expect(document.getElementById('fictionContinue')).not.toBeNull();
   });
+  test('a direction defaults to this moment and ongoing focus is an explicit, releasable choice', async () => {
+    await app.start(); document.getElementById('fictionDirection').value = 'Stay with Mara.';
+    await app.send('steer');
+    expect(api).toHaveBeenCalledWith('/fiction/one/replies', 'POST', expect.objectContaining({ input: expect.objectContaining({ direction_scope: 'moment' }) }));
+    document.getElementById('fictionDirection').value = 'Watch the harbour.'; document.getElementById('fictionDirectionScope').value = 'ongoing';
+    await app.send('steer');
+    expect(api).toHaveBeenLastCalledWith('/fiction/one/replies', 'POST', expect.objectContaining({ input: expect.objectContaining({ direction_scope: 'ongoing' }) }));
+    const focused = story(); focused.state.focus = 'Watch the harbour.'; focused.state.play_style = 'living-world'; app.renderStory(focused);
+    expect(document.getElementById('fictionPlayStyle').textContent).toContain('Living-world');
+    expect(document.getElementById('fictionFocusText').textContent).toContain('Watch the harbour');
+    document.getElementById('fictionClearFocus').click(); await tick();
+    expect(api).toHaveBeenCalledWith('/fiction/one/preferences', 'PUT', expect.objectContaining({ focus: '' }));
+  });
+  test('invitations fill an editable draft without purchasing or overwriting existing text', async () => {
+    await app.start(); const reads = api.mock.calls.length;
+    document.querySelector('#fictionInvitations button').click();
+    const direction = document.getElementById('fictionDirection').value;
+    expect(direction).toContain('different things'); expect(api).toHaveBeenCalledTimes(reads); expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    document.querySelectorAll('#fictionInvitations button')[1].click();
+    expect(document.getElementById('fictionDirection').value).toBe(direction);
+    expect(document.getElementById('fictionContinue').disabled).toBe(false);
+  });
+  test('an unchanged challenge uses its free ruling without paid consent or clearing a separate draft', async () => {
+    const value = story(); value.state.challenges = [{ id: 'gate', label: 'Borrow the key', actor_id: 'mara', approaches: [{ id: 'ask', label: 'Ask for the key' }] }];
+    api.mockImplementation(async (path) => path.endsWith('/challenge-review') ? { review: { requires_generation: false } } : { story: value, repeated_adjudication: true });
+    await app.start(); document.getElementById('fictionDirection').value = 'My separate direction.';
+    document.querySelector('#fictionChallenges button').click(); await tick(); await tick();
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    expect(api).toHaveBeenCalledWith('/fiction/one/replies', 'POST', expect.objectContaining({ input: expect.objectContaining({ challenge_id: 'gate', approach_id: 'ask' }) }));
+    expect(document.getElementById('fictionDirection').value).toBe('My separate direction.');
+    expect(document.getElementById('fictionStatus').textContent).toContain('No AI request');
+  });
+  test('a stale challenge review cannot open a paid review after navigation', async () => {
+    await app.start(); let resolve;
+    api.mockImplementation((path) => path.endsWith('/challenge-review') ? new Promise((done) => { resolve = done; }) : Promise.resolve({ stories: [] }));
+    const pending = app.send('steer', { challenge_id: 'gate', approach_id: 'ask', text: 'Ask for the key.' });
+    expect(document.getElementById('fictionContinue').disabled).toBe(true);
+    window.history.replaceState({}, '', '#/stories'); await app.route();
+    resolve({ review: { requires_generation: true } }); await pending;
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    expect(api.mock.calls.some(([path]) => path.endsWith('/replies'))).toBe(false);
+  });
+  test('evidence links open immediately and show a safe local source without purchasing', async () => {
+    const value = story(); value.state.facts = [{ id: 'promise', text: 'Mara promised.', value: null, evidence_beat_id: 'evidence' }];
+    api.mockImplementation(async (path) => path.includes('/evidence/') ? { beat: { summary: 'A fact was corrected.', prose: '', changes: [{ fact: { text: 'Mara promised.' } }] } } : { story: value });
+    await app.start(); document.querySelector('#fictionFacts button').click();
+    expect(dialogs.openDialog).toHaveBeenCalledTimes(1); const body = dialogs.openDialog.mock.calls[0][0].body[0];
+    expect(body.textContent).toContain('Loading'); await tick();
+    expect(body.textContent).toContain('Mara promised'); expect(body.textContent).toContain('not rewritten'); expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+  });
+  test('locking clears the added private influence surfaces', async () => {
+    const value = story(); value.state.focus = 'Private ongoing direction.'; api.mockResolvedValue({ story: value });
+    await app.start(); app.lock();
+    for (const id of ['fictionFocusText', 'fictionInvitations', 'fictionChallenges', 'fictionPlayStyle']) expect(document.getElementById(id).textContent).toBe('');
+  });
+
+  test('a failed factual correction keeps its text, reason and dialog for another attempt', async () => {
+    await app.start(); document.getElementById('fictionCorrect').click();
+    const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    const value = spec.body.flatMap((node) => [...node.querySelectorAll('textarea')])[0];
+    const reason = spec.body.flatMap((node) => [...node.querySelectorAll('input')])[0];
+    value.value = 'Mara owns the boat.'; reason.value = 'The earlier description was mistaken.';
+    api.mockRejectedValueOnce(new Error('Storage is unavailable.'));
+    const close = jest.fn();
+    await spec.actions.find((item) => item.label === 'Save correction').onClick(close);
+    expect(close).not.toHaveBeenCalled();
+    expect(value.value).toBe('Mara owns the boat.');
+    expect(reason.value).toBe('The earlier description was mistaken.');
+    expect(spec.body.find((node) => node.getAttribute('role') === 'alert').textContent).toContain('Storage is unavailable');
+    expect(document.getElementById('fictionCorrect').disabled).toBe(false);
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+  });
+
+  test('fourth-wall settings are visible only for Living-world and save locally', async () => {
+    await app.start(); document.getElementById('fictionPreferences').click();
+    const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    const selects = spec.body.flatMap((node) => [...node.querySelectorAll('select')]);
+    const [style, fourthWall] = selects;
+    expect(fourthWall.parentElement.hidden).toBe(true); expect(fourthWall.value).toBe('never');
+    style.value = 'living-world'; style.dispatchEvent(new Event('change'));
+    expect(fourthWall.parentElement.hidden).toBe(false); expect(fourthWall.disabled).toBe(false);
+    expect([...fourthWall.options].map((entry) => entry.textContent)).toEqual(['Never', 'Rarely', 'Freely']);
+    fourthWall.value = 'rarely';
+    await spec.actions.find((item) => item.label === 'Save preferences').onClick(jest.fn());
+    expect(api).toHaveBeenCalledWith('/fiction/one/preferences', 'PUT', expect.objectContaining({ play_style: 'living-world', fourth_wall: 'rarely' }));
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+  });
+
+  test('a new Living-world story can select fourth-wall dialogue without a provider call', async () => {
+    window.history.replaceState({}, '', '#/new'); api.mockResolvedValue({ scenarios: [] }); await app.start();
+    const style = document.getElementById('fictionStartStyle'); style.value = 'living-world'; style.dispatchEvent(new Event('change'));
+    expect(document.getElementById('fictionFourthWallField').hidden).toBe(false);
+    document.getElementById('fictionFourthWall').value = 'freely';
+    document.getElementById('fictionTitle').value = 'A conversation with the reader'; document.getElementById('fictionPremise').value = 'Neighbours in a garden.';
+    api.mockResolvedValue({ story: story() }); document.getElementById('fictionStartForm').dispatchEvent(new Event('submit', { cancelable: true })); await tick();
+    expect(api).toHaveBeenCalledWith('/fiction', 'POST', expect.objectContaining({ play_style: 'living-world', fourth_wall: 'freely' }));
+    expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    expect(document.getElementById('fictionFourthWallField').hidden).toBe(true);
+  });
 });

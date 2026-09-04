@@ -1,6 +1,21 @@
 # Next 5.0 iteration: agency, resistance and payoff
 
 Date: 4 September 2026.
+Latest direction: add a Living-world setting allowing characters to break the
+fourth wall Never, Rarely or Freely. The owner briefly cancelled final main
+integration, then restored approval after implementation is complete and CI is
+green. Complete the new setting and the remaining programme before that merge.
+The owner subsequently accepted the possibility of additional LLM calls when
+they improve character and world consistency. Assess a bounded consistency-review
+and repair mode before release, with explicit maximum calls, latency/cost review,
+full spend accounting and fail-closed handling of stale or rejected results.
+The owner selected an optional quality mode, not checks enabled by default. This
+may use the standard story model, the memory-support model, or both; permission
+is not restricted to one role. Review must name each role/model and the maximum
+number of calls, with no silent role substitution or hidden background purchase.
+This supersedes an unconditional one-call-only design, not the ban on unbounded retries
+or the need to demonstrate benefit. It does not authorise a live paid benchmark.
+
 Status: owner approved implementation and green-CI merges, including final main
 integration, on 4 September 2026. Implementation is in progress; approval is not
 a claim that the features are already complete.

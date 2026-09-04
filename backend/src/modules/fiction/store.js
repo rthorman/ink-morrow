@@ -5,6 +5,7 @@ const { LIMITS, GENRES, fail, text, choice, keys, initialState, publicState, nor
 const { scenarioInput } = require('./scenarios');
 const { createMemory, compactFacts } = require('./memory');
 const { STYLES } = require('./resistance');
+const { FOURTH_WALL_MODES } = require('./fourth-wall');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
@@ -16,7 +17,7 @@ function createFictionStore(db) {
   const game = (id) => db.prepare('SELECT * FROM fiction_games WHERE id = ?').get(id) || fail('Story not found.', 'STORY_NOT_FOUND', 404);
   const branch = (gameId, id) => db.prepare('SELECT * FROM fiction_branches WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Path not found.', 'PATH_NOT_FOUND', 404);
   const beat = (gameId, id) => db.prepare('SELECT * FROM fiction_beats WHERE game_id = ? AND id = ?').get(gameId, id) || fail('Story moment not found.', 'BEAT_NOT_FOUND', 404);
-  const stateAt = (g, headId) => ({ play_style: 'story-shaping', challenges: [], adjudications: [],
+  const stateAt = (g, headId) => ({ play_style: 'story-shaping', challenges: [], adjudications: [], fourth_wall: 'never', last_fourth_wall_scene: null,
     ...JSON.parse(headId ? beat(g.id, headId).state_json : g.initial_state_json) });
   const current = (id) => {
     const g = game(id);
@@ -94,7 +95,7 @@ function createFictionStore(db) {
     return id;
   }
   function create(input) {
-    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges'], 'New story');
+    keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
     const premise = text(input.premise, 'Premise', 4000);
@@ -146,19 +147,21 @@ function createFictionStore(db) {
     if (Boolean(input.fact) === Boolean(input.remove_id)) fail('Correct one fact or remove one fact.');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state); const beatId = randomUUID();
-      let fact;
+      let fact; let priorEvidence = null;
       if (input.remove_id) {
         fact = state.facts.find((entry) => entry.id === input.remove_id) || memory.get(id, context.branch.head_beat_id, input.remove_id);
         if (!fact) fail('Fact not found.', 'FACT_NOT_FOUND', 404);
+        priorEvidence = fact.evidence_beat_id;
         state.facts = state.facts.filter((entry) => entry.id !== input.remove_id);
       } else {
         fact = normalizeFact(input.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
+        priorEvidence = memory.get(id, context.branch.head_beat_id, fact.id)?.evidence_beat_id || null;
         const index = state.facts.findIndex((entry) => entry.id === fact.id);
         if (index < 0) state.facts.push(fact); else state.facts[index] = fact;
         compactFacts(state, LIMITS.facts);
       }
       // The reason may itself contain a secret. Keep it out of the reader view.
-      append(context, { id: beatId, kind: 'correction', summary: 'A story fact was corrected.', input: { reason }, state, changes: [{ op: input.remove_id ? 'remove' : 'correct', fact }] });
+      append(context, { id: beatId, kind: 'correction', summary: 'A story fact was corrected.', input: { reason }, state, changes: [{ op: input.remove_id ? 'remove' : 'correct', fact, prior_evidence_beat_id: priorEvidence }] });
     });
   }
   function episode(id, expected, input) {
@@ -177,12 +180,13 @@ function createFictionStore(db) {
     });
   }
   function preferences(id, expected, input) {
-    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style'], 'Story preferences');
+    keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall'], 'Story preferences');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
       state.pacing = choice(input.pacing, ['reflective', 'balanced', 'brisk'], state.pacing, 'Pacing');
       state.consequences = choice(input.consequences, ['gentle', 'dramatic'], state.consequences, 'Consequences');
       state.play_style = choice(input.play_style, STYLES, state.play_style || 'story-shaping', 'Play style');
+      state.fourth_wall = choice(input.fourth_wall, FOURTH_WALL_MODES, state.fourth_wall || 'never', 'Fourth-wall setting');
       for (const [key, max] of [['boundaries', 2000], ['voice', 1500], ['focus', 1500]]) if (input[key] !== undefined) state[key] = text(input[key], key, max, { optional: true });
       append(context, { kind: 'correction', summary: 'Story preferences were updated.', state });
     });
@@ -279,9 +283,18 @@ function createFictionStore(db) {
   function reconcile() {
     return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
   }
-  const list = () => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 200').all();
+  const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset);
+  function recall(id, query) {
+    const context = current(id);
+    return memory.facts(id, context.branch.head_beat_id, { query: text(query, 'Memory search', 200, { optional: true }), publicOnly: true });
+  }
+  function evidence(id, beatId) {
+    const context = current(id);
+    if (!isAncestor(id, context.branch.head_beat_id, beatId)) fail('That evidence is not on this path.', 'BEAT_NOT_FOUND', 404);
+    return publicBeat(beat(id, beatId));
+  }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model });
-  return { create, list, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
+  return { create, list, recall, evidence, view, current, stateAt, memory, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration };
 }
 
 module.exports = { createFictionStore };

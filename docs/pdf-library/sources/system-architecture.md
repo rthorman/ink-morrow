@@ -1,5 +1,35 @@
 # System Architecture & Design Rationale
 
+## 5.0 fourth-wall permission
+
+Living-world snapshots carry a Never/Rarely/Freely preference and the last narrated
+scene index containing an accepted address. Never is the default; Story-shaping
+and out-of-story Ask disable character asides. Rarely requires a six-scene index
+gap; Freely permits consecutive fitting addresses. Preference changes do not reset
+the cooldown. The same snapshot/save graph preserves it without a separate timer.
+
+The existing narration response may include one bounded structured aside. The
+server checks permission, cast identity and character ownership, appends the named
+address to saved prose, and advances its index in the same atomic commit. Effects
+and challenge evidence are validated against ordinary prose, not appended asides.
+There is no extra provider request. The protocol cannot prove that unrestricted
+model prose contains no unstructured fourth-wall language.
+
+## 5.0 clear influence and evidence
+
+Reader directions carry moment or ongoing scope. Only a successful ongoing Steer
+replaces branch-local focus; one-moment detours and failures do not. Locally derived
+invitations use public state and fill drafts only. Explicit challenge review is a
+read-only, revision-checked endpoint: it reveals a prior ruling only when unchanged.
+Reply commits recheck that same revision, so a free review cannot silently become
+a newly billable attempt after a concurrent change. A free repeated ruling remains
+available when a former provider configuration is unavailable.
+
+Public memory search filters before its result bound, and source reads verify
+active ancestry. Changes can carry an earlier evidence identity; save validation
+requires it on parent ancestry and import remaps it. The shelf uses bounded
+80-story pages instead of silently hiding everything after 200 stories.
+
 ## 5.0 memory and adjudication foundations
 
 The bounded snapshot cache is not the only copy of story facts. Immutable initial
