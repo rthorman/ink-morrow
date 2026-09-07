@@ -17,15 +17,18 @@ const { storedZipEntries, validateEpub } = require('../src/modules/publication/a
 const { createTestApp, setupOwner } = require('./helpers');
 
 describe('frozen visual catalogues', () => {
-  let root; let db; let store; let media; let library; let generate; let providers; let png; let file;
+  let root; let db; let store; let media; let library; let generate; let complete; let providers; let png; let file;
   beforeEach(async () => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'im-visual-library-')); db = createDb(':memory:'); store = createFictionStore(db);
     png = await sharp({ create: { width: 12, height: 10, channels: 3, background: '#674064' } }).png().toBuffer();
     file = path.join(root, 'upload.png'); fs.writeFileSync(file, png);
     generate = jest.fn().mockResolvedValue({ buffer: png, mediaType: 'image/png', cost: 0.04 });
-    providers = { exposure: jest.fn(() => ({ provider: { id: 'illustrator', display_name: 'Test images' }, model_id: 'image-model' })), resolve: jest.fn() };
+    complete = jest.fn().mockResolvedValue({ content: JSON.stringify({ name: 'AI reference', description: 'A developed reference.', data: {} }), model: 'text-model', cost_usd: 0.01, billed_attempts: 1 });
+    providers = { exposure: jest.fn((role) => role === 'scribe'
+      ? { provider: { id: 'text', display_name: 'Test storyteller' }, model_id: 'text-model' }
+      : { provider: { id: 'illustrator', display_name: 'Test images' }, model_id: 'image-model' }), resolve: jest.fn() };
     media = createFictionMedia({ db, store, rootDir: root, providers, generateIllustration: generate });
-    library = createFictionLibrary({ db, store, media, providers, generateIllustration: generate });
+    library = createFictionLibrary({ db, store, media, providers, generateIllustration: generate, chatCompletion: complete });
   });
   afterEach(() => { db.close(); fs.rmSync(root, { recursive: true, force: true }); });
   const input = () => ({ direction: 'Watercolour', alt_text: 'A quiet place.', provider_id: 'illustrator', model: 'image-model' });
@@ -149,12 +152,30 @@ describe('frozen visual catalogues', () => {
     await expect(pending).rejects.toMatchObject({ code: 'STORY_REQUEST_STALE', costUsd: 0.06 });
     expect(store.view(story.id).spend.known_usd).toBe(0.06); expect(store.view(story.id).state.visuals).toEqual([]);
   });
-  test('migration 22 preserves existing 5.0 stories and all earlier migration checksums', () => {
-    const filename = path.join(root, 'schema21.db'); let old = createDb(filename, { migrations: MIGRATIONS.slice(0, 21) });
+  test.each(['world', 'character', 'scribe'])('%s AI development keeps drafts editable and records idempotent spend', async (kind) => {
+    const seed = { name: '', description: 'Seed detail', data: kind === 'world' ? { lore: 'PRIVATE seed truth' } : kind === 'character' ? { motive: 'PRIVATE seed motive' } : { diction: 'ornate', focus_areas: ['dialogue'] } };
+    const input = { seed, length: 'medium', variant: 1, provider_id: 'text', model: 'text-model' };
+    const result = await library.draft(kind, `${kind}-draft`, input);
+    expect(result.entry).toMatchObject({ name: 'AI reference', description: 'A developed reference.' });
+    expect(complete).toHaveBeenCalledTimes(1); expect(complete.mock.calls[0][0][1].content).toContain('Seed detail');
+    providers.exposure.mockImplementation(() => { throw new Error('configuration moved'); });
+    expect(await library.draft(kind, `${kind}-draft`, input)).toMatchObject({ reused: true, cost_usd: 0.01, billed_attempts: 1 });
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+  test('invalid AI reference gets one corrective pass and preserves the combined cost', async () => {
+    complete.mockResolvedValueOnce({ content: 'not JSON', model: 'text-model', cost_usd: 0.02, billed_attempts: 1 });
+    const input = { seed: { name: 'Mara', data: { personality: 'Guarded' } }, length: 'long', variant: 2, provider_id: 'text', model: 'text-model' };
+    const result = await library.draft('character', 'correct-draft', input);
+    expect(result.entry.name).toBe('AI reference'); expect(result.cost_usd).toBeCloseTo(0.03); expect(result.billed_attempts).toBe(2);
+    expect(complete).toHaveBeenCalledTimes(2); expect(complete.mock.calls[1][0].at(-1).content).toContain('invalid');
+    expect(library.spend().known_usd).toBeCloseTo(0.03);
+  });
+  test('migration 23 preserves schema-22 stories and all earlier migration checksums', () => {
+    const filename = path.join(root, 'schema22.db'); let old = createDb(filename, { migrations: MIGRATIONS.slice(0, 22) });
     const prior = createFictionStore(old).create({ scenario_id: 'garden-after-rain' });
     const ledger = old.prepare('SELECT * FROM schema_migrations ORDER BY version').all(); old.close(); old = createDb(filename);
-    expect(schemaIdentity(old).version).toBe(22); expect(createFictionStore(old).view(prior.id).title).toBe(prior.title);
-    expect(old.prepare('SELECT * FROM schema_migrations WHERE version <= 21 ORDER BY version').all()).toEqual(ledger); old.close();
+    expect(schemaIdentity(old).version).toBe(23); expect(createFictionStore(old).view(prior.id).title).toBe(prior.title);
+    expect(old.prepare('SELECT * FROM schema_migrations WHERE version <= 22 ORDER BY version').all()).toEqual(ledger); old.close();
   });
 });
 

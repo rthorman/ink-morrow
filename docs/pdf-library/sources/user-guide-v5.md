@@ -449,8 +449,15 @@ you still want to matter.
 ## Cast and story preferences
 
 The **Visual Library** contains separate Worlds, Characters and Scribes catalogues.
-Choose New entry, give it a name and visible description, fill any useful reference
-fields, and Save details. Ordinary saving never paints an image or calls a model.
+Choose **New entry** to open its full studio. Enter anything from one small seed to
+a complete reference, choose a development depth, then select **Develop with AI**.
+The paid review names the Storyteller and warns that every entered reference field,
+including private lore, motives and background, is sent. The returned take fills the
+form but remains editable and unsaved. Develop another take for a different reading,
+or save only after the reference feels right. At most one corrective second call is
+made when the first structured answer is unusable; both can be charged. Ordinary
+saving never paints an image or calls a model.
+
 Worlds have setting and lore; characters have appearance, personality, background
 and motive. Keep spoilers out of the visible description. Lore, background and
 motives may be private setup that guides the narrator, not facts every person knows.
@@ -462,9 +469,12 @@ Scribe does not assign a provider or put her into the story's cast. Settings sti
 chooses the text model. Bounded frozen references may be sent with narration and
 quality checks; the reader and exported book do not expose private reference fields.
 
-On a catalogue card choose **Image: upload or paint**. Upload is local; Paint with
-AI uses the Illustrator after paid review. Save description only changes accessible
-text. Replacing/removing catalogue art does not change stories already started.
+Choose **Save & add scene** for a world or **Save & add portrait** for a character or
+Scribe to move directly into the image studio. A saved card also exposes **Paint or
+upload**. Upload is local; **Paint with AI** uses the Illustrator after paid review.
+If no Illustrator is configured, the action explains that Settings needs one while
+leaving upload available. Save description only changes accessible text.
+Replacing/removing catalogue art does not change stories already started.
 Delete entry removes that reusable entry and its picture, not its frozen story
 copies; the image-spend record remains. Refresh catalogue reconciles pending work
 without buying another image. Keep a full installation backup for the reusable library.

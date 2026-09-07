@@ -42,4 +42,23 @@ CREATE TABLE fiction_template_requests (
 );
 CREATE UNIQUE INDEX fiction_template_one_pending ON fiction_template_requests(template_id) WHERE status = 'pending';
 `;
-module.exports = { FICTION_LIBRARY_SCHEMA };
+
+const FICTION_LIBRARY_DRAFT_SCHEMA = `
+CREATE TABLE fiction_template_drafts (
+  id TEXT PRIMARY KEY,
+  idempotency_key TEXT NOT NULL UNIQUE,
+  fingerprint TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK(kind IN ('world','character','scribe')),
+  status TEXT NOT NULL CHECK(status IN ('pending','succeeded','failed','interrupted')),
+  provider_id TEXT NOT NULL,
+  model TEXT NOT NULL,
+  billed_attempts INTEGER NOT NULL DEFAULT 0,
+  cost_usd REAL CHECK(cost_usd IS NULL OR (cost_usd >= 0 AND cost_usd <= 1000000000)),
+  result_json TEXT,
+  error_code TEXT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at TEXT
+);
+CREATE INDEX fiction_template_drafts_status ON fiction_template_drafts(status, created_at);
+`;
+module.exports = { FICTION_LIBRARY_SCHEMA, FICTION_LIBRARY_DRAFT_SCHEMA };

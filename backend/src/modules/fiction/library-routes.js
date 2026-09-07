@@ -9,11 +9,18 @@ const { KINDS, FIELDS, CATGIRL_CANON, ENUMS, DEFAULTS, FOCUS_AREAS } = require('
 
 function createFictionLibraryRouter({ library, media }) {
   const router = express.Router(); const base = '/api/fiction/catalog';
-  router.get(`${base}/metadata`, (req, res) => res.json({ kinds: KINDS, fields: FIELDS, scribe: { canon: CATGIRL_CANON, enums: ENUMS, defaults: DEFAULTS, focus_areas: FOCUS_AREAS }, generation: library.generation(), spend: library.spend() }));
+  router.get(`${base}/metadata`, (req, res) => res.json({ kinds: KINDS, fields: FIELDS, scribe: { canon: CATGIRL_CANON, enums: ENUMS, defaults: DEFAULTS, focus_areas: FOCUS_AREAS }, generation: library.generation(), drafting: library.draftGeneration(), spend: library.spend() }));
   router.get(base, (req, res) => res.json(library.list(req.query.kind, Number(req.query.offset || 0))));
   router.post(base, (req, res) => {
     keys(req.body, ['kind', 'entry'], 'New catalogue entry');
     res.status(201).json({ entry: library.create(req.body.kind, req.body.entry) });
+  });
+  router.post(`${base}/draft`, async (req, res, next) => {
+    try {
+      keys(req.body, ['kind', 'idempotency_key', 'input'], 'Develop catalogue reference');
+      const result = await library.draft(req.body.kind, req.get('Idempotency-Key') || req.body.idempotency_key, req.body.input);
+      res.status(result.reused ? 200 : 201).json(result);
+    } catch (error) { next(error); }
   });
   router.get(`${base}/:id`, (req, res) => res.json({ entry: library.get(req.params.id), generation: library.generation() }));
   router.put(`${base}/:id`, (req, res) => {

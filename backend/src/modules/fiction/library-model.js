@@ -24,6 +24,25 @@ function templateInput(kind, value) {
   }
   return { name: text(value.name, 'Name', 200), description: text(value.description, 'Description', 2000, { optional: true }), data };
 }
+function templateSeed(kind, value) {
+  choice(kind, KINDS, null, 'Catalogue kind');
+  keys(value, ['name', 'description', 'data'], 'Catalogue draft seed');
+  const source = value.data === undefined ? {} : value.data; const data = {};
+  keys(source, [...Object.keys(FIELDS[kind]), ...(kind === 'scribe' ? [...Object.keys(ENUMS), 'focus_areas', 'entity_kind'] : [])], 'Catalogue draft fields');
+  const name = text(value.name, 'Name', 200, { optional: true });
+  const description = text(value.description, 'Description', 2000, { optional: true });
+  for (const [field, limit] of Object.entries(FIELDS[kind])) data[field] = text(source[field], field.replaceAll('_', ' '), limit, { optional: true });
+  if (kind === 'scribe') {
+    data.entity_kind = 'catgirl';
+    for (const [field, options] of Object.entries(ENUMS)) {
+      if (source[field] !== undefined && source[field] !== '') data[field] = choice(source[field], options, DEFAULTS[field], field.replaceAll('_', ' '));
+    }
+    const focus = source.focus_areas === undefined ? [] : source.focus_areas;
+    if (!Array.isArray(focus) || focus.length > FOCUS_AREAS.length || focus.some((item) => !FOCUS_AREAS.includes(item))) fail('Choose supported Scribe focus areas.');
+    data.focus_areas = [...new Set(focus)];
+  }
+  return { name, description, data };
+}
 function snapshot(entry) {
   return { source_id: entry.id, source_revision: entry.revision, ...templateInput(entry.kind, { name: entry.name, description: entry.description, data: entry.data }) };
 }
@@ -78,4 +97,4 @@ function imagePrompt(entry, direction) {
     entry.kind === 'world' ? `Setting: ${entry.data.setting}` : '', entry.kind === 'scribe' ? `Feline traits: ${entry.data.feline_traits}` : '',
     `Art direction: ${direction}`, 'No text overlays. Do not invent secret story facts.'].filter(Boolean).join('\n');
 }
-module.exports = { KINDS, FIELDS, CATGIRL_CANON, ENUMS, DEFAULTS, FOCUS_AREAS, templateInput, snapshot, validateLibrary, validateVisuals, visualTarget, imagePrompt };
+module.exports = { KINDS, FIELDS, CATGIRL_CANON, ENUMS, DEFAULTS, FOCUS_AREAS, templateInput, templateSeed, snapshot, validateLibrary, validateVisuals, visualTarget, imagePrompt };

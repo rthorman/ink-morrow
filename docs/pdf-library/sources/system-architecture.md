@@ -297,11 +297,13 @@ no credentials or request authority. Validation uses ancestry intervals to rejec
 future/cross-path evidence before a transactional copy with remapped identities.
 
 The /api/fiction/catalog namespace is independent of the retired catalogue API.
-Schema 22 adds fiction_templates, fiction_template_assets and
-fiction_template_requests. Entries have revisions, bounded typed fields and one
-current normalized image. CRUD is local; explicit image generation is single-attempt,
-idempotent and accounted. Deletion scrubs content and removes its owned image while
-retaining the spend journal. Pending images block conflicting entry mutations.
+Schema 22 adds fiction_templates, fiction_template_assets and image requests;
+schema 23 adds the separate fiction_template_drafts journal. Entries have revisions,
+bounded typed fields and one current normalized image. CRUD is local. AI reference
+development is seed-based, idempotent and capped at two calls only when invalid JSON
+needs one correction; its result remains unsaved until explicit CRUD. Explicit image
+generation is single-attempt and accounted. Deletion scrubs content and removes its
+owned image while retaining both spend journals.
 
 Story creation takes trusted template snapshots and fresh copies of selected images,
 then inserts the story graph and image ownership in one transaction. Failure discards

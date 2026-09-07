@@ -171,9 +171,10 @@ function createDialogManager() {
     el.hidden = false;
     lockScroll();
     wiredModals.push(el);
+    panel.scrollTop = 0;
     // Focus enters at the title (non-destructive default) unless an action
     // explicitly asks; the first field gets it when a form lands in body.
-    (autofocusEl || bodyEl.querySelector('input, textarea, select') || panel).focus?.();
+    (autofocusEl || bodyEl.querySelector('input, textarea, select') || panel).focus?.({ preventScroll: true });
     if (!autofocusEl && !bodyEl.querySelector('input, textarea, select')) {
       panel.setAttribute('tabindex', '-1');
       panel.focus();

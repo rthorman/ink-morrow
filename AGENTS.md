@@ -14,6 +14,12 @@
   authoring routes or automatic background purchases. The new /api/fiction/catalog
   namespace owns reusable entries; story snapshots/media copies are independent.
   Do not describe a batch as delivered before verification and its main merge.
+- POST-RELEASE OWNER CORRECTION (7 September): the generic 5.0 catalogue modal
+  is not an acceptable restoration of the much stronger 4.x experience. Worlds,
+  characters and Scribes require a coherent branded studio, seed-based AI
+  development into editable unsaved fields, and first-class image upload/painting.
+  Reference drafting is not manuscript authoring. Keep its private-field exposure,
+  two-call invalid-JSON ceiling, idempotency and durable spend explicit.
 - Finish these changes through coherent PRs and merge into main only when the
   exact PR head has all five CI checks green. The owner stopped live behaviour
   testing after permitting a few paid calls in the pure test instance; do not
@@ -23,7 +29,7 @@
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 22, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 23, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;

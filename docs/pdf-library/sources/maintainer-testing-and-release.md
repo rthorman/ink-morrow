@@ -323,10 +323,16 @@ auth/CSRF before uploads, one pending purchase, changed-provider rejection, fail
 and late known/unknown charges, safe normalization and owned-file cleanup. Ordinary
 details, selection and upload make no model request. Old authoring routes stay 404.
 
+Reference-development coverage must exercise all three typed output shapes, empty and
+partial seeds, private-field disclosure, exact provider/model review, idempotent replay,
+one invalid-output correction, combined known/unknown spend and restart interruption.
+Browser coverage proves the AI result fills an editable unsaved studio and that Save
+& add image moves to the explicit upload/painting boundary without a hidden purchase.
+
 Freeze and copy selected images at setup. Delete or change the catalogue, then
 check that the story and its images remain unchanged. Round-trip private references
 and all visual asset IDs through saves; reject dangling or malformed copies. Books
 must contain the cover and passage art, never private lore or reference portraits.
-Test schema-21 to 22 migration with identical earlier ledger rows. UI tests cover
+Test schema-22 to 23 migration with identical earlier ledger rows. UI tests cover
 immediate dialogs, retained selection/drafts, bounded tablet images, catalogue
 pagination, lock clearing and stale responses. Use mocked model output, not live spend.

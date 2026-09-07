@@ -33,10 +33,10 @@ test.describe('5.0 playable fiction', () => {
       await page.locator('#catalogTabs').getByRole('link', { name: tab, exact: true }).click();
       await page.getByRole('button', { name: 'New entry', exact: true }).click();
       await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(`${kind} ${suffix}`);
-      await page.getByRole('dialog').getByLabel('Visible description', { exact: true }).fill(`A visible ${kind} reference.`);
+      await page.getByRole('dialog').getByLabel('What players notice first', { exact: true }).fill(`A visible ${kind} reference.`);
       await page.getByRole('button', { name: 'Save details', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
       const card = page.locator('#catalogEntries article').filter({ has: page.getByRole('heading', { name: `${kind} ${suffix}`, exact: true }) });
-      await card.getByRole('button', { name: 'Image: upload or paint', exact: true }).click();
+      await card.getByRole('button', { name: 'Paint or upload', exact: true }).click();
       await page.getByRole('dialog').getByLabel('Image description', { exact: true }).fill(`${kind} uploaded picture`);
       await page.getByRole('dialog').getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles(picture);
       await page.getByRole('button', { name: 'Upload image', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
@@ -64,6 +64,29 @@ test.describe('5.0 playable fiction', () => {
     await page.getByRole('link', { name: 'Your stories', exact: true }).click();
     await expect(page.locator('#fictionShelf article').filter({ hasText: `Visual story ${suffix}` }).locator('img')).toBeVisible();
     expect(paid).toBe(0);
+  });
+
+  test('catalogue studio develops an editable AI character draft without silently saving it', async ({ page }, testInfo) => {
+    await page.route('**/api/fiction/catalog/draft', async (route) => route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({
+      entry: { name: 'Neris Vale', description: 'A courteous guide who never removes her rain-dark gloves.', data: {
+        appearance: 'Tall, deliberate, with a silver scar beneath one eye.', personality: 'Attentive, exacting, privately superstitious.',
+        background: 'She learned the drowned roads while carrying messages between rival harbours.', motive: 'Keep the old beacon from being relit.' },
+      }, model: 'e2e-model', cost_usd: 0.014, billed_attempts: 1,
+    }) }));
+    await page.getByRole('link', { name: 'Visual Library', exact: true }).click();
+    await page.locator('#catalogTabs').getByRole('link', { name: 'Characters', exact: true }).click();
+    await page.getByRole('button', { name: 'New entry', exact: true }).click();
+    await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill('A gloved guide');
+    await page.getByRole('dialog').getByLabel('Personality', { exact: true }).fill('Careful with strangers.');
+    await page.getByRole('dialog').getByRole('button', { name: 'Develop with AI', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('All currently entered reference fields');
+    await page.getByRole('button', { name: 'Develop this reference', exact: true }).click();
+    await expect(page.getByRole('dialog').getByLabel('Name', { exact: true })).toHaveValue('Neris Vale');
+    await expect(page.getByRole('dialog')).toContainText('AI take ready · $0.0140');
+    await expect(page.locator('#catalogEntries article').filter({ hasText: 'Neris Vale' })).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath('character-catalogue-studio.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Save & add portrait', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('image studio');
   });
 
   test('the running game and locked threshold share the canonical README logo', async ({ page }, testInfo) => {

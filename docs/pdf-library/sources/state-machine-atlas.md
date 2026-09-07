@@ -280,6 +280,13 @@ Upload follows raster normalization and stale recheck; replacement cleans only t
 previous catalogue image after commit. Catalogue deletion scrubs content and removes
 its owned image but preserves image accounting. Frozen story copies are not targets.
 
+AI reference development: collect bounded seed fields -> review Storyteller, model,
+private-field exposure and two-call ceiling -> journal pending by idempotency key ->
+dispatch once -> validate the complete typed result -> if invalid, dispatch one
+correction -> return an editable unsaved form. Cancel saves nothing. Failure or
+restart records known/unknown spend and requires a new explicit take; successful key
+replay returns the same draft without purchase. Saving and painting remain separate.
+
 Catalogue painting uses its own pending/succeeded/failed/interrupted journal, one
 pending request per entry and one dispatch per key. A changed provider or revision
 refuses attachment. Restart marks pending work interrupted; a late completion can

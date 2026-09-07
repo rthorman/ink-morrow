@@ -285,6 +285,14 @@ world lore and character motives/background are excluded from image prompts.
 No upload is silently used as a provider reference. Catalogue routes inherit the
 same auth/CSRF boundary, and asset reads bind both image and owning entry.
 
+AI reference development has a different, explicit exposure: it sends every field
+currently entered in that studio, including private lore, motives and background, to
+the reviewed Storyteller. The response is untrusted structured data, validated into
+the selected world/character/Scribe shape and returned as an editable unsaved draft.
+One invalid response permits only one corrective call. Idempotency prevents duplicate
+purchases; the schema-23 journal preserves known charges or uncertain attempts across
+failure and restart. A draft never silently creates or updates a catalogue entry.
+
 Narration may receive bounded frozen world lore, character profiles and Scribe craft
 alongside other private story context. References are untrusted setup data, not
 instructions or established events. Reader responses omit private catalogue fields;

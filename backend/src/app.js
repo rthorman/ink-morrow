@@ -118,7 +118,7 @@ function createApp(
   const fictionMedia = createFictionMedia({ db, store: fictionStore, rootDir: imageDir, generateIllustration, providers });
   const fictionPublication = createFictionPublication({ store: fictionStore, media: fictionMedia });
   const fictionSaves = createFictionSaves({ db, store: fictionStore, media: fictionMedia });
-  const fictionLibrary = createFictionLibrary({ db, media: fictionMedia, store: fictionStore, providers, generateIllustration });
+  const fictionLibrary = createFictionLibrary({ db, media: fictionMedia, store: fictionStore, providers, generateIllustration, chatCompletion: ai.chatCompletion });
   fictionLibrary.reconcile();
   app.locals.auth = auth;
   app.locals.providers = providers;
