@@ -173,16 +173,22 @@ the WSL checkout. The owner explicitly abandoned older unmerged changes during
 cleanup. Do not bring those changes into the 5.0 line. No permission to deploy or
 start the replacement server is implied.
 
-## Post-release visual restoration
+## Post-release catalogue studio restoration
 
 The owner restored reusable visual world, character and Scribe catalogues without
 restoring manual prose authoring. The new `/api/fiction/catalog` API and Visual
 Library screen support local details, upload and explicit Illustrator painting.
+Each reference now opens in a branded, aligned studio where the Storyteller can
+develop an editable short, medium or long draft before the player decides whether
+to save it. The draft operation is an explicit reviewed purchase, never silently
+saves catalogue data, permits at most one corrective provider call and journals
+every dispatched attempt. Successful idempotent replay is free.
 Setup freezes selected references and copies their normalized images to independent
 story ownership. Story covers, cast portraits and world/Scribe reference pictures
 support the same upload/paint choices; existing in-passage illustration remains.
 
-Schema 22 adds catalogue metadata, owned images and a durable purchase journal.
+Schema 22 adds catalogue metadata, owned images and a durable purchase journal;
+schema 23 adds the separate AI-draft journal and response store.
 Existing 5.0 schema-21 stories migrate without changing earlier ledger checksums.
 Deleting catalogue content retains its spend record and never touches story copies.
 Playable saves validate and copy all private references and story images. Books
@@ -193,5 +199,7 @@ The reader pagination and Continue feedback repair shipped separately in
 PR [#78](https://github.com/rthorman/ink-morrow/pull/78), merged at `400ce3b` after
 all five exact-head gates passed. The visual restoration has its own substantial
 PR and requires the same all-green main-merge boundary. All six current manuals
-include these workflows; the User Guide remains 35 A4 pages. No further live paid
-behaviour tests or deployment are part of this batch.
+include these workflows; the User Guide remains 35 A4 pages. Local verification
+passed 479 backend cases, 313 frontend cases, and all 28 desktop plus 28 mobile
+browser scenarios. Fixture responses exercised paid boundaries without making a
+live paid provider request.

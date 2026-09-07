@@ -6,15 +6,17 @@ import { createFictionApp } from '../app/fiction/app.js';
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 const generation = { provider: { id: 'images', display_name: 'Illustrator test' }, model_id: 'image-model' };
+const drafting = { provider: { id: 'text', display_name: 'Storyteller test' }, model_id: 'text-model' };
 const entries = Object.fromEntries(['world', 'character', 'scribe'].map((kind) => [kind, { id: `${kind}-id`, kind, name: `My ${kind}`, description: `Visible ${kind}`, data: { appearance: '', focus_areas: [] }, image_id: `${kind}-image`, image_alt: `${kind} picture`, revision: 1, pending: false }]));
-const metadata = { fields: { world: { setting: 1000, lore: 6000 }, character: { appearance: 1000, motive: 1000 }, scribe: { appearance: 1000 } }, scribe: { canon: { definition: 'An adult catgirl.' }, enums: { diction: ['plain', 'balanced'] }, focus_areas: ['dialogue'] }, generation, spend: { known_usd: 0, unknown_attempts: 0 } };
+const metadata = { fields: { world: { setting: 1000, lore: 6000 }, character: { appearance: 1000, motive: 1000 }, scribe: { appearance: 1000 } }, scribe: { canon: { definition: 'An adult catgirl.' }, enums: { diction: ['plain', 'balanced'] }, focus_areas: ['dialogue'] }, generation, drafting, spend: { known_usd: 0, unknown_attempts: 0 } };
 const story = () => ({ id: 'story-id', title: 'Visual story', revision: 1, active_branch_id: 'branch', head_beat_id: 'opening', pending: false,
   state: { cast: [{ id: 'character-id', name: 'My character', description: 'Visible person' }], library: { world: entries.world, scribe: entries.scribe }, visuals: ['cover', 'world', 'character', 'scribe'].map((kind) => ({ kind, subject_id: kind === 'character' ? 'character-id' : null, asset_id: `${kind}-copy`, alt_text: `${kind} copy` })), facts: [], control: { character_id: null }, episode: { number: 1, title: 'Opening', status: 'active' } },
   branches: [{ id: 'branch', name: 'Original path' }], beats: [{ id: 'opening', kind: 'opening', prose: 'A story begins.', changes: [], input: {} }], illustration_generation: generation });
 const control = (spec, caption) => {
-  for (const wrapper of spec.body) {
-    const label = wrapper.querySelector?.('label');
-    if (label?.textContent === caption) return wrapper.querySelector('input,textarea,select');
+  for (const root of spec.body) {
+    for (const label of root.matches?.('label') ? [root] : root.querySelectorAll?.('label') || []) {
+      if (label.textContent === caption) return root.querySelector(`#${label.htmlFor}`);
+    }
   }
   throw new Error(`Missing ${caption}`);
 };
@@ -28,6 +30,7 @@ describe('visual Library and story images', () => {
     api = jest.fn(async (path, method, body) => {
       if (path === '/fiction/catalog/metadata') return metadata;
       if (path.startsWith('/fiction/catalog?')) return { entries: [entries[new URLSearchParams(path.split('?')[1]).get('kind')]], next_offset: null };
+      if (path === '/fiction/catalog/draft') return { entry: { name: 'AI world', description: 'A developed world.', data: { setting: 'Moonlit coast', lore: 'A hidden tide.' } }, cost_usd: 0.02, billed_attempts: 1 };
       if (path === '/fiction/scenarios') return { scenarios: [] };
       if (path === '/fiction' && !method) return { stories: [] };
       if (path.startsWith('/fiction/catalog') && method) return { entry: { ...entries.world, ...body?.entry } };
@@ -40,7 +43,7 @@ describe('visual Library and story images', () => {
     expect(api).not.toHaveBeenCalled(); await app.start();
     expect(document.querySelector('#catalogEntries img').alt).toBe('world picture');
     document.getElementById('catalogNew').click(); const spec = dialogs.openDialog.mock.calls.at(-1)[0];
-    control(spec, 'Name').value = 'New world'; control(spec, 'Lore (may contain private setup notes)').value = 'Secret reference';
+    control(spec, 'Name').value = 'New world'; control(spec, 'Lore · private').value = 'Secret reference';
     await spec.actions.find((action) => action.label === 'Save details').onClick(jest.fn());
     expect(api).toHaveBeenCalledWith('/fiction/catalog', 'POST', expect.objectContaining({ kind: 'world', entry: expect.objectContaining({ name: 'New world', data: expect.objectContaining({ lore: 'Secret reference' }) }) }));
     expect(dialogs.confirmPaid).not.toHaveBeenCalled();
@@ -48,13 +51,23 @@ describe('visual Library and story images', () => {
   });
   test('catalogue image dialog is immediate, cancels free and retains entered direction', async () => {
     await app.start(); const before = api.mock.calls.length;
-    [...document.querySelectorAll('#catalogEntries button')].find((node) => node.textContent === 'Image: upload or paint').click();
-    let spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(spec.title).toBe('Image for My world'); expect(api.mock.calls).toHaveLength(before);
+    [...document.querySelectorAll('#catalogEntries button')].find((node) => node.textContent === 'Repaint or upload').click();
+    let spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(spec.title).toBe('My world · image studio'); expect(api.mock.calls).toHaveLength(before);
     control(spec, 'Image description').value = 'The quay'; control(spec, 'Art direction (AI only)').value = 'Gentle colour';
     dialogs.confirmPaid.mockResolvedValue(false);
     await spec.actions.find((action) => action.label === 'Paint with AI').onClick(jest.fn());
     expect(api.mock.calls.some(([path]) => path.endsWith('/generate'))).toBe(false);
     spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(control(spec, 'Art direction (AI only)').value).toBe('Gentle colour');
+  });
+  test('AI develops an editable unsaved reference and exposes the paid boundary', async () => {
+    await app.start(); document.getElementById('catalogNew').click(); let spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    control(spec, 'Name').value = 'Seed world'; control(spec, 'Lore · private').value = 'Private seed';
+    const develop = spec.body.flatMap((node) => [...node.querySelectorAll('button')]).find((node) => node.textContent === 'Develop with AI');
+    develop.click(); await tick(); await tick();
+    expect(dialogs.confirmPaid).toHaveBeenCalledWith(expect.objectContaining({ review: expect.objectContaining({ sends: expect.stringContaining('private lore') }) }));
+    expect(api).toHaveBeenCalledWith('/fiction/catalog/draft', 'POST', expect.objectContaining({ kind: 'world', input: expect.objectContaining({ seed: expect.objectContaining({ name: 'Seed world' }), provider_id: 'text', model: 'text-model' }) }));
+    spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(control(spec, 'Name').value).toBe('AI world'); expect(control(spec, 'Lore · private').value).toBe('A hidden tide.');
+    expect(api.mock.calls.filter(([path]) => path === '/fiction/catalog')).toHaveLength(0);
   });
   test('setup selection is visual, survives leaving the form and creates no automatic painting', async () => {
     window.history.replaceState({}, '', '#/new'); await app.start(); await tick();
@@ -97,7 +110,7 @@ describe('visual Library and story images', () => {
     expect(dialogs.confirmPaid).not.toHaveBeenCalled(); expect(api.mock.calls.every(([, method]) => !method)).toBe(true);
   });
   test('catalogue deletion uses explicit shared destructive confirmation and exact revision', async () => {
-    await app.start(); const remove = () => [...document.querySelectorAll('#catalogEntries button')].find((node) => node.textContent === 'Delete entry').click();
+    await app.start(); const remove = () => [...document.querySelectorAll('#catalogEntries button')].find((node) => node.textContent === 'Delete').click();
     remove(); await tick(); expect(api.mock.calls.some(([, method]) => method === 'DELETE')).toBe(false);
     expect(dialogs.confirmDestructive).toHaveBeenCalledWith(expect.objectContaining({ title: 'Delete My world?', body: expect.stringContaining('one reusable entry') }));
     dialogs.confirmDestructive.mockResolvedValue(true); remove(); await tick();

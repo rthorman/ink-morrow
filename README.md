@@ -36,9 +36,10 @@ authorised finishing.
   six, with at most one repair and complete known/unknown accounting.
 - Local image upload or explicit Illustrator painting. Images appear above reader
   prose and on separate preceding pages in EPUB.
-- Visual Library catalogues for worlds, characters and Scribes, with upload and
-  AI painting. Setup makes frozen story copies; later catalogue edits do not
-  change them. Story covers and cast/reference portraits support both image paths.
+- A branded Visual Library studio for worlds, characters and Scribes. Seed-based
+  AI development returns editable, unsaved references; local upload and explicit
+  AI painting handle scenes and portraits. Setup makes frozen story copies, so
+  later catalogue edits do not change them.
 - Tablet-friendly passage pagination; Previous, Next and Latest never buy prose.
 - Nine reader-safe book formats and private, all-path `.inkmorrow5` saves.
 - One-owner authentication, logical provider roles and optional encrypted

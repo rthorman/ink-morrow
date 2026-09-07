@@ -142,8 +142,9 @@ Import always creates a new story. Keep saves private and unencrypted-file
 risks visible.
 
 Story saves also include frozen world/Scribe/character references, covers and
-portraits, but not the reusable catalogues or their separate painting journal.
-Use the full installation backup for catalogue entries and catalogue image spend.
+portraits, but not the reusable catalogues or their separate AI journals.
+Use the full installation backup for catalogue entries and reference-development or
+image spend.
 Deleting an entry scrubs its reusable content and image, retains its spend record,
 and leaves every story copy alone. This catalogue deletion has no in-app undo.
 
@@ -168,8 +169,9 @@ for stopping writers before an operator copy.
 
 ## Restore and update safely
 
-Schema 22 adds visual catalogues without rewriting schema-21 story history or
-earlier migration checksums. This is a supported 5.0 migration, not 4.x adoption.
+Schema 23 adds durable AI reference-development records without rewriting schema-22
+catalogues, story history or earlier migration checksums. This is a supported 5.0
+migration, not 4.x adoption.
 Keep a matched cold backup before updating; older code cannot read the new schema.
 
 For a playable save, use Import a playable save, check the preview, then Import

@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-5';
-const DATABASE_SCHEMA_VERSION = 22;
+const DATABASE_SCHEMA_VERSION = 23;
 const SQLITE_APPLICATION_ID = 0x494D3530; // ASCII "IM50"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
@@ -28,6 +28,7 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'providers-vault', status: 'available' }),
   Object.freeze({ id: 'fiction-illustrations', status: 'available' }),
   Object.freeze({ id: 'visual-catalogues', status: 'available' }),
+  Object.freeze({ id: 'ai-assisted-catalogue-design', status: 'available' }),
   Object.freeze({ id: 'story-covers-and-portraits', status: 'available' }),
   Object.freeze({ id: 'fiction-books', status: 'available' }),
   Object.freeze({ id: 'fiction-saves', status: 'available' }),

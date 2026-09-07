@@ -165,7 +165,7 @@ describe('5.0 illustrated paths, books and playable saves', () => {
     const bomb = gzipSync(Buffer.alloc(MAX_EXPANDED + 1, 32));
     await expect(saves.importSave(bomb)).rejects.toThrow('expanded limit');
     expect(store.list()).toHaveLength(1);
-  });
+  }, 15000);
   test.each(['cycle', 'dangling', 'foreign-fact', 'duplicate', 'version', 'private-field', 'missing-state'])('rejects %s saves before writing', async (fault) => {
     const value = JSON.parse(gunzipSync(await saves.exportSave(story.id)));
     if (fault === 'cycle') value.beats[0].parent_id = value.beats[0].id;

@@ -5,8 +5,9 @@ const { randomUUID, createHash } = require('node:crypto');
 const { normalizeImage, normalizeImageFile } = require('../imagery/art-store');
 const { keys, text, choice, fail } = require('./model');
 const { KINDS, templateInput, snapshot, imagePrompt } = require('./library-model');
+const { createLibraryDrafts } = require('./library-draft');
 
-function createFictionLibrary({ db, media, store, providers, generateIllustration }) {
+function createFictionLibrary({ db, media, store, providers, generateIllustration, chatCompletion }) {
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; }
@@ -14,6 +15,7 @@ function createFictionLibrary({ db, media, store, providers, generateIllustratio
   };
   const row = (id) => db.prepare('SELECT * FROM fiction_templates WHERE id = ? AND deleted = 0').get(id) || fail('Catalogue entry not found.', 'CATALOG_NOT_FOUND', 404);
   const generation = () => providers.exposure('illustrator', { data_categories: ['selected entry name and visible description', 'appearance or setting', 'art direction'], operation_count: 1 });
+  const drafts = createLibraryDrafts({ db, providers, chatCompletion });
   const expose = (entry) => ({ id: entry.id, kind: entry.kind, name: entry.name, description: entry.description, data: JSON.parse(entry.data_json), revision: entry.revision,
     image_id: entry.image_id, image_alt: entry.image_alt, updated_at: entry.updated_at,
     pending: Boolean(db.prepare("SELECT id FROM fiction_template_requests WHERE template_id = ? AND status = 'pending'").get(entry.id)),
@@ -174,9 +176,17 @@ function createFictionLibrary({ db, media, store, providers, generateIllustratio
       return store.create({ ...input, cast: [...(input.cast || []), ...characters.map((entry) => ({ id: entry.id, name: entry.name, description: entry.description, motive: entry.data.motive }))] }, { library, visuals, assets });
     } catch (error) { assets.filter((asset) => !db.prepare('SELECT id FROM fiction_assets WHERE id = ?').get(asset.id)).forEach(media.discard); throw error; }
   }
-  function reconcile() { return db.prepare("UPDATE fiction_template_requests SET status = 'interrupted', error_code = 'IMAGE_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes; }
-  const spend = () => db.prepare('SELECT coalesce(sum(cost_usd), 0) AS known_usd, coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts FROM fiction_template_requests').get();
-  return { get, list, create, update, remove, read, upload, generate, removeImage, describeImage, generation, createStory, reconcile, spend };
+  function reconcile() {
+    const images = db.prepare("UPDATE fiction_template_requests SET status = 'interrupted', error_code = 'IMAGE_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
+    return images + drafts.reconcile();
+  }
+  const spend = () => {
+    const images = db.prepare('SELECT coalesce(sum(cost_usd), 0) AS known_usd, coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts FROM fiction_template_requests').get();
+    const textDrafts = drafts.spend();
+    return { known_usd: images.known_usd + textDrafts.known_usd, unknown_attempts: images.unknown_attempts + textDrafts.unknown_attempts };
+  };
+  return { get, list, create, update, remove, read, upload, generate, removeImage, describeImage, generation,
+    draftGeneration: drafts.generation, draft: drafts.draft, createStory, reconcile, spend };
 }
 
 module.exports = { createFictionLibrary };

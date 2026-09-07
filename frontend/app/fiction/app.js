@@ -305,6 +305,10 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       // A lost response is reconciled by a free read, never by re-sending a
       // paid action or inventing a replacement generation.
       try { const data = await api(`/fiction/${story.id}`); if (alive(token)) renderStory(data.story); } catch { /* keep the visible error and draft */ }
+      // On narrow screens the manuscript can be taller than the viewport.
+      // Reconciliation must leave the actionable failure beside Continue in
+      // view instead of returning the reader to the prose above it.
+      $('fictionActionStatus').scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
     } finally { if (progressSerial === operation) stopProgress(); if (alive(token)) { busy = false; controls(); } }
   }
 
