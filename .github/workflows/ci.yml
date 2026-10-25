@@ -100,6 +100,12 @@ jobs:
       - name: Audit production dependencies
         run: cd backend && npm audit --omit=dev --audit-level=moderate
 
+      - name: Audit all dependencies, including development tools
+        run: |
+          for directory in . backend frontend e2e; do
+            (cd "$directory" && npm audit --audit-level=moderate) || exit 1
+          done
+
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest

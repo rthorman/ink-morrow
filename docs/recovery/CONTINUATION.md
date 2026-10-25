@@ -8,6 +8,14 @@ The stakeholder finds V5 a major regression in visual quality, depth and usabili
 
 The stakeholder uses ChatGPT on an Android tablet. Real touch, Android Back, IME, portrait/landscape, rotation, enlarged text and recoverable long tasks matter. Existing screenshots and source reviews are not substitutes for observing these tasks.
 
+## Dependency maintenance after B3
+
+The audit fix updates only brace-expansion 1.1.18 → 1.1.21 in root/backend/frontend
+lockfiles. ESLint and Jest stay on their existing major versions. CI also audits
+all dependencies in all four package directories, including development tools;
+the existing production-only audit remains. No runtime/schema or PDF change.
+B4 remains the next recovery work package.
+
 ## Current continuation checkpoint — B3
 
 B3 creative depth is implemented on the current V5 graph, application 5.0.0,
