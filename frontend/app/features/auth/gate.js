@@ -315,6 +315,7 @@ export function createAuthGate({ auth }) {
         if (busy) return;
         busy = true;
         lock.disabled = true;
+        render({ state: 'locked' }); // Hide private content before awaiting revocation.
         try {
           await auth.logout();
         } catch (error) {

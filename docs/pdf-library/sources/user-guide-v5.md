@@ -22,6 +22,14 @@ The same story, history, facts and paths continue whichever way you participate.
 The story text is the experience itself. It does not need a later conversion
 from a roleplay transcript into something that counts as the real story.
 
+The story workspace now has five labelled rooms. **Desk** keeps one readable passage in view; **Chronicle** holds loaded history, paths and episodes; **Codex** holds the current cast, references, facts and preferences; **Gallery** owns current image tools; **Gate** exports books and private saves. Library remains the global threshold for stories, worlds, characters and Scribes. The old story link still opens Desk.
+
+Previous, Next and Latest read saved prose without buying generation. Your device remembers the passage and a relative reading anchor for each story/path, including across reload. A newly completed passage is announced without pulling you out of earlier reading. Continue from history is explicitly labelled as targeting the latest moment on the named active path. Codex shows **current public state**, not facts as they were at the reading cursor. Chronicle's path selector explicitly changes the active destination; a separate read-only path browser is not yet available.
+
+**Steer** and **Ask at latest** open a full-height contribution sheet. Close, Escape or browser Back keeps the draft in the open session; a paid review returns to that same sheet when cancelled. Ask and Steer have separate buffers. These are not server-saved drafts: reload and Lock clear them. You may read and visit rooms during pending generation, but path/fact changes remain guarded. A late result never reopens a closed task.
+
+Settings provides type size, typeface, line spacing, column width, paper tone and a live sample, plus a reset and a return link. These preferences change only this device. Password change and separate ordinary/quality paid-approval resets are available there. Resetting approval affects future review; it does not cancel active work.
+
 ## Installation and the private threshold
 
 The local application serves its interface and API together. The production
@@ -215,7 +223,7 @@ request. This protection applies to explicit structured challenges, not a promis
 that every free-form character conversation is mechanically reliable. Contradictory
 generated sentences remain possible even when state cannot be changed that way.
 
-For stories with structured challenges, **Cast & story → Approaches to this
+For stories with structured challenges, **Codex → Approaches to this
 situation** offers explicit approaches and shows recorded outcomes. The game first
 checks locally whether an existing ruling still applies. Unchanged rulings need no
 paid review or provider purchase; new attempts use the ordinary paid boundary.
@@ -225,7 +233,7 @@ you inhabit do not supply that person's decisions for you.
 ## Optional consistency quality
 
 Standard play is the default: one storyteller call for each new passage or Ask.
-In **Cast & story → Story preferences**, Optional consistency quality offers
+In **Codex → Story preferences**, Optional consistency quality offers
 four choices. The choice belongs to this path, restores on rewind, and travels
 with a playable save. It is independent of play style and fourth-wall permission.
 
@@ -323,7 +331,7 @@ configuration file.
 ## Let characters address the reader
 
 Living-world has a separate **Characters may break the fourth wall** setting.
-Choose it when starting a story or in **Cast & story → Story preferences**. It
+Choose it when starting a story or in **Codex → Story preferences**. It
 defaults to **Never**. Changing it is local and makes no provider request.
 
 - **Never:** characters remain within the fiction rather than knowingly speaking
@@ -357,7 +365,7 @@ attempt its one disclosed repair, but it cannot guarantee semantic compliance.
 
 ## Optional character control
 
-Open **Cast & story** and select **Inhabit** beside a cast member. Read the
+Open **Codex** and select **Inhabit** beside a cast member. Read the
 handoff and choose **Take this role**. The reader now names the controlled
 character, and the input selector adds acting and speaking as that character.
 
@@ -386,7 +394,7 @@ When you inhabit someone, their feelings and expectations belong to you; the
 narrator must not choose those for you. Other people's views of them may change.
 Model prose remains fallible even with structured checks.
 
-Use **Cast & story** and evidence links to inspect what is recorded. **Catch me up**
+Use **Codex** and evidence links to inspect what is recorded. **Catch me up**
 also gathers current relationships, including older records. If something was
 recorded incorrectly, use a factual correction or return to an earlier path.
 Disagreeing with a character is not itself evidence that the game needs repair.
@@ -581,7 +589,7 @@ and the reader's earlier moments remain available for a particular detail.
 
 ## Illustrate a moment
 
-In Cast & story, choose Illustrate a moment. The dialog opens immediately. Select
+In Gallery, choose Illustrate a moment. The dialog opens immediately. Select
 a loaded story passage and supply an image description. Read earlier moments first
 to illustrate an older passage. Images appear **above** their associated prose.
 
@@ -601,7 +609,7 @@ retain the old illustration. Rewind can restore it. There is a 200-illustrated-m
 limit per path and a 400-image limit per story including historical assets.
 
 The same upload/paint choices are available for **Story cover: upload or paint**,
-each cast member's **Portrait**, and the selected world and Scribe under Cast & story.
+each cast member's **Portrait**, and the selected world and Scribe under Codex.
 The cover appears on Your stories and above the reader header, and enters the front
 of a book. Reference portraits stay in the private story/save, outside the book.
 These controls edit the story copy, never its reusable catalogue entry.
@@ -841,7 +849,7 @@ and after that moment. Begin as reader-director and follow until a conversation
 matters enough that you want to choose the words yourself.
 
 Create an alternative path before a consequential exchange if you want to
-preserve the original possibility. In Cast & story, choose Inhabit for the
+preserve the original possibility. In Codex, choose Inhabit for the
 person and confirm the handoff. Check the reader's control label before sending
 anything: a direction addressed to the storyteller and a character's spoken
 line are different kinds of input.
@@ -894,7 +902,7 @@ different experience without replacing the first.
 The ordinary passing path uses three calls; one repair can raise that to six.
 A failed review can cost money without producing a scene.
 9. Upload a story cover and explicitly paint a moment. Inspect world/Scribe and
-cast portraits in Cast & story; change a story portrait without changing its template.
+cast portraits in Codex; change a story portrait without changing its template.
 Correct descriptions locally. Passage art appears above its prose.
 10. Reach a satisfying pause, end the episode, and later begin another question.
 Use Catch me up on return rather than buying a recap.

@@ -27,6 +27,10 @@ For this project's development, the authoritative checkout is
 do not maintain an independent Windows source copy. Production deployment and
 starting a server remain explicit operator actions, separate from merging code.
 
+B1 is the five-room current-fiction workspace, not the isolated B0 demonstration. On an updated checkout, `bash setup.sh` followed by `npm start` runs the real application; there is no frontend build. `npm run prototype:recovery` still starts only the fictional B0 preview on a separate loopback port. Never use the demo as evidence that production data migrated or a live installation was updated.
+
+Device reading position survives reload, but session contribution drafts do not. A missing saved position falls back visibly without changing the story. Password change is in Settings. Lock hides private content immediately; if session revocation fails, the access error remains visible rather than claiming the server session ended. Back up the configured database/media using the existing cold-backup procedure before operational upgrades.
+
 ## Install without touching old data
 
 Use a supported Node 22 runtime providing node:sqlite and a compatible sharp

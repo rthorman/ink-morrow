@@ -8,6 +8,8 @@
 
 The guide is organized so a developer can implement a coherent slice without rediscovering the product contract. Names of proposed files, tables and endpoints below are design contracts, not descriptions of existing APIs. Specialist review findings and their disposition belong in [ROUND-TABLE-REVIEW.md](ROUND-TABLE-REVIEW.md).
 
+**Implementation tracking:** the stakeholder subsequently instructed proceeding with B1. [B0](B0-EXPERIENCE.md) and [B1](B1-DELIVERY.md) now have implementation/evidence records; later batches remain this engineering plan. B1 preserves current-state-only scope where richer queries are not yet implemented, and session-only drafts are not described as server saved.
+
 ## 1. Product boundary and decision status
 
 ### 1.1 What the recovery preserves

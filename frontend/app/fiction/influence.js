@@ -33,7 +33,7 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
   const $ = (id) => document.getElementById(id);
   const same = (story) => getCurrent()?.id === story.id && getCurrent()?.revision === story.revision && getCurrent()?.active_branch_id === story.active_branch_id;
   function evidence(beatId) {
-    const story = getCurrent(); if (!story || isBusy()) return;
+    const story = getCurrent(); if (!story) return;
     const body = el('div'); body.append(el('p', 'Loading the recorded moment…')); body.setAttribute('role', 'status');
     dialogs.openDialog({ title: 'Recorded evidence', body: [body], actions: [{ label: 'Close', className: 'btn-secondary', onClick: (close) => close(true) }] });
     api(`/fiction/${story.id}/evidence/${encodeURIComponent(beatId)}`).then(({ beat }) => {
@@ -48,7 +48,7 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     const node = button(label, () => evidence(id)); node.dataset.fictionRead = 'true'; return node;
   }
   function retire(fact) {
-    const story = getCurrent(); if (!story || isBusy()) return;
+    const story = getCurrent(); if (!story || isBusy() || story.pending) return;
     const reason = field('Reason for retiring it', 'input', '', { maxLength: 1500 }); const error = el('p'); error.setAttribute('role', 'alert');
     dialogs.openDialog({ title: 'Retire this remembered fact?', body: [el('p', fact.text), el('p', 'It will stop guiding future narration on this path. Earlier evidence remains. This is not needed to free memory.'), reason.wrapper, error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close() },
@@ -60,7 +60,7 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     ] });
   }
   function recall() {
-    const story = getCurrent(); if (!story || isBusy()) return;
+    const story = getCurrent(); if (!story) return;
     const query = field('Find a remembered fact', 'input', '', { maxLength: 200 });
     const results = el('div'); results.setAttribute('role', 'status'); let serial = 0;
     const search = async () => {
@@ -84,7 +84,7 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     query.control.focus();
   }
   function recap() {
-    const story = getCurrent(); if (!story || isBusy()) return;
+    const story = getCurrent(); if (!story) return;
     const body = el('div'); body.append(el('p', 'Gathering the recent story…')); body.setAttribute('role', 'status');
     dialogs.openDialog({ title: 'Return to this story', body: [body], actions: [{ label: 'Close', className: 'btn-secondary', onClick: (close) => close(true) }] });
     api(`/fiction/${story.id}/recap`).then(({ recap }) => {
@@ -128,8 +128,8 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     $('fictionDirectionScope').disabled = Boolean(blocked || $('fictionInputKind').value !== 'steer');
     for (const node of $('fictionInvitations').querySelectorAll('button')) node.disabled = Boolean(blocked || ended || $('fictionDirection').value.trim());
     for (const node of $('fictionChallenges').querySelectorAll('button')) node.disabled = Boolean(blocked || ended);
-    for (const node of document.querySelectorAll('[data-fiction-read]')) node.disabled = Boolean(blocked);
-    $('fictionRecall').disabled = Boolean(blocked); $('fictionRecap').disabled = Boolean(blocked); $('fictionClearFocus').disabled = Boolean(blocked);
+    for (const node of document.querySelectorAll('[data-fiction-read]')) node.disabled = !getCurrent();
+    $('fictionRecall').disabled = !getCurrent(); $('fictionRecap').disabled = !getCurrent(); $('fictionClearFocus').disabled = Boolean(blocked);
   }
   $('fictionRecall').addEventListener('click', recall);
   $('fictionRecap').addEventListener('click', recap);

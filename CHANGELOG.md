@@ -4,6 +4,17 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
+## Unreleased — recovery B1
+
+- Restore Library and five current-fiction rooms while preserving existing V5
+  catalogue, image, control, correction, episode, book and save workflows.
+- Add device reading return, explicit latest-action targets, shared contribution
+  sheets, typed session drafts and local reading preferences.
+- Keep reading available during pending generation; fence obsolete bookmark,
+  dialog and media completions; clear private UI immediately on Lock.
+- Update all six manuals and preserve the 35-page User Guide. Storage family,
+  schema 23 and playable-save version 1 remain unchanged; no deployment claimed.
+
 ## 5.0.0
 
 - New playable-fiction product: reader-director Follow/Steer, optional Inhabit,

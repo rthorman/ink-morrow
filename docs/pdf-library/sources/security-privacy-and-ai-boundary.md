@@ -29,6 +29,10 @@ No hosted multi-user account boundary, MFA or email recovery is claimed.
 Deploying the software for other people or adding remote access changes the
 threat model and needs a deliberate review.
 
+B1 keeps all five rooms behind the existing authenticated bootstrap. Lock hides and clears current story content, contribution buffers and password fields before awaiting logout; stale result handlers remain fenced by the lifecycle epoch. Room changes within the same story retain pending-operation authority instead of creating a new purchase. The full-height contribution task and paid review share the modal stack; background dialogs are inert and hidden from accessibility while the top review is active.
+
+Browser storage for reading return contains bounded IDs and relative anchors, not prose, private world truth, credentials or contribution drafts. Current Codex facts remain reader-public; no claim of historical private-state inspection is made. Ordinary and quality approval resets clear the corresponding local/session consent family and do not cancel already authorized work. Book/private-save exposure boundaries remain distinct in Gate.
+
 ## Data inventory and retention
 
 The database holds owner authentication, session digests, provider assignments,

@@ -10,7 +10,7 @@ The stakeholder uses ChatGPT on an Android tablet. Real touch, Android Back, IME
 
 ## Source identities and architecture
 
-- Runtime implementation baseline: main at `9647cdec4fc8ef4762e407e9c0ba705d563694fb`, V5.0.0, schema 23, family `ink-morrow-5`. Later planning commits on main do not imply changed runtime behavior. Fetch and compare actual main before implementing.
+- Runtime implementation baseline: main at `9647cdec4fc8ef4762e407e9c0ba705d563694fb`, V5.0.0, schema 23, family `ink-morrow-5`. The later B0 work was isolated; B1 now changes the current-fiction workspace without changing schema/save format. See B1-DELIVERY.md and fetch actual main before continuing. Fetch and compare actual main before implementing.
 - Historical comparator: `archive/v4.1-pre-v5`, commit `74741f7d4f6b7a29f7e3d19d795ab0dd252700cc`, V4.1.0, schema 18, family `ink-morrow-4`. This is final pre-V5 main, richer than the original beta. See [baseline source map](V4.1-BASELINE.md).
 - Production uses authenticated `backend/src/app.js` with `legacyEnabled: false`; active browser entry is `frontend/app/fiction/bootstrap.js`. Retained legacy files are historical patterns/helpers, not a second application to enable.
 - V5 already has restored catalogue studios, seed-based unsaved AI drafts, uploads/paintings, covers/passage art, reader pagination/error feedback, nine book formats and all-path strict version-1 `.inkmorrow5` saves. Do not rebuild them as if absent.
@@ -27,9 +27,9 @@ The stakeholder uses ChatGPT on an Android tablet. Real touch, Android Back, IME
 
 ## Not done / do not infer completion
 
-B0 now has an isolated synthetic prototype; no production recovery runtime, schema migration or release has been implemented. No owner database, live deployment or external machine checkout has been inspected or changed. No old server was restarted, no paid provider calls made and no live literary-quality study conducted. B0 browser/lint/audit evidence is recorded in B0-EXPERIENCE.md; actual tablet and narrative acceptance remain pending. Shipped manuals remain for the unchanged V5 runtime.
+B0 has the isolated synthetic prototype; B1 implements the current-fiction workspace. No schema migration, new release number or deployment is part of these batches. No owner database, live deployment or external machine checkout has been inspected or changed. No old server was restarted, no paid provider calls made and no live literary-quality study conducted. B0 browser/lint/audit evidence is recorded in B0-EXPERIENCE.md; actual tablet and narrative acceptance remain pending. All six shipped manuals have been updated for the B1 workspace; the application remains V5.0.0/schema 23.
 
-The guide's proposed table names, endpoints, budgets and module splits are designs, not existing APIs. B0–B9 rows are not completed work. Real-device and narrative acceptance remain distinct from source/CI evidence.
+The guide's proposed table names, endpoints, budgets and module splits are designs, not existing APIs. B0/B1 implementation and evidence are recorded separately; B2–B9 remain proposed work. Real-device and narrative acceptance remain distinct from source/CI evidence.
 
 ## Pending policy / scope decisions
 
@@ -47,11 +47,17 @@ Browser fixtures cover all five rooms, reading return, source evidence, fork/pri
 
 Prior main CI failed its production dependency audit and skipped E2E. Narrow compatible patches to the vulnerable production dependencies accompany B0 so the exact-head CI policy can be met; pending major-version proposals are not adopted wholesale. Actual test and CI outcomes must be checked against the merged source head. No live provider calls, production database access or deployment are authorized by this batch.
 
+## B1 implementation update
+
+The stakeholder explicitly requested “Continue with B1.” The real V5 application now has Library and five current-fiction rooms, per-device story/path reading anchors, a shared full-height contribution sheet, typed session-only buffers, current-head Codex/Gallery/Chronicle adapters, local reading preferences, password change and paid-approval resets. Pending replies permit read-only navigation and do not steal the cursor/room. Lock hides and clears private UI immediately before awaiting logout. Existing V5 catalogue development, image tools, book/save export/import and control/correction/episode workflows remain reachable.
+
+[B1-DELIVERY.md](B1-DELIVERY.md) is the detailed delivery/verification record with eight production-fixture screenshots. No backend authority, schema, save format, legacy-runtime flag or public release number changes. Six manuals and their PDF manifest are regenerated together; the User Guide stays 35 A4 pages. B1 source/CI and emulated-browser evidence do not certify actual Android use, paid narrative quality or deployment. Codex still shows current public state; branch selection changes the active destination; historical query/draft durability and complete media inventories remain later batches.
+
 ## Next concrete work
 
 1. Read the guide and final-4.1 source map, fetch current main, inspect the worktree and reconcile newer changes. Resume from main rather than deleted feature/release integration branches.
-2. **B0 is implemented for review:** inspect B0-EXPERIENCE.md, the interactive artifact and screenshots. Stakeholder feedback, actual tablet review and any resulting visual/interaction refinements come before B1 cutover.
-3. Obtain stakeholder feedback on that concrete B0 experience before broad runtime cutover. A useful five-room shell comes in B1 only when all existing tasks have working adapters.
+2. **B1 is implemented:** inspect B1-DELIVERY.md and its production fixture screenshots; real Android device review remains unobserved. The stakeholder explicitly instructed proceeding with B1; do not reinterpret this as proof of a hands-on B0 review.
+3. **B2 is next:** implement trustworthy bounded inspection/provenance and durable private drafts, with readers/reducers/writers/save closure/public projections together. Preserve the working B1 adapters and current owner workflows.
 4. Subsequent runtime slices follow the exact-head five-check CI policy and keep data readers/reducers/writers/save closure/projections together. Direct publication of these planning documents does not waive future code-review/release requirements.
 5. Keep this state file current when a batch or decision changes. Record source integration, checks, prototype review, actual tablet evidence, live narrative evaluation and deployment separately.
 
