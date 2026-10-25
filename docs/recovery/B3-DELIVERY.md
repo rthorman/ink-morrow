@@ -91,7 +91,7 @@ Narrative response version 2 distinguishes intention, attempt, reported claim an
 occurred event. Submitted Steer/Ask wishes cannot prove world events. Act can
 record an intention/attempt or explicitly owned personal claim, not its desired
 external outcome. Goal dispositions distinguish achieved, abandoned, failed and
-superseded; legacy unspecified resolution is never reclassified as achievement.
+superseded; legacy unspecified resolution is never reclassified as achievement. An explicitly recorded pre-taxonomy episode payoff retains its historical identity through aftermath, without promoting its goals to achieved.
 Quiet opportunities receive one eligible category nomination per round regardless
 of whether one, three or twelve promises exist. Quiet/goal-free fiction remains
 valid; no crisis, quest or payoff is compulsory.
@@ -146,7 +146,7 @@ Rollback/reopen tests cover interruption during migration 25 as well as migratio
 Local verification passed lint, setup safety, brand/release and deferred-PDF
 integrity checks; the production dependency audit found no vulnerabilities.
 Backend full regression passed 526 tests before the final secret-reveal/Say cases;
-the expanded 24-case narrative-contract suite passed afterward. Frontend passed
+the expanded narrative-contract suite passed afterward. Frontend passed
 333 tests. Desktop passed 51 browser journeys; five affected desktop journeys were
 rerun after the mobile layout/restore changes. Mobile passed all 51 on the polished
 interface, including a 440-pixel-high creative viewport and the reload-task race.

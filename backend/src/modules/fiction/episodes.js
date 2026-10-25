@@ -17,7 +17,10 @@ function recordEpisode(state, changes, beatId, lookup = () => null) {
   const episode = state.episode;
   const ids = episode.goal_ids || [];
   const goals = episodeGoals(state, lookup);
-  const complete = ids.length > 0 && goals.length === ids.length && goals.every((fact) => fact.status === 'resolved'&&(state.version!==2||fact.resolution_disposition==='achieved'));
+  // Keep a payoff explicitly recorded before outcome taxonomy existed. This
+  // preserves history; it never upgrades an unspecified goal to achievement.
+  const inheritedPayoff = state.version===2 && episode.payoff_beat_id && goals.every(fact=>fact.resolution_disposition===undefined||['achieved','legacy-unspecified'].includes(fact.resolution_disposition));
+  const complete = ids.length > 0 && goals.length === ids.length && goals.every((fact) => fact.status === 'resolved'&&(state.version!==2||fact.resolution_disposition==='achieved'||inheritedPayoff));
   if (complete && (episode.payoff_beat_id || changes.some((change) => change.op === 'resolve' && ids.includes(change.fact?.id)))) {
     episode.phase = episode.payoff_beat_id ? 'aftermath' : 'payoff';
     episode.payoff_beat_id ||= beatId;

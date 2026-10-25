@@ -579,4 +579,23 @@ describe('B3 narrative and portable authority contracts', () => {
     const value = await exported();
     expect(() => validateSave(value)).not.toThrow();
   });
+  test('an explicitly recorded pre-taxonomy payoff survives without inventing achievement', () => {
+    const { recordEpisode } = require('../src/modules/fiction/episodes');
+    const state = structuredClone(store.current(story.id).state);
+    state.episode.phase = 'payoff';
+    state.episode.payoff_beat_id = story.head_beat_id;
+    for (const id of state.episode.goal_ids) {
+      const fact = state.facts.find((fact) => fact.id === id);
+      fact.status = 'resolved';
+      delete fact.resolution_disposition;
+    }
+    recordEpisode(state, [], 'new-aftermath');
+    expect(state.episode.phase).toBe('aftermath');
+    expect(state.episode.payoff_beat_id).toBe(story.head_beat_id);
+    expect(
+      state.facts
+        .filter((fact) => fact.kind === 'goal')
+        .every((fact) => fact.resolution_disposition === undefined),
+    ).toBe(true);
+  });
 });
