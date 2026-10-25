@@ -44,7 +44,7 @@ module.exports = [
   {
     // Frontend app: native browser ES modules (they also load under
     // jest/jsdom, so both worlds' globals apply; process is guarded).
-    files: ['frontend/app/**/*.js'],
+    files: ['frontend/app/**/*.js', 'prototypes/**/*.js'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -80,7 +80,7 @@ module.exports = [
     },
   },
   {
-    files: ['e2e/*.cjs'],
+    files: ['e2e/*.cjs', 'scripts/*recovery*.cjs'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'commonjs',

@@ -27,7 +27,7 @@ The stakeholder uses ChatGPT on an Android tablet. Real touch, Android Back, IME
 
 ## Not done / do not infer completion
 
-No recovery runtime code, schema migration, prototype or release has been implemented. No owner database, live deployment or external machine checkout has been inspected or changed. No old server was restarted, no paid provider calls made and no live literary-quality study conducted. No application test success is claimed from this documentation task. Shipped manuals remain for the unchanged V5 runtime.
+B0 now has an isolated synthetic prototype; no production recovery runtime, schema migration or release has been implemented. No owner database, live deployment or external machine checkout has been inspected or changed. No old server was restarted, no paid provider calls made and no live literary-quality study conducted. B0 browser/lint/audit evidence is recorded in B0-EXPERIENCE.md; actual tablet and narrative acceptance remain pending. Shipped manuals remain for the unchanged V5 runtime.
 
 The guide's proposed table names, endpoints, budgets and module splits are designs, not existing APIs. B0–B9 rows are not completed work. Real-device and narrative acceptance remain distinct from source/CI evidence.
 
@@ -39,17 +39,25 @@ The guide's proposed table names, endpoints, budgets and module splits are desig
 - **D4:** no new public recovery version number has been selected. Final-4.1 archive tagging is not a new release declaration.
 - Local solo tools are explicit follow-on **B9** after core B0–B8, with state/result/save requirements. Do not claim full 4.1 tool parity before B9 or silently erase the deferral.
 
+## B0 implementation update
+
+The stakeholder subsequently requested implementation according to the plan. The first batch is the populated, isolated five-room prototype in `prototypes/recovery/`, with [interactive preview/screenshots/review tasks](B0-EXPERIENCE.md) and [38-row capability ledger](CAPABILITY-LEDGER.md). B0 demonstrates the recovery experience using fictional data; it does not mount the old runtime or replace current V5 surfaces.
+
+Browser fixtures cover all five rooms, reading return, source evidence, fork/privacy scope, recoverable synthetic drafts, studio comparison, paid review, failure/unknown status, demo Lock, responsive layouts and access boundaries. Automated Chromium checks are not evidence of actual Android IME/platform behavior or literary quality. A self-contained artifact embeds all presentation assets and licenses and is tested without asset fetches.
+
+Prior main CI failed its production dependency audit and skipped E2E. Narrow compatible patches to the vulnerable production dependencies accompany B0 so the exact-head CI policy can be met; pending major-version proposals are not adopted wholesale. Actual test and CI outcomes must be checked against the merged source head. No live provider calls, production database access or deployment are authorized by this batch.
+
 ## Next concrete work
 
 1. Read the guide and final-4.1 source map, fetch current main, inspect the worktree and reconcile newer changes. Resume from main rather than deleted feature/release integration branches.
-2. **B0 is next:** create a populated, tablet-reviewable five-room prototype and a row-by-row 4.1/V5 capability ledger, marking current, restored, deferred and policy-gated behavior. Use local fixtures; no providers or replacement server deployment required. Include loading, failure, paid review, keyboard-open and recovery states.
+2. **B0 is implemented for review:** inspect B0-EXPERIENCE.md, the interactive artifact and screenshots. Stakeholder feedback, actual tablet review and any resulting visual/interaction refinements come before B1 cutover.
 3. Obtain stakeholder feedback on that concrete B0 experience before broad runtime cutover. A useful five-room shell comes in B1 only when all existing tasks have working adapters.
 4. Subsequent runtime slices follow the exact-head five-check CI policy and keep data readers/reducers/writers/save closure/projections together. Direct publication of these planning documents does not waive future code-review/release requirements.
 5. Keep this state file current when a batch or decision changes. Record source integration, checks, prototype review, actual tablet evidence, live narrative evaluation and deployment separately.
 
 ## Remaining maintenance
 
-Thirteen dependency PRs remain open and are separate from product recovery. Checkout and Express branches are stale against the runtime baseline; refresh before evaluating. Major Express/Jest/jsdom/ESLint/dotenv/Actions upgrades require compatibility review. No dependency was upgraded by this task. Never import old files wholesale merely to resolve stale branch context.
+Thirteen dependency PRs remain open and are separate from product recovery. Checkout and Express branches are stale against the runtime baseline; refresh before evaluating. Major Express/Jest/jsdom/ESLint/dotenv/Actions upgrades require compatibility review. The B0 verification prerequisite updates only compatible production security patches; the sharp-wasm patch proposal may now be superseded. Reconcile current PR state before dependency triage. Never import old files wholesale merely to resolve stale branch context.
 
 ## Verification and publication
 

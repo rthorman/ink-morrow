@@ -29,6 +29,10 @@ implemented. See the [planning index](docs/recovery/README.md),
 [implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
 [continuation state](docs/recovery/CONTINUATION.md).
 
+The [B0 experience prototype](docs/recovery/B0-EXPERIENCE.md) provides an
+interactive fictional example and screenshots for reviewing the proposed
+five-room workspace. It is isolated from production stories and providers.
+
 ## What 5.0 includes
 
 - Two curated openings, or your own situation and cast; starting is local and free.
