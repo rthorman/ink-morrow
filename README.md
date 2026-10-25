@@ -21,6 +21,14 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
+## Recovery planning
+
+The proposed recovery uses the final Version 4.1 experience as its historical
+reference while retaining Version 5's playable-fiction model. It is not yet
+implemented. See the [planning index](docs/recovery/README.md),
+[implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
+[continuation state](docs/recovery/CONTINUATION.md).
+
 ## What 5.0 includes
 
 - Two curated openings, or your own situation and cast; starting is local and free.

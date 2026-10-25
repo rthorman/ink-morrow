@@ -1,0 +1,1486 @@
+{
+  "date": "2026-10-25",
+  "status": "completed",
+  "repository": "rthorman/ink-morrow",
+  "authorization": "Stakeholder requested pruning unnecessary branches and preserving recovery guides/state on main.",
+  "main_before": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+  "historical_v4_1": {
+    "tag": "archive/v4.1-pre-v5",
+    "commit": "74741f7d4f6b7a29f7e3d19d795ab0dd252700cc",
+    "application_version": "4.1.0",
+    "database_schema": 18,
+    "purpose": "Final pre-V5 source reference, not new release certification"
+  },
+  "removed": [
+    {
+      "branch": "codex/v3.0.2-cast-cost-fixes",
+      "sha": "29a16cadff83af5a4ce19163bcccca61e0eb0d34",
+      "date": "2026-08-30",
+      "ahead": 0,
+      "behind": 124,
+      "base": "29a16cadff83af5a4ce19163bcccca61e0eb0d34",
+      "prs": [
+        {
+          "number": 1,
+          "head": "codex/v3.0.2-cast-cost-fixes",
+          "headSha": "29a16cadff83af5a4ce19163bcccca61e0eb0d34",
+          "base": "main",
+          "merged": "2026-08-30T19:40:58Z",
+          "state": "closed",
+          "mergeSha": "abc21334008d31fc9c0e0d01dd0b0d5e427ad1fb",
+          "url": "https://github.com/rthorman/ink-morrow/pull/1"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.0.3-cast-world-edit",
+      "sha": "c74e4e1c6938fbd36ebd2da16f1a292bbc567d0c",
+      "date": "2026-08-30",
+      "ahead": 0,
+      "behind": 122,
+      "base": "c74e4e1c6938fbd36ebd2da16f1a292bbc567d0c",
+      "prs": [
+        {
+          "number": 2,
+          "head": "codex/v3.0.3-cast-world-edit",
+          "headSha": "c74e4e1c6938fbd36ebd2da16f1a292bbc567d0c",
+          "base": "main",
+          "merged": "2026-08-30T20:00:31Z",
+          "state": "closed",
+          "mergeSha": "ab99fddeb3bb674f8096dbc75e3fc082a20abfc8",
+          "url": "https://github.com/rthorman/ink-morrow/pull/2"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.0.4-persistent-paid-consent",
+      "sha": "4f3727aaba6bbde2e992abbf995bdaa95b06042e",
+      "date": "2026-08-30",
+      "ahead": 0,
+      "behind": 119,
+      "base": "4f3727aaba6bbde2e992abbf995bdaa95b06042e",
+      "prs": [
+        {
+          "number": 3,
+          "head": "codex/v3.0.4-persistent-paid-consent",
+          "headSha": "4f3727aaba6bbde2e992abbf995bdaa95b06042e",
+          "base": "main",
+          "merged": "2026-08-30T20:32:39Z",
+          "state": "closed",
+          "mergeSha": "ba4a1981c70ac15286ba9870f5077c1928447072",
+          "url": "https://github.com/rthorman/ink-morrow/pull/3"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.0.5-stories-assets-reasoning",
+      "sha": "ba183e655818f5006257b8dc3ab56bbd6b04b6b7",
+      "date": "2026-08-30",
+      "ahead": 0,
+      "behind": 117,
+      "base": "ba183e655818f5006257b8dc3ab56bbd6b04b6b7",
+      "prs": [
+        {
+          "number": 4,
+          "head": "codex/v3.0.5-stories-assets-reasoning",
+          "headSha": "ba183e655818f5006257b8dc3ab56bbd6b04b6b7",
+          "base": "main",
+          "merged": "2026-08-30T21:23:44Z",
+          "state": "closed",
+          "mergeSha": "f61a783f3878667f739e41f8b120f599a971c200",
+          "url": "https://github.com/rthorman/ink-morrow/pull/4"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.1.0-continuity-ledger",
+      "sha": "86f59fb3ab942eddbe6c217f585451fb0fd755e5",
+      "date": "2026-08-30",
+      "ahead": 0,
+      "behind": 115,
+      "base": "86f59fb3ab942eddbe6c217f585451fb0fd755e5",
+      "prs": [
+        {
+          "number": 5,
+          "head": "codex/v3.1.0-continuity-ledger",
+          "headSha": "86f59fb3ab942eddbe6c217f585451fb0fd755e5",
+          "base": "main",
+          "merged": "2026-08-30T22:29:24Z",
+          "state": "closed",
+          "mergeSha": "38329c92d9810eb80deca617a9c6968492539c00",
+          "url": "https://github.com/rthorman/ink-morrow/pull/5"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.2.0-portable-archives",
+      "sha": "5ceb37dba5047384af7698bb503a719da3bdbaea",
+      "date": "2026-08-31",
+      "ahead": 0,
+      "behind": 113,
+      "base": "5ceb37dba5047384af7698bb503a719da3bdbaea",
+      "prs": [
+        {
+          "number": 6,
+          "head": "codex/v3.2.0-portable-archives",
+          "headSha": "5ceb37dba5047384af7698bb503a719da3bdbaea",
+          "base": "main",
+          "merged": "2026-08-31T05:23:00Z",
+          "state": "closed",
+          "mergeSha": "500b6b36ceb30bc9166767fe790eea73da08dba1",
+          "url": "https://github.com/rthorman/ink-morrow/pull/6"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.2.1-security-baseline",
+      "sha": "2db34d2cdca019b69029dff2023b391df2ae3096",
+      "date": "2026-08-31",
+      "ahead": 0,
+      "behind": 109,
+      "base": "2db34d2cdca019b69029dff2023b391df2ae3096",
+      "prs": [
+        {
+          "number": 7,
+          "head": "codex/v3.2.1-security-baseline",
+          "headSha": "2db34d2cdca019b69029dff2023b391df2ae3096",
+          "base": "main",
+          "merged": "2026-08-31T07:25:55Z",
+          "state": "closed",
+          "mergeSha": "5b5d91cbb6a4299ebf33971ebc2202e1545a9c8a",
+          "url": "https://github.com/rthorman/ink-morrow/pull/7"
+        }
+      ]
+    },
+    {
+      "branch": "codex/v3.2.2-generation-flow",
+      "sha": "24b88eb99bb9ef475dc98872274a18aa735f4fbd",
+      "date": "2026-08-31",
+      "ahead": 0,
+      "behind": 106,
+      "base": "24b88eb99bb9ef475dc98872274a18aa735f4fbd",
+      "prs": [
+        {
+          "number": 18,
+          "head": "codex/v3.2.2-generation-flow",
+          "headSha": "24b88eb99bb9ef475dc98872274a18aa735f4fbd",
+          "base": "main",
+          "merged": "2026-08-31T09:25:57Z",
+          "state": "closed",
+          "mergeSha": "20b163004f1cbc417e8d707d165c2dac3a27535b",
+          "url": "https://github.com/rthorman/ink-morrow/pull/18"
+        }
+      ]
+    },
+    {
+      "branch": "docs/consolidate-user-guide",
+      "sha": "5b459009383cf5984335616e919fa151b54fec52",
+      "date": "2026-09-02",
+      "ahead": 1,
+      "behind": 60,
+      "base": "43a30beb2b47eec2175fbcd38be101654e31eec7",
+      "prs": [
+        {
+          "number": 51,
+          "head": "docs/consolidate-user-guide",
+          "headSha": "5b459009383cf5984335616e919fa151b54fec52",
+          "base": "main",
+          "merged": "2026-09-02T11:23:42Z",
+          "state": "closed",
+          "mergeSha": "6c9ce7dfad4f770993cf047fe513e1c803277aaa",
+          "url": "https://github.com/rthorman/ink-morrow/pull/51"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "docs/fix-technical-pdf-code-blocks",
+      "sha": "8f440d0e98248bcf0196a03b7b25b0b890d70295",
+      "date": "2026-09-02",
+      "ahead": 1,
+      "behind": 59,
+      "base": "6c9ce7dfad4f770993cf047fe513e1c803277aaa",
+      "prs": [
+        {
+          "number": 52,
+          "head": "docs/fix-technical-pdf-code-blocks",
+          "headSha": "8f440d0e98248bcf0196a03b7b25b0b890d70295",
+          "base": "main",
+          "merged": "2026-09-02T11:34:35Z",
+          "state": "closed",
+          "mergeSha": "6322b078884e8536a8a86420a40e553aec9e193a",
+          "url": "https://github.com/rthorman/ink-morrow/pull/52"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "docs/pdf-library",
+      "sha": "0223ecd7263cb2e0a8d3da61163dfadc134aa3a7",
+      "date": "2026-09-02",
+      "ahead": 0,
+      "behind": 62,
+      "base": "0223ecd7263cb2e0a8d3da61163dfadc134aa3a7",
+      "prs": [
+        {
+          "number": 49,
+          "head": "docs/pdf-library",
+          "headSha": "0223ecd7263cb2e0a8d3da61163dfadc134aa3a7",
+          "base": "main",
+          "merged": "2026-09-01T22:24:46Z",
+          "state": "closed",
+          "mergeSha": "a0100f7568f28aa70aff858cc4f86ea019c3fae3",
+          "url": "https://github.com/rthorman/ink-morrow/pull/49"
+        }
+      ]
+    },
+    {
+      "branch": "feat/manuscript-workspace-author-canon",
+      "sha": "aa4350a1882cc15b5f6dcdb9904061b30b71ee60",
+      "date": "2026-09-01",
+      "ahead": 4,
+      "behind": 66,
+      "base": "7c86b7e0434e1e6fab3def8e79d16a048326bd86",
+      "prs": [
+        {
+          "number": 47,
+          "head": "feat/manuscript-workspace-author-canon",
+          "headSha": "aa4350a1882cc15b5f6dcdb9904061b30b71ee60",
+          "base": "main",
+          "merged": "2026-09-01T21:07:52Z",
+          "state": "closed",
+          "mergeSha": "c0df429f8fcf9dae57a4ef38a9d08649170376ff",
+          "url": "https://github.com/rthorman/ink-morrow/pull/47"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 4,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "feature/5.0-catalogue-studio",
+      "sha": "0b64f838fad245a2bb9f6c7f0d98febf2c7f49da",
+      "date": "2026-09-07",
+      "ahead": 0,
+      "behind": 1,
+      "base": "0b64f838fad245a2bb9f6c7f0d98febf2c7f49da",
+      "prs": [
+        {
+          "number": 84,
+          "head": "feature/5.0-catalogue-studio",
+          "headSha": "0b64f838fad245a2bb9f6c7f0d98febf2c7f49da",
+          "base": "main",
+          "merged": "2026-09-07T08:52:44Z",
+          "state": "closed",
+          "mergeSha": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+          "url": "https://github.com/rthorman/ink-morrow/pull/84"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0-visual-library",
+      "sha": "63489ce49441403a4887d8c01d295b35abcd4e34",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 3,
+      "base": "63489ce49441403a4887d8c01d295b35abcd4e34",
+      "prs": [
+        {
+          "number": 79,
+          "head": "feature/5.0-visual-library",
+          "headSha": "63489ce49441403a4887d8c01d295b35abcd4e34",
+          "base": "main",
+          "merged": "2026-09-04T15:38:43Z",
+          "state": "closed",
+          "mergeSha": "88b677ce6c5e1be2e4c7356cda07dfe043c5037c",
+          "url": "https://github.com/rthorman/ink-morrow/pull/79"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-clear-influence",
+      "sha": "7182d0df41965b73a44896af7a5c0e9fa82e4c52",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 15,
+      "base": "7182d0df41965b73a44896af7a5c0e9fa82e4c52",
+      "prs": [
+        {
+          "number": 73,
+          "head": "feature/5.0.0-clear-influence",
+          "headSha": "7182d0df41965b73a44896af7a5c0e9fa82e4c52",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T12:18:36Z",
+          "state": "closed",
+          "mergeSha": "2e6cd3b9bbee2fe063a2e9620012bf28e6bf1e6a",
+          "url": "https://github.com/rthorman/ink-morrow/pull/73"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-consistency-quality",
+      "sha": "83b80adb2af4648bb3a35b1526bd3189df55cb66",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 11,
+      "base": "83b80adb2af4648bb3a35b1526bd3189df55cb66",
+      "prs": [
+        {
+          "number": 75,
+          "head": "feature/5.0.0-consistency-quality",
+          "headSha": "83b80adb2af4648bb3a35b1526bd3189df55cb66",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T13:16:47Z",
+          "state": "closed",
+          "mergeSha": "25bffb45a589c0eed7edeb0564884dfeb3d5a112",
+          "url": "https://github.com/rthorman/ink-morrow/pull/75"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-history-director",
+      "sha": "a590bb5bb258ef7ad9459e465329ebeba173e9d0",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 23,
+      "base": "a590bb5bb258ef7ad9459e465329ebeba173e9d0",
+      "prs": [
+        {
+          "number": 70,
+          "head": "feature/5.0.0-history-director",
+          "headSha": "a590bb5bb258ef7ad9459e465329ebeba173e9d0",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T09:40:16Z",
+          "state": "closed",
+          "mergeSha": "282cdedaa8810bc459e33e61597873e1a552df49",
+          "url": "https://github.com/rthorman/ink-morrow/pull/70"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-illustrated-saves",
+      "sha": "4e5c3ab0268ddd3573e10342a4e676bfb72e865e",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 21,
+      "base": "4e5c3ab0268ddd3573e10342a4e676bfb72e865e",
+      "prs": [
+        {
+          "number": 71,
+          "head": "feature/5.0.0-illustrated-saves",
+          "headSha": "4e5c3ab0268ddd3573e10342a4e676bfb72e865e",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T10:26:22Z",
+          "state": "closed",
+          "mergeSha": "1e2083aa9dc1f9acba3ddd0d41b582c85d1168a0",
+          "url": "https://github.com/rthorman/ink-morrow/pull/71"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-people-and-episodes",
+      "sha": "7ea7c6dcb3d31305be40083706fae18e9b9614aa",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 13,
+      "base": "7ea7c6dcb3d31305be40083706fae18e9b9614aa",
+      "prs": [
+        {
+          "number": 74,
+          "head": "feature/5.0.0-people-and-episodes",
+          "headSha": "7ea7c6dcb3d31305be40083706fae18e9b9614aa",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T12:43:52Z",
+          "state": "closed",
+          "mergeSha": "bea7fa3bb6ba55c0c12f2ea84a6c134c1b3bacc7",
+          "url": "https://github.com/rthorman/ink-morrow/pull/74"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-product-cutover",
+      "sha": "6c4280a20dd938bcd2ab3f6a27e110d8e9e4121d",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 9,
+      "base": "6c4280a20dd938bcd2ab3f6a27e110d8e9e4121d",
+      "prs": [
+        {
+          "number": 76,
+          "head": "feature/5.0.0-product-cutover",
+          "headSha": "6c4280a20dd938bcd2ab3f6a27e110d8e9e4121d",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T14:13:41Z",
+          "state": "closed",
+          "mergeSha": "93a8f14eb743610e6fe7e1592bfb8e26e2654f6c",
+          "url": "https://github.com/rthorman/ink-morrow/pull/76"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-reader-director",
+      "sha": "02b23f246564626e0206ce33b65b5b7f5874dbb0",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 25,
+      "base": "02b23f246564626e0206ce33b65b5b7f5874dbb0",
+      "prs": [
+        {
+          "number": 69,
+          "head": "feature/5.0.0-reader-director",
+          "headSha": "02b23f246564626e0206ce33b65b5b7f5874dbb0",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T09:10:34Z",
+          "state": "closed",
+          "mergeSha": "30a1362e1a753310a51b68dccbf2fc5becb640f8",
+          "url": "https://github.com/rthorman/ink-morrow/pull/69"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-story-foundations",
+      "sha": "077aa7606e6de0857526ca508e94914f1a96fe18",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 27,
+      "base": "077aa7606e6de0857526ca508e94914f1a96fe18",
+      "prs": [
+        {
+          "number": 68,
+          "head": "feature/5.0.0-story-foundations",
+          "headSha": "077aa7606e6de0857526ca508e94914f1a96fe18",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T08:26:25Z",
+          "state": "closed",
+          "mergeSha": "23d52e6fc85bb6f3a699e046da469c1682788413",
+          "url": "https://github.com/rthorman/ink-morrow/pull/68"
+        }
+      ]
+    },
+    {
+      "branch": "feature/5.0.0-trustworthy-world",
+      "sha": "9ac143420aab976da553a3fbfd4e866ab8edab0c",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 18,
+      "base": "9ac143420aab976da553a3fbfd4e866ab8edab0c",
+      "prs": [
+        {
+          "number": 72,
+          "head": "feature/5.0.0-trustworthy-world",
+          "headSha": "9ac143420aab976da553a3fbfd4e866ab8edab0c",
+          "base": "release/5.0.0",
+          "merged": "2026-09-04T11:02:01Z",
+          "state": "closed",
+          "mergeSha": "499e23a70817177313958848580c6e6ba1437b54",
+          "url": "https://github.com/rthorman/ink-morrow/pull/72"
+        }
+      ]
+    },
+    {
+      "branch": "fix/5.0-continue-feedback",
+      "sha": "5536576f9cb3de2e09a1d5d096337c89ef0ff178",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 5,
+      "base": "5536576f9cb3de2e09a1d5d096337c89ef0ff178",
+      "prs": [
+        {
+          "number": 78,
+          "head": "fix/5.0-continue-feedback",
+          "headSha": "5536576f9cb3de2e09a1d5d096337c89ef0ff178",
+          "base": "main",
+          "merged": "2026-09-04T14:50:11Z",
+          "state": "closed",
+          "mergeSha": "400ce3b4b93c63f71b772f9adeb00b084ee8092b",
+          "url": "https://github.com/rthorman/ink-morrow/pull/78"
+        }
+      ]
+    },
+    {
+      "branch": "fix/canonical-manuscript-start",
+      "sha": "907e7a4adbecb6c50815c0385b975c5d4a4f5136",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 71,
+      "base": "9829a80eb0569452b3882cfec62b7ff3cedfc640",
+      "prs": [
+        {
+          "number": 42,
+          "head": "fix/canonical-manuscript-start",
+          "headSha": "907e7a4adbecb6c50815c0385b975c5d4a4f5136",
+          "base": "main",
+          "merged": "2026-09-01T14:53:46Z",
+          "state": "closed",
+          "mergeSha": "bcd340280d8dd115713aa8badd755d47f93c25c6",
+          "url": "https://github.com/rthorman/ink-morrow/pull/42"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "fix/chronicle-memory-failed",
+      "sha": "307d09ee460b44895c90af93ea0f04a51ddbb099",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 68,
+      "base": "95288f45a6dabddf72a3c449261340b31804e27b",
+      "prs": [
+        {
+          "number": 45,
+          "head": "fix/chronicle-memory-failed",
+          "headSha": "307d09ee460b44895c90af93ea0f04a51ddbb099",
+          "base": "main",
+          "merged": "2026-09-01T19:12:44Z",
+          "state": "closed",
+          "mergeSha": "6fdf4fa61e9565fb73c4fdd3f0e6f010928a9853",
+          "url": "https://github.com/rthorman/ink-morrow/pull/45"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "fix/continuity-extraction-quality",
+      "sha": "74a243f4300dccfb57c19a2070c1559e08aae437",
+      "date": "2026-09-02",
+      "ahead": 0,
+      "behind": 52,
+      "base": "74a243f4300dccfb57c19a2070c1559e08aae437",
+      "prs": [
+        {
+          "number": 57,
+          "head": "fix/continuity-extraction-quality",
+          "headSha": "74a243f4300dccfb57c19a2070c1559e08aae437",
+          "base": "main",
+          "merged": "2026-09-02T16:31:58Z",
+          "state": "closed",
+          "mergeSha": "02e2066460494fa6268174beb0e37e0feb454040",
+          "url": "https://github.com/rthorman/ink-morrow/pull/57"
+        }
+      ]
+    },
+    {
+      "branch": "fix/continuity-model-fail-fast",
+      "sha": "a8c9973ec427608e5a7bee2c0c5b3d9123ae0ed2",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 65,
+      "base": "c0df429f8fcf9dae57a4ef38a9d08649170376ff",
+      "prs": [
+        {
+          "number": 48,
+          "head": "fix/continuity-model-fail-fast",
+          "headSha": "a8c9973ec427608e5a7bee2c0c5b3d9123ae0ed2",
+          "base": "main",
+          "merged": "2026-09-01T21:37:25Z",
+          "state": "closed",
+          "mergeSha": "b09f391c48b6ccd27d11ae56ba5e55844427104a",
+          "url": "https://github.com/rthorman/ink-morrow/pull/48"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "fix/gemini-continuity-reasoning-budget",
+      "sha": "040bedf6029ebee014d44a0c66df2d1e864f4258",
+      "date": "2026-09-03",
+      "ahead": 0,
+      "behind": 36,
+      "base": "040bedf6029ebee014d44a0c66df2d1e864f4258",
+      "prs": [
+        {
+          "number": 65,
+          "head": "fix/gemini-continuity-reasoning-budget",
+          "headSha": "040bedf6029ebee014d44a0c66df2d1e864f4258",
+          "base": "main",
+          "merged": "2026-09-03T13:22:20Z",
+          "state": "closed",
+          "mergeSha": "cec705e0aed64b50781d589fce326f4dcf89c308",
+          "url": "https://github.com/rthorman/ink-morrow/pull/65"
+        }
+      ]
+    },
+    {
+      "branch": "fix/remove-4-0-dualities",
+      "sha": "da8ae8d72c2d93837c458d34239054d1f4cc2326",
+      "date": "2026-09-01",
+      "ahead": 109,
+      "behind": 70,
+      "base": "bcd340280d8dd115713aa8badd755d47f93c25c6",
+      "prs": [
+        {
+          "number": 43,
+          "head": "fix/remove-4-0-dualities",
+          "headSha": "da8ae8d72c2d93837c458d34239054d1f4cc2326",
+          "base": "main",
+          "merged": "2026-09-01T17:14:06Z",
+          "state": "closed",
+          "mergeSha": "cae91ac67f169678e7e69a9a2c528d80856c6261",
+          "url": "https://github.com/rthorman/ink-morrow/pull/43"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 109,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "fix/safe-setup",
+      "sha": "065590da8641fb518e25858a1e77958f52e2e9b5",
+      "date": "2026-09-02",
+      "ahead": 1,
+      "behind": 61,
+      "base": "a0100f7568f28aa70aff858cc4f86ea019c3fae3",
+      "prs": [
+        {
+          "number": 50,
+          "head": "fix/safe-setup",
+          "headSha": "065590da8641fb518e25858a1e77958f52e2e9b5",
+          "base": "main",
+          "merged": "2026-09-02T10:58:44Z",
+          "state": "closed",
+          "mergeSha": "43a30beb2b47eec2175fbcd38be101654e31eec7",
+          "url": "https://github.com/rthorman/ink-morrow/pull/50"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "fix/v4-rebrand-database-upgrade",
+      "sha": "f1bab774ec2b45545c1c6e39480dfe76749a01d6",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 67,
+      "base": "6fdf4fa61e9565fb73c4fdd3f0e6f010928a9853",
+      "prs": [
+        {
+          "number": 46,
+          "head": "fix/v4-rebrand-database-upgrade",
+          "headSha": "f1bab774ec2b45545c1c6e39480dfe76749a01d6",
+          "base": "main",
+          "merged": "2026-09-01T19:29:06Z",
+          "state": "closed",
+          "mergeSha": "7c86b7e0434e1e6fab3def8e79d16a048326bd86",
+          "url": "https://github.com/rthorman/ink-morrow/pull/46"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/02-manuscript-hierarchy",
+      "sha": "7fd4ad9705e23a9c7de119aec7ee9a623dd5333d",
+      "date": "2026-08-31",
+      "ahead": 1,
+      "behind": 148,
+      "base": "3efcb76da79d17782f3a4e766e55ccfcf2cf033d",
+      "prs": [
+        {
+          "number": 21,
+          "head": "pr/02-manuscript-hierarchy",
+          "headSha": "7fd4ad9705e23a9c7de119aec7ee9a623dd5333d",
+          "base": "release/4.0.0",
+          "merged": "2026-08-31T18:09:06Z",
+          "state": "closed",
+          "mergeSha": "a0c600d762c79bedfaf117b25e2a3c180625bba7",
+          "url": "https://github.com/rthorman/ink-morrow/pull/21"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/03-revisions-recovery",
+      "sha": "178cdea5865b80cf0bfe1b2dbf715a0ac42b835d",
+      "date": "2026-08-31",
+      "ahead": 1,
+      "behind": 147,
+      "base": "a0c600d762c79bedfaf117b25e2a3c180625bba7",
+      "prs": [
+        {
+          "number": 22,
+          "head": "pr/03-revisions-recovery",
+          "headSha": "178cdea5865b80cf0bfe1b2dbf715a0ac42b835d",
+          "base": "release/4.0.0",
+          "merged": "2026-08-31T19:00:47Z",
+          "state": "closed",
+          "mergeSha": "836948bd041d4a3cc6db5baa6b451149d9d307ec",
+          "url": "https://github.com/rthorman/ink-morrow/pull/22"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/04-providers-vault",
+      "sha": "da303130f15fbd19c5eee7ae2709c7ddbbb1194f",
+      "date": "2026-08-31",
+      "ahead": 1,
+      "behind": 146,
+      "base": "836948bd041d4a3cc6db5baa6b451149d9d307ec",
+      "prs": [
+        {
+          "number": 23,
+          "head": "pr/04-providers-vault",
+          "headSha": "da303130f15fbd19c5eee7ae2709c7ddbbb1194f",
+          "base": "release/4.0.0",
+          "merged": "2026-08-31T19:55:59Z",
+          "state": "closed",
+          "mergeSha": "10a522fa0c7b4250633b4ad51a8ee1c88e2fa301",
+          "url": "https://github.com/rthorman/ink-morrow/pull/23"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/05-continuity-v2",
+      "sha": "aa79d2d276bcbab64631090283c9b54eaf9a74a7",
+      "date": "2026-08-31",
+      "ahead": 1,
+      "behind": 145,
+      "base": "10a522fa0c7b4250633b4ad51a8ee1c88e2fa301",
+      "prs": [
+        {
+          "number": 24,
+          "head": "pr/05-continuity-v2",
+          "headSha": "aa79d2d276bcbab64631090283c9b54eaf9a74a7",
+          "base": "release/4.0.0",
+          "merged": "2026-08-31T21:21:00Z",
+          "state": "closed",
+          "mergeSha": "3e4b90c2af80c9b0ae95ae580c698e40e93edc91",
+          "url": "https://github.com/rthorman/ink-morrow/pull/24"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/06-writing-transactions",
+      "sha": "f43f36e152bd006a03b7639218c6df5ce788fcf0",
+      "date": "2026-09-01",
+      "ahead": 4,
+      "behind": 144,
+      "base": "3e4b90c2af80c9b0ae95ae580c698e40e93edc91",
+      "prs": [
+        {
+          "number": 25,
+          "head": "pr/06-writing-transactions",
+          "headSha": "f43f36e152bd006a03b7639218c6df5ce788fcf0",
+          "base": "release/4.0.0",
+          "merged": "2026-08-31T23:15:19Z",
+          "state": "closed",
+          "mergeSha": "7064349b6a35e12c35adf10d1b6ff1b6277237e5",
+          "url": "https://github.com/rthorman/ink-morrow/pull/25"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 4,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/07-art-upload",
+      "sha": "f26c52f04174e9645260e60bc97ad15e54f37a85",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 143,
+      "base": "7064349b6a35e12c35adf10d1b6ff1b6277237e5",
+      "prs": [
+        {
+          "number": 26,
+          "head": "pr/07-art-upload",
+          "headSha": "f26c52f04174e9645260e60bc97ad15e54f37a85",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T00:36:46Z",
+          "state": "closed",
+          "mergeSha": "06f5d01a67009ace55f2c8bf62a768f6ad56b6e9",
+          "url": "https://github.com/rthorman/ink-morrow/pull/26"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/08-grok-sanitization",
+      "sha": "509799549cb28b690e9f37dee2ab13e785e98200",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 142,
+      "base": "06f5d01a67009ace55f2c8bf62a768f6ad56b6e9",
+      "prs": [
+        {
+          "number": 27,
+          "head": "pr/08-grok-sanitization",
+          "headSha": "509799549cb28b690e9f37dee2ab13e785e98200",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T01:13:22Z",
+          "state": "closed",
+          "mergeSha": "b09036b0709d16b031d3e8af956bc7babdb59fb3",
+          "url": "https://github.com/rthorman/ink-morrow/pull/27"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/09-adaptive-shell",
+      "sha": "0e9c8f0565ec68e70abb3e8ee51bd9c7c6377a44",
+      "date": "2026-09-01",
+      "ahead": 3,
+      "behind": 141,
+      "base": "b09036b0709d16b031d3e8af956bc7babdb59fb3",
+      "prs": [
+        {
+          "number": 28,
+          "head": "pr/09-adaptive-shell",
+          "headSha": "0e9c8f0565ec68e70abb3e8ee51bd9c7c6377a44",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T02:54:17Z",
+          "state": "closed",
+          "mergeSha": "f14462261472e644959023e51d812844ee7eff32",
+          "url": "https://github.com/rthorman/ink-morrow/pull/28"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 3,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/10-library-start",
+      "sha": "bfab925c7d7c7f5487ce64da576539e3f22bc6fb",
+      "date": "2026-09-01",
+      "ahead": 2,
+      "behind": 140,
+      "base": "f14462261472e644959023e51d812844ee7eff32",
+      "prs": [
+        {
+          "number": 29,
+          "head": "pr/10-library-start",
+          "headSha": "bfab925c7d7c7f5487ce64da576539e3f22bc6fb",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T03:31:46Z",
+          "state": "closed",
+          "mergeSha": "e8da2ce433c6e08f01ad32e0ce12e48dc099ed04",
+          "url": "https://github.com/rthorman/ink-morrow/pull/29"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 2,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/11-desk",
+      "sha": "00124e1d1c7e9f92f25752706d0e9b73ead63847",
+      "date": "2026-09-01",
+      "ahead": 3,
+      "behind": 139,
+      "base": "e8da2ce433c6e08f01ad32e0ce12e48dc099ed04",
+      "prs": [
+        {
+          "number": 30,
+          "head": "pr/11-desk",
+          "headSha": "00124e1d1c7e9f92f25752706d0e9b73ead63847",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T04:15:05Z",
+          "state": "closed",
+          "mergeSha": "9d4e26de5f787ebadd3b692da823c90d6ecc795f",
+          "url": "https://github.com/rthorman/ink-morrow/pull/30"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 3,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/12-chronicle",
+      "sha": "e9be43d5eae80170bf8731b4a88dff54cea27f92",
+      "date": "2026-09-01",
+      "ahead": 2,
+      "behind": 138,
+      "base": "9d4e26de5f787ebadd3b692da823c90d6ecc795f",
+      "prs": [
+        {
+          "number": 31,
+          "head": "pr/12-chronicle",
+          "headSha": "e9be43d5eae80170bf8731b4a88dff54cea27f92",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T04:56:37Z",
+          "state": "closed",
+          "mergeSha": "50687ba703c9f4eb6a30b7ded9aff2c4c9246744",
+          "url": "https://github.com/rthorman/ink-morrow/pull/31"
+        }
+      ],
+      "patchEquivalent": 0,
+      "patchUnique": 2,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "pr/13-codex",
+      "sha": "2f9c3a571193c0d2f9613ee0815715639fb74f15",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 136,
+      "base": "2f9c3a571193c0d2f9613ee0815715639fb74f15",
+      "prs": [
+        {
+          "number": 32,
+          "head": "pr/13-codex",
+          "headSha": "2f9c3a571193c0d2f9613ee0815715639fb74f15",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T05:23:32Z",
+          "state": "closed",
+          "mergeSha": "b5ac601f667fffa2df3d8e5e2c24bdb206beb647",
+          "url": "https://github.com/rthorman/ink-morrow/pull/32"
+        }
+      ]
+    },
+    {
+      "branch": "pr/14-gallery",
+      "sha": "b95d17e6c06b8ebe424f03c70692fc284ab084f7",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 132,
+      "base": "b95d17e6c06b8ebe424f03c70692fc284ab084f7",
+      "prs": [
+        {
+          "number": 33,
+          "head": "pr/14-gallery",
+          "headSha": "b95d17e6c06b8ebe424f03c70692fc284ab084f7",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T06:33:53Z",
+          "state": "closed",
+          "mergeSha": "d4aac1e7ac2ff4f0b3a3c4cdb98aabb23b803888",
+          "url": "https://github.com/rthorman/ink-morrow/pull/33"
+        }
+      ]
+    },
+    {
+      "branch": "pr/15-publication-core",
+      "sha": "52bb082b24b5042cc4af4deea9381ff44d3eecd3",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 130,
+      "base": "52bb082b24b5042cc4af4deea9381ff44d3eecd3",
+      "prs": [
+        {
+          "number": 34,
+          "head": "pr/15-publication-core",
+          "headSha": "52bb082b24b5042cc4af4deea9381ff44d3eecd3",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T07:08:07Z",
+          "state": "closed",
+          "mergeSha": "f6967981a2f3af00f54c22d3941cc81ff1531f64",
+          "url": "https://github.com/rthorman/ink-morrow/pull/34"
+        }
+      ]
+    },
+    {
+      "branch": "pr/16-epub-pdf-gate",
+      "sha": "f3bc5279b499a4431cf1c867c0d81f105e7b5cc7",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 128,
+      "base": "f3bc5279b499a4431cf1c867c0d81f105e7b5cc7",
+      "prs": [
+        {
+          "number": 35,
+          "head": "pr/16-epub-pdf-gate",
+          "headSha": "f3bc5279b499a4431cf1c867c0d81f105e7b5cc7",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T07:50:44Z",
+          "state": "closed",
+          "mergeSha": "d7764a88434fe58e46ed55da21eac4b38fc2f75f",
+          "url": "https://github.com/rthorman/ink-morrow/pull/35"
+        }
+      ]
+    },
+    {
+      "branch": "pr/17-snapshot-sharing",
+      "sha": "202d581d9df336f81622f7078c95c08afabe2001",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 125,
+      "base": "202d581d9df336f81622f7078c95c08afabe2001",
+      "prs": [
+        {
+          "number": 36,
+          "head": "pr/17-snapshot-sharing",
+          "headSha": "202d581d9df336f81622f7078c95c08afabe2001",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T08:27:17Z",
+          "state": "closed",
+          "mergeSha": "0cc0a1336ec284ed475d55c000d297d06e7d3c19",
+          "url": "https://github.com/rthorman/ink-morrow/pull/36"
+        }
+      ]
+    },
+    {
+      "branch": "pr/18-beta-hardening",
+      "sha": "3dcf2bea16b61b265cfb5175d3e725266a5c4c5b",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 123,
+      "base": "3dcf2bea16b61b265cfb5175d3e725266a5c4c5b",
+      "prs": [
+        {
+          "number": 37,
+          "head": "pr/18-beta-hardening",
+          "headSha": "3dcf2bea16b61b265cfb5175d3e725266a5c4c5b",
+          "base": "release/4.0.0",
+          "merged": "2026-09-01T10:36:20Z",
+          "state": "closed",
+          "mergeSha": "b97f0d505970f2fccb218d455bc965e3910b1409",
+          "url": "https://github.com/rthorman/ink-morrow/pull/37"
+        }
+      ]
+    },
+    {
+      "branch": "pr/19-main-cutover",
+      "sha": "716433f7a87f41ab6365b751001bf8d8363bc992",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 73,
+      "base": "716433f7a87f41ab6365b751001bf8d8363bc992",
+      "prs": [
+        {
+          "number": 40,
+          "head": "pr/19-main-cutover",
+          "headSha": "716433f7a87f41ab6365b751001bf8d8363bc992",
+          "base": "main",
+          "merged": "2026-09-01T13:01:20Z",
+          "state": "closed",
+          "mergeSha": "716433f7a87f41ab6365b751001bf8d8363bc992",
+          "url": "https://github.com/rthorman/ink-morrow/pull/40"
+        }
+      ]
+    },
+    {
+      "branch": "rebrand/ink-morrow",
+      "sha": "a5754f742d915bebe1083ef914d769a58836a87b",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 69,
+      "base": "cae91ac67f169678e7e69a9a2c528d80856c6261",
+      "prs": [
+        {
+          "number": 44,
+          "head": "rebrand/ink-morrow",
+          "headSha": "a5754f742d915bebe1083ef914d769a58836a87b",
+          "base": "main",
+          "merged": "2026-09-01T18:45:24Z",
+          "state": "closed",
+          "mergeSha": "95288f45a6dabddf72a3c449261340b31804e27b",
+          "url": "https://github.com/rthorman/ink-morrow/pull/44"
+        }
+      ],
+      "patchEquivalent": 1,
+      "patchUnique": 0,
+      "mergeDiffSame": true,
+      "mergeIsAncestor": true
+    },
+    {
+      "branch": "release/5.0.0",
+      "sha": "93a8f14eb743610e6fe7e1592bfb8e26e2654f6c",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 8,
+      "base": "93a8f14eb743610e6fe7e1592bfb8e26e2654f6c",
+      "prs": []
+    },
+    {
+      "branch": "release/5.0.0-main-integration",
+      "sha": "63476be01c5ef6683e54ce513af444e4bd222842",
+      "date": "2026-09-04",
+      "ahead": 0,
+      "behind": 7,
+      "base": "63476be01c5ef6683e54ce513af444e4bd222842",
+      "prs": [
+        {
+          "number": 77,
+          "head": "release/5.0.0-main-integration",
+          "headSha": "63476be01c5ef6683e54ce513af444e4bd222842",
+          "base": "main",
+          "merged": "2026-09-04T14:20:41Z",
+          "state": "closed",
+          "mergeSha": "227320b2faa7c34aecd5fda6250e28b8a7f8b5dd",
+          "url": "https://github.com/rthorman/ink-morrow/pull/77"
+        }
+      ]
+    }
+  ],
+  "retained": [
+    {
+      "branch": "dependabot/github_actions/actions/checkout-7.0.1",
+      "sha": "1b38392131f12beeaf40c437f12210bb4e88ec44",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 68,
+      "base": "95288f45a6dabddf72a3c449261340b31804e27b",
+      "files": [
+        ".github/workflows/ci.yml"
+      ],
+      "prs": [
+        {
+          "number": 8,
+          "head": "dependabot/github_actions/actions/checkout-7.0.1",
+          "headSha": "1b38392131f12beeaf40c437f12210bb4e88ec44",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "b6d4fe581004e3e22c3e18caedacdcf5f9b94378",
+          "url": "https://github.com/rthorman/ink-morrow/pull/8"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/github_actions/actions/setup-node-7.1.0",
+      "sha": "b11c871bf67f0043a4bdd83a754286c9089fd786",
+      "date": "2026-10-12",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        ".github/workflows/ci.yml"
+      ],
+      "prs": [
+        {
+          "number": 97,
+          "head": "dependabot/github_actions/actions/setup-node-7.1.0",
+          "headSha": "b11c871bf67f0043a4bdd83a754286c9089fd786",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "2b5e47b95d9f81cf6d0a889b4fef22e41b59e17d",
+          "url": "https://github.com/rthorman/ink-morrow/pull/97"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/backend/dotenv-18.0.5",
+      "sha": "9c262e587b31bcbea0975e1367e958d737333a97",
+      "date": "2026-10-05",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "backend/package-lock.json",
+        "backend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 95,
+          "head": "dependabot/npm_and_yarn/backend/dotenv-18.0.5",
+          "headSha": "9c262e587b31bcbea0975e1367e958d737333a97",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "1df343872a4c31117928ea26d8dea14cf1e9048f",
+          "url": "https://github.com/rthorman/ink-morrow/pull/95"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/backend/express-5.2.1",
+      "sha": "b45f6ba869c0ddf7c51026c18faa359a87aabe43",
+      "date": "2026-09-01",
+      "ahead": 1,
+      "behind": 73,
+      "base": "716433f7a87f41ab6365b751001bf8d8363bc992",
+      "files": [
+        "backend/package-lock.json",
+        "backend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 13,
+          "head": "dependabot/npm_and_yarn/backend/express-5.2.1",
+          "headSha": "b45f6ba869c0ddf7c51026c18faa359a87aabe43",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "25b5e64e57f2bcd1f613d1e40e6911cd707b7ef8",
+          "url": "https://github.com/rthorman/ink-morrow/pull/13"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/backend/img/sharp-wasm32-0.35.5",
+      "sha": "5a868fe5e8a608d7c67330cd57164387a65ea1e7",
+      "date": "2026-10-05",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "backend/package-lock.json",
+        "backend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 94,
+          "head": "dependabot/npm_and_yarn/backend/img/sharp-wasm32-0.35.5",
+          "headSha": "5a868fe5e8a608d7c67330cd57164387a65ea1e7",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "b50fd237ae822456b757252ecef7ff7f29de80eb",
+          "url": "https://github.com/rthorman/ink-morrow/pull/94"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/backend/jest-30.5.2",
+      "sha": "85a75ff31120c6d0484da6a015b8f57404d3df10",
+      "date": "2026-09-28",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "backend/package-lock.json",
+        "backend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 92,
+          "head": "dependabot/npm_and_yarn/backend/jest-30.5.2",
+          "headSha": "85a75ff31120c6d0484da6a015b8f57404d3df10",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "282fd85dd6fa1bfc31126cc4851e8494c6e7fe5d",
+          "url": "https://github.com/rthorman/ink-morrow/pull/92"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/backend/supertest-7.3.0",
+      "sha": "b6c6e1c610413f9fabdc28a9f68cc7f8ff31d5b6",
+      "date": "2026-09-28",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "backend/package-lock.json",
+        "backend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 90,
+          "head": "dependabot/npm_and_yarn/backend/supertest-7.3.0",
+          "headSha": "b6c6e1c610413f9fabdc28a9f68cc7f8ff31d5b6",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "8acf463b364bfd7fe1b05846b3f3ed976e49423a",
+          "url": "https://github.com/rthorman/ink-morrow/pull/90"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/e2e/axe-core/playwright-4.14.0",
+      "sha": "60415c1c0ecd1eac634deb151ecbdda079e98685",
+      "date": "2026-10-19",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "e2e/package-lock.json",
+        "e2e/package.json"
+      ],
+      "prs": [
+        {
+          "number": 101,
+          "head": "dependabot/npm_and_yarn/e2e/axe-core/playwright-4.14.0",
+          "headSha": "60415c1c0ecd1eac634deb151ecbdda079e98685",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "357cb83b877e368978ddc1252eeb4a47097a4d19",
+          "url": "https://github.com/rthorman/ink-morrow/pull/101"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/e2e/playwright/test-1.64.1",
+      "sha": "151d88eac0343f52b4e2ef8845f42b633a0da9d3",
+      "date": "2026-10-19",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "e2e/package-lock.json",
+        "e2e/package.json"
+      ],
+      "prs": [
+        {
+          "number": 100,
+          "head": "dependabot/npm_and_yarn/e2e/playwright/test-1.64.1",
+          "headSha": "151d88eac0343f52b4e2ef8845f42b633a0da9d3",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "55bb372e9e6db11615a7e438c92322909d62ec05",
+          "url": "https://github.com/rthorman/ink-morrow/pull/100"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/eslint-10.12.0",
+      "sha": "5f56ecd47b55be13bbc4cfa1c4e9eebe873951ad",
+      "date": "2026-10-12",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "package-lock.json",
+        "package.json"
+      ],
+      "prs": [
+        {
+          "number": 98,
+          "head": "dependabot/npm_and_yarn/eslint-10.12.0",
+          "headSha": "5f56ecd47b55be13bbc4cfa1c4e9eebe873951ad",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "814ec89d21b5bc6fbfe361d5b352380ca299dd81",
+          "url": "https://github.com/rthorman/ink-morrow/pull/98"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/frontend/jest-30.5.2",
+      "sha": "f1da0c171f9d3a206bb04ddbdaedf5e4a7c7a46d",
+      "date": "2026-09-28",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "frontend/package-lock.json",
+        "frontend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 89,
+          "head": "dependabot/npm_and_yarn/frontend/jest-30.5.2",
+          "headSha": "f1da0c171f9d3a206bb04ddbdaedf5e4a7c7a46d",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "e173f821dd3c8db0caac834a50463be51d103960",
+          "url": "https://github.com/rthorman/ink-morrow/pull/89"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/frontend/jest-environment-jsdom-30.5.2",
+      "sha": "b4f6580d7b020c2644df71f758375933c3e9c9f4",
+      "date": "2026-09-28",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "frontend/package-lock.json",
+        "frontend/package.json"
+      ],
+      "prs": [
+        {
+          "number": 91,
+          "head": "dependabot/npm_and_yarn/frontend/jest-environment-jsdom-30.5.2",
+          "headSha": "b4f6580d7b020c2644df71f758375933c3e9c9f4",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "36773420691e2f5beb1daab19d9370ab39ef8c56",
+          "url": "https://github.com/rthorman/ink-morrow/pull/91"
+        }
+      ]
+    },
+    {
+      "branch": "dependabot/npm_and_yarn/globals-17.13.0",
+      "sha": "40af92d1dfc9287f7904979e084fecedd1fa4235",
+      "date": "2026-10-05",
+      "ahead": 1,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "files": [
+        "package-lock.json",
+        "package.json"
+      ],
+      "prs": [
+        {
+          "number": 96,
+          "head": "dependabot/npm_and_yarn/globals-17.13.0",
+          "headSha": "40af92d1dfc9287f7904979e084fecedd1fa4235",
+          "base": "main",
+          "merged": null,
+          "state": "open",
+          "mergeSha": "e537654b31a46c2850fce76f0967102b26038166",
+          "url": "https://github.com/rthorman/ink-morrow/pull/96"
+        }
+      ]
+    },
+    {
+      "branch": "main",
+      "sha": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "date": "2026-09-07",
+      "ahead": 0,
+      "behind": 0,
+      "base": "9647cdec4fc8ef4762e407e9c0ba705d563694fb",
+      "prs": []
+    },
+    {
+      "branch": "release/4.0.0",
+      "sha": "0c40951904c0e2adb7bfebd09a0d6dfe1ca81611",
+      "date": "2026-09-01",
+      "ahead": 0,
+      "behind": 118,
+      "base": "0c40951904c0e2adb7bfebd09a0d6dfe1ca81611",
+      "prs": []
+    }
+  ],
+  "verification": {
+    "removed_branches": 53,
+    "retained_branches": 15,
+    "retained_heads_unchanged": true,
+    "archive_tag_verified": true,
+    "method": "Atomic push with exact old-head leases for every deletion; no forced history rewrite."
+  }
+}
