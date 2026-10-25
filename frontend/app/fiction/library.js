@@ -1,3 +1,4 @@
+import {fieldComparison} from './field-comparison.js';
 import { createPrivateDraft } from './private-drafts.js';
 import { apiFetch } from '../core/api.js';
 import { el, button, field, option } from './dom.js';
@@ -22,7 +23,7 @@ export function storyImage(id, visual, className) {
   return assetImage(`/api/fiction/${encodeURIComponent(id)}/images/${encodeURIComponent(visual.asset_id)}`, visual.alt_text, className);
 }
 
-export function createVisualLibrary({ api, dialogs }) {
+export function createVisualLibrary({ api, dialogs,onUseInSetup=null }) {
   const privateDrafts=new Set();let editorSerial=0;
   const $ = (id) => document.getElementById(id);
   let metadata = null; let kind = 'world'; let offset = 0; let next = null; let live = () => false; let serial = 0; let deleting = false;
@@ -62,7 +63,7 @@ export function createVisualLibrary({ api, dialogs }) {
         const imageButton = button(entry.image_id ? `Repaint or upload` : `Paint or upload`, () => paint(entry));
         const deleteButton = button('Delete', () => remove(entry), 'btn btn-quiet-danger');
         for (const control of [editButton, imageButton, deleteButton]) control.disabled = entry.pending;
-        actions.append(editButton, imageButton, deleteButton); content.append(actions); card.append(visual, content); root.append(card);
+        actions.append(editButton, imageButton, deleteButton);if(onUseInSetup)actions.append(button('Use in a new story',()=>onUseInSetup(entry)),button('Add to this setup',()=>onUseInSetup(entry)));  content.append(actions); card.append(visual, content); root.append(card);
       }
       if (!data.entries?.length) root.append(el('p', `No ${labels[kind].toLowerCase()} yet. Create a reusable reference, then choose it when starting a story.`));
       root.append(button('Recover private reference drafts…',recoverReferences));
@@ -128,7 +129,8 @@ export function createVisualLibrary({ api, dialogs }) {
       if (editingKind === 'scribe') { data.entity_kind = 'catgirl'; data.focus_areas = focus.filter((input) => input.checked).map((input) => input.value); }
       return { name: name.control.value.trim(), description: description.control.value.trim(), data };
     };
-    const initial = JSON.stringify(value());
+    const savedBaseline=entry?JSON.parse(JSON.stringify(value())):null;const baselinePanel=el('details');baselinePanel.append(el('summary',entry?'Saved entry baseline':'No entry saved yet'));if(savedBaseline){for(const [name,content]of [['Name',savedBaseline.name],['Description',savedBaseline.description],...Object.entries(savedBaseline.data).map(([key,value])=>[label(key),Array.isArray(value)?value.join(', '):String(value)])])baselinePanel.append(el('h4',name),el('p',content));}else baselinePanel.append(el('p','These fields are a private draft until Save details or Save & add image succeeds.'));body.push(baselinePanel);
+    let previous=null;const editMarks={};let seedMarks={};const candidatePanel=el('section');body.push(candidatePanel);
     let formVersion=0;let baseRevision=entry?.revision || 0;let candidate=null;let seed=null;let creation=null;
     const recovery=el('section','','workspace-draft-state');body.push(recovery);
     const privateDraft=createPrivateDraft({api,onChange:state=>{if(!active())return;recovery.replaceChildren();if(!state)return;if(state.creation)recovery.append(el('p','A reference was already created from this draft.'),button('Open the created reference',async()=>{const {entry:created}=await api(`/fiction/catalog/${state.creation.result_id}`);await privateDraft.acknowledgeCreation();edit(created);}),button('Acknowledge and start another reference',()=>privateDraft.acknowledgeCreation()));
@@ -137,7 +139,7 @@ export function createVisualLibrary({ api, dialogs }) {
       if(state.conflict){recovery.append(field('Local reference','textarea',JSON.stringify(state.local.form,null,2),{readOnly:true}).wrapper,field('Saved reference draft','textarea',JSON.stringify(state.conflict.content.form,null,2),{readOnly:true}).wrapper);for(const [label,server]of [['Use saved draft',true],['Keep compared local draft',false]])recovery.append(button(label,()=>{const restored=privateDraft.resolve(server);if(restored)populate(restored.form);}));}
       if(state.row?.submitted)recovery.append(button('Review previous development',reviewDevelopment));
     }});privateDrafts.add(privateDraft);
-    const draftValue=()=>({form:value(),candidate,seed,length:length.control.value,base_revision:baseRevision});
+    const draftValue=()=>({form:value(),candidate,seed,length:length.control.value,base_revision:baseRevision,previous,edit_marks:editMarks,seed_marks:seedMarks});
     const persist=()=>privateDraft.edit(draftValue());
     const populate = (draft) => {
       name.control.value = draft.name || ''; description.control.value = draft.description || '';
@@ -145,16 +147,22 @@ export function createVisualLibrary({ api, dialogs }) {
       if (editingKind === 'scribe') for (const input of focus) input.checked = (draft.data?.focus_areas || []).includes(input.value);
     };
     const show = () => dialogs.openDialog({ title: entry ? `${entry.name} · ${kindName[editingKind]} studio` : `Create a ${kindName[editingKind]}`,
-      body, variant: 'studio', dirty: () => JSON.stringify(value()) !== initial, actions: [
+      body, variant: 'studio', dirty: () => Boolean(privateDraft.state?.dirty), actions: [
         { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close() },
         { label: 'Save details', className: 'btn-secondary', pendingLabel: 'Saving…', onClick: (close) => save(close, false) },
         { label: `Save & add ${kindImage[editingKind]}`, className: 'btn-primary', pendingLabel: 'Saving…', onClick: (close) => save(close, true) },
       ] });
+    function comparisonFields(){return ['name','description',...[...fields.keys()].map(key=>'data.'+key),...(editingKind==='scribe'?['data.focus_areas']:[])];}
+    function renderCandidate(){
+      candidatePanel.replaceChildren();
+      if(candidate)candidatePanel.append(fieldComparison({fields:comparisonFields(),before:seed||{},proposal:candidate,getCurrent:value,changed:key=>(editMarks[key]||0)!==(seedMarks[key]||0),title:'AI candidate · compare before accepting',onApply:next=>{previous={form:value(),accepted:next,accepted_marks:{...editMarks}};populate(next);persist();renderCandidate();status.textContent='Selected candidate fields accepted into the private draft. Save details remains a separate action.';}}));
+      if(previous)candidatePanel.append(button('Restore previous fields…',()=>{const restore=fieldComparison({fields:comparisonFields(),before:previous.accepted,proposal:previous.form,getCurrent:value,changed:key=>(editMarks[key]||0)!==(previous.accepted_marks?.[key]||0),title:'Compare before restoring previous fields',applyLabel:'Restore selected previous fields',onApply:next=>{previous={form:value(),accepted:next,accepted_marks:{...editMarks}};populate(next);persist();renderCandidate();status.textContent='Selected previous fields restored. Later edits were kept unless explicitly checked.';}});candidatePanel.replaceChildren(restore);}));
+    }
     async function developWithAi() {
       if (busy || !active()) return;
       const selected = metadata.drafting;
       if (!selected?.provider) { error.textContent = 'Connect a Storyteller in Settings before asking AI to develop a reference. Your fields are still here.'; return; }
-      const submittedSeed = value();const submittedVersion=formVersion;
+      const submittedSeed = value();const submittedVersion=formVersion;seedMarks={...editMarks};
       const approved = await dialogs.confirmPaid({ title: `Develop this ${kindName[editingKind]}?`,
         review: { action: `Develop an editable ${kindName[editingKind]} reference from the current seed fields`, object: submittedSeed.name || `Untitled ${kindName[editingKind]}`,
           model: `${selected.provider.display_name} · ${selected.model_id}`, quantity: 'One structured draft; at most one corrective second call if the first result is invalid',
@@ -168,7 +176,7 @@ export function createVisualLibrary({ api, dialogs }) {
         const result = await api('/fiction/catalog/draft', 'POST', { kind: editingKind, idempotency_key: prepared.actionKey, input: { seed:submittedSeed, length: length.control.value, variant: take,
           provider_id: selected.provider.id, model: selected.model_id } });
         if (!active()) return;
-        candidate=result.entry;if(formVersion===submittedVersion)populate(result.entry);else recovery.append(button('Adopt the developed candidate',()=>{populate(candidate);persist();})); take += 1;await privateDraft.clearSubmission();persist();await privateDraft.flush();
+        candidate=result.entry;renderCandidate(); take += 1;persist();await privateDraft.flush();await privateDraft.clearSubmission();
         status.textContent = `AI take ready${typeof result.cost_usd === 'number' ? ` · $${result.cost_usd.toFixed(4)}` : ' · cost not reported'}. Review every field before saving.`;
       } catch (caught) {
         if (active()) error.textContent = `${caught.message}${caught.billedAttempts ? ' One or more provider calls may have been charged.' : ''} Your original fields are still here.`;
@@ -194,15 +202,15 @@ export function createVisualLibrary({ api, dialogs }) {
       if(row.submitted.target.purpose==='catalogue-save'){recovery.append(el('p','A reference save is prepared. Save the same fields again to recover the original result.'));return;}
       try{const key=row.submitted.action_key;const result=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}`);if(!active())return;
         recovery.append(el('p',`Previous development: ${result.status}. Checking is free.`));
-        if(result.can_start_new)recovery.append(button(result.entry?'Recover developed fields and acknowledge':'Acknowledge result',async()=>{if(result.entry){candidate=result.entry;populate(result.entry);}await privateDraft.clearSubmission();persist();await privateDraft.flush();}));
+        if(result.can_start_new)recovery.append(button(result.entry?'Recover developed fields and acknowledge':'Acknowledge result',async()=>{if(result.entry){candidate=result.entry;renderCandidate();}persist();await privateDraft.flush();await privateDraft.clearSubmission();}));
         else if(result.status==='unknown')recovery.append(button('Cancel if not dispatched',async()=>{const status=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}/cancel`,'POST',{});if(active())recovery.append(el('p',`Request is now ${status.status}. Check again before another take.`));}));
       }catch(caught){if(active())error.textContent=caught.message;}
     }
-    for(const node of body.filter(node=>node!==recovery))node.addEventListener('input',()=>{formVersion++;persist();});
+    for(const node of body.filter(node=>node!==recovery&&node!==candidatePanel))node.addEventListener('input',event=>{formVersion++;const changedField=event.target===name.control?'name':event.target===description.control?'description':[...fields].find(([,input])=>input===event.target)?.[0];if(changedField){const key=changedField.startsWith('data.')||['name','description'].includes(changedField)?changedField:'data.'+changedField;editMarks[key]=(editMarks[key]||0)+1;}if(focus.includes(event.target))editMarks['data.focus_areas']=(editMarks['data.focus_areas']||0)+1;persist();renderCandidate();});
     length.control.addEventListener('change',persist);
     if(recovered){populate(recovered.form);candidate=recovered.candidate||null;seed=recovered.seed||null;length.control.value=recovered.length||'medium';}
     privateDraft.open({type:'catalogue',kind:editingKind,id:recovered?crypto.randomUUID():entry?.id||`new-${editingKind}`,...(entry?{resource_id:entry.id}:{})},draftValue()).then(restored=>{
-      if(!active()||!restored)return;populate(restored.form);candidate=restored.candidate;seed=restored.seed;length.control.value=restored.length||'medium';baseRevision=restored.base_revision??baseRevision;
+      if(!active()||!restored)return;populate(restored.form);candidate=restored.candidate;seed=restored.seed;length.control.value=restored.length||'medium';baseRevision=restored.base_revision??baseRevision;previous=restored.previous||null;Object.assign(editMarks,restored.edit_marks||{});seedMarks=restored.seed_marks||{};renderCandidate();
       if(entry&&baseRevision!==entry.revision){error.textContent='The saved reference changed after this draft began. Compare both versions before saving.';recovery.append(field('Current saved reference','textarea',JSON.stringify({name:entry.name,description:entry.description,data:entry.data},null,2),{readOnly:true}).wrapper,button('Keep my draft against this compared revision',()=>{baseRevision=entry.revision;persist();error.textContent='Draft retained. Review and save when ready.';}));}
     });
     show();

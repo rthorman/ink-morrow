@@ -67,7 +67,7 @@ describe('visual Library and story images', () => {
     develop.click(); await tick(); await tick();
     expect(dialogs.confirmPaid).toHaveBeenCalledWith(expect.objectContaining({ review: expect.objectContaining({ sends: expect.stringContaining('private lore') }) }));
     expect(api).toHaveBeenCalledWith('/fiction/catalog/draft', 'POST', expect.objectContaining({ kind: 'world', input: expect.objectContaining({ seed: expect.objectContaining({ name: 'Seed world' }), provider_id: 'text', model: 'text-model' }) }));
-    spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(control(spec, 'Name').value).toBe('AI world'); expect(control(spec, 'Lore · private').value).toBe('A hidden tide.');
+    spec = dialogs.openDialog.mock.calls.at(-1)[0];expect(control(spec,'Name').value).toBe('Seed world');spec.body.flatMap(node=>[...node.querySelectorAll('button')]).find(node=>node.textContent==='Use selected candidate fields').click(); expect(control(spec, 'Name').value).toBe('AI world'); expect(control(spec, 'Lore · private').value).toBe('A hidden tide.');
     expect(api.mock.calls.filter(([path]) => path === '/fiction/catalog')).toHaveLength(0);
   });
   test('setup selection is visual, survives leaving the form and creates no automatic painting', async () => {

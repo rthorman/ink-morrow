@@ -2,7 +2,7 @@
 
 // A bounded, deterministic scene selector. Plans guide one narration; they are
 // not world truth and cannot fulfil a promise, reveal a secret, or end an episode.
-function chooseScene(game, state, intent) {
+function chooseLegacyScene(game, state, intent) {
   const history = state.scene_history.filter((entry) => entry.episode === state.episode.number);
   const recent = history.slice(-2);
   const available = (kind, factId = null) => !recent.some((entry) => entry.kind === kind && (!factId || entry.fact_ids.includes(factId)));
@@ -26,8 +26,31 @@ function chooseScene(game, state, intent) {
   return plan('relationship', state.consequences === 'dramatic' ? 'Develop an established tension or relationship with proportionate consequences. Do not manufacture a new crisis every beat.' : 'Develop the cast’s different wishes through a grounded encounter. Low-stakes expression is a complete contribution.');
 }
 
+const OPPORTUNITIES=['commitment','quiet','opportunity','rest','discovery','connection','exploration','relationship'];
+function chooseScene(game,state,intent){
+  if(state.version!==2||intent.kind!=='follow')return chooseLegacyScene(game,state,intent);
+  const legacy=chooseLegacyScene(game,state,intent);if(state.episode.phase==='payoff'&&state.episode.payoff_beat_id)return {kind:'rest',guidance:'Allow aftermath of the recorded achievement without manufacturing another crisis. Ending remains the reader’s choice.',fact_ids:[],round:state.opportunity_round?.round||0};if(legacy.kind==='rest'&&state.episode.payoff_beat_id)return {...legacy,round:state.opportunity_round?.round||0};
+  const active=state.facts.filter(fact=>fact.status==='active'&&fact.visibility==='public');
+  const pick=kind=>active.filter(fact=>fact.kind===kind).sort((a,b)=>a.id.localeCompare(b.id))[0];
+  const nominees=[];const add=(kind,guidance,fact=null)=>nominees.push({kind,guidance,fact_ids:fact?[fact.id]:[]});
+  const promise=pick('commitment');if(promise)add('commitment','Acknowledge or offer one grounded opportunity arising from this promise. It creates no urgency by itself and is not fulfilled by a plan.',promise);
+  const quiet=()=>add('quiet','Give ordinary activity, reflection or connection room. This nomination is independent of how many promises exist; no compulsory crisis, reward or lasting effect.');
+  if(state.scene_history.length&&state.pacing==='reflective')quiet();
+  if(state.scene_history.length>=3&&state.facts.some(fact=>fact.visibility==='public'&&fact.status==='resolved'))add('rest','Acknowledge the recorded outcome or allow aftermath. Resolved does not by itself mean achieved, and rest does not end the episode.');
+  const goal=pick('goal');if(goal)add('opportunity','Offer a plausible next possibility for this desire. Do not decide acceptance or manufacture achievement.',goal);
+  if(game.genre==='mystery'&&state.facts.some(fact=>fact.visibility==='secret'))add('discovery','Offer a fair observable clue consistent with fixed truth; disclosure requires its own narrated evidence.');
+  else if(game.genre==='cozy')add('connection','Explore care, shared practical activity or a gentle difference of wishes. A quest is optional.');
+  else if(game.genre==='exploration')add('exploration','Let a concrete place invite curiosity, shaped by established discoveries rather than a checklist.');
+  else add('relationship','Explore the cast’s distinct wishes in proportionate circumstances, without manufacturing another crisis.');
+  if(state.scene_history.length&&state.pacing!=='reflective')quiet();
+  let round=state.opportunity_round?.round||0;let used=state.opportunity_round?.used||[];
+  let selected=nominees.find(nominee=>!used.includes(nominee.kind));if(!selected){round++;used=[];selected=nominees[0];}
+  return {...selected,round,round_used:used,nomination_policy:'one nomination per eligible category per round; independent of fact cardinality'};
+}
+
 function recordScene(state, plan, beatId) {
   if (plan.kind === 'clarification') return;
+  if(state.version===2&&OPPORTUNITIES.includes(plan.kind)){const used=plan.round_used||state.opportunity_round?.used||[];state.opportunity_round={round:plan.round??state.opportunity_round?.round??0,used:[...new Set([...used,plan.kind])].slice(-12)};}
   state.scene_count = (state.scene_count || 0) + 1;
   state.scene_history = [...state.scene_history, { kind: plan.kind, fact_ids: plan.fact_ids, beat_id: beatId, episode: state.episode.number }].slice(-12);
 }

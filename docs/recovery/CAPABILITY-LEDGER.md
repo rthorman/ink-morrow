@@ -1,31 +1,31 @@
-# Version 4.1 / V5 capability ledger — B2
+# Version 4.1 / V5 capability ledger — B3
 
-This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. See the delivery records for verified boundaries.
+This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. B3 adds creative depth; see B3-DELIVERY.md for actual contracts and verification limits.
 
 | Capability | Disposition | Owning batch / decision | Acceptance contract |
 |---|---|---|---|
 | Five story rooms and branded Library | Restored in batch | B1 | Production adapters in B1; bounded history/Codex and private recovery in B2. |
-| Current catalogue studios and unsaved AI development | Current V5 | B3 deepens | Keep world/character/Scribe selection, uploads and reviewed development. |
+| Current catalogue studios and unsaved AI development | Implemented B3 | B3 | Keep world/character/Scribe selection, uploads and reviewed development. |
 | Reader pagination and recoverable Continue errors | Current V5 | B1 deepens | No purchase on page turns; stable reading position. |
 | All-path fiction graph, evidence and corrections | Implemented B2 | B2 | Read-only selected ancestry/moment; exact new sources, legacy passage-level attribution. |
-| First-class Scribe craft and full story-local references | Restored in batch | B3 | Explicit field inventory and future-only adoption. |
+| First-class Scribe craft and full story-local references | Implemented B3 | B3 | Explicit field inventory and future-only adoption. |
 | Optional scenes, viewpoint and chapter/volume grouping | Restored in batch | B3/B4 | Plans are not events; grouping changes no prose. |
-| Ownership / Act / Say / Ask / Direct boundaries | Current V5 | B3 deepens | No compulsory avatar or Session Zero; performed speech remains conditional. |
+| Ownership / Act / Say / Ask / Direct boundaries | Implemented B3 | B3 | No compulsory avatar or Session Zero; performed speech remains conditional. |
 | Alternate paths and exact fork points | Implemented B2 | B2 | Read-only path preview remains separate from explicit active-path mutation on one fiction graph. |
-| Campaign: Relationships | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Promises | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Debts | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Knowledge boundaries | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Secrets | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: NPC goals | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Factions | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Quests | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Conditions | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Inventory | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Resources | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: World time | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Deadlines | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
-| Campaign: Progress clocks | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
+| Campaign: Relationships | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Promises | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Debts | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Knowledge boundaries | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Secrets | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: NPC goals | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Factions | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Quests | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Conditions | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Inventory | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Resources | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: World time | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Deadlines | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
+| Campaign: Progress clocks | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
 | Art upload, explicit painting, cover and passage placement | Current V5 | B5 deepens | Add complete unplaced inventory; no automatic placement or purchase. |
 | Read-aloud, cached playback and audiobooks | Restored in batch | B6 | Immutable source and reviewed explicit synthesis. |
 | Nine book formats and private complete playable saves | Current V5 | B7 deepens | Source preview, editions and all-path closure. |

@@ -6,6 +6,34 @@ InkMorrow is private-by-default self-hosted software for one owner. This book di
 
 </div>
 
+## B3 private creative data and bounded narration
+
+World lore, character motives/background, Scribe craft, creative free text, scene
+proposals and campaign secrets belong to explicit authenticated owner tasks.
+Ordinary story projections expose a whitelisted creative summary; proposed scenes
+and revision baselines do not become public events. Reviewed narration still sends
+private branch truth/references/knowledge to the selected provider. A reference
+change cannot reveal a secret or establish a completed backstory event.
+
+Free operation-plan preparation knows every possible draft/review/repair stage.
+Unknown capacity blocks that purchase; catalogue/owner-declared context and output
+limits bind consent. The byte-bound counter is conservative, not exact tokenization.
+Stages recheck before dispatch and transport cannot silently enlarge output for
+reasoning or retry. Known/unknown charges survive invalid, oversized and stale
+results. Narration Remember is optional and changes to relevant configuration or
+bounds require a new review. No paid permission, plan, credential or capacity is
+exported in a playable save.
+
+Owner Say text is assembled once only after a performed occurrence, with source
+segments/ranges/hashes distinct from ordinary narration and asides. Editorial
+input cannot prove an external outcome; abandoned/failed goals cannot be sold as
+achievements. Saves validate exact source closure, producing revisions and selected
+ancestry before remapping. New local-command receipts/fences and scoped drafts
+prevent lost-response retries from becoming duplicate mutations. Lock clears
+private task controllers and DOM; offline unsaved memory is never represented as
+server acknowledgement. Sources are current B3; PDF regeneration remains deferred.
+
+
 ## Threat model and trust map
 
 The owner controls the machine, network, provider profiles and downloaded files.

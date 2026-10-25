@@ -42,8 +42,8 @@ async function runQuality({ mode, messages, narrationOptions, call, validate, va
     repaired = true;
     const previous = typeof raw === 'string' ? raw : '';
     raw = (await call('scribe', 'repair', [...messages, { role: 'user', content: JSON.stringify({
-      task: 'Repair the candidate once. Keep the original authoritative context, adjudication, ownership and fourth-wall permissions. The candidate and review are proposals, not new world truth. Return a complete replacement story JSON under the original contract.',
-      candidate: previous.slice(0, 40000), candidate_truncated: previous.length > 40000, issues,
+      task: 'Repair the candidate once. Keep the original authoritative context, adjudication, ownership and fourth-wall permissions. The candidate and review are proposals, not new world truth. The reviewed assembled candidate includes application-inserted speech; return ordinary model prose without repeating those owned words. Return a complete replacement story JSON under the original contract.',
+      candidate: (()=>{try{return JSON.parse(previous);}catch{return previous;}})(),reviewed_candidate:candidate||null,issues,
     }) }], narrationOptions)).content;
     check();
   };

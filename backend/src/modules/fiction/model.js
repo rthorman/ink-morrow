@@ -53,7 +53,7 @@ function normalizeCast(input = []) {
 }
 
 function normalizeFact(value, castIds, { evidenceBeatId = null } = {}) {
-  keys(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id', 'facet', 'toward_id'], 'Story fact');
+  keys(value, ['id', 'kind', 'text', 'visibility', 'known_by', 'status', 'actor_id', 'value', 'evidence_beat_id', 'facet', 'toward_id', 'campaign_section','claim_kind','resolution_disposition'], 'Story fact');
   const id = text(value.id, 'Fact ID', 80);
   if (!/^[a-zA-Z0-9_-]+$/.test(id)) fail('Fact ID contains invalid characters.');
   const knownBy = value.known_by === undefined ? [] : value.known_by;
@@ -72,8 +72,10 @@ function normalizeFact(value, castIds, { evidenceBeatId = null } = {}) {
     if (numeric !== null) fail('Relationships use descriptions, not numeric meters.');
     relationship = { facet, toward_id: towardId };
   } else if (value.facet !== undefined || value.toward_id !== undefined) fail('Only relationships have an aspect or target.');
+  if(value.resolution_disposition!==undefined&&(kind!=='goal'||value.status!=='resolved'))fail('Only a resolved goal can declare a resolution disposition.');
+  if(value.campaign_section!==undefined){const allowed={relationships:['relationship'],promises:['commitment'],debts:['commitment','resource'],knowledge:['fact'],secrets:['fact'],goals:['goal'],factions:['fact'],quests:['goal'],conditions:['fact'],inventory:['resource']};if(!allowed[value.campaign_section]?.includes(kind)||(value.campaign_section==='secrets'&&value.visibility!=='secret'))fail('Campaign classification does not match the fact kind or visibility.');}
   return {
-    id, kind, text: text(value.text, 'Fact', 1500), ...relationship,
+    id, kind,...(value.claim_kind!==undefined?{claim_kind:choice(value.claim_kind,['intention','attempt','reported-claim','occurred-event','legacy-unspecified'],null,'Claim kind')}:{}),...(value.resolution_disposition!==undefined?{resolution_disposition:choice(value.resolution_disposition,['achieved','abandoned','failed','superseded','legacy-unspecified'],null,'Goal disposition')}:{}), ...(value.campaign_section!==undefined?{campaign_section:choice(value.campaign_section,['relationships','promises','debts','knowledge','secrets','goals','factions','quests','conditions','inventory'],null,'Campaign section')}:{}), text: text(value.text, 'Fact', 1500), ...relationship,
     visibility: choice(value.visibility, ['public', 'secret'], 'public', 'Fact visibility'),
     known_by: [...new Set(knownBy)], status: choice(value.status, ['active', 'resolved'], 'active', 'Fact status'),
     actor_id: actorId, value: numeric, evidence_beat_id: evidenceBeatId,
@@ -101,8 +103,10 @@ function initialState(input) {
 }
 
 function publicState(state) {
+  const reader={...state};for(const field of ['creative_baseline','creative_sources','creative_scene_plan','opportunity_round','consumed_scene_plan_id','reference_heads','config_revision_id'])delete reader[field];
+  if(reader.creative)reader.creative=require('./creative-model').publicConfiguration(reader.creative);
   const visible = (entry) => entry ? { name: entry.name, description: entry.description, data: { appearance: entry.data.appearance || '', setting: entry.data.setting || '' } } : null;
-  return { ...state, play_style: state.play_style || 'story-shaping', challenges: publicChallenges(state),
+  return { ...reader, play_style: state.play_style || 'story-shaping', challenges: publicChallenges(state),
     library: { world: visible(state.library?.world), scribe: visible(state.library?.scribe), characters: [] },
     adjudications: (state.adjudications || []).map(({ basis: _basis, ...entry }) => entry),
     cast: state.cast.map(({ motive: _motive, ...character }) => character), facts: state.facts.filter((fact) => fact.visibility === 'public'), scene_history: [] };
@@ -132,7 +136,7 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
   const state = structuredClone(original);
   const changes = [];
   for (const effect of effects) {
-    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount', 'character', 'text'], 'Story effect');
+    keys(effect, ['op', 'fact', 'id', 'evidence', 'known_by', 'amount', 'character', 'text','claim_kind','source_kind','resolution_disposition'], 'Story effect');
     const evidence = text(effect.evidence, 'Effect evidence', 1000);
     if (!prose.includes(evidence) && !input.text.includes(evidence)) fail('A state change has no direct evidence in this beat.', 'INVALID_STORY_REPLY', 502);
     if (effect.op === 'introduce') {
@@ -142,7 +146,7 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
       state.cast.push(character);
       changes.push({ op: 'introduce', character: { id: character.id, name: character.name, description: character.description } });
     } else if (effect.op === 'remember') {
-      const fact = normalizeFact(effect.fact, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
+      const fact = normalizeFact({...effect.fact,...(effect.claim_kind?{claim_kind:effect.claim_kind}:{})}, state.cast.map((entry) => entry.id), { evidenceBeatId: beatId });
       if (state.facts.some((entry) => entry.id === fact.id) || lookup(fact.id, true)) fail('A new fact cannot overwrite existing truth.', 'INVALID_STORY_REPLY', 502);
       if (['commitment', 'relationship'].includes(fact.kind) && fact.actor_id === state.control.character_id && state.control.character_id && !input.text.includes(evidence)) {
         fail('The narrator cannot invent a commitment or relationship for an inhabited character.', 'OWNED_CHARACTER_BOUNDARY', 502);
@@ -164,15 +168,18 @@ function applyEffects(original, effects, { prose, input, beatId, lookup = () => 
       else if (effect.op === 'reveal') {
         if (!Array.isArray(effect.known_by) || effect.known_by.some((id) => !state.cast.some((entry) => entry.id === id))) fail('A revelation references unknown characters.');
         fact.visibility = 'public';
+        if(fact.campaign_section==='secrets')fact.campaign_section='knowledge';
         fact.known_by = [...new Set([...fact.known_by, ...effect.known_by])];
       } else if (effect.op === 'adjust') {
         if (fact.kind !== 'resource' || fact.value === null || !Number.isFinite(effect.amount) || Math.abs(effect.amount) > 10000 || Math.abs(fact.value + effect.amount) > 1000000) fail('Invalid resource adjustment.', 'INVALID_STORY_REPLY', 502);
         fact.value += effect.amount;
       } else fail('Unsupported story effect.', 'INVALID_STORY_REPLY', 502);
+      if(effect.claim_kind)fact.claim_kind=effect.claim_kind;if(effect.op==='resolve'&&fact.kind==='goal'&&effect.resolution_disposition)fact.resolution_disposition=effect.resolution_disposition;
       fact.evidence_beat_id = beatId;
       changes.push({ op: effect.op, fact: structuredClone(fact), prior_evidence_beat_id: priorEvidence });
     }
   }
+  for(let index=0;index<changes.length;index++){const effect=effects[index];if(effect.claim_kind)changes[index].claim_kind=effect.claim_kind;if(effect.resolution_disposition)changes[index].resolution_disposition=effect.resolution_disposition;}
   compactFacts(state, LIMITS.facts);
   return { state, changes };
 }

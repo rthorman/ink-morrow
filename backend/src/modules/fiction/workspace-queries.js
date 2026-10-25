@@ -46,7 +46,7 @@ function createWorkspaceQueries({ db, store }) {
           : identifier(query.inspection_at);
     if (!ancestor(branch.head_beat_id, head))
       fail('That inspection moment is not on the selected path.', 'INSPECTION_BOUNDARY', 404);
-    return { ...current, viewBranch: branch, head, state: store.stateAt(current.game, head), query };
+    return { ...current, viewBranch: branch, head, state: store.effectiveState(gameId,store.stateAt(current.game, head)), query };
   }
   function metadata(ctx) {
     return {
@@ -178,7 +178,7 @@ function createWorkspaceQueries({ db, store }) {
     const ctx = context(id, query);
     const section = choice(
       query.section,
-      ['all', 'facts', 'people', 'commitments', 'relationships', 'goals', 'resources'],
+      ['all','facts','people','commitments','relationships','goals','resources','promises','debts','knowledge','secrets','factions','quests','conditions','inventory'],
       'all',
       'Codex section'
     );
@@ -204,6 +204,7 @@ function createWorkspaceQueries({ db, store }) {
       records = store.memory.facts(id, ctx.head, {
         query: search,
         kind: kinds[section] || null,
+        campaignSection:['promises','debts','knowledge','secrets','factions','quests','conditions','inventory'].includes(section)?section:null,
         publicOnly: !planning,
         limit: 41,
         offset
@@ -236,12 +237,14 @@ function createWorkspaceQueries({ db, store }) {
       .filter(({ change }) => planning || change.op === 'introduce' || change.fact?.visibility === 'public');
     const sources = allowed.map(({ change, i }, visibleIndex) => {
       const source = records.find((record) => record.change_index === i);
+      const privateSource=source?null:db.prepare('SELECT source_kind FROM fiction_effect_evidence WHERE game_id=? AND beat_id=? AND change_index=?').get(id,beatId,i);
       return {
         change_index: visibleIndex,
         fact_id: change.fact?.id || null,
+        claim_kind:change.claim_kind||change.fact?.claim_kind||'legacy-unspecified',resolution_disposition:change.fact?.resolution_disposition||null,
         precision: source
           ? source.source_kind
-          : original.kind === 'correction'
+          : privateSource?'exact source kept in private owner planning':original.kind === 'correction'
             ? 'owner-declared; exact source private'
             : 'passage-level',
         ...(source
@@ -305,7 +308,7 @@ function createWorkspaceQueries({ db, store }) {
       ...codex(id, query, true),
       exposure: 'private owner planning',
       cast: ctx.state.cast,
-      configuration: { boundaries: ctx.state.boundaries, voice: ctx.state.voice, focus: ctx.state.focus },
+      configuration: { creative:ctx.state.creative,boundaries: ctx.state.boundaries, voice: ctx.state.voice, focus: ctx.state.focus },
       ...(query.evidence_at ? { evidence: evidence(id, query.evidence_at, query, true) } : {})
     };
   }

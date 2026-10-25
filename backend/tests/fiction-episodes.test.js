@@ -19,11 +19,11 @@ describe('people, complete episodes and returning to play', () => {
   });
   afterEach(() => db.close());
   const reply = async (prose, effects = [], input = follow, extra = {}) => {
-    completion.mockResolvedValue({ content: JSON.stringify({ prose, summary: prose, effects, ...extra }), cost_usd: 0.01, billed_attempts: 1 });
+    completion.mockResolvedValue({ content: JSON.stringify({ response_version:2, prose, summary: prose, effects:effects.map(effect=>({...effect,source_kind:prose.includes(effect.evidence)?'narration':'submitted_input',claim_kind:prose.includes(effect.evidence)?'occurred-event':'reported-claim'})), ...extra }), cost_usd: 0.01, billed_attempts: 1 });
     const result = await service.reply({ gameId: story.id, expectedRevision: story.revision, idempotencyKey: `episode-${++n}`, input });
     story = result.story; return result;
   };
-  const resolve = (id, evidence) => ({ op: 'resolve', id, evidence });
+  const resolve = (id, evidence) => ({ op: 'resolve', id, evidence,resolution_disposition:'achieved' });
   const reveal = (id, evidence, known_by) => ({ op: 'reveal', id, evidence, known_by });
 
   test('an authored mystery can develop, pay off and have aftermath without ending automatically', async () => {

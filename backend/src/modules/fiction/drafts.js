@@ -34,6 +34,17 @@ function createOwnerDrafts(db) {
           .get(identifier(value.resource_id), value.kind)
       )
         fail('Draft reference not found.', 'DRAFT_RESOURCE_MISSING', 404);
+    } else if(value.type==='local-reference'){
+      keys(value,['type','game_id','branch_id','head_id','kind','subject_id','base_revision'],'Story-local draft');
+      if(!['world','scribe','character','configuration','campaign'].includes(value.kind))fail('Unsupported story-local draft kind.');
+      identifier(value.game_id);identifier(value.branch_id);if(value.head_id!==null)identifier(value.head_id);if(value.base_revision!==null)identifier(value.base_revision);
+      const path=db.prepare('SELECT head_beat_id FROM fiction_branches WHERE game_id=? AND id=?').get(value.game_id,value.branch_id);if(!path)fail('Draft path not found.','DRAFT_RESOURCE_MISSING',404);
+      if(value.head_id!==null&&!db.prepare('WITH RECURSIVE p(id,parent_id) AS (SELECT id,parent_id FROM fiction_beats WHERE game_id=? AND id=? UNION ALL SELECT b.id,b.parent_id FROM fiction_beats b JOIN p ON b.id=p.parent_id) SELECT id FROM p WHERE id=?').get(value.game_id,path.head_beat_id,value.head_id))fail('Draft moment is outside this path.','DRAFT_RESOURCE_MISSING',404);
+      if((value.kind==='character')!==(value.subject_id!==null))fail('Only a cast draft names a subject.');
+      const state=JSON.parse(value.head_id===null?db.prepare('SELECT initial_state_json AS state FROM fiction_games WHERE id=?').get(value.game_id).state:db.prepare('SELECT state_json AS state FROM fiction_beats WHERE id=?').get(value.head_id).state);
+      if(value.kind==='character'&&!state.cast.some(person=>person.id===value.subject_id))fail('Draft cast subject not found.');
+      const expected=value.kind==='configuration'?state.config_revision_id||null:state.reference_heads?.[value.kind+':'+(value.subject_id||'')]||null;
+      if(expected!==value.base_revision)fail('The draft base does not match its selected moment.','DRAFT_TARGET_CHANGED',409);
     } else if (value.type === 'contribution') {
       keys(value, ['type', 'game_id', 'branch_id', 'head_id', 'kind'], 'Contribution draft');
       identifier(value.game_id);
@@ -58,15 +69,25 @@ function createOwnerDrafts(db) {
     if (!value || typeof value !== 'object' || Array.isArray(value)) fail('Draft content must be an object.');
     if (Buffer.byteLength(canonical(value)) > 240 * 1024)
       fail('This private draft exceeds 240 KiB.', 'DRAFT_TOO_LARGE', 413);
-    if (target.type === 'contribution') {
+    if(target.type==='local-reference'){
+      keys(value,['form','candidate','seed','selected_fields','base_revision','source','binding_fact_ids'],'Story-local draft content');
+      if(target.kind==='configuration'){const game=db.prepare('SELECT initial_state_json FROM fiction_games WHERE id=?').get(target.game_id);const state=target.head_id?JSON.parse(db.prepare('SELECT state_json FROM fiction_beats WHERE id=?').get(target.head_id).state_json):JSON.parse(game.initial_state_json);require('./creative-model').configuration(value.form,state.cast.map(person=>person.id),{allowIncomplete:true});}
+      else if(target.kind==='campaign'){keys(value.form,['record','reason'],'Campaign proposal');keys(value.form.record,['section','fact'],'Campaign proposal record');if(!['relationships','promises','debts','knowledge','secrets','goals','factions','quests','conditions','inventory'].includes(value.form.record.section))fail('Invalid campaign section.');keys(value.form.record.fact,['id','kind','text','actor_id','toward_id','facet','known_by','visibility','status','value','resolution_disposition'],'Campaign proposal fact');text(value.form.record.fact.text,'Campaign proposal',1500,{optional:true});text(value.form.reason,'Campaign reason',1500,{optional:true});}
+      else for(const name of ['form','candidate','seed'])if(value[name])templateSeed(target.kind,value[name]);
+      if(value.binding_fact_ids!==undefined&&(!Array.isArray(value.binding_fact_ids)||value.binding_fact_ids.length>32||value.binding_fact_ids.some(id=>typeof id!=='string'||!/^[A-Za-z0-9_-]{1,80}$/.test(id))))fail('Invalid declared fact bindings.');
+      if(value.source){keys(value.source,['template_id','template_revision'],'Draft template provenance');identifier(value.source.template_id);if(!Number.isSafeInteger(value.source.template_revision)||value.source.template_revision<0)fail('Invalid draft template revision.');}
+      if(value.selected_fields!==undefined&&(!Array.isArray(value.selected_fields)||value.selected_fields.length>40||value.selected_fields.some(field=>!require('./creative-model').referenceFields(target.kind).includes(field))))fail('Invalid selected reference fields.');
+    } else if (target.type === 'contribution') {
       keys(value, ['text', 'direction_scope'], 'Contribution content');
       text(value.text, 'Draft direction', 4000, { optional: true });
       if (value.direction_scope !== undefined && !['moment', 'ongoing'].includes(value.direction_scope))
         fail('Invalid direction scope.');
     } else if (target.type === 'catalogue') {
-      keys(value, ['form', 'candidate', 'seed', 'length', 'base_revision'], 'Catalogue content');
+      keys(value, ['form','candidate','seed','length','base_revision','previous','edit_marks','seed_marks'], 'Catalogue content');
       for (const name of ['form', 'candidate', 'seed'])
         if (value[name] !== undefined && value[name] !== null) templateSeed(target.kind, value[name]);
+      if(value.previous!==undefined&&value.previous!==null){keys(value.previous,['form','accepted','accepted_marks'],'Pre-acceptance fields');templateSeed(target.kind,value.previous.form);templateSeed(target.kind,value.previous.accepted);}
+      for(const marks of [value.edit_marks,value.seed_marks,value.previous?.accepted_marks])if(marks!==undefined){if(!marks||typeof marks!=='object'||Array.isArray(marks)||Object.entries(marks).some(([field,revision])=>!require('./creative-model').referenceFields(target.kind).includes(field)||!Number.isSafeInteger(revision)||revision<0))fail('Invalid field revision markers.');}
       if (value.length !== undefined && !['short', 'medium', 'long'].includes(value.length))
         fail('Invalid development depth.');
       if (value.base_revision !== undefined && (!Number.isSafeInteger(value.base_revision) || value.base_revision < 0))
@@ -177,8 +198,9 @@ function createOwnerDrafts(db) {
       keys(input.submitted, ['action_key', 'target'], 'Submitted draft identity');
       const actionKey = text(input.submitted.action_key, 'Action key', 200);
       const destination = input.submitted.target;
-      keys(destination, ['game_id', 'branch_id', 'head_beat_id', 'revision', 'purpose'], 'Submitted destination');
-      if (target.type === 'contribution') {
+      keys(destination, ['game_id', 'branch_id', 'head_beat_id', 'revision', 'purpose','plan_id'], 'Submitted destination');
+      if(destination.plan_id!==undefined)identifier(destination.plan_id);
+      if (['contribution','local-reference'].includes(target.type)) {
         if (
           destination.game_id !== target.game_id ||
           destination.branch_id !== target.branch_id ||

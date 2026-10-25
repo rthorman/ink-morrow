@@ -119,3 +119,27 @@
 .workspace-inspection blockquote { margin: 1rem 0; padding-inline-start: 1rem; border-inline-start: 3px solid currentColor; white-space: pre-wrap; }
 .workspace-draft-state { margin-block: .7rem; padding: .7rem; border: 1px solid var(--border-color, #61546c); border-radius: .5rem; }
 .workspace-draft-state textarea { width: 100%; min-height: 8rem; }
+
+.fiction-field-comparison { margin-block: 1rem; padding: .85rem; border: 1px solid var(--border-color, #61546c); border-radius: .5rem; }
+.fiction-field-comparison__scroll { overflow-x: auto; max-width: 100%; }
+.fiction-field-comparison table { width: 100%; border-collapse: collapse; table-layout: fixed; min-width: 42rem; }
+.fiction-field-comparison th, .fiction-field-comparison td { text-align: start; vertical-align: top; padding: .65rem; border-bottom: 1px solid var(--border-color, #61546c); overflow-wrap: anywhere; white-space: pre-wrap; }
+.fiction-field-comparison td { max-height: 18rem; }
+
+/* Keep long creative forms usable with touch and a short keyboard viewport. */
+.fiction-studio-grid > fieldset,
+.fiction-studio-grid > details,
+.fiction-studio-grid > p,
+.fiction-studio-grid > .fiction-studio-section { grid-column: 1 / -1; }
+.dialog-manager__panel--studio .fiction-field:has(> input[type="checkbox"]) {
+  display: grid; grid-template-columns: 1.5rem minmax(0, 1fr); align-items: start; gap: .65rem; min-height: 2.75rem;
+}
+.dialog-manager__panel--studio .fiction-field:has(> input[type="checkbox"]) > label {
+  grid-column: 2; grid-row: 1; min-height: 2.75rem; padding-block: .35rem; cursor: pointer;
+}
+.dialog-manager__panel--studio .fiction-field > input[type="checkbox"] {
+  grid-column: 1; grid-row: 1; width: 1.3rem; height: 1.3rem; min-height: 1.3rem; margin: .5rem 0; padding: 0; accent-color: var(--im-gold-500);
+}
+.dialog-manager__panel--studio .fiction-studio-grid > fieldset {
+  min-width: 0; border: 1px solid var(--im-border); border-radius: .7rem; padding: 1rem;
+}

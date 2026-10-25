@@ -214,7 +214,7 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
           );
         const section = field('Records', 'select');
         section.control.append(
-          ...['all', 'facts', 'people', 'commitments', 'relationships', 'goals', 'resources'].map((name) =>
+          ...['all','facts','people','commitments','relationships','goals','resources','promises','debts','knowledge','secrets','factions','quests','conditions','inventory'].map((name) =>
             option(name, name[0].toUpperCase() + name.slice(1))
           )
         );
@@ -240,6 +240,7 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
                 el('h4', record.name || record.kind || 'Record'),
                 el('p', record.text || record.description || '')
               );
+              if(record.claim_kind)card.append(el('p',`Recorded as: ${record.claim_kind.replaceAll('-',' ')}`,'fiction-muted'));if(record.resolution_disposition)card.append(el('p',`Goal resolution: ${record.resolution_disposition.replaceAll('-',' ')}`,'fiction-muted'));if(record.campaign_section)card.append(el('p',`Campaign: ${record.campaign_section}`,'fiction-muted'));
               if (record.evidence_beat_id)
                 card.append(button('Recorded evidence', () => evidence(record.evidence_beat_id, context)));
               else
@@ -306,8 +307,7 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
           for (const person of data.cast)
             privateRoot.append(el('h4', person.name), el('p', person.motive || 'No private motive recorded.'));
           for (const fact of data.records) privateRoot.append(el('p', `${fact.visibility}: ${fact.text}`));
-          for (const [name, value] of Object.entries(data.configuration))
-            if (value) privateRoot.append(el('p', `${name}: ${value}`));
+          for(const [name,value]of Object.entries(data.configuration)){if(name==='creative'&&value){privateRoot.append(el('h4','Private creative configuration'));for(const key of ['perspective','language','tense','framing_narrator','genre_description','tone'])if(value[key])privateRoot.append(el('p',`${key.replaceAll('_',' ')}: ${value[key]}`));if(value.scene_plan)privateRoot.append(el('p',`Proposed next scene: ${[value.scene_plan.location,value.scene_plan.time,value.scene_plan.purpose,value.scene_plan.notes].filter(Boolean).join(' · ')}`));}else if(value)privateRoot.append(el('p',`${name}: ${value}`));}
         }
       }
       if (room === 'desk' && inspected) {

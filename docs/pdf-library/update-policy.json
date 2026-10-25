@@ -1,0 +1,5 @@
+{
+  "mode": "deferred",
+  "until": "final-recovery-work-package",
+  "reason": "Stakeholder requested source-guide updates during recovery and PDF regeneration only after the final work package."
+}

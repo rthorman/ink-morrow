@@ -2,7 +2,7 @@ import { el, field, option } from './dom.js';
 import { styleField, styleDescription, fourthWallField } from './influence.js';
 import { qualityField } from './quality.js';
 
-export function createStoryDialogs({ dialogs, getCurrent, isBusy, localAction }) {
+export function createStoryDialogs({ dialogs, getCurrent, isBusy, localAction,openPreferences=null }) {
   function open(title, make) {
     const story = getCurrent(); if (!story || story.pending || isBusy()) return;
     const spec = make(story); const error = el('p'); error.setAttribute('role', 'alert');
@@ -28,7 +28,7 @@ export function createStoryDialogs({ dialogs, getCurrent, isBusy, localAction })
       const reason = field('Reason for retiring it', 'input', '', { maxLength: 1500 });
       return { path: 'corrections', label: 'Retire this fact', body: [el('p', 'Remove a fact from current working memory. Earlier prose and earlier path snapshots keep it. Retired facts are no longer supplied to the narrator; do not retire a promise you still want to matter.'), fact.wrapper, reason.wrapper], payload: () => fact.control.value && reason.control.value.trim() ? { remove_id: fact.control.value, reason: reason.control.value.trim() } : null };
     }),
-    preferences: () => open('Story preferences', (story) => {
+    preferences: () => openPreferences?openPreferences():open('Story preferences', (story) => {
       const style = styleField(story.state.play_style);
       const fourthWall = fourthWallField(style, story.state.fourth_wall);
       const quality = qualityField(story.state.quality_mode);

@@ -6,6 +6,37 @@ InkMorrow 5.0 is a single-owner playable-fiction system. This book explains the 
 
 </div>
 
+## B3 creative and narration architecture
+
+Schema 25 appends `creative-migration-v25.js`. `creative-collections.js` owns
+immutable story-local configuration/reference revisions, deterministic legacy
+baselines, optimistic local commands, receipts and cancellation fences. Snapshots
+store revision heads; effective state overlays references for current/historical
+views. Template provenance is inert, never a live foreign reference. Adopting a
+reference creates no canonical event. Typed campaign sections reuse existing fact
+kinds, visibility, knowledge and evidence.
+
+`context-compiler.js` resolves ownership, branch truth/knowledge, current intent,
+established scene, creative settings, Scribe craft and provisional opportunities.
+Recent narrative links survive intervening local/Ask records; stable fact IDs
+retrieve older selected constraints outside the compact working set. Preflight
+removes whole older passages if needed while retaining binding authority/latest
+prose. `generation-plan.js` checks every potential quality stage against declared
+model context/output capacities before dispatch. Serialized UTF-8 bytes plus
+protocol overhead form a conservative bound, not tokenizer precision. Actual
+stages recheck reviewed capacities and fixed output/reasoning allowances.
+
+`narrative-assembly.js` separates ordinary narration, owner-authorized performed
+Say and asides. Exact segment hashes/ranges, occurrence status and paragraph
+boundary preserve the owner's words and support evidence exclusion. Response v2
+classifies intention/attempt/reported claim/event and actual goal outcomes. The
+opportunity scheduler nominates categories independently of fact cardinality.
+`creative-save.js` validates producers, parents, subject/ancestry, complete shapes,
+bindings, unchanged baselines/heads and source closure before import remaps IDs.
+Frozen save-v1 modules and migration 24 remain untouched. See B3-DELIVERY.md for
+limits and fixtures; current source manuals advance while PDFs stay deferred.
+
+
 ## Product and system context
 
 The durable product is one readable story with alternate paths, not a transcript
@@ -64,7 +95,7 @@ recreated at each surface.
 ## Fresh storage and startup order
 
 The release identifies itself as 5.0.0, database family ink-morrow-5,
-schema 22 and SQLite application ID 0x494D3530. Package identities agree across
+schema 25 and SQLite application ID 0x494D3530. Package identities agree across
 root, backend, frontend and E2E. Playable saves separately identify their own
 format and version; these are not interchangeable schema numbers.
 
