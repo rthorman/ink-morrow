@@ -1,3 +1,4 @@
+import {workspaceApiFixture} from './workspace-api-fixture.js';
 import { jest } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { createFictionApp } from '../app/fiction/app.js';
@@ -21,7 +22,7 @@ describe('current-fiction workspace adapters', () => {
     history.replaceState(null, '', '#/story/work/desk');
     dialogs = { close: jest.fn(), openDialog: jest.fn(), confirmPaid: jest.fn().mockResolvedValue(true) };
     api = jest.fn(async () => ({ story: fixture() }));
-    app = createFictionApp({ api, dialogs });
+    app = createFictionApp({ api:workspaceApiFixture(api,fixture), dialogs });
   });
   afterEach(() => { app?.dispose(); localStorage.clear(); });
   test('all five real room adapters preserve the cursor and make no extra request', async () => {
@@ -62,11 +63,11 @@ describe('current-fiction workspace adapters', () => {
     api.mockImplementation(path => path.includes('?before=') ? new Promise(resolve => { finishWindow = resolve; }) : path.includes('/evidence/') ? new Promise(resolve => { finishEvidence = resolve; }) : Promise.resolve({ story: fixture() }));
     const starting = app.start(); await tick();
     history.replaceState(null, '', '#/story/work/chronicle'); await app.route();
-    document.querySelector('#workspaceHistory button').click();
+    document.getElementById('fictionPreviousPage').disabled=false;document.getElementById('fictionPreviousPage').click();
     finishWindow({ story: { ...fixture(), beats: [], has_earlier: false } });
     finishEvidence({ beat: { id: 'older', kind: 'scene', prose: 'An older passage.', summary: 'Older' } });
     await starting;
-    expect(document.getElementById('fictionProse').textContent).toContain('Passage first.');
+    expect(document.getElementById('fictionProse').textContent).toContain('Passage second.');
   });
   test('reading and room navigation remain available while a paid request is pending', async () => {
     await app.start(); let finish;

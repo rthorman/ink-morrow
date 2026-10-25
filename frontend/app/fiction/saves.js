@@ -21,8 +21,8 @@ export function createSaveDialogs({ dialogs, getCurrent, getLive, runAction }) {
     const live = getLive();
     const file = field('InkMorrow 5 save file (up to 64 MB)', 'input', '', { type: 'file', accept: '.inkmorrow5' });
     const error = el('p'); error.setAttribute('role', 'alert');
-    const post = async (path, selected) => {
-      const response = await apiFetch(`/api/fiction/saves/${path}`, { method: 'POST', headers: { 'Content-Type': MIME }, body: selected });
+    const post = async (path, selected,actionKey=null) => {
+      const response = await apiFetch(`/api/fiction/saves/${path}`, { method: 'POST', headers: { 'Content-Type': MIME,...(actionKey?{'Idempotency-Key':actionKey}:{}) }, body: selected });
       const body = await response.json(); if (!response.ok) throw new Error(body.error || 'Import failed.'); return body;
     };
     dialogs.openDialog({ title: 'Import a playable save', body: [el('p', 'Import creates a separate story. Nothing is overwritten and no AI request is started. Earlier InkMorrow databases and .inkmorrow archives are not accepted.'), file.wrapper, error], actions: [
@@ -32,14 +32,15 @@ export function createSaveDialogs({ dialogs, getCurrent, getLive, runAction }) {
         if (!selected || selected.size > 64 * 1024 * 1024) { error.textContent = 'Choose an .inkmorrow5 save no larger than 64 MB.'; return; }
         try {
           const { preview } = await post('preview', selected); if (!live()) return;
+          const importKey=crypto.randomUUID();
           const failure = el('p'); failure.setAttribute('role', 'alert');
           dialogs.openDialog({ title: `Import ${preview.title}?`, body: [el('p', `${preview.paths} paths · ${preview.moments} moments · ${preview.images} images`), el('p', warning), failure], actions: [
             { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
             { label: 'Import as a new story', className: 'btn-primary', pendingLabel: 'Importing…', onClick: async (close) => {
               try {
-                const { story } = await post('import', selected); if (!live()) return;
+                const { story } = await post('import', selected,importKey); if (!live()) return;
                 close(true); window.location.hash = `#/story/${encodeURIComponent(story.id)}`;
-              } catch (issue) { if (live()) failure.textContent = `${issue.message} If the connection was lost, check Your stories before retrying: the copy may already exist.`; }
+              } catch (issue) { if (live()) failure.textContent = `${issue.message} Retrying here uses the same import identity and recovers the original copy.`; }
             } },
           ] });
         } catch (issue) { if (live()) error.textContent = issue.message; }

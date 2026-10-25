@@ -6,6 +6,8 @@ import { createInfluence } from './influence.js';
 import { qualityPaidReview, renderQuality } from './quality.js';
 import { createVisualLibrary, storyImage } from './library.js';
 import { createFictionWorkspace } from './workspace-shell.js';
+import { createInspection } from './inspection.js';
+import { createPrivateDraft } from './private-drafts.js';
 import { parseWorkspace, workspaceUrl, getBookmark } from './workspace-state.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen', 'catalogScreen'];
@@ -20,17 +22,65 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
-  let workspace = null;
+  let workspace = null; let inspection = null;
+  const durableDrafts = new Map(); let activeDurable = null; let setupDraft = null;
   let bookmarkRestoring = false;
   let roomEpoch = 0;
-  const draftKey = (story = current, kind = $('fictionInputKind').value) => story ? `${story.id}:${story.active_branch_id}:${kind}` : '';
+  const draftKey = (story = current, kind = $('fictionInputKind').value) => story ? `${story.id}:${story.active_branch_id}:${story.head_beat_id || "initial"}:${kind}` : '';
   let selectedDraftKind = 'steer'; let draftRevision = 0;
-  function saveDraft() { if (current) { drafts.set(draftKey(current, selectedDraftKind), $('fictionDirection').value); scopes.set(draftKey(current, selectedDraftKind), $('fictionDirectionScope').value); } }
+  function saveDraft() { if (current) { drafts.set(draftKey(current, selectedDraftKind), $('fictionDirection').value); scopes.set(draftKey(current, selectedDraftKind), $('fictionDirectionScope').value); if(activeDurable)activeDurable.edit({text:$('fictionDirection').value,direction_scope:$('fictionDirectionScope').value}); } }
   function selectDraft(kind) {
     saveDraft(); selectedDraftKind = kind;
     $('fictionDirection').value = drafts.get(draftKey(current, kind)) || '';
     $('fictionDirectionScope').value = scopes.get(draftKey(current, kind)) || 'moment';
     $('workspaceScope').hidden = kind !== 'steer';
+    openContributionDraft();
+  }
+  function draftPanel(state) {
+    let root=$('contributionDraftState');
+    if(!root){root=el('section','','workspace-draft-state');root.id='contributionDraftState';$('fictionComposer').append(root);}
+    root.replaceChildren();if(!state)return;
+    const message=el('p',state.message);message.setAttribute('role','status');root.append(message);
+    root.append(button('Save draft now',()=>activeDurable.flush().catch(error=>{message.textContent=error.message;})),button('Discard this draft…',()=>dialogs.openDialog({title:'Discard this private draft?',body:'This removes the saved draft and its local text. Story history is unchanged.',actions:[{label:'Keep draft',className:'btn-secondary',onClick:close=>close(true)},{label:'Discard draft',className:'btn-primary',onClick:async close=>{await activeDurable.discard();$('fictionDirection').value='';drafts.delete(draftKey());activeDurable=null;openContributionDraft();close(true);}}]})));
+    root.append(button('Copy private draft',async()=>{try{await navigator.clipboard.writeText(state.local.text||'');message.textContent='Copied. Keep it somewhere private.';}catch{const text=field('Select and copy your draft','textarea',state.local.text||'',{readOnly:true});root.append(text.wrapper);text.control.select();}}));
+    if(state.conflict){
+      root.append(field('Your local version','textarea',state.local.text||'',{readOnly:true}).wrapper,field('Saved server version','textarea',state.conflict.content.text||'',{readOnly:true}).wrapper);
+      for(const [label,useServer] of [['Use server version',true],['Keep my compared version',false]])root.append(button(label,()=>{const value=activeDurable.resolve(useServer);if(value){$('fictionDirection').value=value.text||'';$('fictionDirectionScope').value=value.direction_scope||'moment';draftRevision++;}}));
+    }
+    if(current && state.scope.head_id!==current.head_beat_id)root.append(button('Use this draft at the latest moment',()=>{const value={...state.local};activeDurable=null;openContributionDraft();$('fictionDirection').value=value.text||'';$('fictionDirectionScope').value=value.direction_scope||'moment';draftRevision++;saveDraft();}));
+    if(state.row?.submitted)root.append(button('Review previous submission',()=>reviewSubmission(activeDurable)));
+    root.append(button('Recover an earlier draft…',recoverContribution));
+  }
+  function openContributionDraft() {
+    if(!current)return;
+    if(activeDurable?.state?.dirty && activeDurable.state.scope.game_id===current.id && activeDurable.state.scope.head_id!==current.head_beat_id && $('fictionDirection').value){draftPanel(activeDurable.state);return;}
+    const key=draftKey();let controller=durableDrafts.get(key);
+    if(!controller?.state){
+      controller=createPrivateDraft({api,onChange:state=>{if(activeDurable===controller)draftPanel(state);}});durableDrafts.set(key,controller);
+      activeDurable=controller;
+      const target={type:'contribution',game_id:current.id,branch_id:current.active_branch_id,head_id:current.head_beat_id,kind:$('fictionInputKind').value};
+      const revision=draftRevision;
+      controller.open(target,{text:$('fictionDirection').value,direction_scope:$('fictionDirectionScope').value}).then(value=>{if(activeDurable===controller&&value&&draftRevision===revision){$('fictionDirection').value=value.text||'';$('fictionDirectionScope').value=value.direction_scope||'moment';drafts.set(key,value.text||'');}});
+    }else{activeDurable=controller;draftPanel(controller.state);}
+  }
+  async function recoverContribution() {
+    const story=current;const token=epoch;const body=el('div','Opening private draft list…');
+    dialogs.openDialog({title:'Recover a private contribution',body:[body],actions:[{label:'Close',className:'btn-secondary',onClick:close=>close(true)}]});
+    try{const data=await api(`/fiction/drafts?type=contribution&game_id=${story.id}`);if(!alive(token))return;body.replaceChildren(el('p','Older drafts retain their original destination. Choosing one copies it into a draft for the active path at its latest moment; nothing is sent.'));
+      for(const item of data.drafts){const path=story.branches.find(path=>path.id===item.scope.branch_id);body.append(button(`${item.scope.kind} · ${path?.name||'Saved path'} · ${item.scope.head_id===story.head_beat_id?'latest moment':'earlier moment'}`,async()=>{try{const {draft}=await api(`/fiction/drafts/${item.id}`);if(!alive(token)||current.id!==story.id)return;if(draft.submitted){body.append(el('p','This draft has a previous submission. Review it before reusing its text.'));await reviewSubmission(null,draft);return;}if(item.scope.kind==='follow'){body.append(el('p','Continue has no direction text to recover.'));return;}workspace.contribution(item.scope.kind);$('fictionDirection').value=draft.content.text||'';$('fictionDirectionScope').value=draft.content.direction_scope||'moment';draftRevision++;saveDraft();dialogs.close(true);}catch(error){body.append(el('p',error.message));}}));}
+    }catch(error){if(alive(token))body.textContent=error.message;}
+  }
+  async function reviewSubmission(controller, supplied=null) {
+    const row=supplied||controller?.state?.row;if(!row?.submitted)return;
+    const token=epoch;const submitted=row.submitted;const body=el('div','Checking the durable request record…');
+    const actions=[{label:'Close',className:'btn-secondary',onClick:close=>close(true)}];
+    dialogs.openDialog({title:'Review previous submission',body:[body],actions});
+    try{const result=await api(`/fiction/actions/${encodeURIComponent(submitted.action_key)}?game_id=${row.scope.game_id}`);if(!alive(token))return;
+      body.replaceChildren(el('p',`Previous request: ${result.status}. No AI request has been sent by this check.`));
+      if(result.status==='pending')body.append(el('p','Wait for the current request to finish, then check again.'));
+      else if(result.can_start_new){body.append(button('Acknowledge result and allow a new reviewed action',async()=>{if(controller)await controller.clearSubmission();else await api(`/fiction/drafts/${row.id}`,'PATCH',{expected_revision:row.revision,clear_submission:true});if(alive(token)){body.replaceChildren(el('p','Previous result acknowledged. Review the current story and direction before sending again.'));}}));}
+      else body.append(button('Cancel this action if it has not been dispatched',async()=>{try{const status=await api(`/fiction/actions/${encodeURIComponent(submitted.action_key)}/cancel`,'POST',{game_id:row.scope.game_id});if(alive(token))body.append(el('p',`Request is now ${status.status}. Check again before preparing another action.`));}catch(error){if(alive(token))body.append(el('p',error.message));}}));
+    }catch(error){if(alive(token))body.textContent=error.message;}
   }
   const stopProgress = () => { progressSerial++; clearTimeout(progressTimer); progressTimer = null; };
   const alive = (token) => unlocked && epoch === token;
@@ -74,7 +124,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     pageControls();
   }
 
-  const readingPages = (beats = current?.beats || []) => beats.filter((beat) => ['opening', 'scene', 'clarification'].includes(beat.kind));
+  const readingPages = (beats = current?.beats || []) => beats.filter((beat) => ['opening', 'scene'].includes(beat.kind));
   function pageControls() {
     const beats = readingPages();
     const index = beats.findIndex((beat) => beat.id === shownBeatId);
@@ -272,18 +322,19 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const changed = workspace.room !== destination.room;
       if (changed) roomEpoch++;
       workspace.showRoom(destination.room, changed);
+      inspection.render(destination.room);
       workspace.position();
       if (destination.task && !workspace.taskOpen) workspace.contribution(destination.task, true);
       return;
     }
-    saveDraft(); workspace.leave();
+    saveDraft(); inspection.leave(); workspace.leave();
     const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; bookmarkRestoring = false; current = null; shownBeatId = null;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
     $('fictionEarlier').disabled = false;
     try {
       if (hash === '#/new') {
-        showScreen('startScreen'); library.loadSetup(() => alive(token));
+        showScreen('startScreen'); await library.loadSetup(() => alive(token)); if(alive(token))await openSetupDraft(token);
         try { const data = await api('/fiction/scenarios'); if (alive(token)) renderScenarios(data.scenarios || []); }
         catch { if (alive(token)) $('scenarioChoices').textContent = 'Authored openings are unavailable. You can still create your own situation below.'; }
         return;
@@ -306,6 +357,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         await restoreReadingPosition(token);
         if (!alive(token)) return;
         workspace.showRoom(destination.room);
+        inspection.render(destination.room);
+        openContributionDraft();
         if (destination.task) workspace.contribution(destination.task, true);
         controls();
       } else {
@@ -320,8 +373,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const token = epoch; const story = current;
     busy = true; controls(); status();
     try {
-      const data = await api(`/fiction/${story.id}/${path}`, method, { ...payload, expected_revision: story.revision });
-      if (alive(token)) { renderStory(data.story); if (path === 'branch' || path === 'branches') await restoreReadingPosition(token); if (alive(token) && !actionFeedback) status('Saved.'); return { ok: true }; }
+      const data = await api(`/fiction/${story.id}/${path}`, method, { ...payload, expected_revision: story.revision, target_branch_id:story.active_branch_id, expected_head_beat_id:story.head_beat_id });
+      if (alive(token)) { renderStory(data.story); inspection.render(workspace.room); openContributionDraft(); if (path === 'branch' || path === 'branches') await restoreReadingPosition(token); if (alive(token) && !actionFeedback) status('Saved.'); return { ok: true }; }
     } catch (error) { if (alive(token)) status(`${error.message} Your current path is preserved.`, true); return { ok: false, error: error.message }; }
     finally { if (alive(token)) { busy = false; controls(); } }
   }
@@ -366,14 +419,21 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         };
         progressTimer = setTimeout(updateProgress, 1500);
       }
+      if(draftRevision!==submittedDraftRevision)throw Error('Your direction changed during review. Review it again before sending.');
+      openContributionDraft();if(kind!=='follow'&&activeDurable?.state?.scope.head_id!==story.head_beat_id)throw Error('This draft belongs to an earlier moment. Choose Use this draft at the latest moment, then review it.'); let submittedController=activeDurable;
+      if(kind==='follow'||approach){const key=draftKey(story,kind==='follow'?'follow':'approach');submittedController=durableDrafts.get(key);if(!submittedController?.state){submittedController=createPrivateDraft({api});durableDrafts.set(key,submittedController);await submittedController.open({type:'contribution',game_id:story.id,branch_id:story.active_branch_id,head_id:story.head_beat_id,kind:kind==='follow'?'follow':kind},{text:direction});}}
+      submittedController.edit({text:kind==='follow'?'':direction,direction_scope:$('fictionDirectionScope').value});
+      const prepared=await submittedController.submit({game_id:story.id,branch_id:story.active_branch_id,head_beat_id:story.head_beat_id,revision:story.revision});
+      if(!alive(token))return;
       const data = await api(`/fiction/${story.id}/replies`, 'POST', {
-        expected_revision: story.revision, idempotency_key: globalThis.crypto.randomUUID(), input,
+        expected_revision: story.revision, target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,idempotency_key: prepared.actionKey, input,
         ...(story.generation?.provider ? { provider_id: story.generation.provider.id, model: story.generation.model_id } : {}),
         ...(quality ? { quality_review: story.quality_generation?.review_id } : {}),
       });
       if (!alive(token)) return;
       if (!approach && kind !== 'follow' && draftRevision === submittedDraftRevision && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(submittedKey); $('fictionDirectionScope').value = 'moment'; scopes.delete(submittedKey); }
-      renderStory(data.story, { forceLatest: atTail && submittedCursor === shownBeatId && workspace.room === 'desk' }); workspace.hideTask(); status(data.repeated_adjudication ? 'The recorded ruling still applies. No AI request or charge.' : 'Story saved.');
+      if(submittedController.state && !submittedController.state.dirty){try{await submittedController.discard();}catch{status('Story saved; draft cleanup needs review.');}}
+      renderStory(data.story, { forceLatest: atTail && submittedCursor === shownBeatId && workspace.room === 'desk' }); workspace.hideTask(); openContributionDraft(); inspection.render(workspace.room); status(data.repeated_adjudication ? 'The recorded ruling still applies. No AI request or charge.' : 'Story saved.');
       if (atTail && workspace.room === 'desk') $('workspaceReader').scrollTop = 0;
       if (new URLSearchParams(location.hash.split('?')[1] || '').has('task')) history.replaceState(null, '', workspaceUrl(story.id, workspace.room));
       workspace.position();
@@ -486,7 +546,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     const name = field('Character name', 'input', character.name || '', { maxLength: 200 });
     const description = field('Who are they?', 'textarea', character.description || '', { maxLength: 2000, rows: 2 });
     const motive = field('What do they want?', 'input', character.motive || character.personality || '', { maxLength: 1000 });
-    const row = { id: globalThis.crypto.randomUUID(), name, description, motive, card };
+    const row = { id: character.id || globalThis.crypto.randomUUID(), name, description, motive, card };
     card.append(name.wrapper, description.wrapper, motive.wrapper, button('Remove this character', () => { castRows.splice(castRows.indexOf(row), 1); card.remove(); }));
     castRows.push(row); $('fictionCastDraft').append(card);
   }
@@ -508,17 +568,42 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     }));
   }
 
+  function setupValue() {
+    const cast=castRows.map(row=>({id:row.id,name:row.name.control.value.trim(),description:row.description.control.value.trim(),motive:row.motive.control.value.trim()}));
+    const value={title:$('fictionTitle').value.trim(),premise:$('fictionPremise').value.trim(),genre:$('fictionGenre').value,play_style:$('fictionStartStyle').value,fourth_wall:$('fictionFourthWall').value,cast,pacing:$('fictionPacing').value,consequences:$('fictionConsequences').value,boundaries:$('fictionBoundaries').value.trim(),voice:$('fictionVoice').value.trim(),...(scenario?{scenario_id:scenario.id}:{})};
+    const selection=library.selection();if(selection)value.library=selection;return value;
+  }
+  async function restoreSetup(value,token) {
+    if(!value||!alive(token))return;
+    for(const [key,id] of Object.entries({title:'fictionTitle',premise:'fictionPremise',genre:'fictionGenre',play_style:'fictionStartStyle',fourth_wall:'fictionFourthWall',pacing:'fictionPacing',consequences:'fictionConsequences',boundaries:'fictionBoundaries',voice:'fictionVoice'}))if(value[key]!==undefined)$(id).value=value[key];
+    castRows.length=0;$('fictionCastDraft').replaceChildren();for(const person of value.cast||[])addCast(person);
+    scenario=value.scenario_id?{id:value.scenario_id}:null;syncFourthWallStart();await library.restoreSelection(value.library,()=>alive(token));
+  }
+  async function openSetupDraft(token) {
+    if(!setupDraft)setupDraft=createPrivateDraft({api,onChange:state=>{
+      let root=$('setupDraftState');if(!root){root=el('section','','workspace-draft-state');root.id='setupDraftState';$('fictionStartForm').append(root);}root.replaceChildren();if(!state)return;
+      if(state.creation){root.append(el('p','A story was created from this setup.'),button('Open the created story',()=>{const id=state.creation.result_id;setupDraft.acknowledgeCreation().catch(()=>{});location.hash=`#/story/${id}`;}),button('Acknowledge and begin another setup',()=>setupDraft.acknowledgeCreation()));}
+      root.append(el('p',state.message),button('Save setup draft now',()=>setupDraft.flush().catch(error=>status(error.message,true))),button('Discard setup draft…',()=>dialogs.openDialog({title:'Discard this setup draft?',body:'The saved setup and unsaved fields will be removed.',actions:[{label:'Keep draft',className:'btn-secondary',onClick:close=>close(true)},{label:'Discard draft',className:'btn-primary',onClick:async close=>{await setupDraft.discard();setupDraft=null;$('fictionStartForm').reset();library.resetSetup();castRows.length=0;$('fictionCastDraft').replaceChildren();scenario=null;close(true);await openSetupDraft(epoch);}}]})));
+      root.append(button('Copy setup draft',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(state.local,null,2));}catch{root.append(field('Select and copy private setup','textarea',JSON.stringify(state.local,null,2),{readOnly:true}).wrapper);}}));
+      if(state.conflict){root.append(field('Local setup','textarea',JSON.stringify(state.local,null,2),{readOnly:true}).wrapper,field('Saved setup','textarea',JSON.stringify(state.conflict.content,null,2),{readOnly:true}).wrapper);for(const [label,server]of [['Use server setup',true],['Keep compared local setup',false]])root.append(button(label,()=>restoreSetup(setupDraft.resolve(server),epoch)));}
+    }});
+    if(!setupDraft.state){const value=await setupDraft.open({type:'setup',id:'new-story'},setupValue());if(alive(token))await restoreSetup(value,token);}
+  }
+  function saveSetupDraft(){if(setupDraft?.state)setupDraft.edit(setupValue());}
   async function startStory(event) {
     event.preventDefault();
     if (busy) return;
     const token = epoch; busy = true; $('startFiction').disabled = true; $('startFiction').textContent = 'Starting…'; status();
     try {
-      const cast = castRows.map((row) => ({ id: row.id, name: row.name.control.value.trim(), description: row.description.control.value.trim(), motive: row.motive.control.value.trim() }));
-      const payload = { title: $('fictionTitle').value.trim(), premise: $('fictionPremise').value.trim(), genre: $('fictionGenre').value, play_style: $('fictionStartStyle').value, fourth_wall: $('fictionFourthWall').value, cast, pacing: $('fictionPacing').value, consequences: $('fictionConsequences').value, boundaries: $('fictionBoundaries').value.trim(), voice: $('fictionVoice').value.trim(), ...(scenario ? { scenario_id: scenario.id } : {}) };
-      const selection = library.selection(); if (selection) payload.library = selection;
-      const data = await api('/fiction', 'POST', payload);
+      const payload=setupValue();await openSetupDraft(token);setupDraft.edit(payload);const row=await setupDraft.flush();
+      const actionKey=row.submitted?.action_key || crypto.randomUUID();
+      const prepared=row.submitted?{row,actionKey}:await setupDraft.submit({purpose:'story-creation'},actionKey);
+      if(!alive(token))return;
+      const data=await api('/fiction','POST',{...payload,creation:{draft_id:prepared.row.id,draft_revision:prepared.row.revision,action_key:prepared.actionKey}});
       if (!alive(token)) return;
       $('fictionStartForm').reset(); library.resetSetup(); syncFourthWallStart(); castRows.length = 0; $('fictionCastDraft').replaceChildren(); scenario = null; $('scenarioNote').textContent = '';
+      try{await api(`/fiction/local-actions/${encodeURIComponent(prepared.actionKey)}/ack`,'POST',{});}catch{/* Recovery remains available after a lost acknowledgement. */}
+      if(!alive(token))return;setupDraft.close();setupDraft=null;
       window.location.hash = `#/story/${data.story.id}`;
     } catch (error) { if (alive(token)) status(error.message, true); }
     finally { if (alive(token)) { busy = false; $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story'; } }
@@ -526,12 +611,14 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); workspace.clear();
+    workspace.position(); inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary', 'fictionCover', 'fictionReferences']) $(id).replaceChildren();
+    setupDraft?.close();setupDraft=null;$('setupDraftState')?.replaceChildren();
+    $('contributionDraftState')?.replaceChildren();
     $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
     $('fictionBranch').replaceChildren(); $('fictionInputKind').replaceChildren(option('steer', 'Steer the story'), option('ask', 'Ask outside the story'));
     selectedDraftKind = 'steer'; bookmarkRestoring = false; $('workspaceNewPassage').hidden = true;
@@ -555,6 +642,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     readBeat: (id) => { const index = readingPages().findIndex(beat => beat.id === id); if (index >= 0) showPage(index); },
     sourceButton: influence.sourceButton, illustrate: mediaDialogs.illustrate, contributionChanged: selectDraft,
   });
+  inspection = createInspection({api,dialogs,getCurrent:()=>current,activate:branch=>localAction('branch','PUT',{branch_id:branch})});
   async function loadLatest() {
     if (!current || $('fictionLatestPage').disabled) return;
     if (!current.windowPast) { showPage(readingPages().length - 1); return; }
@@ -563,6 +651,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     catch (error) { if (alive(token)) status(error.message, true); }
     finally { if (alive(token)) { earlierBusy = false; controls(); } }
   }
+  $('fictionContinue').parentElement.append(button('Recover drafts or review submissions…',recoverContribution));
   $('fictionDownloadSave').addEventListener('click', saveDialogs.save);
   $('fictionImportSave').addEventListener('click', saveDialogs.importSave);
   $('fictionIllustrate').addEventListener('click', mediaDialogs.illustrate);
@@ -570,6 +659,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionExportBook').addEventListener('click', mediaDialogs.exportBook);
   for (const [id, action] of [['fictionPreferences', 'preferences'], ['fictionAddCast', 'cast'], ['fictionRetire', 'retire']]) $(id).addEventListener('click', storyDialogs[action]);
 
+  $('fictionStartForm').addEventListener('input',saveSetupDraft);$('fictionStartForm').addEventListener('change',saveSetupDraft);
   $('fictionStartForm').addEventListener('submit', startStory);
   $('fictionStartStyle').addEventListener('change', syncFourthWallStart);
   $('addFictionCast').addEventListener('click', () => addCast());
@@ -580,7 +670,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionContinue').addEventListener('click', () => send('follow'));
   $('fictionComposer').addEventListener('submit', (event) => { event.preventDefault(); send($('fictionInputKind').value); });
   $('fictionDirection').addEventListener('input', () => { draftRevision++; saveDraft(); controls(); });
-  $('fictionDirectionScope').addEventListener('change', saveDraft);
+  $('fictionDirectionScope').addEventListener('change',()=>{draftRevision++;saveDraft();});
   $('fictionInputKind').addEventListener('change', () => { workspace.contribution($('fictionInputKind').value, true); controls(); });
   $('fictionDirection').addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); send($('fictionInputKind').value); } });
   $('fictionDetailsToggle').addEventListener('click', () => { if (current) location.hash = workspaceUrl(current.id, 'codex'); });

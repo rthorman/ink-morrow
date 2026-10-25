@@ -110,3 +110,12 @@
   .workspace-reader { overflow: visible; }
   .workspace-task-panel { height: 100dvh; max-height: 100dvh; }
 }
+
+/* Historical inspection stays visually distinct from the active action target. */
+.workspace-inspection { margin-block: 1.2rem; padding: 1rem; border: 1px solid var(--border-color, #61546c); border-radius: .65rem; }
+.workspace-inspection .fiction-field { max-width: 42rem; }
+.workspace-inspection > .btn, .workspace-draft-state > .btn { margin: .25rem .35rem .25rem 0; }
+.workspace-inspection figure img { display: block; max-width: 100%; max-height: 60vh; margin-inline: auto; object-fit: contain; }
+.workspace-inspection blockquote { margin: 1rem 0; padding-inline-start: 1rem; border-inline-start: 3px solid currentColor; white-space: pre-wrap; }
+.workspace-draft-state { margin-block: .7rem; padding: .7rem; border: 1px solid var(--border-color, #61546c); border-radius: .5rem; }
+.workspace-draft-state textarea { width: 100%; min-height: 8rem; }

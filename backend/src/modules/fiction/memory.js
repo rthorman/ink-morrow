@@ -14,7 +14,7 @@ function compactFacts(state, limit = 128) {
 }
 
 function createMemory(db) {
-  const cte = `WITH RECURSIVE path(id, parent_id, changes_json, depth) AS (
+  const legacy = `WITH RECURSIVE path(id, parent_id, changes_json, depth) AS (
     SELECT id, parent_id, changes_json, 0 FROM fiction_beats WHERE game_id = ? AND id = ?
     UNION ALL SELECT b.id, b.parent_id, b.changes_json, path.depth + 1
       FROM fiction_beats b JOIN path ON b.id = path.parent_id WHERE b.game_id = ?
@@ -27,7 +27,15 @@ function createMemory(db) {
   ), ranked AS (
     SELECT *, row_number() OVER (PARTITION BY json_extract(fact, '$.id') ORDER BY depth, ordinal DESC) AS n FROM versions
   )`;
-  function facts(gameId, headId, { query = '', id = null, kind = null, status = null, includeRemoved = false, publicOnly = false, limit = 32 } = {}) {
+  const projected = `WITH RECURSIVE path(id,parent_id,depth) AS (
+    SELECT id,parent_id,0 FROM fiction_beats WHERE game_id=? AND id=?
+    UNION ALL SELECT b.id,b.parent_id,p.depth+1 FROM fiction_beats b JOIN path p ON b.id=p.parent_id WHERE b.game_id=?
+  ), versions AS (
+    SELECT e.fact_json AS fact,e.op,p.depth,e.ordinal FROM path p JOIN fiction_fact_events e ON e.beat_id=p.id
+    UNION ALL SELECT fact_json,op,2147483647,ordinal FROM fiction_fact_events WHERE game_id=? AND beat_id IS NULL
+  ), ranked AS (SELECT *,row_number() OVER (PARTITION BY json_extract(fact,'$.id') ORDER BY depth,ordinal DESC) AS n FROM versions)`;
+  const cte = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='fiction_fact_events'").get() ? projected : legacy;
+  function facts(gameId, headId, { query = '', id = null, kind = null, status = null, includeRemoved = false, publicOnly = false, limit = 32, offset = 0 } = {}) {
     const words = [...new Set(query.toLowerCase().match(/[\p{L}]{3,}/gu) || [])].slice(0, 12);
     const match = words.length ? words.map(() => "CASE WHEN instr(lower(json_extract(fact, '$.text')), ?) > 0 THEN 3 ELSE 0 END").join(' + ') : '0';
     const rows = db.prepare(`${cte} SELECT fact, op FROM ranked WHERE n = 1
@@ -38,8 +46,8 @@ function createMemory(db) {
       AND (? = 0 OR (${match}) > 0)
       ORDER BY (${match}) + CASE WHEN json_extract(fact, '$.visibility') = 'secret' THEN 2 ELSE 0 END
         + CASE WHEN json_extract(fact, '$.status') = 'active' THEN 4 ELSE 0 END
-        + CASE WHEN json_extract(fact, '$.kind') IN ('commitment', 'goal') THEN 3 ELSE 0 END DESC, depth, ordinal DESC LIMIT ?`)
-      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), kind, kind, status, status, Number(publicOnly && words.length > 0), ...words, ...words, Math.max(1, Math.min(128, limit)));
+        + CASE WHEN json_extract(fact, '$.kind') IN ('commitment', 'goal') THEN 3 ELSE 0 END DESC, depth, ordinal DESC LIMIT ? OFFSET ?`)
+      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), kind, kind, status, status, Number(publicOnly && words.length > 0), ...words, ...words, Math.max(1, Math.min(128, limit)), Math.max(0, Math.min(1000000, offset)));
     return rows.map((row) => ({ ...JSON.parse(row.fact), ...(row.op === 'remove' ? { retired: true } : {}) }));
   }
   return { facts, get: (gameId, headId, id, includeRemoved = false) => facts(gameId, headId, { id, includeRemoved, limit: 1 })[0] || null };

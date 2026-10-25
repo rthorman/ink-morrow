@@ -34,9 +34,12 @@ function createFictionLibrary({ db, media, store, providers, generateIllustratio
     const entries = db.prepare('SELECT * FROM fiction_templates WHERE kind = ? AND deleted = 0 ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(kind, offset);
     return { entries: entries.slice(0, 80).map(expose), next_offset: entries.length > 80 ? offset + 80 : null };
   }
-  function create(kind, input) {
+  function create(kind, input, onCreated = null) {
     const value = templateInput(kind, input); const id = randomUUID();
-    db.prepare('INSERT INTO fiction_templates (id, kind, name, description, data_json) VALUES (?, ?, ?, ?, ?)').run(id, kind, value.name, value.description, JSON.stringify(value.data));
+    transaction(() => {
+      db.prepare('INSERT INTO fiction_templates (id, kind, name, description, data_json) VALUES (?, ?, ?, ?, ?)').run(id, kind, value.name, value.description, JSON.stringify(value.data));
+      onCreated?.(id);
+    });
     return get(id);
   }
   function update(id, expected, input) {
@@ -150,7 +153,7 @@ function createFictionLibrary({ db, media, store, providers, generateIllustratio
       error.costUsd = usage.costUsd; error.billedAttempts = usage.billedAttempts; throw error;
     }
   }
-  function createStory(input, selection) {
+  function createStory(input, selection, onCreated = null) {
     keys(selection, ['world_id', 'scribe_id', 'character_ids'], 'Catalogue selection');
     const ids = selection.character_ids === undefined ? [] : selection.character_ids;
     if (!Array.isArray(ids) || ids.length > 24 || new Set(ids).size !== ids.length) fail('Choose at most 24 different catalogue characters.');
@@ -173,7 +176,7 @@ function createFictionLibrary({ db, media, store, providers, generateIllustratio
         const asset = media.persist({ buffer: source.buffer, mediaType: source.media_type, width: source.width, height: source.height });
         assets.push(asset); visuals.push({ kind: entry.kind, subject_id: entry.kind === 'character' ? entry.id : null, asset_id: asset.id, alt_text: entry.image_alt });
       }
-      return store.create({ ...input, cast: [...(input.cast || []), ...characters.map((entry) => ({ id: entry.id, name: entry.name, description: entry.description, motive: entry.data.motive }))] }, { library, visuals, assets });
+      return store.create({ ...input, cast: [...(input.cast || []), ...characters.map((entry) => ({ id: entry.id, name: entry.name, description: entry.description, motive: entry.data.motive }))] }, { library, visuals, assets, onCreated });
     } catch (error) { assets.filter((asset) => !db.prepare('SELECT id FROM fiction_assets WHERE id = ?').get(asset.id)).forEach(media.discard); throw error; }
   }
   function reconcile() {

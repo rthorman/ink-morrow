@@ -1,3 +1,4 @@
+import { createPrivateDraft } from './private-drafts.js';
 import { apiFetch } from '../core/api.js';
 import { el, button, field, option } from './dom.js';
 
@@ -22,6 +23,7 @@ export function storyImage(id, visual, className) {
 }
 
 export function createVisualLibrary({ api, dialogs }) {
+  const privateDrafts=new Set();let editorSerial=0;
   const $ = (id) => document.getElementById(id);
   let metadata = null; let kind = 'world'; let offset = 0; let next = null; let live = () => false; let serial = 0; let deleting = false;
   const setup = new Map();
@@ -63,6 +65,7 @@ export function createVisualLibrary({ api, dialogs }) {
         actions.append(editButton, imageButton, deleteButton); content.append(actions); card.append(visual, content); root.append(card);
       }
       if (!data.entries?.length) root.append(el('p', `No ${labels[kind].toLowerCase()} yet. Create a reusable reference, then choose it when starting a story.`));
+      root.append(button('Recover private reference drafts…',recoverReferences));
       const spend = info.spend;
       $('catalogStatus').textContent = spend ? `Catalogue AI spend: $${spend.known_usd.toFixed(4)} known${spend.unknown_attempts ? ` · ${spend.unknown_attempts} attempt(s) with unknown cost` : ''}. Includes reference development, images and deleted entries.` : '';
       $('catalogNew').disabled = false; $('catalogPrevious').hidden = offset === 0; $('catalogNext').hidden = next === null;
@@ -70,9 +73,9 @@ export function createVisualLibrary({ api, dialogs }) {
     } catch (error) { if (active()) { $('catalogEntries').replaceChildren(); $('catalogStatus').textContent = error.message; } }
   }
   const refresh = () => render(kind, live, offset);
-  function edit(entry = null) {
+  function edit(entry = null,recovered=null) {
     if (!metadata || !live()) return;
-    const active = guard(); const editingKind = entry?.kind || kind;
+    const routeActive=guard();const editTicket=++editorSerial;const active=()=>routeActive()&&editTicket===editorSerial; const editingKind = entry?.kind || kind;
     const name = field('Name', 'input', entry?.name || '', { maxLength: 200, wrapperClass: 'fiction-field--name', hint: 'Leave blank if you want the Storyteller to invent one.' });
     const description = field('What players notice first', 'textarea', entry?.description || '', { maxLength: 2000, rows: 4,
       hint: 'Reader-visible orientation. Deeper truths belong in the private fields below.' });
@@ -126,6 +129,16 @@ export function createVisualLibrary({ api, dialogs }) {
       return { name: name.control.value.trim(), description: description.control.value.trim(), data };
     };
     const initial = JSON.stringify(value());
+    let formVersion=0;let baseRevision=entry?.revision || 0;let candidate=null;let seed=null;let creation=null;
+    const recovery=el('section','','workspace-draft-state');body.push(recovery);
+    const privateDraft=createPrivateDraft({api,onChange:state=>{if(!active())return;recovery.replaceChildren();if(!state)return;if(state.creation)recovery.append(el('p','A reference was already created from this draft.'),button('Open the created reference',async()=>{const {entry:created}=await api(`/fiction/catalog/${state.creation.result_id}`);await privateDraft.acknowledgeCreation();edit(created);}),button('Acknowledge and start another reference',()=>privateDraft.acknowledgeCreation()));
+      recovery.append(el('p',state.message),button('Save private draft now',()=>privateDraft.flush().catch(caught=>{error.textContent=caught.message;})),button('Discard private draft…',()=>dialogs.openDialog({title:'Discard this reference draft?',body:'The draft fields will be removed. An existing saved catalogue entry stays unchanged.',actions:[{label:'Keep draft',className:'btn-secondary',onClick:close=>{close(true);show();}},{label:'Discard draft',className:'btn-primary',onClick:async close=>{await privateDraft.discard();privateDraft.close();privateDrafts.delete(privateDraft);close(true);}}]})));
+      recovery.append(button('Copy private reference draft',async()=>{try{await navigator.clipboard.writeText(JSON.stringify(state.local,null,2));}catch{recovery.append(field('Select and copy private reference','textarea',JSON.stringify(state.local,null,2),{readOnly:true}).wrapper);}}));
+      if(state.conflict){recovery.append(field('Local reference','textarea',JSON.stringify(state.local.form,null,2),{readOnly:true}).wrapper,field('Saved reference draft','textarea',JSON.stringify(state.conflict.content.form,null,2),{readOnly:true}).wrapper);for(const [label,server]of [['Use saved draft',true],['Keep compared local draft',false]])recovery.append(button(label,()=>{const restored=privateDraft.resolve(server);if(restored)populate(restored.form);}));}
+      if(state.row?.submitted)recovery.append(button('Review previous development',reviewDevelopment));
+    }});privateDrafts.add(privateDraft);
+    const draftValue=()=>({form:value(),candidate,seed,length:length.control.value,base_revision:baseRevision});
+    const persist=()=>privateDraft.edit(draftValue());
     const populate = (draft) => {
       name.control.value = draft.name || ''; description.control.value = draft.description || '';
       for (const [key, input] of fields) if (Object.hasOwn(draft.data || {}, key)) input.value = draft.data[key] || '';
@@ -141,19 +154,21 @@ export function createVisualLibrary({ api, dialogs }) {
       if (busy || !active()) return;
       const selected = metadata.drafting;
       if (!selected?.provider) { error.textContent = 'Connect a Storyteller in Settings before asking AI to develop a reference. Your fields are still here.'; return; }
-      const seed = value();
+      const submittedSeed = value();const submittedVersion=formVersion;
       const approved = await dialogs.confirmPaid({ title: `Develop this ${kindName[editingKind]}?`,
-        review: { action: `Develop an editable ${kindName[editingKind]} reference from the current seed fields`, object: seed.name || `Untitled ${kindName[editingKind]}`,
+        review: { action: `Develop an editable ${kindName[editingKind]} reference from the current seed fields`, object: submittedSeed.name || `Untitled ${kindName[editingKind]}`,
           model: `${selected.provider.display_name} · ${selected.model_id}`, quantity: 'One structured draft; at most one corrective second call if the first result is invalid',
           sends: 'All currently entered reference fields, including private lore, motives and background', estimate: 0.03,
           note: 'Nothing is saved automatically. Provider calls may be charged even if the result is unusable.' }, confirmLabel: 'Develop this reference' });
-      if (!approved) { show(); return; }
+      if (!approved || !active()) { if(active())show(); return; }
+      if(formVersion!==submittedVersion){error.textContent='The seed changed during review. Review the current fields before developing.';show();return;}
       busy = true; develop.disabled = true; develop.textContent = 'The Storyteller is developing…'; error.textContent = ''; status.textContent = 'Building a coherent reference from your seeds…'; show();
       try {
-        const result = await api('/fiction/catalog/draft', 'POST', { kind: editingKind, idempotency_key: crypto.randomUUID(), input: { seed, length: length.control.value, variant: take,
+        seed=submittedSeed;persist();const prepared=await privateDraft.submit({purpose:'catalogue-development'});if(!active())return;
+        const result = await api('/fiction/catalog/draft', 'POST', { kind: editingKind, idempotency_key: prepared.actionKey, input: { seed:submittedSeed, length: length.control.value, variant: take,
           provider_id: selected.provider.id, model: selected.model_id } });
         if (!active()) return;
-        populate(result.entry); take += 1;
+        candidate=result.entry;if(formVersion===submittedVersion)populate(result.entry);else recovery.append(button('Adopt the developed candidate',()=>{populate(candidate);persist();})); take += 1;await privateDraft.clearSubmission();persist();await privateDraft.flush();
         status.textContent = `AI take ready${typeof result.cost_usd === 'number' ? ` · $${result.cost_usd.toFixed(4)}` : ' · cost not reported'}. Review every field before saving.`;
       } catch (caught) {
         if (active()) error.textContent = `${caught.message}${caught.billedAttempts ? ' One or more provider calls may have been charged.' : ''} Your original fields are still here.`;
@@ -164,13 +179,52 @@ export function createVisualLibrary({ api, dialogs }) {
       if (!name.control.value.trim()) { error.textContent = 'Give this reference a name, or ask AI to invent one.'; name.control.focus(); return; }
       busy = true; error.textContent = '';
       try {
-        const payload = value();
-        const result = await api(entry ? `/fiction/catalog/${entry.id}` : '/fiction/catalog', entry ? 'PUT' : 'POST', entry ? { expected_revision: entry.revision, entry: payload } : { kind: editingKind, entry: payload });
-        close(true); await refresh(); if (addImage && live()) paint(result.entry);
+        const payload = value();persist();let acknowledged=await privateDraft.flush();
+        if(acknowledged.submitted?.target.purpose==='catalogue-save'&&!entry){creation={draft_id:acknowledged.id,draft_revision:acknowledged.revision,action_key:acknowledged.submitted.action_key};}else if(acknowledged.submitted)throw Error('Review the previous development request before saving.');
+        if(!entry&&!creation){const prepared=await privateDraft.submit({purpose:'catalogue-save'});acknowledged=prepared.row;creation={draft_id:acknowledged.id,draft_revision:acknowledged.revision,action_key:prepared.actionKey};}
+        const result = await api(entry ? `/fiction/catalog/${entry.id}` : '/fiction/catalog', entry ? 'PUT' : 'POST', entry ? { expected_revision: baseRevision, entry: payload } : { kind: editingKind, entry: payload,creation });
+        if(!entry){try{await api(`/fiction/local-actions/${encodeURIComponent(creation.action_key)}/ack`,'POST',{});}catch{/* Leave recovery receipt visible. */}}
+        if(!active())return;
+        if(entry)await privateDraft.discard();privateDraft.close();privateDrafts.delete(privateDraft);close(true); await refresh(); if (addImage && live()) paint(result.entry);
       } catch (caught) { if (active()) error.textContent = `${caught.message} Your fields are still here.`; }
       finally { busy = false; }
     }
+    async function reviewDevelopment() {
+      const row=privateDraft.state?.row;if(!row?.submitted)return;
+      if(row.submitted.target.purpose==='catalogue-save'){recovery.append(el('p','A reference save is prepared. Save the same fields again to recover the original result.'));return;}
+      try{const key=row.submitted.action_key;const result=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}`);if(!active())return;
+        recovery.append(el('p',`Previous development: ${result.status}. Checking is free.`));
+        if(result.can_start_new)recovery.append(button(result.entry?'Recover developed fields and acknowledge':'Acknowledge result',async()=>{if(result.entry){candidate=result.entry;populate(result.entry);}await privateDraft.clearSubmission();persist();await privateDraft.flush();}));
+        else if(result.status==='unknown')recovery.append(button('Cancel if not dispatched',async()=>{const status=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}/cancel`,'POST',{});if(active())recovery.append(el('p',`Request is now ${status.status}. Check again before another take.`));}));
+      }catch(caught){if(active())error.textContent=caught.message;}
+    }
+    for(const node of body.filter(node=>node!==recovery))node.addEventListener('input',()=>{formVersion++;persist();});
+    length.control.addEventListener('change',persist);
+    if(recovered){populate(recovered.form);candidate=recovered.candidate||null;seed=recovered.seed||null;length.control.value=recovered.length||'medium';}
+    privateDraft.open({type:'catalogue',kind:editingKind,id:recovered?crypto.randomUUID():entry?.id||`new-${editingKind}`,...(entry?{resource_id:entry.id}:{})},draftValue()).then(restored=>{
+      if(!active()||!restored)return;populate(restored.form);candidate=restored.candidate;seed=restored.seed;length.control.value=restored.length||'medium';baseRevision=restored.base_revision??baseRevision;
+      if(entry&&baseRevision!==entry.revision){error.textContent='The saved reference changed after this draft began. Compare both versions before saving.';recovery.append(field('Current saved reference','textarea',JSON.stringify({name:entry.name,description:entry.description,data:entry.data},null,2),{readOnly:true}).wrapper,button('Keep my draft against this compared revision',()=>{baseRevision=entry.revision;persist();error.textContent='Draft retained. Review and save when ready.';}));}
+    });
     show();
+  }
+  async function recoverReferences() {
+    const active=guard();const body=el('div','Opening private reference drafts…');
+    dialogs.openDialog({title:'Recover a private reference draft',body:[body],actions:[{label:'Close',className:'btn-secondary',onClick:close=>close(true)}]});
+    try{const {drafts}=await api('/fiction/drafts?type=catalogue');if(!active())return;body.replaceChildren(el('p','Open a saved draft or explicitly use its fields as a new reference. Saved catalogue entries are never overwritten by recovery.'));
+      for(const item of drafts.filter(item=>item.scope.kind===kind))body.append(button(`${kindName[kind]} draft · ${item.scope.resource_id?'existing reference':'new reference'}`,async()=>{
+        try{const {draft}=await api(`/fiction/drafts/${item.id}`);if(!active())return;
+          const copy=field('Private recovered fields','textarea',JSON.stringify(draft.content.form,null,2),{readOnly:true});body.replaceChildren(copy.wrapper);
+          const offer=()=>body.append(button('Use these fields as a new reference',()=>edit(null,draft.content)));
+          if(draft.submitted?.target.purpose==='catalogue-development'){
+            const key=draft.submitted.action_key;const result=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}`);if(!active())return;body.append(el('p',`Previous development: ${result.status}.`));
+            if(result.can_start_new)body.append(button('Acknowledge previous result',async()=>{await api(`/fiction/drafts/${draft.id}`,'PATCH',{expected_revision:draft.revision,clear_submission:true});if(active())offer();}));
+            else if(result.status==='unknown')body.append(button('Cancel if not dispatched',async()=>{const status=await api(`/fiction/catalogue-actions/${encodeURIComponent(key)}/cancel`,'POST',{});if(active())body.append(el('p',`Request is now ${status.status}. Close and reopen this draft to check again.`));}));
+          }else if(draft.submitted)body.append(el('p','A reference save was prepared. Check the catalogue for its result before creating another copy.'));
+          else offer();
+        }catch(caught){if(active())body.append(el('p',caught.message));}
+      }));
+      if(!drafts.some(item=>item.scope.kind===kind))body.append(el('p','No unexpired drafts for this reference kind.'));
+    }catch(caught){if(active())body.textContent=caught.message;}
   }
   async function remove(entry) {
     if (deleting || !live()) return;
@@ -291,15 +345,26 @@ export function createVisualLibrary({ api, dialogs }) {
     const characters = [...(setup.get('character')?.control.querySelectorAll('input:checked') || [])].map((input) => input.value);
     return world || scribe || characters.length ? { world_id: world, scribe_id: scribe, character_ids: characters } : null;
   }
+  async function restoreSelection(value,isLive) {
+    if(!value)return;
+    for(const data of setup.values()) {
+      const ids=data.kind==='character'?value.character_ids||[]:[value[data.kind+'_id']].filter(Boolean);
+      for(const id of ids)if(!data.entries.some(entry=>entry.id===id)){
+        const {entry}=await api(`/fiction/catalog/${encodeURIComponent(id)}`);if(!isLive())return;data.entries.push(entry);
+        if(data.kind==='character')data.control.append(field(entry.name,'input',entry.id,{type:'checkbox'}).wrapper);else data.control.append(option(entry.id,entry.name));
+      }
+      if(data.kind==='character')for(const input of data.control.querySelectorAll('input'))input.checked=ids.includes(input.value);else data.control.value=ids[0]||'';
+    }
+  }
   function resetSetup() {
     for (const data of setup.values()) {
       if (data.kind === 'character') data.control.querySelectorAll('input').forEach((input) => { input.checked = false; }); else data.control.value = '';
     }
   }
-  function clear() { serial++; metadata = null; deleting = false; setup.clear(); live = () => false; $('catalogEntries').replaceChildren(); $('catalogStatus').textContent = ''; $('fictionCatalogueSetup').replaceChildren(); }
+  function clear() { editorSerial++;for(const draft of privateDrafts)draft.close();privateDrafts.clear();serial++; metadata = null; deleting = false; setup.clear(); live = () => false; $('catalogEntries').replaceChildren(); $('catalogStatus').textContent = ''; $('fictionCatalogueSetup').replaceChildren(); }
   $('catalogNew').addEventListener('click', () => edit());
   $('catalogRefresh').addEventListener('click', refresh);
   $('catalogPrevious').addEventListener('click', () => render(kind, live, Math.max(0, offset - 80)));
   $('catalogNext').addEventListener('click', () => { if (next !== null) render(kind, live, next); });
-  return { render, loadSetup, selection, resetSetup, clear };
+  return { render, loadSetup, restoreSelection, selection, resetSetup, clear };
 }

@@ -102,6 +102,7 @@ function createLibraryDrafts({ db, providers, chatCompletion }) {
         if (prior.status === 'pending') fail('This reference is still being developed.', 'CATALOG_DRAFT_BUSY', 409);
         fail('That draft did not complete. Ask for a new take to try again.', prior.error_code || 'CATALOG_DRAFT_FAILED', 409);
       }
+      if(db.prepare("SELECT 1 FROM sqlite_master WHERE name='fiction_catalogue_action_fences'").get() && db.prepare('SELECT 1 FROM fiction_catalogue_action_fences WHERE action_key=?').get(key))fail('This reference action was cancelled before dispatch.','CATALOG_ACTION_CANCELLED',409);
       assertProvider(providerId, model);
       const request = { id: randomUUID() };
       db.prepare(`INSERT INTO fiction_template_drafts
@@ -113,6 +114,7 @@ function createLibraryDrafts({ db, providers, chatCompletion }) {
 
     const request = started.request; const usage = { attempts: 0, cost: 0, known: true }; let first;
     const call = async (callMessages) => {
+      if(db.prepare("SELECT 1 FROM sqlite_master WHERE name='fiction_catalogue_action_fences'").get() && db.prepare('SELECT 1 FROM fiction_catalogue_action_fences WHERE action_key=?').get(key))fail('This reference action was cancelled before dispatch.','CATALOG_ACTION_CANCELLED',409);
       assertProvider(providerId, model); usage.attempts += 1; markDispatch(request.id, usage.attempts);
       const result = await chatCompletion(callMessages, { model, reasoningEffort: reasoning || undefined,
         temperature: 0.92, maxTokens: { short: 1200, medium: 2400, long: 4200 }[length], maxAttempts: 1, maxBillableAttempts: 1 });
@@ -130,6 +132,7 @@ function createLibraryDrafts({ db, providers, chatCompletion }) {
         result = normalizeResult(kind, second.content);
       }
       if (!result) fail('The Storyteller did not return a usable reference. Ask for another take.', 'CATALOG_DRAFT_INVALID', 502);
+      if(db.prepare("SELECT 1 FROM sqlite_master WHERE name='fiction_catalogue_action_fences'").get() && db.prepare('SELECT 1 FROM fiction_catalogue_action_fences WHERE action_key=?').get(key))fail('This reference action was cancelled before dispatch.','CATALOG_ACTION_CANCELLED',409);
       assertProvider(providerId, model);
       transaction(() => {
         const active = db.prepare("SELECT id FROM fiction_template_drafts WHERE id = ? AND status = 'pending'").get(request.id);

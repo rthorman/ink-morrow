@@ -10,6 +10,13 @@ The guide is organized so a developer can implement a coherent slice without red
 
 **Implementation tracking:** the stakeholder subsequently instructed proceeding with B1. [B0](B0-EXPERIENCE.md) and [B1](B1-DELIVERY.md) now have implementation/evidence records; later batches remain this engineering plan. B1 preserves current-state-only scope where richer queries are not yet implemented, and session-only drafts are not described as server saved.
 
+**Implementation status after B2:** B0 remains the synthetic experience preview;
+B1 is the production five-room workspace. [B2 delivery](B2-DELIVERY.md) now supplies
+bounded read-only inspection, categorized Codex, new precise evidence, private
+owner drafts, schema 24 and save-v2/v1 compatibility. Its endpoint/table choices
+are recorded there and in source. The B3–B9 sections below remain a plan. Actual
+Android, literary and deployment acceptance are separate from source/CI evidence.
+
 ## 1. Product boundary and decision status
 
 ### 1.1 What the recovery preserves

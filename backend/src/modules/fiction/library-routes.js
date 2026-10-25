@@ -7,13 +7,15 @@ const { receiveImageUpload } = require('../imagery/upload');
 const { keys, fail } = require('./model');
 const { KINDS, FIELDS, CATGIRL_CANON, ENUMS, DEFAULTS, FOCUS_AREAS } = require('./library-model');
 
-function createFictionLibraryRouter({ library, media }) {
+function createFictionLibraryRouter({ library, media, drafts = null }) {
   const router = express.Router(); const base = '/api/fiction/catalog';
   router.get(`${base}/metadata`, (req, res) => res.json({ kinds: KINDS, fields: FIELDS, scribe: { canon: CATGIRL_CANON, enums: ENUMS, defaults: DEFAULTS, focus_areas: FOCUS_AREAS }, generation: library.generation(), drafting: library.draftGeneration(), spend: library.spend() }));
   router.get(base, (req, res) => res.json(library.list(req.query.kind, Number(req.query.offset || 0))));
   router.post(base, (req, res) => {
-    keys(req.body, ['kind', 'entry'], 'New catalogue entry');
-    res.status(201).json({ entry: library.create(req.body.kind, req.body.entry) });
+    keys(req.body, ['kind', 'entry','creation'], 'New catalogue entry');
+    const command=req.body.creation && drafts ? drafts.prepareCreation('catalogue',req.body.creation,{kind:req.body.kind,entry:req.body.entry}) : null;
+    if(command?.replayed) { try { return res.json({entry:library.get(command.result_id),replayed:true}); } catch { fail('The previously created reference was deleted.','CREATION_RESULT_DELETED',410); } }
+    res.status(201).json({ entry: library.create(req.body.kind, req.body.entry,command?.finish) });
   });
   router.post(`${base}/draft`, async (req, res, next) => {
     try {

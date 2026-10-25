@@ -20,6 +20,9 @@ const { createFictionRouter } = require('./modules/fiction/routes');
 const { createFictionMedia } = require('./modules/fiction/media');
 const { createFictionPublication } = require('./modules/fiction/publication');
 const { createFictionSaves } = require('./modules/fiction/saves');
+const { createWorkspaceQueries } = require('./modules/fiction/workspace-queries');
+const { createOwnerDrafts } = require('./modules/fiction/drafts');
+const { createWorkspaceRouter } = require('./modules/fiction/workspace-routes');
 const { createFictionLibrary } = require('./modules/fiction/library');
 const { createFictionLibraryRouter } = require('./modules/fiction/library-routes');
 const { createAuthService } = require('./modules/auth/service');
@@ -124,8 +127,11 @@ function createApp(
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
   app.use(createProviderRouter({ providers, ai }));
-  app.use(createFictionLibraryRouter({ library: fictionLibrary, media: fictionMedia }));
-  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, allowManualOpening: legacyEnabled }));
+  const ownerDrafts=createOwnerDrafts(db);
+  const workspaceQueries=createWorkspaceQueries({db,store:fictionStore});
+  app.use(createWorkspaceRouter({db,store:fictionStore,queries:workspaceQueries,drafts:ownerDrafts}));
+  app.use(createFictionLibraryRouter({ library: fictionLibrary, media: fictionMedia, drafts:ownerDrafts }));
+  app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 
   // -- static frontend + error handling -------------------------------------

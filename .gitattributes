@@ -1,0 +1,3 @@
+# Published migration and save-compatibility hashes must survive Windows checkout.
+backend/src/modules/fiction/workspace-migration-v24.js text eol=lf
+backend/src/modules/fiction/save-v1/*.js text eol=lf

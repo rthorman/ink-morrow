@@ -68,7 +68,8 @@ B1 composes the existing V5 engine through five room adapters. Read
 [continuation state](docs/recovery/CONTINUATION.md) before changing their scope.
 Same-story room navigation keeps narrative authority alive; independent room
 fences prevent an old media/dialog result from replacing a newer task. Preserve
-legacy story-link aliases, truthful current-state/loaded-window labels and
-session-only draft wording. B2 historical queries and server-acknowledged drafts
-must land with projection, validation and save-closure coverage; do not enable
+legacy story-link aliases and truthful scope/loaded-window labels. B2 separates
+inspection from actions and adds server-acknowledged private drafts; read
+[its delivery record](docs/recovery/B2-DELIVERY.md), preserve frozen save-v1
+validators, append migrations and test projection/privacy/save closure; do not enable
 legacy authoring routes to supply those capabilities.

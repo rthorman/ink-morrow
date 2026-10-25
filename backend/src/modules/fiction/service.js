@@ -87,11 +87,11 @@ function createFictionService({ store, chatCompletion, archivistCompletion = nul
     recordScene(state, plan, beatId);
     if (intent.kind !== 'ask') recordEpisode(state, changes, beatId, lookup);
     if (aside) state.last_fourth_wall_scene = state.scene_count;
-    return { parsed, beat: { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes } };
+    return { parsed, beat: { id: beatId, kind: intent.kind === 'ask' ? 'clarification' : 'scene', prose: savedProse, summary, input: intent, state, changes, evidence: parsed.effects.map((effect,index) => ({ change_index:index, source_kind:prose.includes(effect.evidence.trim()) ? 'narration' : 'submitted_input', source_field:prose.includes(effect.evidence.trim()) ? 'prose' : 'input.text', quote:effect.evidence.trim() })) } };
   }
 
-  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort, providerId = null, qualityReview = null }) {
-    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null, providerId, qualityReview });
+  async function reply({ gameId, expectedRevision, idempotencyKey, input, model, reasoningEffort, providerId = null, qualityReview = null, target = undefined }) {
+    const started = store.beginRequest(gameId, expectedRevision, idempotencyKey, { input, model: model ?? null, reasoningEffort: reasoningEffort ?? null, providerId, qualityReview, ...(target?{target}:{}) });
     if (started.reused) return { ...store.requestResult(started.request), story: store.view(gameId), reused: true };
     const { request, context } = started;
     let storytellerModel = model ?? null;

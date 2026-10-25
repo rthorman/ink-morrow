@@ -1,0 +1,173 @@
+{
+  "source": "d256ba2",
+  "game_id": "f9c1b611-d098-43a1-bd55-79e6186f4f0f",
+  "ledger": [
+    {
+      "version": 1,
+      "name": "4.0 kernel and schema identity",
+      "checksum": "244afe985bfe4806a46f44de4f106bdf72dc26a88e08bff3f9ea0d9260a32eff",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 2,
+      "name": "manuscript hierarchy activation",
+      "checksum": "133c87df3119ec15f3572744373d07b5ab7e07eb03c93e1dcdae6a97d1d76025",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 3,
+      "name": "immutable page revisions and recovery activation",
+      "checksum": "ddb77e84292c2cc75246feb5406ddf7bcaf559dd93c285de8710aea05d2ff987",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 4,
+      "name": "provider profiles and encrypted secret vault",
+      "checksum": "215cb68222d3cd1948a0b970e8ab9b65a9d891279b811d7c39cf68cb975cc48b",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 5,
+      "name": "revision-provenanced continuity ledger v2",
+      "checksum": "42c812295579b849fea420d848f9df53240380932975e39296965ea39cd5cbc6",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 6,
+      "name": "transactional writing state machine",
+      "checksum": "4f38a63567dc1477ff505284066e0053095d44aa080933e372cd52c6694e6832",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 7,
+      "name": "noncanonical art store and safe upload",
+      "checksum": "6d26e2e53ee06f8d32222b5a404bb17ef25a361c89df0f8a08aa3ed4db8c374d",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 8,
+      "name": "immutable publication document",
+      "checksum": "eaf31d3d50136e93e06c79faead83973ff277dc2bafa631fa52893bddcff0680",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 9,
+      "name": "hashed immutable publication shares",
+      "checksum": "60947343a3bf8febdb9c16b3c531337e68ea50b539845ed61bb6e94c02053493",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 10,
+      "name": "versioned author canon",
+      "checksum": "00d7a997f898a20d4302ff0c05ddad494f7a98ca09848224b4138def91155268",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 11,
+      "name": "first-class catgirl scribes",
+      "checksum": "e79330e09ed945fd4cd6823e2418e719e828e7023edcd675bfb9e91801d4b8db",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 12,
+      "name": "bounded publication media and continuity lookup",
+      "checksum": "dec1441ae3dddcb06085fa2cd46e562ccb2dcda1a969c247afdc1f547a53c7b8",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 13,
+      "name": "canonical manuscript and continuity storage",
+      "checksum": "6a04e185196c4550cee5f175ae30245ee05d241f8224f1ec86365e8d5d8a2caa",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 14,
+      "name": "optional manuscript scenes",
+      "checksum": "d208c4ffa2788bc972ee6b26f7c07ddb763c1ed4ed49e9740d9c4f4c020e70f4",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 15,
+      "name": "optional scene play sessions",
+      "checksum": "2ec4fb33d80e1b25b45013e8f8c61964658f3dbf3f2f7f0611ca9c952e03ea8e",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 16,
+      "name": "living campaign state",
+      "checksum": "ac988d15138af19117d04bbc3510d6b7780aeeeca31afb578fd323fc008b06ce",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 17,
+      "name": "alternate Play branches",
+      "checksum": "296e2070ee5b59c343637a3282efb93f137a3fc4e3555b9811e637f7baee262a",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 18,
+      "name": "deterministic solo tools",
+      "checksum": "7bf5eba4997ba7a5ef9ecdc0b37a1befb6e11c9670e655b89638ef8199f98fc0",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 19,
+      "name": "playable fiction state",
+      "checksum": "190d5eb53aa62b877acfe64a2c138bc2d47107a91e63ea3930f3940d161f51a6",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 20,
+      "name": "playable fiction illustrations",
+      "checksum": "16c0a1734dd249c77336e831e9f0aed2b9d477313ddf703456413b4df9c88619",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 21,
+      "name": "bounded fiction quality calls",
+      "checksum": "a48b44a113ae95f01679d52b17f23e1ded5bdc72bb5d0165e811d88228286e3a",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 22,
+      "name": "visual fiction catalogues",
+      "checksum": "b1b74cfa1b5fb1393e3ba69788c5d272494e317216c86cdce08efb9eaea2914a",
+      "applied_at": "2026-10-25 13:54:57"
+    },
+    {
+      "version": 23,
+      "name": "AI assisted fiction catalogue design",
+      "checksum": "c59334a27e4c675c9bddc0ec62b7e5c1129623dcaa546e68a98f6e247f2b63e4",
+      "applied_at": "2026-10-25 13:54:57"
+    }
+  ],
+  "initial": "{\"version\":1,\"cast\":[{\"id\":\"mara\",\"name\":\"Mara\",\"description\":\"\",\"motive\":\"A private motive.\"}],\"facts\":[{\"id\":\"first\",\"kind\":\"fact\",\"text\":\"The harbour is quiet.\",\"visibility\":\"public\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null},{\"id\":\"secret\",\"kind\":\"fact\",\"text\":\"The hidden letter is upstairs.\",\"visibility\":\"secret\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null}],\"illustrations\":[],\"visuals\":[],\"library\":{\"world\":null,\"scribe\":null,\"characters\":[]},\"control\":{\"character_id\":null},\"play_style\":\"story-shaping\",\"fourth_wall\":\"never\",\"last_fourth_wall_scene\":null,\"quality_mode\":\"off\",\"challenges\":[],\"adjudications\":[],\"pacing\":\"balanced\",\"consequences\":\"gentle\",\"boundaries\":\"\",\"voice\":\"\",\"focus\":\"\",\"episode\":{\"number\":1,\"title\":\"The beginning\",\"status\":\"active\",\"summary\":\"\",\"question\":\"\",\"goal_ids\":[],\"phase\":\"opening\",\"payoff_beat_id\":null},\"scene_history\":[],\"scene_count\":0}",
+  "beats": [
+    {
+      "id": "4fd4e401-40b9-4eda-b6ce-68452d5e9c91",
+      "game_id": "f9c1b611-d098-43a1-bd55-79e6186f4f0f",
+      "branch_id": "c4387081-1daa-4c65-8905-d4e251283851",
+      "parent_id": null,
+      "kind": "opening",
+      "prose": "Mara waits at the quay.",
+      "summary": "The story begins.",
+      "input_json": "{}",
+      "state_json": "{\"version\":1,\"cast\":[{\"id\":\"mara\",\"name\":\"Mara\",\"description\":\"\",\"motive\":\"A private motive.\"}],\"facts\":[{\"id\":\"first\",\"kind\":\"fact\",\"text\":\"The harbour is quiet.\",\"visibility\":\"public\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null},{\"id\":\"secret\",\"kind\":\"fact\",\"text\":\"The hidden letter is upstairs.\",\"visibility\":\"secret\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null}],\"illustrations\":[],\"visuals\":[],\"library\":{\"world\":null,\"scribe\":null,\"characters\":[]},\"control\":{\"character_id\":null},\"play_style\":\"story-shaping\",\"fourth_wall\":\"never\",\"last_fourth_wall_scene\":null,\"quality_mode\":\"off\",\"challenges\":[],\"adjudications\":[],\"pacing\":\"balanced\",\"consequences\":\"gentle\",\"boundaries\":\"\",\"voice\":\"\",\"focus\":\"\",\"episode\":{\"number\":1,\"title\":\"The beginning\",\"status\":\"active\",\"summary\":\"\",\"question\":\"\",\"goal_ids\":[],\"phase\":\"opening\",\"payoff_beat_id\":null},\"scene_history\":[],\"scene_count\":0}",
+      "changes_json": "[]",
+      "created_at": "2026-10-25 13:54:57"
+    },
+    {
+      "id": "7fa3a0a2-71e5-499b-9aa3-360a37de345f",
+      "game_id": "f9c1b611-d098-43a1-bd55-79e6186f4f0f",
+      "branch_id": "c4387081-1daa-4c65-8905-d4e251283851",
+      "parent_id": "4fd4e401-40b9-4eda-b6ce-68452d5e9c91",
+      "kind": "correction",
+      "prose": "",
+      "summary": "A story fact was corrected.",
+      "input_json": "{\"reason\":\"Private owner note.\"}",
+      "state_json": "{\"play_style\":\"story-shaping\",\"challenges\":[],\"adjudications\":[],\"fourth_wall\":\"never\",\"last_fourth_wall_scene\":null,\"quality_mode\":\"off\",\"visuals\":[],\"library\":{\"world\":null,\"scribe\":null,\"characters\":[]},\"version\":1,\"cast\":[{\"id\":\"mara\",\"name\":\"Mara\",\"description\":\"\",\"motive\":\"A private motive.\"}],\"facts\":[{\"id\":\"first\",\"kind\":\"fact\",\"text\":\"The harbour is quiet.\",\"visibility\":\"public\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null},{\"id\":\"secret\",\"kind\":\"fact\",\"text\":\"The hidden letter is upstairs.\",\"visibility\":\"secret\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":null},{\"id\":\"tea\",\"kind\":\"commitment\",\"text\":\"Mara promised to bring tea.\",\"visibility\":\"public\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":\"7fa3a0a2-71e5-499b-9aa3-360a37de345f\"}],\"illustrations\":[],\"control\":{\"character_id\":null},\"pacing\":\"balanced\",\"consequences\":\"gentle\",\"boundaries\":\"\",\"voice\":\"\",\"focus\":\"\",\"episode\":{\"question\":\"\",\"goal_ids\":[],\"phase\":\"opening\",\"payoff_beat_id\":null,\"number\":1,\"title\":\"The beginning\",\"status\":\"active\",\"summary\":\"\"},\"scene_history\":[],\"scene_count\":0}",
+      "changes_json": "[{\"op\":\"correct\",\"fact\":{\"id\":\"tea\",\"kind\":\"commitment\",\"text\":\"Mara promised to bring tea.\",\"visibility\":\"public\",\"known_by\":[],\"status\":\"active\",\"actor_id\":null,\"value\":null,\"evidence_beat_id\":\"7fa3a0a2-71e5-499b-9aa3-360a37de345f\"},\"prior_evidence_beat_id\":null}]",
+      "created_at": "2026-10-25 13:54:57"
+    }
+  ]
+}

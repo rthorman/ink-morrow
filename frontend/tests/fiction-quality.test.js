@@ -1,3 +1,4 @@
+import {workspaceApiFixture} from './workspace-api-fixture.js';
 import { jest } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { createFictionApp } from '../app/fiction/app.js';
@@ -19,7 +20,7 @@ describe('quality choice, progress and paid scope', () => {
     window.localStorage.clear(); window.history.replaceState({}, '', '#/story/quality');
     let fieldId = 0; Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: () => `fixture-${++fieldId}` });
     api = jest.fn().mockResolvedValue({ story: story() }); dialogs = { close: jest.fn(), confirmPaid: jest.fn().mockResolvedValue(true), openDialog: jest.fn() };
-    app = createFictionApp({ api, dialogs });
+    app = createFictionApp({ api:workspaceApiFixture(api,story), dialogs });
   });
   afterEach(() => { app.dispose(); jest.useRealTimers(); });
   test('preferences offer Off, Standard, Memory and Both without buying anything', async () => {
@@ -44,10 +45,10 @@ describe('quality choice, progress and paid scope', () => {
   test('progress reads are free, duplicate submission is blocked, and late progress cannot cross lock', async () => {
     await app.start(); jest.useFakeTimers(); let complete; let progress;
     api.mockImplementation((path, method) => new Promise((resolve) => { if (method === 'POST') complete = resolve; else progress = resolve; }));
-    const pending = app.send('follow'); await Promise.resolve(); await app.send('follow');
+    const pending = app.send('follow'); await jest.advanceTimersByTimeAsync(0); await app.send('follow');
     expect(api.mock.calls.filter(([, method]) => method === 'POST')).toHaveLength(1);
     expect(api.mock.calls.find(([, method]) => method === 'POST')[2].quality_review).toBe('a'.repeat(64));
-    await jest.advanceTimersByTimeAsync(1500); progress({ story: { ...story(), pending: true, call_limit: 6, pending_stage: { purpose: 'review', role: 'archivist', call_index: 3 } } }); await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1500); progress({ story: { ...story(), pending: true, call_limit: 6, pending_stage: { purpose: 'review', role: 'archivist', call_index: 3 } } }); await jest.advanceTimersByTimeAsync(0);
     expect(document.getElementById('fictionActionStatus').textContent).toContain('memory support · call 3 of at most 6');
     await jest.advanceTimersByTimeAsync(1500); app.lock(); progress({ story: { ...story(), pending: true, pending_stage: { purpose: 'repair', role: 'scribe', call_index: 4 } } });
     complete({ story: story() }); await pending; await jest.advanceTimersByTimeAsync(5000);

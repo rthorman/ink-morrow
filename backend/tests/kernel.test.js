@@ -384,7 +384,7 @@ describe('InkMorrow 5.0 kernel', () => {
       release_train: '5.0.0',
       database: { family: DATABASE_FAMILY, schema_version: DATABASE_SCHEMA_VERSION },
       archive: { format: ARCHIVE_FORMAT, version: ARCHIVE_VERSION, status: 'retired' },
-      playable_save: { format: 'ink-morrow-fiction-save', version: 1, status: 'available', imports_older_series: false },
+      playable_save: { format: 'ink-morrow-fiction-save', version: 2, status: 'available', imports_older_series: false },
     });
     expect(response.body.features.length).toBeGreaterThan(5);
     expect(response.body.features.every((feature) => feature.status === 'available')).toBe(true);
