@@ -14,6 +14,8 @@ The stakeholder explicitly requested continuing with B1 after receiving the B0 p
 | Gate | All existing book formats and private all-path save export, with different exposure explanations; provider spend and recent calls |
 | Settings | Existing providers plus device type size/typeface/spacing/column/paper, sample/reset/return, password change and separate ordinary/quality approval resets |
 
+Narrative lifetime and room-task lifetime are fenced independently: an old media result can update the same story without closing or reopening a newer dialog. Back before dispatch cancels the review without reviving its abandoned task.
+
 No existing V5 workflow is intentionally removed. Original `#/story/:id` links still open Desk; room routes add `/desk`, `/chronicle`, `/codex`, `/gallery` or `/gate`. Same-story room changes reuse the loaded story and pending action instead of starting a second engine or purchasing generation.
 
 ## Reading and contribution contracts

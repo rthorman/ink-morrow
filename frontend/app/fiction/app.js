@@ -22,6 +22,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let actionFeedback = ''; let actionError = false;
   let workspace = null;
   let bookmarkRestoring = false;
+  let roomEpoch = 0;
   const draftKey = (story = current, kind = $('fictionInputKind').value) => story ? `${story.id}:${story.active_branch_id}:${kind}` : '';
   let selectedDraftKind = 'steer'; let draftRevision = 0;
   function saveDraft() { if (current) { drafts.set(draftKey(current, selectedDraftKind), $('fictionDirection').value); scopes.set(draftKey(current, selectedDraftKind), $('fictionDirectionScope').value); } }
@@ -269,6 +270,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       if (!destination.task) { if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true); workspace.hideTask(); }
       document.body.classList.add('fiction-in-workspace');
       const changed = workspace.room !== destination.room;
+      if (changed) roomEpoch++;
       workspace.showRoom(destination.room, changed);
       workspace.position();
       if (destination.task && !workspace.taskOpen) workspace.contribution(destination.task, true);
@@ -392,19 +394,19 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   async function runMediaAction(work) {
     if (busy || !current || current.pending) return { ok: false, error: 'Another action is in progress.' };
-    const token = epoch; const story = current; busy = true; controls(); status();
+    const token = epoch; const roomToken = roomEpoch; const story = current; busy = true; controls(); status();
     try {
-      const data = await work(() => alive(token));
+      const data = await work(() => alive(token) && roomEpoch === roomToken);
       if (!alive(token)) return { ok: false, stale: true };
-      if (!data) return { ok: false, cancelled: true };
+      if (!data) return { ok: false, cancelled: true, stale: roomEpoch !== roomToken };
       if (data.story) renderStory(data.story);
-      status('Done.'); return { ok: true };
+      status('Done.'); return roomEpoch === roomToken ? { ok: true } : { ok: false, stale: true };
     } catch (error) {
       if (!alive(token)) return { ok: false, stale: true };
       const message = `${error.message}${error.billedAttempts ? ' The provider may have charged for this attempt.' : ''}`;
       status(message, true);
       try { const data = await api(`/fiction/${story.id}`); if (alive(token)) renderStory(data.story); } catch { /* free reconciliation only */ }
-      return { ok: false, error: message };
+      return roomEpoch === roomToken ? { ok: false, error: message } : { ok: false, stale: true };
     } finally { if (alive(token)) { busy = false; controls(); } }
   }
 

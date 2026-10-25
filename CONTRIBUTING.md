@@ -60,3 +60,15 @@ AI-assisted contributions are welcome; the submitting human remains responsible
 for understanding, testing, reviewing and having rights to the contribution.
 Follow the [Code of Conduct](CODE_OF_CONDUCT.md). Project code is accepted under
 [AGPL-3.0-only](LICENSE), preserving separately licensed third-party materials.
+
+## Current-fiction recovery work
+
+B1 composes the existing V5 engine through five room adapters. Read
+[the delivery record](docs/recovery/B1-DELIVERY.md) and
+[continuation state](docs/recovery/CONTINUATION.md) before changing their scope.
+Same-story room navigation keeps narrative authority alive; independent room
+fences prevent an old media/dialog result from replacing a newer task. Preserve
+legacy story-link aliases, truthful current-state/loaded-window labels and
+session-only draft wording. B2 historical queries and server-acknowledged drafts
+must land with projection, validation and save-closure coverage; do not enable
+legacy authoring routes to supply those capabilities.

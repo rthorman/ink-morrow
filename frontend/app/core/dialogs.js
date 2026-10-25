@@ -140,7 +140,8 @@ function createDialogManager() {
         const actionButtons = [...actionsEl.querySelectorAll('button')];
         const disabledBefore = actionButtons.map((button) => button.disabled);
         const labelBefore = btn.textContent;
-        const result = action.onClick ? action.onClick(close) : close();
+        const closeThisDialog = (force = false) => { if (lastSpec === spec) close(force); };
+        const result = action.onClick ? action.onClick(closeThisDialog) : close();
         if (!result || typeof result.then !== 'function' || el.hidden || lastSpec !== spec) return;
 
         const token = {};

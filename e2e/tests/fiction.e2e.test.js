@@ -580,4 +580,34 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#authLoginForm')).toBeVisible();
     await expect.poll(() => Boolean(finish)).toBe(true); finish();
   });
+
+  test('a late media failure cannot replace a recap opened after changing rooms', async ({ page }) => {
+    await startFixture(page); let finish;
+    await page.route('**/api/fiction/*/images/generate', async route => {
+      await new Promise(resolve => { finish = resolve; });
+      await route.fulfill({ status: 502, json: { error: 'Illustrator unavailable.', billed_attempts: 1 } });
+    });
+    await goRoom(page, 'Gallery'); await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
+    await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('The harbour.');
+    await page.getByRole('button', { name: 'Paint with AI', exact: true }).click();
+    await page.getByRole('button', { name: 'Paint this image', exact: true }).click();
+    await expect.poll(() => Boolean(finish)).toBe(true);
+    await goRoom(page, 'Desk'); await page.getByRole('button', { name: 'Catch me up', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Return to this story');
+    finish(); await expect(page.locator('#fictionContinue')).toBeEnabled();
+    await expect(page.getByRole('dialog')).toContainText('Return to this story');
+    await expect(page.getByRole('dialog')).not.toContainText('Illustrator unavailable.');
+  });
+
+  test('Back from a painting review cancels without reopening the abandoned Gallery task', async ({ page }) => {
+    await startFixture(page); let attempts = 0;
+    await page.route('**/api/fiction/*/images/generate', async route => { attempts++; await route.abort(); });
+    await goRoom(page, 'Gallery'); await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
+    await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('The harbour.');
+    await page.getByRole('button', { name: 'Paint with AI', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('Paint this moment?');
+    await page.goBack(); await expect(page.locator('#workspaceDesk')).toBeVisible();
+    await expect(page.locator('#fictionContinue')).toBeEnabled(); await expect(page.getByRole('dialog')).toBeHidden();
+    expect(attempts).toBe(0);
+  });
 });

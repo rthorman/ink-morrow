@@ -138,3 +138,13 @@ test('approval reset distinguishes ordinary and quality consent, including the s
   manager.resetPaidConsent('ordinary'); expect(manager.hasPaidConsent()).toBe(false);
   manager.cancel(); localStorage.clear();
 });
+
+test('an old shared-dialog action cannot close its newer replacement', async () => {
+  document.body.innerHTML = ''; const manager = createDialogManager(); let finish;
+  manager.openDialog({ title: 'Original', body: 'Old work', actions: [{ label: 'Start', onClick: async close => { await new Promise(resolve => { finish = resolve; }); close(true); } }] });
+  document.querySelector('.dialog-manager button').click();
+  manager.openDialog({ title: 'New evidence', body: 'Keep reading this record.' });
+  finish(); await tick();
+  expect(document.querySelector('.dialog-manager__title').textContent).toBe('New evidence');
+  expect(manager.isOpen()).toBe(true); manager.cancel();
+});
