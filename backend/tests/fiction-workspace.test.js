@@ -294,4 +294,12 @@ describe('bounded historical workspace and private recovery', () => {
     expect(replay.id).toBe(first.id);
     expect(store.list()).toHaveLength(2);
   });
+  test('ordinary story reads redact submitted text while explicit owner evidence retains it',async()=>{
+    let story=start();const privateText='PRIVATE unpublished direction';
+    const complete=jest.fn().mockResolvedValue({content:JSON.stringify({prose:'The harbour is quiet.',summary:'A pause.',effects:[]}),cost_usd:0,billed_attempts:1});
+    const service=createFictionService({store,chatCompletion:complete});story=(await service.reply({gameId:story.id,expectedRevision:story.revision,idempotencyKey:'private-input',input:{kind:'steer',text:privateText}})).story;
+    expect(JSON.stringify(story)).not.toContain(privateText);expect(JSON.stringify(queries.evidence(story.id,story.head_beat_id))).not.toContain(privateText);
+    expect(queries.planning(story.id,{evidence_at:story.head_beat_id}).evidence.beat.input.text).toBe(privateText);
+  });
+
 });

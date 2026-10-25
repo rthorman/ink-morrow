@@ -45,7 +45,7 @@ function createFictionStore(db) {
   const bump = (id) => db.prepare('UPDATE fiction_games SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
   const publicBeat = (row) => row && ({
     id: row.id, parent_id: row.parent_id, branch_id: row.branch_id, kind: row.kind,
-    prose: row.prose, summary: row.summary, input: row.kind === 'correction' ? {} : JSON.parse(row.input_json),
+    prose: row.prose, summary: row.summary, input: row.kind === 'correction' ? {} : Object.fromEntries(Object.entries(JSON.parse(row.input_json)).filter(([key])=>['kind','character_id','challenge_id','approach_id','direction_scope'].includes(key))),
     changes: JSON.parse(row.changes_json).filter((change) => change.op === 'introduce' || change.fact?.visibility === 'public'), created_at: row.created_at,
   });
   const historyRows = (gameId, headId, limit = 60) => db.prepare(`
