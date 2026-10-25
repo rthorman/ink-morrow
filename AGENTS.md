@@ -5,7 +5,7 @@
 - Current recovery plan: [guide 1.1](docs/recovery/IMPLEMENTATION-GUIDE.md); resume through [continuation state](docs/recovery/CONTINUATION.md). These documents describe proposed work, not an implemented release.
 - The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
 - Stakeholder-authorized cleanup removed 53 integrated branches. Keep immutable `release/4.0.0`, historical tags and the 13 pending dependency branches. Exact tips and evidence are in `docs/recovery/BRANCH-CLEANUP.json`. Do not recreate deleted branches to resume old integration instructions.
-- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 inspection/provenance/server drafts are next. Preserve current-state scope labels and session-only draft honesty.
+- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 implements bounded historical inspection, exact new evidence, private server drafts, schema 24 and playable-save v2 with frozen v1 import. Read B2-DELIVERY.md before resuming; B3 creative depth is next. Preserve separate inspection/action destinations and acknowledged-draft honesty.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
@@ -36,7 +36,7 @@
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 23, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 24, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;
@@ -123,7 +123,7 @@
   EPUB places the illustration on a separate image page immediately before the
   associated text. Test this representation difference; do not copy inline reader
   markup into EPUB unchanged.
-- Playable saves use `.inkmorrow5` / `ink-morrow-fiction-save` version 1,
+- Playable saves use `.inkmorrow5` / `ink-morrow-fiction-save` version 2 (imports versions 1 and 2),
   not legacy manuscript archives. They contain all paths, private state and
   normalized illustrations, but no credentials, consent or resumable requests.
   Import validates bounded media and the complete ancestry graph before a

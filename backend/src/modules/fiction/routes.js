@@ -10,7 +10,7 @@ const { parseReasoningEffort } = require('../../core/validation');
 const { catalogue } = require('./scenarios');
 const { qualityPlan } = require('./quality-plan');
 
-function createFictionRouter({ store, service, providers = null, media, publication, saves, library = null, allowManualOpening = false }) {
+function createFictionRouter({ store, service, providers = null, media, publication, saves, library = null, drafts = null, allowManualOpening = false }) {
   const router = express.Router();
   const expose = (story) => ({ ...story, quality_generation: qualityPlan(story.state, providers), generation: providers?.exposure('scribe', {
     data_categories: ['story premise', 'selected cast and frozen world/Scribe references', 'boundaries', 'relevant facts including hidden world truth', 'bounded recent prose', 'reader direction'],
@@ -19,6 +19,17 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     data_categories: ['selected story passage or visible image-target description', 'art direction'], operation_count: 1,
   }) || null });
   const revision = (req) => req.body?.expected_revision;
+  // Explicit optional action destination, independent of historical inspection.
+  router.use('/api/fiction/:id', (req,res,next) => {
+    if (!['POST','PUT','PATCH'].includes(req.method) || !req.body || !Object.hasOwn(req.body,'expected_head_beat_id')) return next();
+    if(req.body.idempotency_key) {
+      // The durable request journal handles exact replay before revision checks.
+      return next();
+    }
+    const current=store.current(req.params.id);
+    if(req.body.target_branch_id!==current.branch.id || req.body.expected_head_beat_id!==current.branch.head_beat_id) fail('The action destination changed. Review the latest path before submitting.','STORY_TARGET_CHANGED',409);
+    delete req.body.target_branch_id;delete req.body.expected_head_beat_id;next();
+  });
   router.get('/api/fiction', (req, res) => {
     const offset = Number(req.query.offset || 0);
     if (!Number.isSafeInteger(offset) || offset < 0 || offset > 10000000) fail('Invalid story page.');
@@ -27,8 +38,10 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   });
   router.post('/api/fiction', (req, res) => {
     if (!allowManualOpening && Object.hasOwn(req.body || {}, 'opening')) fail('Manual prose writing is not part of InkMorrow 5.0. Choose a curated opening or supply a situation.', 'MANUAL_PROSE_RETIRED');
-    const { library: selection, ...input } = req.body || {};
-    res.status(201).json({ story: expose(selection !== undefined && library ? library.createStory(input, selection) : store.create(input)) });
+    const { library: selection, creation, ...input } = req.body || {};
+    const command=creation && drafts ? drafts.prepareCreation('story',creation,{...input,...(selection!==undefined?{library:selection}:{})}) : null;
+    if(command?.replayed) { try { return res.json({story:expose(store.view(command.result_id)),replayed:true}); } catch { fail('The previously created story is no longer available.','CREATION_RESULT_DELETED',410); } }
+    res.status(201).json({ story: expose(selection !== undefined && library ? library.createStory(input, selection,command?.finish) : store.create(input,{onCreated:command?.finish})) });
   });
   router.get('/api/fiction/scenarios', (req, res) => res.json({ scenarios: catalogue() }));
   router.get('/api/fiction/:id/memory', (req, res) => res.json({ facts: store.recall(req.params.id, req.query.q || '') }));
@@ -43,7 +56,7 @@ function createFictionRouter({ store, service, providers = null, media, publicat
     try { res.json({ preview: await saves.preview(req.body) }); } catch (error) { next(error); }
   });
   router.post('/api/fiction/saves/import', saveBody, async (req, res, next) => {
-    try { res.status(201).json({ story: expose(await saves.importSave(req.body)) }); } catch (error) { next(error); }
+    try { res.status(201).json({ story: expose(await saves.importSave(req.body,req.get('Idempotency-Key')||null)) }); } catch (error) { next(error); }
   });
   router.get('/api/fiction/:id/save', async (req, res, next) => {
     try { res.set('Cache-Control', 'private, no-store').attachment('InkMorrow-story.inkmorrow5').type(SAVE_MIME).send(await saves.exportSave(req.params.id)); }
@@ -128,14 +141,14 @@ function createFictionRouter({ store, service, providers = null, media, publicat
   });
   router.post('/api/fiction/:id/replies', async (req, res, next) => {
     try {
-      keys(req.body, ['expected_revision', 'idempotency_key', 'input', 'model', 'reasoning_effort', 'provider_id', 'quality_review'], 'Continue story');
+      keys(req.body, ['expected_revision', 'idempotency_key', 'input', 'model', 'reasoning_effort', 'provider_id', 'quality_review','target_branch_id','expected_head_beat_id'], 'Continue story');
       const model = req.body.model === undefined ? undefined : text(req.body.model, 'Model', 300);
       const reasoningEffort = parseReasoningEffort(req.body.reasoning_effort);
       if (req.body.reasoning_effort != null && !reasoningEffort) fail('The reasoning effort is not supported.');
       const providerId = req.body.provider_id === undefined ? null : text(req.body.provider_id, 'Provider ID', 80);
       const qualityReview = req.body.quality_review === undefined ? null : text(req.body.quality_review, 'Quality review', 64);
       if (qualityReview !== null && !/^[a-f0-9]{64}$/.test(qualityReview)) fail('Review the current quality configuration.');
-      const result = await service.reply({ gameId: req.params.id, expectedRevision: revision(req), idempotencyKey: req.get('Idempotency-Key') || req.body.idempotency_key, input: req.body.input, model, reasoningEffort, providerId, qualityReview });
+      const result = await service.reply({ gameId: req.params.id, expectedRevision: revision(req), idempotencyKey: req.get('Idempotency-Key') || req.body.idempotency_key, input: req.body.input, model, reasoningEffort, providerId, qualityReview, ...(Object.hasOwn(req.body,'expected_head_beat_id')?{target:{branch_id:req.body.target_branch_id,head_beat_id:req.body.expected_head_beat_id}}:{}) });
       res.status(result.reused ? 200 : 201).json({ ...result, story: expose(result.story) });
     } catch (error) { next(error); }
   });

@@ -13,6 +13,7 @@ const { reconcileInterruptedOperations } = require('./core/operation-journal');
 const { inspectCopy, hasDatabaseSidecars } = require('./core/database-inspection');
 const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA } = require('./modules/fiction/schema');
 const { FICTION_LIBRARY_SCHEMA, FICTION_LIBRARY_DRAFT_SCHEMA } = require('./modules/fiction/library-schema');
+const workspaceMigration = require('./modules/fiction/workspace-migration-v24');
 
 const LEGACY_TABLES = new Set([
   'worlds',
@@ -1927,6 +1928,10 @@ const MIGRATIONS = Object.freeze([
     name: 'AI assisted fiction catalogue design',
     checksumSource: FICTION_LIBRARY_DRAFT_SCHEMA,
     up(db) { db.exec(FICTION_LIBRARY_DRAFT_SCHEMA); },
+  }),
+  Object.freeze({ version: 24, name: 'fiction inspection, provenance and private drafts',
+    checksumSource: fs.readFileSync(require.resolve('./modules/fiction/workspace-migration-v24'), 'utf8'),
+    up(db) { workspaceMigration.up(db); },
   }),
 ]);
 

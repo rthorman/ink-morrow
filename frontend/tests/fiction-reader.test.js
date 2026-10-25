@@ -1,3 +1,4 @@
+import {workspaceApiFixture} from './workspace-api-fixture.js';
 import { jest } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { createFictionApp } from '../app/fiction/app.js';
@@ -20,7 +21,7 @@ describe('5.0 reader-director interface', () => {
     window.history.replaceState({}, '', '#/story/one');
     api = jest.fn().mockImplementation(async (path) => path === '/fiction' ? { stories: [] } : { story: story() });
     dialogs = { close: jest.fn(), confirmPaid: jest.fn().mockResolvedValue(true), openDialog: jest.fn() };
-    app = createFictionApp({ api, dialogs });
+    app = createFictionApp({ api:workspaceApiFixture(api,story), dialogs });
   });
   afterEach(() => app?.dispose());
 
@@ -216,17 +217,14 @@ describe('5.0 reader-director interface', () => {
     expect(feedback.dataset.error).toBe('false');
   });
 
-  test('a new action replaces prior failure feedback with progress and then its result', async () => {
+  test('an uncertain previous action requires review before another purchase', async () => {
     await app.start();
     api.mockImplementation(async (path, method) => { if (method === 'POST') throw new Error('Offline.'); return { story: story() }; });
     await app.send('follow');
-    let resolve;
-    api.mockImplementation((path, method) => method === 'POST' ? new Promise((done) => { resolve = done; }) : Promise.resolve({ story: story() }));
-    const pending = app.send('follow'); await tick();
-    expect(document.getElementById('fictionActionStatus').textContent).toContain('being handled');
-    expect(document.getElementById('fictionActionStatus').dataset.error).toBe('false');
-    resolve({ story: story() }); await pending;
-    expect(document.getElementById('fictionActionStatus').textContent).toBe('Story saved.');
+    const posts=api.mock.calls.filter(([,method])=>method==='POST').length;
+    await app.send('follow');
+    expect(document.getElementById('fictionActionStatus').textContent).toContain('previous submission needs review');
+    expect(api.mock.calls.filter(([,method])=>method==='POST')).toHaveLength(posts);
     app.lock(); expect(document.getElementById('fictionActionStatus').textContent).toBe('');
   });
 

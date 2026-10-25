@@ -10,9 +10,12 @@ const { makeEpisode, returnRecap } = require('./episodes');
 const { QUALITY_MODES, callLimit } = require('./quality');
 const { createCallLedger } = require('./call-ledger');
 const { validateLibrary, validateVisuals, visualTarget } = require('./library-model');
+const { createEvidence } = require('./evidence');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
+  const hasEvidence = Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_effect_evidence'").get());
+  const evidenceRecords = hasEvidence ? createEvidence(db) : null;
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try { const result = fn(); db.exec('COMMIT'); return result; }
@@ -103,14 +106,15 @@ function createFictionStore(db) {
       json_extract(b.state_json, '$.episode.title') AS episode_title
       FROM path JOIN fiction_beats b ON b.id = path.id WHERE b.kind IN ('opening', 'scene') ORDER BY path.depth DESC`).all(...args);
   }
-  function append({ game: g, branch: b }, { id = randomUUID(), kind, prose = '', summary, input = {}, state, changes = [] }) {
+  function append({ game: g, branch: b }, { id = randomUUID(), kind, prose = '', summary, input = {}, state, changes = [], evidence = [] }) {
     db.prepare(`INSERT INTO fiction_beats (id, game_id, branch_id, parent_id, kind, prose, summary, input_json, state_json, changes_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, g.id, b.id, b.head_beat_id, kind, prose, summary, JSON.stringify(input), JSON.stringify(state), JSON.stringify(changes));
+    evidenceRecords?.write(g.id, { id, kind, prose, input, changes }, evidence);
     db.prepare('UPDATE fiction_branches SET head_beat_id = ? WHERE id = ?').run(id, b.id);
     bump(g.id);
     return id;
   }
-  function create(input, { library = null, visuals = [], assets = [] } = {}) {
+  function create(input, { library = null, visuals = [], assets = [], onCreated = null } = {}) {
     keys(input, ['title', 'premise', 'genre', 'cast', 'facts', 'opening', 'pacing', 'consequences', 'boundaries', 'voice', 'scenario_id', 'play_style', 'challenges', 'fourth_wall', 'episode_question', 'quality_mode'], 'New story');
     input = scenarioInput(input);
     const title = text(input.title, 'Title', 200);
@@ -128,6 +132,7 @@ function createFictionStore(db) {
       db.prepare('UPDATE fiction_games SET active_branch_id = ? WHERE id = ?').run(branchId, id);
       for (const asset of assets) insertAsset(id, asset);
       if (opening) append(current(id), { kind: 'opening', prose: opening, summary: 'The story begins.', state });
+      onCreated?.(id);
     });
     return view(id);
   }
@@ -232,7 +237,9 @@ function createFictionStore(db) {
         if (previous.status !== 'succeeded') fail('That request did not complete. A new explicit action is required.', previous.error_code || 'STORY_REQUEST_FAILED', 409);
         return { request: previous, reused: true };
       }
+      if (hasEvidence && db.prepare('SELECT 1 FROM fiction_action_fences WHERE game_id=? AND action_key=?').get(id, key)) fail('This prepared action was cancelled before dispatch.', 'STORY_ACTION_CANCELLED', 409);
       const context = current(id); assertRevision(context.game, expected); assertIdle(id);
+      if(payload.target && (payload.target.branch_id!==context.branch.id || payload.target.head_beat_id!==context.branch.head_beat_id)) fail('The action destination changed.','STORY_TARGET_CHANGED',409);
       if (context.state.episode.status !== 'active' && payload.operation !== 'image') fail('This episode has ended. Begin the next episode when ready.', 'EPISODE_ENDED', 409);
       const requestId = randomUUID();
       db.prepare(`INSERT INTO fiction_requests (id, game_id, branch_id, idempotency_key, fingerprint, expected_revision, status) VALUES (?, ?, ?, ?, ?, ?, 'pending')`).run(requestId, id, context.branch.id, key, fingerprint, expected);
@@ -372,7 +379,7 @@ function createFictionStore(db) {
   }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model,
     ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
-  return { create, list, recall, evidence, recap, view, current, stateAt, memory, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
+  return { create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
 }
 
 module.exports = { createFictionStore };

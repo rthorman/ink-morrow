@@ -489,6 +489,32 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionProse')).toContainText('Mara waited');
   });
 
+  test('read-only path inspection excludes future and sibling facts without changing the active destination',async({page},testInfo)=>{
+    const original=await startFixture(page);
+    const corrected=(await(await apiPost(page,`/api/fiction/${original.id}/corrections`,{expected_revision:original.revision,fact:{id:'future-promise',kind:'fact',text:'A later promise belongs to the original path.',visibility:'public'},reason:'Private evidence reason'})).json()).story;
+    const sibling=(await(await apiPost(page,`/api/fiction/${original.id}/branches`,{expected_revision:corrected.revision,name:'An unread alternative',beat_id:original.head_beat_id})).json()).story;
+    await page.reload();await goRoom(page,'Chronicle');
+    await page.getByLabel('Browse path',{exact:true}).selectOption(original.active_branch_id);
+    await expect(page.locator('#workspaceHistory')).toContainText('A story fact was corrected');await page.screenshot({path:testInfo.outputPath('b2-chronicle.png')});
+    const after=await(await page.request.get(`/api/fiction/${original.id}`)).json();expect(after.story.active_branch_id).toBe(sibling.active_branch_id);expect(after.story.revision).toBe(sibling.revision);
+    await page.goto(`/#/story/${original.id}/codex?branch=${original.active_branch_id}&at=${original.head_beat_id}`);
+    await expect(page.locator('#inspectionCodex')).toContainText('Inspect this moment');
+    await expect(page.locator('#inspectionCodex')).not.toContainText('A later promise');
+    await expect(page.locator('#workspaceCurrentCodex')).toBeHidden();await page.screenshot({path:testInfo.outputPath('b2-codex.png')});
+    await page.getByRole('button',{name:'Open private owner planning…'}).click();await expect(page.locator('#inspectionPlanning')).toContainText('Private owner planning');
+    await goRoom(page,'Desk');await expect(page.locator('#inspectionPlanning')).toHaveCount(0);
+    await expect(page.locator('#inspectionReader')).toContainText('Read-only inspection');await page.screenshot({path:testInfo.outputPath('b2-inspected-desk.png')});
+  });
+
+  test('private contributions survive reload and Lock while browser storage holds no draft prose',async({page})=>{
+    const story=await startFixture(page);await openContribution(page);const text='Stay with this private unfinished direction.';
+    await page.locator('#fictionDirection').fill(text);await expect(page.locator('#contributionDraftState')).toContainText('saved on the server');
+    const stored=await page.evaluate(()=>JSON.stringify({...localStorage}));expect(stored).not.toContain(text);
+    await page.reload();await openContribution(page);await expect(page.locator('#fictionDirection')).toHaveValue(text);
+    await page.locator('#workspaceTaskClose').click();await page.locator('#lockBtn').click();await expect(page.locator('#fictionDirection')).toHaveValue('');
+    const response=await page.request.get(`/api/fiction/${story.id}/planning`);expect(response.status()).toBe(401);
+  });
+
   test('core surfaces have no detected WCAG A/AA violations', async ({ page }) => {
     test.setTimeout(60000);
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -528,7 +554,7 @@ test.describe('5.0 playable fiction', () => {
     }
     await expect(page.locator('#fictionProse')).toHaveText('The second saved passage.');
     await page.reload(); await expect(page.locator('#fictionProse')).toHaveText('The second saved passage.');
-    await goRoom(page, 'Codex'); await expect(page.getByText('This room shows current public state', { exact: false })).toBeVisible();
+    await goRoom(page, 'Codex'); await expect(page.getByText('Inspect public records at a chosen moment.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Correct a story fact', exact: true })).toBeVisible();
     await goRoom(page, 'Gallery'); await expect(page.getByRole('button', { name: 'Illustrate a moment', exact: true })).toBeVisible();
     await goRoom(page, 'Gate'); await expect(page.getByRole('button', { name: 'Export this reading path', exact: true })).toBeVisible();

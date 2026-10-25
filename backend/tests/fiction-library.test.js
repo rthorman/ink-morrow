@@ -174,7 +174,7 @@ describe('frozen visual catalogues', () => {
     const filename = path.join(root, 'schema22.db'); let old = createDb(filename, { migrations: MIGRATIONS.slice(0, 22) });
     const prior = createFictionStore(old).create({ scenario_id: 'garden-after-rain' });
     const ledger = old.prepare('SELECT * FROM schema_migrations ORDER BY version').all(); old.close(); old = createDb(filename);
-    expect(schemaIdentity(old).version).toBe(23); expect(createFictionStore(old).view(prior.id).title).toBe(prior.title);
+    expect(schemaIdentity(old).version).toBe(24); expect(createFictionStore(old).view(prior.id).title).toBe(prior.title);
     expect(old.prepare('SELECT * FROM schema_migrations WHERE version <= 22 ORDER BY version').all()).toEqual(ledger); old.close();
   });
 });

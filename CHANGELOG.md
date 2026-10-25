@@ -4,7 +4,21 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
-## Unreleased — recovery B1
+## Unreleased — recovery B2
+
+- Browse bounded Chronicle history and categorized Codex records on a selected
+  path and moment without changing the destination for actions; explicitly open
+  private planning and inspect narrative passages separately from Ask/local records.
+- Persist exact new source quotations and hashes; retain passage-level labels for
+  historical records without inventing missing quotations.
+- Recover private setup, catalogue and contribution drafts after reload, compare
+  conflicting revisions, copy offline text and review uncertain submissions before
+  another purchase. Lock clears visible text and cancels queued saves.
+- Append transactional schema 24; export playable-save v2 while retaining frozen
+  version-1 import validation. Creation/import receipts prevent duplicate copies
+  on an exact retry. No deployment or live paid testing is claimed.
+
+## Recovery B1
 
 - Restore Library and five current-fiction rooms while preserving existing V5
   catalogue, image, control, correction, episode, book and save workflows.

@@ -7,6 +7,7 @@
 | [Continuation state](CONTINUATION.md) | Decisions, completed work, limits and the next concrete slice |
 | [B0 experience and preview](B0-EXPERIENCE.md) | Implemented synthetic five-room prototype, screenshots and tablet review tasks |
 | [B1 production workspace](B1-DELIVERY.md) | Current-fiction room adapters, reading return, contribution tasks, screenshots and remaining boundaries |
+| [B2 historical inspection and private drafts](B2-DELIVERY.md) | Delivered query/evidence/draft/save contracts, fixtures and verification limits |
 | [Capability ledger](CAPABILITY-LEDGER.md) | Explicit final-4.1/V5 dispositions, deferrals and policy gates |
 | [Implementation guide](IMPLEMENTATION-GUIDE.md) | Authoritative current engineering plan and batch acceptance |
 | [Final Version 4.1 baseline](V4.1-BASELINE.md) | Pinned source map, feature dispositions and comparative tasks |

@@ -1,0 +1,82 @@
+{
+  "runtime": "v24.19.0",
+  "platform": "linux",
+  "arch": "x64",
+  "cpu": "INTEL(R) XEON(R) PLATINUM 8573C",
+  "hardware_threads": 3,
+  "fixture": "10,000 synthetic narrative moments; 24 recurring fact identities with public/private corrections; ordinary original scenario. No providers, images, human prose quality or Android hardware measured.",
+  "samples": 30,
+  "results": [
+    {
+      "moments": 500,
+      "cold_codex_ms": 3.46,
+      "timeline": {
+        "p50_ms": 3.33,
+        "p95_ms": 3.88,
+        "response_bytes": 8055
+      },
+      "codex": {
+        "p50_ms": 2.06,
+        "p95_ms": 2.53,
+        "response_bytes": 6395
+      },
+      "passage": {
+        "p50_ms": 0.4,
+        "p95_ms": 1.15,
+        "response_bytes": 1049
+      },
+      "database_bytes": 6144000,
+      "rss_bytes": 47775744
+    },
+    {
+      "moments": 3000,
+      "cold_codex_ms": 18.2,
+      "timeline": {
+        "p50_ms": 3.2,
+        "p95_ms": 4.36,
+        "response_bytes": 8186
+      },
+      "codex": {
+        "p50_ms": 10.66,
+        "p95_ms": 12.03,
+        "response_bytes": 6445
+      },
+      "passage": {
+        "p50_ms": 0.44,
+        "p95_ms": 0.53,
+        "response_bytes": 1063
+      },
+      "database_bytes": 33374208,
+      "rss_bytes": 58384384
+    },
+    {
+      "moments": 10000,
+      "cold_codex_ms": 41.03,
+      "timeline": {
+        "p50_ms": 2.67,
+        "p95_ms": 4.3,
+        "response_bytes": 8198
+      },
+      "codex": {
+        "p50_ms": 37.26,
+        "p95_ms": 47.41,
+        "response_bytes": 6455
+      },
+      "passage": {
+        "p50_ms": 0.41,
+        "p95_ms": 0.62,
+        "response_bytes": 1077
+      },
+      "database_bytes": 109895680,
+      "rss_bytes": 61652992
+    }
+  ],
+  "query_plan": [
+    {
+      "id": 3,
+      "parent": 0,
+      "notused": 61,
+      "detail": "SEARCH fiction_history_index USING INDEX fiction_history_narratives (game_id=? AND narrative_ordinal=?)"
+    }
+  ]
+}

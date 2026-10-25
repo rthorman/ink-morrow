@@ -21,6 +21,11 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
+Recovery B2 adds read-only historical/path inspection, categorized Codex records,
+exact new evidence and recoverable private drafts. The application remains 5.0.0;
+schema 24 upgrades the V5 database and playable-save v2 still imports v1.
+See [delivery and continuation](docs/recovery/B2-DELIVERY.md).
+
 ## Recovery planning
 
 The proposed recovery uses the final Version 4.1 experience as its historical

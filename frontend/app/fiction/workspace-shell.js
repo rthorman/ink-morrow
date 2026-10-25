@@ -34,7 +34,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
   $('workspaceAsk').addEventListener('click', () => contribution('ask'));
   function position() {
     const story = getCurrent(); const beatId = getShown();
-    if (!story || !beatId || room !== 'desk' || restoring) return;
+    if (!story || !beatId || room !== 'desk' || restoring || $('workspaceReader').hidden) return;
     const reader = $('workspaceReader'); const paragraphs = [...$('fictionProse').querySelectorAll('article > p')];
     const top = reader.getBoundingClientRect().top;
     let paragraph = paragraphs.findIndex(node => node.getBoundingClientRect().bottom >= top);
@@ -75,6 +75,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
       if (link.dataset.room === room) link.setAttribute('aria-current', 'page'); else link.removeAttribute('aria-current');
     }
     const story = getCurrent();
+    if(story)for(const link of $('workspaceRooms').querySelectorAll('a')){const query=new URLSearchParams(location.hash.split('?')[1]||'');query.delete('task');if(link.dataset.room!=='codex')query.delete('planning');link.href=workspaceUrl(story.id,link.dataset.room)+(query.size?'?'+query:'');}
     if (story) { lastUrl = workspaceUrl(story.id, room); $('workspaceReturn').href = lastUrl; $('workspaceReturn').hidden = false; }
     if (focus) {
       const heading = $(roomIds[room]).querySelector('h2') || $('fictionProse');
@@ -89,7 +90,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
       const card = el('article', '', 'workspace-history-card');
       card.dataset.beatId = beat.id;
       card.append(el('p', `${beat.id === getShown() ? 'Reading position · ' : ''}${beat.id === story.head_beat_id ? 'Action head · ' : ''}${beat.kind}`, 'eyebrow'), el('h3', beat.summary || 'Recorded moment'));
-      if (['opening', 'scene', 'clarification'].includes(beat.kind)) card.append(button('Read this passage', () => { readBeat(beat.id); location.hash = workspaceUrl(story.id, 'desk'); }));
+      if (['opening', 'scene'].includes(beat.kind)) card.append(button('Read this passage', () => { readBeat(beat.id); location.hash = workspaceUrl(story.id, 'desk'); }));
       else card.append(sourceButton(beat.id, 'Inspect this local record'));
       root.append(card);
     }
@@ -111,8 +112,9 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
     const nav = $('workspaceRooms');
     if (nav.dataset.story !== story.id) {
       nav.replaceChildren(); nav.dataset.story = story.id;
-      for (const name of ROOMS) { const link = el('a', labels[name]); link.href = workspaceUrl(story.id, name); link.dataset.room = name; nav.append(link); }
+      for (const name of ROOMS) { const link = el('a', labels[name]); const query=new URLSearchParams(location.hash.split('?')[1]||'');query.delete('task');if(name!=='codex')query.delete('planning');link.href = workspaceUrl(story.id, name)+(query.size?'?'+query:''); link.dataset.room = name; nav.append(link); }
     }
+    for(const link of nav.querySelectorAll('a')){const query=new URLSearchParams(location.hash.split('?')[1]||'');query.delete('task');if(link.dataset.room!=='codex')query.delete('planning');link.href=workspaceUrl(story.id,link.dataset.room)+(query.size?'?'+query:'');}
     renderHistory(story); renderGallery(story); showRoom(room);
     const branch = story.branches.find(item => item.id === story.active_branch_id);
     const owned = story.state.cast.find(person => person.id === story.state.control.character_id);

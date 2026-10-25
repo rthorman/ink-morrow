@@ -1,3 +1,4 @@
+import {workspaceApiFixture} from './workspace-api-fixture.js';
 import { jest } from '@jest/globals';
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -36,7 +37,7 @@ describe('visual Library and story images', () => {
       if (path.startsWith('/fiction/catalog') && method) return { entry: { ...entries.world, ...body?.entry } };
       return { story: story() };
     });
-    app = createFictionApp({ api, dialogs });
+    app = createFictionApp({ api:workspaceApiFixture(api,story), dialogs });
   });
   afterEach(async () => { app.dispose(); await tick(); });
   test('catalogues are sealed until unlock, show art, and save details without a purchase', async () => {

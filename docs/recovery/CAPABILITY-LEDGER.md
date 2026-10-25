@@ -1,17 +1,17 @@
-# Version 4.1 / V5 capability ledger — B0
+# Version 4.1 / V5 capability ledger — B2
 
-This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides an interactive synthetic composition; production adapters remain future work.
+This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. See the delivery records for verified boundaries.
 
 | Capability | Disposition | Owning batch / decision | Acceptance contract |
 |---|---|---|---|
-| Five story rooms and branded Library | Restored in batch | B1 | B0 interactive composition; runtime adapters still required. |
+| Five story rooms and branded Library | Restored in batch | B1 | Production adapters in B1; bounded history/Codex and private recovery in B2. |
 | Current catalogue studios and unsaved AI development | Current V5 | B3 deepens | Keep world/character/Scribe selection, uploads and reviewed development. |
 | Reader pagination and recoverable Continue errors | Current V5 | B1 deepens | No purchase on page turns; stable reading position. |
-| All-path fiction graph, evidence and corrections | Current V5 | B2 deepens | Current-ancestry inspection and exact source evidence. |
+| All-path fiction graph, evidence and corrections | Implemented B2 | B2 | Read-only selected ancestry/moment; exact new sources, legacy passage-level attribution. |
 | First-class Scribe craft and full story-local references | Restored in batch | B3 | Explicit field inventory and future-only adoption. |
 | Optional scenes, viewpoint and chapter/volume grouping | Restored in batch | B3/B4 | Plans are not events; grouping changes no prose. |
 | Ownership / Act / Say / Ask / Direct boundaries | Current V5 | B3 deepens | No compulsory avatar or Session Zero; performed speech remains conditional. |
-| Alternate paths and exact fork points | Current V5 | B2 deepens | One fiction graph; do not restore separate Play transcripts. |
+| Alternate paths and exact fork points | Implemented B2 | B2 | Read-only path preview remains separate from explicit active-path mutation on one fiction graph. |
 | Campaign: Relationships | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
 | Campaign: Promises | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |
 | Campaign: Debts | Restored in batch | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Not a claim of a new implemented ledger. |

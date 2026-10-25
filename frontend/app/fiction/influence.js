@@ -36,9 +36,11 @@ export function createInfluence({ api, dialogs, getCurrent, isBusy, localAction,
     const story = getCurrent(); if (!story) return;
     const body = el('div'); body.append(el('p', 'Loading the recorded moment…')); body.setAttribute('role', 'status');
     dialogs.openDialog({ title: 'Recorded evidence', body: [body], actions: [{ label: 'Close', className: 'btn-secondary', onClick: (close) => close(true) }] });
-    api(`/fiction/${story.id}/evidence/${encodeURIComponent(beatId)}`).then(({ beat }) => {
+    api(`/fiction/${story.id}/evidence/${encodeURIComponent(beatId)}`).then(({ beat,sources=[],precision }) => {
       if (!same(story)) return;
       body.replaceChildren(el('p', beat.summary));
+      if(precision)body.append(el('p',precision));
+      for(const source of sources){body.append(el('p',source.precision));if(source.quote)body.append(el('blockquote',source.quote),el('p','Exact stored source verified.'));}
       if (beat.prose) for (const paragraph of beat.prose.split(/\n\s*\n/)) body.append(el('p', paragraph));
       else body.append(el('p', 'This was a local state change; earlier prose was not rewritten.'));
       for (const change of beat.changes || []) if (change.fact) body.append(el('p', change.fact.text));

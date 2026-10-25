@@ -6,7 +6,7 @@
 // authenticated /api/capabilities endpoint.
 
 const DATABASE_FAMILY = 'ink-morrow-5';
-const DATABASE_SCHEMA_VERSION = 23;
+const DATABASE_SCHEMA_VERSION = 24;
 const SQLITE_APPLICATION_ID = 0x494D3530; // ASCII "IM50"
 
 const ARCHIVE_FORMAT = 'ink-morrow-project-archive';
@@ -48,7 +48,7 @@ function releaseCapabilities(applicationVersion) {
       manifest_schema_version: ARCHIVE_MANIFEST_SCHEMA_VERSION,
       status: 'retired',
     },
-    playable_save: { format: 'ink-morrow-fiction-save', version: 1, extension: '.inkmorrow5', status: 'available', imports_older_series: false },
+    playable_save: { format: 'ink-morrow-fiction-save', version: 2, accepts_versions: [1,2], extension: '.inkmorrow5', status: 'available', imports_older_series: false },
     features: FEATURES.map((feature) => ({ ...feature })),
   };
 }
