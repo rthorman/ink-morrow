@@ -5,7 +5,10 @@
   "scripts": {
     "start": "cd backend && npm start",
     "setup": "bash setup.sh",
-    "lint": "node node_modules/eslint/bin/eslint.js backend frontend e2e",
+    "lint": "node node_modules/eslint/bin/eslint.js backend frontend e2e prototypes scripts/serve-recovery-prototype.cjs scripts/build-recovery-preview.cjs",
+    "prototype:recovery": "node scripts/serve-recovery-prototype.cjs",
+    "build:prototype": "node scripts/build-recovery-preview.cjs",
+    "test:prototype": "cd e2e && node run-playwright.cjs test --config recovery-playwright.config.cjs",
     "check:brand": "node scripts/check-brand-residue.mjs && node scripts/check-logo-consistency.mjs",
     "check:release": "node scripts/check-release-consistency.mjs",
     "check:docs": "node docs/pdf-library/freshness.mjs",

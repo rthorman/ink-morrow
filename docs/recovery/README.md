@@ -5,6 +5,8 @@
 | Document | Purpose |
 |---|---|
 | [Continuation state](CONTINUATION.md) | Decisions, completed work, limits and the next concrete slice |
+| [B0 experience and preview](B0-EXPERIENCE.md) | Implemented synthetic five-room prototype, screenshots and tablet review tasks |
+| [Capability ledger](CAPABILITY-LEDGER.md) | Explicit final-4.1/V5 dispositions, deferrals and policy gates |
 | [Implementation guide](IMPLEMENTATION-GUIDE.md) | Authoritative current engineering plan and batch acceptance |
 | [Final Version 4.1 baseline](V4.1-BASELINE.md) | Pinned source map, feature dispositions and comparative tasks |
 | [Roundtable review](ROUND-TABLE-REVIEW.md) | Two specialist passes on guide 1.0; separately identified 1.1 amendment |

@@ -5,7 +5,7 @@
 - Current recovery plan: [guide 1.1](docs/recovery/IMPLEMENTATION-GUIDE.md); resume through [continuation state](docs/recovery/CONTINUATION.md). These documents describe proposed work, not an implemented release.
 - The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
 - Stakeholder-authorized cleanup removed 53 integrated branches. Keep immutable `release/4.0.0`, historical tags and the 13 pending dependency branches. Exact tips and evidence are in `docs/recovery/BRANCH-CLEANUP.json`. Do not recreate deleted branches to resume old integration instructions.
-- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The next proposed work is B0, a populated tablet prototype and explicit 4.1 parity ledger.
+- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. B0 now has an isolated [experience prototype](docs/recovery/B0-EXPERIENCE.md) and capability ledger. Stakeholder/tablet review is pending before B1 production cutover. This does not claim recovery runtime delivery.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
