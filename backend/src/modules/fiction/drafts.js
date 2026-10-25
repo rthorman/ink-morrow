@@ -206,9 +206,10 @@ function createOwnerDrafts(db) {
   function remove(id, expected) {
     const row = find(id);
     if (row.revision !== expected) fail('This draft changed before discard.', 'DRAFT_CONFLICT', 409);
-    db.prepare(
-      "UPDATE fiction_owner_drafts SET deleted=1,revision=revision+1,content_json='{}',submitted_json=NULL WHERE id=? AND revision=?"
+    const removed=db.prepare(
+      "UPDATE fiction_owner_drafts SET deleted=1,revision=revision+1,content_json='{}',submitted_json=NULL WHERE id=? AND revision=? AND deleted=0"
     ).run(id, expected);
+    if(!removed.changes)fail('This draft changed before discard.','DRAFT_CONFLICT',409);
     return { removed: true };
   }
   function list(query = {}) {

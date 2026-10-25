@@ -515,6 +515,21 @@ test.describe('5.0 playable fiction', () => {
     const response=await page.request.get(`/api/fiction/${story.id}/planning`);expect(response.status()).toBe(401);
   });
 
+  test('a lost setup creation response recovers the original story after reload',async({page})=>{
+    await page.goto('/#/new');await page.locator('#fictionTitle').fill('A recovered creation');await page.locator('#fictionPremise').fill('A quiet harbour after the rain.');
+    let createdId=null;
+    await page.route('**/api/fiction',async route=>{
+      if(route.request().method()!=='POST'){await route.continue();return;}
+      const response=await route.fetch();const result=await response.json();createdId=result.story?.id;await route.abort();
+    });
+    await page.getByRole('button',{name:'Begin this story',exact:true}).click();
+    await expect(page.locator('#fictionStatus')).toContainText('Cannot reach the server');expect(createdId).toBeTruthy();
+    await page.unroute('**/api/fiction');await page.reload();
+    await expect(page.getByRole('button',{name:'Open the created story',exact:true})).toBeVisible();
+    await page.getByRole('button',{name:'Open the created story',exact:true}).click();
+    await expect(page.locator('#fictionStoryTitle')).toHaveText('A recovered creation');expect(page.url()).toContain(createdId);
+  });
+
   test('core surfaces have no detected WCAG A/AA violations', async ({ page }) => {
     test.setTimeout(60000);
     await page.emulateMedia({ reducedMotion: 'reduce' });

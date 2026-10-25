@@ -75,7 +75,7 @@ undispatched cancellation and creation/import receipt replay. Frontend coverage
 includes late acknowledgements, conflicts, Lock, prepared identity sequencing and
 the preserved reader/catalogue/quality workflows. Desktop and emulated Mobile
 Chrome journeys cover the production workspace, private-draft reload, path preview,
-privacy, accessibility and reflow; the B0 prototype remains separately identifiable.
+privacy, accessibility and reflow. A real local creation is allowed to commit and its response is deliberately dropped; both browser profiles recover that same story after reload. The B0 prototype remains separately identifiable.
 
 [Host query measurements](evidence/B2-QUERY-BENCHMARK.json) are reproducible with
 `node scripts/benchmark-inspection.cjs`: 30 warm samples per query at 500, 3,000 and
