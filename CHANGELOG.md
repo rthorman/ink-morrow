@@ -4,6 +4,13 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
+## Unreleased — dependency maintenance
+
+- Update brace-expansion to patched 1.1.21 in the root, backend and frontend
+  lockfiles, clearing the shared lint/test dependency advisories.
+- Audit all four dependency trees in CI, including development dependencies,
+  alongside the existing production-only audit.
+
 ## Unreleased — recovery B3
 
 - Restore full story-local world, character and Scribe studios with immutable,
