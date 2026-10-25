@@ -29,6 +29,10 @@ Tests should assert both what changed and what did not: path head, revision,
 cast ownership, provider call count, private projection and billing.
 A passed happy path alone cannot prove at-most-once behaviour under races.
 
+B1 adds device navigation states for Desk, Chronicle, Codex, Gallery and Gate, plus a contribution task. Room changes do not activate a different path, advance fiction revision, clear the typed session draft or purchase generation. Opening the explicit active-path selector's command remains a mutation. Reading cursor and actual graph head remain separate; a local record after the last narrative passage is not a new page.
+
+A pending reply permits read-only page/room navigation. Completion updates current metadata and announces new prose; a reader who moved away from the submitted tail stays in place. Task-close is distinct from request cancellation. An unchanged submitted draft may be cleared on success; a newer revision with identical text is preserved. Lock clears every private room/task buffer immediately, before awaiting server revocation.
+
 ## Start, continue and clarify
 
 | Trigger | Guard | Durable result |

@@ -24,14 +24,15 @@ authorised finishing.
 ## Recovery planning
 
 The proposed recovery uses the final Version 4.1 experience as its historical
-reference while retaining Version 5's playable-fiction model. It is not yet
-implemented. See the [planning index](docs/recovery/README.md),
+reference while retaining Version 5's playable-fiction model. The first production workspace batch, B1, is implemented; deeper recovery
+batches remain planned. See the [planning index](docs/recovery/README.md),
 [implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
 [continuation state](docs/recovery/CONTINUATION.md).
 
 The [B0 experience prototype](docs/recovery/B0-EXPERIENCE.md) provides an
-interactive fictional example and screenshots for reviewing the proposed
-five-room workspace. It is isolated from production stories and providers.
+interactive fictional example, isolated from production stories and providers.
+The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the working
+current-fiction workspace, screenshots, scope and verification limits.
 
 ## What 5.0 includes
 

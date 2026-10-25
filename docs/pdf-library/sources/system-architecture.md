@@ -31,6 +31,10 @@ No per-character background agent, speculative continuation or offline simulatio
 runs. A player's return does not advance fictional time, and local recaps do not
 call a provider.
 
+The B1 current-fiction workspace uses `workspace-state.js` for normalized room/task routes and bounded device preferences/bookmarks, and `workspace-shell.js` for the five room adapters and shared contribution sheet. The existing app composes domain actions and preserves one story authority. Same-story room changes keep the lifecycle epoch and paid operation intact; story/global changes invalidate stale callbacks. No legacy runtime or second transcript is mounted.
+
+Bookmarks contain only story/path/passage identities and a relative paragraph anchor, never prose or private facts. Restoration outside the loaded window uses existing ancestry-checked history/evidence reads and validates revision/path before painting. Invalid positions fall back with an explanation. Chronicle renders at most eighty loaded history records; Codex explicitly uses current public state and Gallery labels its incomplete loaded collection. Complete historical projections and unplaced-art queries are later batches.
+
 ## Module and responsibility map
 
 | Component | Responsibility |

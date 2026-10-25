@@ -14,6 +14,7 @@ const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 describe('5.0 reader-director interface', () => {
   let app; let api; let dialogs;
   beforeEach(() => {
+    localStorage.clear();
     document.documentElement.innerHTML = html.replace(/<!DOCTYPE html>/i, '').replace(/<html[^>]*>|<\/html>/gi, '');
     Object.defineProperty(globalThis.crypto, 'randomUUID', { configurable: true, value: () => 'test-id' });
     window.history.replaceState({}, '', '#/story/one');
@@ -32,7 +33,7 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDetails').hidden).toBe(true);
   });
 
-  test('paginates prose locally, preserves drafts and follows a newly generated passage', async () => {
+  test('paginates locally, preserves drafts and announces a new passage without moving the reader', async () => {
     const value = story();
     value.beats.push({ ...value.beats[0], id: 'second', kind: 'scene', prose: 'The second passage.' });
     value.head_beat_id = 'second'; api.mockResolvedValue({ story: value }); await app.start();
@@ -52,7 +53,10 @@ describe('5.0 reader-director interface', () => {
     expect(document.getElementById('fictionDirection').value).toBe('My direction.');
     expect(api.mock.calls).toHaveLength(reads);
     const next = { ...value, head_beat_id: 'third', beats: [...value.beats, { ...value.beats[0], id: 'third', kind: 'scene', prose: 'A new passage.' }] };
-    app.renderStory(next); expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 3 of 3');
+    app.renderStory(next); expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 2 of 3');
+    expect(document.getElementById('workspaceNewPassage').hidden).toBe(false);
+    document.getElementById('fictionLatestPage').click();
+    expect(document.getElementById('fictionPageLabel').textContent).toBe('Page 3 of 3');
     expect(document.querySelectorAll('.fiction-beat')).toHaveLength(1);
     app.lock(); expect(document.getElementById('fictionPageLabel').textContent).toBe('No pages yet');
   });

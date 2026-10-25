@@ -5,6 +5,8 @@ import { createSaveDialogs } from './saves.js';
 import { createInfluence } from './influence.js';
 import { qualityPaidReview, renderQuality } from './quality.js';
 import { createVisualLibrary, storyImage } from './library.js';
+import { createFictionWorkspace } from './workspace-shell.js';
+import { parseWorkspace, workspaceUrl, getBookmark } from './workspace-state.js';
 
 const SCREEN_IDS = ['shelfScreen', 'startScreen', 'readerScreen', 'settingsScreen', 'catalogScreen'];
 
@@ -18,6 +20,17 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
+  let workspace = null;
+  let bookmarkRestoring = false;
+  const draftKey = (story = current, kind = $('fictionInputKind').value) => story ? `${story.id}:${story.active_branch_id}:${kind}` : '';
+  let selectedDraftKind = 'steer'; let draftRevision = 0;
+  function saveDraft() { if (current) { drafts.set(draftKey(current, selectedDraftKind), $('fictionDirection').value); scopes.set(draftKey(current, selectedDraftKind), $('fictionDirectionScope').value); } }
+  function selectDraft(kind) {
+    saveDraft(); selectedDraftKind = kind;
+    $('fictionDirection').value = drafts.get(draftKey(current, kind)) || '';
+    $('fictionDirectionScope').value = scopes.get(draftKey(current, kind)) || 'moment';
+    $('workspaceScope').hidden = kind !== 'steer';
+  }
   const stopProgress = () => { progressSerial++; clearTimeout(progressTimer); progressTimer = null; };
   const alive = (token) => unlocked && epoch === token;
   function actionStatus() {
@@ -36,6 +49,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   function showScreen(id) {
+    if ($(id).hidden) window.scrollTo(0, 0);
     for (const screen of SCREEN_IDS) $(screen).hidden = screen !== id;
     for (const [link, active] of [['shelfLink', id === 'shelfScreen'], ['preferencesLink', id === 'settingsScreen'], ['catalogLink', id === 'catalogScreen']]) {
       if (active) $(link).setAttribute('aria-current', 'page'); else $(link).removeAttribute('aria-current');
@@ -43,9 +57,9 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   function controls() {
-    const blocked = busy || !current || current.pending;
+    const blocked = busy || bookmarkRestoring || !current || current.pending;
     for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
-    $('fictionEarlier').disabled = Boolean(blocked || earlierBusy);
+    $('fictionEarlier').disabled = Boolean(!current || earlierBusy || bookmarkRestoring);
     $('fictionDownloadSave').disabled = Boolean(blocked);
     $('fictionCoverEdit').disabled = Boolean(blocked);
     for (const node of $('fictionReferences').querySelectorAll('button')) node.disabled = blocked;
@@ -54,6 +68,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     $('fictionComposer').setAttribute('aria-busy', String(Boolean(blocked && current)));
     for (const node of $('fictionCast').querySelectorAll('button')) node.disabled = blocked;
     influence.controls(blocked);
+    for (const id of ['workspaceSteer', 'workspaceAsk']) $(id).disabled = Boolean(blocked || current?.state.episode.status !== 'active');
+    for (const node of document.querySelectorAll('[data-workspace-mutation]')) node.disabled = blocked;
     pageControls();
   }
 
@@ -61,23 +77,30 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   function pageControls() {
     const beats = readingPages();
     const index = beats.findIndex((beat) => beat.id === shownBeatId);
-    const blocked = busy || earlierBusy || !current || current.pending;
+    const blocked = earlierBusy || !current || bookmarkRestoring;
     $('fictionPreviousPage').disabled = blocked || (index <= 0 && !current?.has_earlier);
     $('fictionNextPage').disabled = blocked || index < 0 || index === beats.length - 1;
-    $('fictionLatestPage').disabled = blocked || index < 0 || index === beats.length - 1;
+    $('fictionLatestPage').disabled = blocked || index < 0 || (index === beats.length - 1 && !current?.windowPast);
     $('fictionPageLabel').textContent = index < 0 ? 'No pages yet' : `Page ${index + 1} of ${beats.length}${current.has_earlier ? ' loaded' : ''}`;
-    $('fictionPageContext').hidden = index < 0 || index === beats.length - 1;
+    const historical = index >= 0 && (index !== beats.length - 1 || current?.windowPast);
+    $('fictionPageContext').hidden = !historical;
+    const branch = current?.branches.find(item => item.id === current.active_branch_id);
+    if (!busy && !current?.pending) $('fictionContinue').textContent = historical ? `Continue latest on ${branch?.name || 'this path'}` : 'Continue';
   }
 
   function showPage(index, scroll = true) {
     const pages = readingPages();
     if (!pages[index]) return;
+    workspace?.position();
     shownBeatId = pages[index].id;
     renderProse([pages[index]]); pageControls();
+    if (current) workspace?.render(current);
+    $('workspaceNewPassage').hidden = true;
     if (scroll) {
-      $('fictionProse').scrollIntoView?.({ block: 'start', behavior: 'instant' });
+      $('workspaceReader').scrollTop = 0;
       $('fictionProse').focus({ preventScroll: true });
     }
+    workspace?.position();
   }
 
   function renderShelf(stories, nextOffset = null) {
@@ -106,6 +129,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
           const figure = el('figure', '', 'fiction-illustration'); const img = el('img');
           img.src = `/api/fiction/${encodeURIComponent(current.id)}/images/${encodeURIComponent(placed.asset_id)}`;
           img.alt = placed.alt_text; img.loading = 'lazy';
+          img.width = 640; img.height = 480;
           img.addEventListener('error', () => { img.hidden = true; figure.append(el('p', `Illustration unavailable: ${placed.alt_text}`)); }, { once: true });
           figure.append(img); if (placed.caption) figure.append(el('figcaption', placed.caption));
           article.append(figure);
@@ -130,10 +154,16 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     }
   }
 
-  function renderStory(story) {
+  function renderStory(story, { forceLatest = false } = {}) {
+    const beforeCursor = shownBeatId; const beforePosition = workspace?.position();
+    const samePath = current?.id === story.id && current.active_branch_id === story.active_branch_id;
+    if (current && !samePath) saveDraft();
+    const latestChanged = samePath && readingPages().at(-1)?.id !== readingPages(story.beats).at(-1)?.id;
+    if (samePath && !forceLatest && shownBeatId && !story.beats.some(beat => beat.id === shownBeatId)) story = { ...story, beats: current.beats, has_earlier: current.has_earlier, windowPast: true };
     const pages = readingPages(story.beats);
-    const preservePage = current?.id === story.id && current.active_branch_id === story.active_branch_id && readingPages().at(-1)?.id === pages.at(-1)?.id;
-    if (!preservePage || !pages.some((beat) => beat.id === shownBeatId)) shownBeatId = pages.at(-1)?.id || null;
+    if (forceLatest || !samePath || !pages.some((beat) => beat.id === shownBeatId)) shownBeatId = pages.at(-1)?.id || null;
+    if (latestChanged && !forceLatest) $('workspaceNewPassage').hidden = false;
+    if (forceLatest) $('workspaceNewPassage').hidden = true;
     current = story;
     $('fictionStoryTitle').textContent = story.title;
     const visuals = story.state.visuals || [];
@@ -170,6 +200,11 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     $('fictionInputKind').replaceChildren(option('steer', 'Steer the story'), option('ask', 'Ask outside the story'));
     if (owned) $('fictionInputKind').append(option('act', `Act as ${owned.name}`), option('say', `Speak as ${owned.name}`));
     if ([...$('fictionInputKind').options].some((item) => item.value === previousKind)) $('fictionInputKind').value = previousKind;
+    if (!samePath || $('fictionInputKind').value !== selectedDraftKind) {
+      selectedDraftKind = $('fictionInputKind').value;
+      $('fictionDirection').value = drafts.get(draftKey(story, selectedDraftKind)) || '';
+      $('fictionDirectionScope').value = scopes.get(draftKey(story, selectedDraftKind)) || 'moment';
+    }
     $('fictionBranch').replaceChildren(...story.branches.map((branch) => option(branch.id, branch.name)));
     $('fictionBranch').value = story.active_branch_id;
     $('fictionFacts').replaceChildren();
@@ -188,8 +223,10 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     $('fictionEarlier').hidden = !story.has_earlier;
     const ended = story.state.episode.status === 'ended';
     $('fictionComposer').hidden = ended; $('fictionEnded').hidden = !ended; $('fictionEndEpisode').hidden = ended;
+    $('fictionContinue').hidden = ended; $('workspaceContributionActions').hidden = ended;
     $('fictionEpisodeSummary').textContent = story.state.episode.summary || 'This episode has reached its resting point.';
-    controls();
+    workspace?.render(story); controls();
+    if (!forceLatest && samePath && beforeCursor === shownBeatId && beforePosition) workspace.restore(beforePosition);
     clearTimeout(poll);
     if (story.pending) {
       const token = epoch;
@@ -201,38 +238,74 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     }
   }
 
-  async function route() {
+  async function restoreReadingPosition(token) {
+    const story = current; const bookmark = story && getBookmark(story.id, story.active_branch_id);
+    const restoreCursor = shownBeatId;
+    if (!bookmark) return;
+    bookmarkRestoring = true; controls();
+    try {
+      if (!story.beats.some(beat => beat.id === bookmark.beatId)) {
+        const [window, evidence] = await Promise.all([api(`/fiction/${story.id}?before=${encodeURIComponent(bookmark.beatId)}`), api(`/fiction/${story.id}/evidence/${encodeURIComponent(bookmark.beatId)}`)]);
+        if (!alive(token)) return;
+        if (current?.revision !== story.revision || current?.active_branch_id !== story.active_branch_id || shownBeatId !== restoreCursor) return;
+        if (window.story.revision !== story.revision || window.story.active_branch_id !== story.active_branch_id || evidence.beat.id !== bookmark.beatId || !['opening', 'scene', 'clarification'].includes(evidence.beat.kind)) throw new Error('Saved reading context changed.');
+        renderStory({ ...window.story, beats: [...window.story.beats, evidence.beat], windowPast: true }, { forceLatest: true });
+      }
+      if (!alive(token)) return;
+      shownBeatId = bookmark.beatId;
+      renderProse(current.beats.filter(beat => beat.id === shownBeatId));
+      workspace.render(current); workspace.restore(bookmark);
+    } catch {
+      if (alive(token)) status('Your saved reading position is unavailable. Showing the latest loaded passage; your story is unchanged.');
+    } finally { if (alive(token)) { bookmarkRestoring = false; controls(); } }
+  }
+
+  async function route(options = {}) {
     if (!unlocked) return;
-    const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; current = null; shownBeatId = null;
-    dialogs.close(true); status();
+    const hash = window.location.hash || '#/stories';
+    const destination = parseWorkspace(hash);
+    if (destination && current?.id === destination.storyId && options.refresh !== true) {
+      workspace.position();
+      if (!destination.task) { if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true); workspace.hideTask(); }
+      document.body.classList.add('fiction-in-workspace');
+      const changed = workspace.room !== destination.room;
+      workspace.showRoom(destination.room, changed);
+      workspace.position();
+      if (destination.task && !workspace.taskOpen) workspace.contribution(destination.task, true);
+      return;
+    }
+    saveDraft(); workspace.leave();
+    const token = ++epoch; clearTimeout(poll); stopProgress(); busy = false; earlierBusy = false; bookmarkRestoring = false; current = null; shownBeatId = null;
+    if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true); status();
     $('startFiction').disabled = false; $('startFiction').textContent = 'Begin this story';
     $('fictionEarlier').disabled = false;
-    const hash = window.location.hash || '#/stories';
     try {
       if (hash === '#/new') {
-        showScreen('startScreen');
-        library.loadSetup(() => alive(token));
+        showScreen('startScreen'); library.loadSetup(() => alive(token));
         try { const data = await api('/fiction/scenarios'); if (alive(token)) renderScenarios(data.scenarios || []); }
         catch { if (alive(token)) $('scenarioChoices').textContent = 'Authored openings are unavailable. You can still create your own situation below.'; }
         return;
       }
       const catalogue = /^#\/catalog\/(world|character|scribe)$/.exec(hash);
       if (catalogue) { showScreen('catalogScreen'); await library.render(catalogue[1], () => alive(token)); return; }
-      if (hash === '#/settings') {
-        showScreen('settingsScreen');
-        await providerPanel?.render(() => alive(token));
-        return;
-      }
-      const match = /^#\/story\/([A-Za-z0-9_-]+)$/.exec(hash);
-      if (match) {
-        showScreen('readerScreen'); $('fictionProse').replaceChildren(); $('fictionStoryTitle').textContent = 'Opening your story…';
+      if (hash === '#/settings') { showScreen('settingsScreen'); await providerPanel?.render(() => alive(token)); return; }
+      if (destination) {
+        showScreen('readerScreen'); document.body.classList.add('fiction-in-workspace');
+        workspace.clear(); document.body.classList.add('fiction-in-workspace'); workspace.showRoom(destination.room);
+        $('fictionProse').replaceChildren(); $('fictionStoryTitle').textContent = 'Opening your story…';
         for (const id of ['fictionCast', 'fictionFacts', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus', 'fictionQualityState', 'fictionCalls', 'fictionCover', 'fictionReferences']) $(id).replaceChildren();
-        $('fictionDetails').hidden = true; $('fictionDetailsToggle').setAttribute('aria-expanded', 'false');
         controls();
-        const data = await api(`/fiction/${match[1]}`);
+        const data = await api(`/fiction/${destination.storyId}`);
         if (!alive(token)) return;
-        renderStory(data.story); $('fictionDirection').value = drafts.get(data.story.id) || '';
-        $('fictionDirectionScope').value = scopes.get(data.story.id) || 'moment'; controls();
+        renderStory(data.story);
+        selectedDraftKind = [...$('fictionInputKind').options].some(option => option.value === selectedDraftKind) ? selectedDraftKind : 'steer';
+        $('fictionInputKind').value = selectedDraftKind;
+        $('fictionDirection').value = drafts.get(draftKey()) || ''; $('fictionDirectionScope').value = scopes.get(draftKey()) || 'moment';
+        await restoreReadingPosition(token);
+        if (!alive(token)) return;
+        workspace.showRoom(destination.room);
+        if (destination.task) workspace.contribution(destination.task, true);
+        controls();
       } else {
         showScreen('shelfScreen'); $('fictionShelf').textContent = 'Opening your stories…';
         const data = await api(shelfOffset ? `/fiction?offset=${shelfOffset}` : '/fiction'); if (alive(token)) renderShelf(data.stories, data.next_offset ?? null);
@@ -241,19 +314,21 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   async function localAction(path, method, payload = {}) {
-    if (busy || !current || current.pending) return;
+    if (busy || bookmarkRestoring || !current || current.pending) return;
     const token = epoch; const story = current;
     busy = true; controls(); status();
     try {
       const data = await api(`/fiction/${story.id}/${path}`, method, { ...payload, expected_revision: story.revision });
-      if (alive(token)) { renderStory(data.story); status('Saved.'); return { ok: true }; }
+      if (alive(token)) { renderStory(data.story); if (path === 'branch' || path === 'branches') await restoreReadingPosition(token); if (alive(token) && !actionFeedback) status('Saved.'); return { ok: true }; }
     } catch (error) { if (alive(token)) status(`${error.message} Your current path is preserved.`, true); return { ok: false, error: error.message }; }
     finally { if (alive(token)) { busy = false; controls(); } }
   }
 
   async function send(kind, approach = null) {
-    if (busy || !current || current.pending || current.state.episode.status !== 'active') return;
+    if (busy || bookmarkRestoring || !current || current.pending || current.state.episode.status !== 'active') return;
     const story = current; const token = epoch;
+    const submittedKey = draftKey(story, kind); const submittedDraftRevision = draftRevision; const submittedCursor = shownBeatId;
+    const atTail = !story.windowPast && readingPages().at(-1)?.id === shownBeatId;
     const direction = approach?.text || (kind === 'follow' ? '' : $('fictionDirection').value.trim());
     if (kind !== 'follow' && !direction) { $('fictionDirection').focus(); status('Add a direction or use Continue.'); return; }
     busy = true; controls(); status();
@@ -271,7 +346,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const approved = free || await dialogs.confirmPaid(qualityPaidReview(story) || {
         title: 'Let the story unfold?',
         body: 'This sends the premise, selected cast, frozen world/Scribe/character references, boundaries, relevant facts (including hidden world truth), recent story text and your direction to your selected text provider. One completion is requested; cost depends on your provider and model. Invalid replies can still incur a charge. No automatic paid follow-up is started.',
-        review: { action: 'Continue this story', object: story.title, model: story.generation?.provider ? `Storyteller (Scribe) · ${story.generation.provider.display_name} · ${story.generation.model_id}` : 'Your selected storyteller', quantity: 'One bounded narrative response', sends: 'Recent story, relevant facts (including hidden world truth), cast, boundaries and your direction', estimate: 0.02, note: 'A rough text-call estimate, not a spending cap. No automatic paid follow-up.' },
+        review: { action: `Continue latest moment on ${story.branches.find(branch => branch.id === story.active_branch_id)?.name || 'the active path'}`, object: story.title, model: story.generation?.provider ? `Storyteller (Scribe) · ${story.generation.provider.display_name} · ${story.generation.model_id}` : 'Your selected storyteller', quantity: 'One bounded narrative response', sends: 'Recent story, relevant facts (including hidden world truth), cast, boundaries and your direction', estimate: 0.02, note: 'A rough text-call estimate, not a spending cap. No automatic paid follow-up.' },
         confirmLabel: 'Continue with AI',
       });
       if (!approved || !alive(token)) return;
@@ -295,9 +370,11 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         ...(quality ? { quality_review: story.quality_generation?.review_id } : {}),
       });
       if (!alive(token)) return;
-      if (!approach && kind !== 'follow' && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(story.id); $('fictionDirectionScope').value = 'moment'; scopes.delete(story.id); }
-      renderStory(data.story); status(data.repeated_adjudication ? 'The recorded ruling still applies. No AI request or charge.' : 'Story saved.');
-      $('fictionProse').lastElementChild?.scrollIntoView?.({ block: 'start', behavior: 'instant' });
+      if (!approach && kind !== 'follow' && draftRevision === submittedDraftRevision && $('fictionDirection').value.trim() === direction) { $('fictionDirection').value = ''; drafts.delete(submittedKey); $('fictionDirectionScope').value = 'moment'; scopes.delete(submittedKey); }
+      renderStory(data.story, { forceLatest: atTail && submittedCursor === shownBeatId && workspace.room === 'desk' }); workspace.hideTask(); status(data.repeated_adjudication ? 'The recorded ruling still applies. No AI request or charge.' : 'Story saved.');
+      if (atTail && workspace.room === 'desk') $('workspaceReader').scrollTop = 0;
+      if (new URLSearchParams(location.hash.split('?')[1] || '').has('task')) history.replaceState(null, '', workspaceUrl(story.id, workspace.room));
+      workspace.position();
     } catch (error) {
       if (!alive(token)) return;
       stopProgress();
@@ -308,7 +385,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       // On narrow screens the manuscript can be taller than the viewport.
       // Reconciliation must leave the actionable failure beside Continue in
       // view instead of returning the reader to the prose above it.
-      $('fictionActionStatus').scrollIntoView?.({ block: 'nearest', behavior: 'instant' });
+      workspace.hideTask();
+      if (new URLSearchParams(location.hash.split('?')[1] || '').has('task')) history.replaceState(null, '', workspaceUrl(story.id, workspace.room));
     } finally { if (progressSerial === operation) stopProgress(); if (alive(token)) { busy = false; controls(); } }
   }
 
@@ -446,12 +524,15 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
+    workspace.position(); workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
-    dialogs.close(true);
+    if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
     for (const id of ['fictionShelf', 'fictionProse', 'fictionCast', 'fictionFacts', 'fictionCastDraft', 'fictionProviderPanel', 'fictionStoryTitle', 'fictionControl', 'fictionEpisode', 'fictionSpend', 'fictionEpisodeSummary', 'fictionCover', 'fictionReferences']) $(id).replaceChildren();
     $('fictionStartForm').reset(); syncFourthWallStart(); $('fictionDirection').value = ''; status();
+    $('fictionBranch').replaceChildren(); $('fictionInputKind').replaceChildren(option('steer', 'Steer the story'), option('ask', 'Ask outside the story'));
+    selectedDraftKind = 'steer'; bookmarkRestoring = false; $('workspaceNewPassage').hidden = true;
     stopProgress();
     for (const id of ['fictionPlayStyle', 'fictionFocusText', 'fictionChallenges', 'fictionInvitations', 'fictionEpisodeFocus', 'fictionQualityState', 'fictionCalls']) $(id).replaceChildren();
     $('fictionDirectionScope').value = 'moment';
@@ -464,10 +545,22 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
   const influence = createInfluence({ api, dialogs, getCurrent: () => current, isBusy: () => busy, localAction, send, correct: correctionDialog,
-    setDirection: (value) => { $('fictionDirection').value = value; if (current) { drafts.set(current.id, value); scopes.set(current.id, 'moment'); } status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
+    setDirection: (value) => { workspace.contribution('steer'); $('fictionDirection').value = value; draftRevision++; saveDraft(); status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
   const library = createVisualLibrary({ api, dialogs });
   const saveDialogs = createSaveDialogs({ dialogs, getCurrent: () => current, getLive: () => { const token = epoch; return () => alive(token); }, runAction: runMediaAction });
+  workspace = createFictionWorkspace({ getCurrent: () => current, getShown: () => shownBeatId,
+    readBeat: (id) => { const index = readingPages().findIndex(beat => beat.id === id); if (index >= 0) showPage(index); },
+    sourceButton: influence.sourceButton, illustrate: mediaDialogs.illustrate, contributionChanged: selectDraft,
+  });
+  async function loadLatest() {
+    if (!current || $('fictionLatestPage').disabled) return;
+    if (!current.windowPast) { showPage(readingPages().length - 1); return; }
+    const story = current; const token = epoch; earlierBusy = true; controls();
+    try { const data = await api(`/fiction/${story.id}`); if (alive(token) && current.active_branch_id === story.active_branch_id) { renderStory(data.story, { forceLatest: true }); $('workspaceReader').scrollTop = 0; workspace.position(); } }
+    catch (error) { if (alive(token)) status(error.message, true); }
+    finally { if (alive(token)) { earlierBusy = false; controls(); } }
+  }
   $('fictionDownloadSave').addEventListener('click', saveDialogs.save);
   $('fictionImportSave').addEventListener('click', saveDialogs.importSave);
   $('fictionIllustrate').addEventListener('click', mediaDialogs.illustrate);
@@ -478,16 +571,17 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionStartForm').addEventListener('submit', startStory);
   $('fictionStartStyle').addEventListener('change', syncFourthWallStart);
   $('addFictionCast').addEventListener('click', () => addCast());
-  $('fictionRefresh').addEventListener('click', route);
+  $('fictionRefresh').addEventListener('click', () => route({ refresh: true }));
+  for (const [id, family] of [['workspaceResetPaid', 'ordinary'], ['workspaceResetQualityPaid', 'quality']]) $(id).addEventListener('click', () => { dialogs.resetPaidConsent?.(family); $('workspaceConsentStatus').textContent = 'Future purchases in this family require review again. This does not cancel an active request.'; });
   $('fictionShelfPrevious').addEventListener('click', () => { shelfOffset = Math.max(0, shelfOffset - 80); $('fictionShelfPrevious').disabled = true; route(); });
   $('fictionShelfNext').addEventListener('click', () => { if (nextShelfOffset !== null) { shelfOffset = nextShelfOffset; $('fictionShelfNext').disabled = true; route(); } });
   $('fictionContinue').addEventListener('click', () => send('follow'));
   $('fictionComposer').addEventListener('submit', (event) => { event.preventDefault(); send($('fictionInputKind').value); });
-  $('fictionDirection').addEventListener('input', () => { if (current) drafts.set(current.id, $('fictionDirection').value); controls(); });
-  $('fictionDirectionScope').addEventListener('change', () => { if (current) scopes.set(current.id, $('fictionDirectionScope').value); });
-  $('fictionInputKind').addEventListener('change', controls);
+  $('fictionDirection').addEventListener('input', () => { draftRevision++; saveDraft(); controls(); });
+  $('fictionDirectionScope').addEventListener('change', saveDraft);
+  $('fictionInputKind').addEventListener('change', () => { workspace.contribution($('fictionInputKind').value, true); controls(); });
   $('fictionDirection').addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); send($('fictionInputKind').value); } });
-  $('fictionDetailsToggle').addEventListener('click', () => { const showing = $('fictionDetails').hidden; $('fictionDetails').hidden = !showing; $('fictionDetailsToggle').setAttribute('aria-expanded', String(showing)); });
+  $('fictionDetailsToggle').addEventListener('click', () => { if (current) location.hash = workspaceUrl(current.id, 'codex'); });
   $('releaseFictionControl').addEventListener('click', () => localAction('control', 'PUT', { character_id: null }));
   $('fictionBranch').addEventListener('change', () => localAction('branch', 'PUT', { branch_id: $('fictionBranch').value }));
   $('fictionFork').addEventListener('click', () => pathDialog(false));
@@ -517,9 +611,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionNextPage').addEventListener('click', () => {
     if (!$('fictionNextPage').disabled) showPage(readingPages().findIndex((beat) => beat.id === shownBeatId) + 1);
   });
-  $('fictionLatestPage').addEventListener('click', () => {
-    if (!$('fictionLatestPage').disabled) showPage(readingPages().length - 1);
-  });
+  $('fictionLatestPage').addEventListener('click', loadLatest);
   $('fictionTextSize').addEventListener('change', () => {
     const size = $('fictionTextSize').value;
     document.documentElement.style.setProperty('--fiction-reading-size', `${size}px`);
@@ -527,5 +619,5 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   });
   try { const size = localStorage.getItem('im-fiction-text-size'); if (['18', '21', '24'].includes(size)) { $('fictionTextSize').value = size; document.documentElement.style.setProperty('--fiction-reading-size', `${size}px`); } } catch { /* blocked storage */ }
   window.addEventListener('hashchange', route);
-  return { start: () => { unlocked = true; return route(); }, lock: clearPrivate, dispose: () => { clearPrivate(); window.removeEventListener('hashchange', route); }, route, send, renderStory, getCurrent: () => current, addCast, setScenario: (value) => { scenario = value; } };
+  return { start: () => { unlocked = true; return route(); }, lock: clearPrivate, dispose: () => { clearPrivate(); workspace.dispose(); window.removeEventListener('hashchange', route); }, route, send, renderStory, getCurrent: () => current, addCast, setScenario: (value) => { scenario = value; } };
 }

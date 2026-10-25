@@ -171,6 +171,7 @@ function createDialogManager() {
     el.hidden = false;
     lockScroll();
     wiredModals.push(el);
+    syncModalStack();
     panel.scrollTop = 0;
     // Focus enters at the title (non-destructive default) unless an action
     // explicitly asks; the first field gets it when a form lands in body.
@@ -222,6 +223,7 @@ function createDialogManager() {
     unlockScroll();
     const index = wiredModals.indexOf(overlay);
     if (index >= 0) wiredModals.splice(index, 1);
+    syncModalStack();
     if (opener && document.contains(opener)) opener.focus();
     opener = null;
     closing = false;
@@ -269,7 +271,13 @@ function createDialogManager() {
     return Boolean(overlay && !overlay.hidden);
   }
 
-  return { openDialog, close, requestClose, confirmDestructive, confirmPaid, hasPaidConsent, isOpen };
+  function cancel() { const resolveNo = lastSpec?.onFreeClose; close(true); resolveNo?.(); }
+  function resetPaidConsent(family = 'ordinary') {
+    const matches = key => family === 'quality' ? key.startsWith(`${PAID_CONSENT_KEY}:fiction-quality-`) : key === PAID_CONSENT_KEY;
+    for (const key of paidConsentForSession) if (matches(key)) paidConsentForSession.delete(key);
+    try { for (const key of Object.keys(localStorage)) if (matches(key)) localStorage.removeItem(key); } catch { /* session consent has still been cleared */ }
+  }
+  return { openDialog, close, cancel, requestClose, confirmDestructive, confirmPaid, hasPaidConsent, resetPaidConsent, isOpen };
 }
 
 // The complete lifecycle controller for existing feature modals (entity
@@ -284,6 +292,14 @@ let scrollLockCount = 0;
 
 function topWiredModal() {
   return wiredModals.length > 0 ? wiredModals[wiredModals.length - 1] : null;
+}
+function syncModalStack() {
+  const top = topWiredModal();
+  for (const modal of wiredModals) {
+    const background = modal !== top;
+    modal.inert = background;
+    if (background) modal.setAttribute('aria-hidden', 'true'); else modal.removeAttribute('aria-hidden');
+  }
 }
 
 function focusTargetOf(modal, focusId) {
@@ -357,6 +373,7 @@ export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) 
       ctrl.opener = document.activeElement;
       modal.hidden = false;
       wiredModals.push(modal);
+      syncModalStack();
       scrollLockCount++;
       document.documentElement.style.overflow = 'hidden';
       const target = focusTargetOf(modal, ctrl.focusId);
@@ -371,6 +388,7 @@ export function wireModal(modalId, { beforeClose = null, focusId = null } = {}) 
       modal.hidden = true;
       const index = wiredModals.indexOf(modal);
       if (index >= 0) wiredModals.splice(index, 1);
+      modal.inert = false; modal.removeAttribute('aria-hidden'); syncModalStack();
       scrollLockCount = Math.max(0, scrollLockCount - 1);
       if (scrollLockCount === 0) document.documentElement.style.overflow = '';
       const opener = ctrl.opener;

@@ -30,6 +30,12 @@ Project-owned 5.0 material remains AGPL-3.0-only. Preserve third-party licenses,
 bundled-font notices and the historical development credits. Do not describe
 generated fixtures as human playtesting or an unrun benchmark as research evidence.
 
+B1 introduces five current-fiction room adapters and a contribution sheet using the shared dialog stack. Test preserved workflows through their new destinations: history/path/episodes in Chronicle, cast/facts/preferences in Codex, upload/paint in Gallery, and book/save export in Gate. Old `#/story/:id` links remain Desk aliases. Do not revive authoring APIs or claim complete historical/image inventory queries from these adapters.
+
+Regression cases include cross-room reading return without additional generation, an old bookmark outside the loaded window, foreign/deleted bookmark rejection, pending generation during history browsing, newer identical draft text, paid-review cancellation back to the same sheet, immediate Lock and reading reflow. Keep source/CI evidence separate from real Android IME/Back/rotation and stakeholder acceptance. All six manuals and their source manifest are regenerated together for this UI change.
+
+The PDF renderer serves only local documentation/type/brand assets on an ephemeral loopback HTTP listener, so it works in browser environments that prohibit file URLs. It never starts the application or opens its database. The listener closes when rendering finishes or fails.
+
 ## Plan a substantial change
 
 Choose a coherent user outcome and identify its state, UI, privacy, cost and

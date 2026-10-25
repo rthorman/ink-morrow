@@ -16,6 +16,16 @@ async function startFixture(page, overrides = {}) {
   return story;
 }
 
+async function goRoom(page, name) {
+  await page.locator('#workspaceRooms').getByRole('link', { name, exact: true }).click();
+  await expect(page.locator('#workspaceRooms').getByRole('link', { name, exact: true })).toHaveAttribute('aria-current', 'page');
+}
+async function openContribution(page) {
+  if (await page.locator('#workspaceTask').isVisible()) return;
+  await goRoom(page, 'Desk');
+  await page.locator('#workspaceSteer').click();
+}
+
 async function approve(page) {
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.getByRole('button', { name: 'Continue with AI', exact: true }).click();
@@ -50,15 +60,16 @@ test.describe('5.0 playable fiction', () => {
     await page.getByLabel('Selected scribe', { exact: true }).selectOption({ label: `scribe ${suffix}` });
     await page.getByLabel(`character ${suffix}`, { exact: true }).check();
     await page.getByRole('button', { name: 'Begin this story', exact: true }).click(); await expect(page.locator('#fictionStoryTitle')).toHaveText(`Visual story ${suffix}`);
-    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await goRoom(page, 'Codex');
     await expect(page.locator('#fictionReferences img')).toHaveCount(2); await expect(page.locator('#fictionCast img')).toHaveCount(1);
+    await goRoom(page, 'Gallery');
     await page.getByRole('button', { name: 'Story cover: upload or paint', exact: true }).click();
     await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('Our story cover');
     await page.getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles(picture);
     await page.getByRole('button', { name: 'Upload image', exact: true }).click(); await expect(page.getByRole('dialog')).toBeHidden();
     await page.locator('#fictionCover img').scrollIntoViewIfNeeded();
     await expect.poll(() => page.locator('#fictionCover img').evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
-    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await goRoom(page, 'Desk');
     await expect(page.locator('#fictionDetails')).toBeHidden();
     await page.screenshot({ path: testInfo.outputPath('visual-reference-story.png'), fullPage: true });
     await page.getByRole('link', { name: 'Your stories', exact: true }).click();
@@ -117,11 +128,12 @@ test.describe('5.0 playable fiction', () => {
     await startFixture(page); let paid = 0;
     await page.route('**/api/fiction/*/replies', async (route) => { paid++; await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'Fixture: no live provider request.', billed_attempts: 0 }) }); });
     await page.evaluate(() => localStorage.setItem('im-paid-consent-v1', '1'));
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
     await page.getByRole('dialog').getByLabel('Optional consistency quality', { exact: true }).selectOption('both');
     await page.getByRole('button', { name: 'Save preferences', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden(); await expect(page.locator('#fictionQualityState')).toContainText('up to 6');
+    await openContribution(page);
     await page.locator('#fictionDirection').fill('Let the sisters take their time.'); await page.locator('#fictionSend').click();
     await expect(page.getByRole('dialog')).toContainText('Memory support'); await expect(page.getByRole('dialog')).toContainText('Standard storyteller');
     await expect(page.getByRole('dialog')).toContainText('Up to 6 model calls'); await expect(page.getByRole('dialog')).toContainText('hidden truth');
@@ -150,6 +162,8 @@ test.describe('5.0 playable fiction', () => {
       reads++;
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ story: { ...story, beats, head_beat_id: beats.at(-1).id } }) });
     });
+    // This mocked history replaces real beat identities; begin without a device bookmark.
+    await page.addInitScript(() => localStorage.removeItem('im-fiction-bookmarks-v1'));
     await page.reload(); await expect(page.locator('#fictionPageLabel')).toHaveText('Page 30 of 30');
     await expect(page.locator('.fiction-beat')).toHaveCount(1);
     await page.locator('#fictionPreviousPage').click();
@@ -174,6 +188,7 @@ test.describe('5.0 playable fiction', () => {
     await expect(feedback).toBeInViewport();
     await expect(page.locator('#fictionContinue')).toBeEnabled();
     await expect(page.locator('#fictionProse')).toContainText('Mara waited on the quay');
+    await openContribution(page);
     await page.locator('#fictionDirection').fill('Let Mara wait.');
     await expect(feedback).toContainText('API key (401)');
     expect(attempts).toBe(1);
@@ -182,22 +197,26 @@ test.describe('5.0 playable fiction', () => {
   test('illustrated manuscript and EPUB use different image layouts, and a save restores the whole story', async ({ page }, testInfo) => {
     test.setTimeout(60000);
     const story = await startFixture(page);
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
+    await goRoom(page, 'Gallery');
     await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('Mara waits beside the bell.');
     await page.getByLabel('Upload an image instead (up to 20 MB)', { exact: true }).setInputFiles({ name: 'cast.webp', mimeType: 'image/webp', buffer: readFileSync(path.join(__dirname, '../../frontend/brand/cinder-cast.webp')) });
     await page.getByRole('button', { name: 'Upload image', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
+    await goRoom(page, 'Desk');
     const image = page.locator('.fiction-illustration img'); await expect(image).toBeVisible();
     await expect(image).toHaveAttribute('alt', 'Mara waits beside the bell.');
     expect(await page.locator('.fiction-beat').first().evaluate((node) => node.firstElementChild.tagName)).toBe('FIGURE');
     await page.screenshot({ path: testInfo.outputPath('illustrated-reader.png'), fullPage: true });
+    await goRoom(page, 'Gate');
     await page.getByRole('button', { name: 'Export this reading path', exact: true }).click();
     const bookEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download book', exact: true }).click();
     const book = readFileSync(await (await bookEvent).path()).toString('utf8');
     expect(book).toContain('rendition:layout-pre-paginated'); expect(book).toContain('image-2.xhtml'); expect(book).toContain('text-3.xhtml');
     await expect(page.getByRole('dialog')).toBeHidden();
+    await goRoom(page, 'Gate');
     await page.getByRole('button', { name: 'Download a playable save', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('hidden story truth');
     const saveEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download private save', exact: true }).click();
@@ -219,7 +238,8 @@ test.describe('5.0 playable fiction', () => {
       attempts++; await new Promise((resolve) => { finish = resolve; });
       await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'Illustrator unavailable.', billed_attempts: 1, cost_usd: null }) });
     });
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
+    await goRoom(page, 'Gallery');
     await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('The quay.');
@@ -240,14 +260,14 @@ test.describe('5.0 playable fiction', () => {
     await page.getByRole('button', { name: 'Begin this story' }).click();
     await expect(page.locator('#fictionProse')).toContainText('The bell had been underwater');
     await expect(page.locator('#fictionControl')).toContainText('reader-director');
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await expect(page.locator('#fictionCast')).toContainText('Iona');
     await expect(page.locator('#fictionDetails')).not.toContainText('Vale is the buyer');
   });
 
   test('preferences and fact retirement are explicit local changes', async ({ page }) => {
     const story = await startFixture(page, { facts: [{ id: 'old', text: 'An old detail.' }] });
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
     await page.getByRole('dialog').getByLabel('Pacing', { exact: true }).selectOption('reflective');
     await page.getByRole('dialog').getByLabel('Play style', { exact: true }).selectOption('living-world');
@@ -271,11 +291,12 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.locator('#fictionPlayStyle')).toContainText('Living-world');
     await expect(page.locator('#fictionControl')).toContainText('reader-director');
     await expect(page.locator('#fictionDirectionScope')).toHaveValue('moment');
+    await openContribution(page);
     await page.getByText('Possible directions (optional)', { exact: true }).click();
     await page.locator('#fictionInvitations button').first().click();
     await expect(page.locator('#fictionDirection')).not.toHaveValue('');
     await expect(page.locator('#fictionStatus')).toContainText('nothing has happened');
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.locator('.dialog-manager')).toBeHidden();
     await page.locator('#fictionDirectionScope').selectOption('ongoing');
     await page.getByRole('button', { name: 'Send direction', exact: true }).click();
     await page.keyboard.press('Escape');
@@ -285,7 +306,7 @@ test.describe('5.0 playable fiction', () => {
   test('older memory is searchable and evidence is readable without an AI call', async ({ page }) => {
     const story = await startFixture(page);
     await apiPost(page, `/api/fiction/${story.id}/corrections`, { expected_revision: story.revision, fact: { id: 'promise', text: 'Mara promised to bring tea.' }, reason: 'A private repair reason.' });
-    await page.reload(); await page.getByRole('button', { name: 'Cast & story' }).click();
+    await page.reload(); await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Recall older facts', exact: true }).click();
     await page.getByLabel('Find a remembered fact', { exact: true }).fill('bring tea');
     await page.getByRole('button', { name: 'Search memory', exact: true }).click();
@@ -298,7 +319,7 @@ test.describe('5.0 playable fiction', () => {
   test('fourth-wall preference is Living-world only and survives reload without purchasing', async ({ page }) => {
     const story = await startFixture(page); let paid = 0;
     await page.route('**/api/fiction/*/replies', () => { paid++; });
-    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Story preferences', exact: true }).click();
     const setting = page.getByRole('dialog').getByLabel('Characters may break the fourth wall', { exact: true });
     await expect(setting).toBeHidden();
@@ -321,9 +342,11 @@ test.describe('5.0 playable fiction', () => {
     await expect(page.getByRole('dialog')).toContainText('Time away does not advance the story');
     await expect(page.getByRole('dialog')).toContainText('cooperation');
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'Cast & story', exact: true }).click();
+    await goRoom(page, 'Codex');
+    await goRoom(page, 'Chronicle');
     await page.getByRole('button', { name: 'End this episode', exact: true }).click();
     await page.getByRole('button', { name: 'End episode', exact: true }).click();
+    await goRoom(page, 'Desk');
     await page.getByRole('button', { name: 'Begin another episode', exact: true }).click();
     await page.getByLabel('Episode title', { exact: true }).fill('The next morning');
     await page.getByLabel('What question might this episode explore? (optional)', { exact: true }).fill('Who comes back?');
@@ -334,7 +357,7 @@ test.describe('5.0 playable fiction', () => {
 
   test('character inhabiting requires an explicit handoff and can be released', async ({ page }) => {
     await startFixture(page);
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Inhabit Mara', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('You will decide');
     await page.getByRole('button', { name: 'Take this role', exact: true }).click();
@@ -347,14 +370,14 @@ test.describe('5.0 playable fiction', () => {
 
   test('corrects a fact and keeps it after reload without changing earlier prose', async ({ page }) => {
     await startFixture(page);
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await page.getByRole('button', { name: 'Correct a story fact' }).click();
     await page.getByLabel('What is true?').fill('Mara promised to protect her sister.');
     await page.getByLabel('Why are you correcting it?').fill('The promise was missing.');
     await page.getByRole('button', { name: 'Save correction', exact: true }).click();
     await expect(page.locator('#fictionFacts')).toContainText('promised to protect');
     await page.reload();
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await expect(page.locator('#fictionFacts')).toContainText('promised to protect');
     await expect(page.locator('#fictionProse')).toContainText('When Iona arrived');
   });
@@ -363,8 +386,9 @@ test.describe('5.0 playable fiction', () => {
     const story = await startFixture(page);
     await apiPost(page, `/api/fiction/${story.id}/corrections`, { expected_revision: story.revision, fact: { id: 'promise', kind: 'commitment', text: 'Mara promised to conceal the sale.', actor_id: 'mara' }, reason: 'A commitment.' });
     await page.reload();
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await expect(page.locator('#fictionFacts')).toContainText('conceal the sale');
+    await goRoom(page, 'Chronicle');
     await page.getByRole('button', { name: 'Rewind a choice' }).click();
     await page.getByLabel('Continue from after this moment').selectOption(story.head_beat_id);
     await page.getByLabel('Name this path').fill('Without the promise');
@@ -376,17 +400,19 @@ test.describe('5.0 playable fiction', () => {
 
   test('hidden world facts do not appear in the reader recap', async ({ page }) => {
     await startFixture(page, { facts: [{ id: 'secret', text: 'The mayor bought the map.', visibility: 'secret', known_by: ['mara'] }] });
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
     await expect(page.locator('#fictionDetails')).not.toContainText('The mayor bought the map.');
     await expect(page.locator('#fictionDetails')).not.toContainText('Vale is the buyer');
   });
 
   test('ends and starts episodes without calling a provider', async ({ page }) => {
     await startFixture(page);
-    await page.getByRole('button', { name: 'Cast & story' }).click();
+    await goRoom(page, 'Codex');
+    await goRoom(page, 'Chronicle');
     await page.getByRole('button', { name: 'End this episode', exact: true }).click();
     await page.getByLabel('A short recap (optional)').fill('They can finally talk.');
     await page.getByRole('button', { name: 'End episode', exact: true }).click();
+    await goRoom(page, 'Desk');
     await expect(page.locator('#fictionEnded')).toBeVisible();
     await expect(page.locator('#fictionComposer')).toBeHidden();
     await page.reload();
@@ -399,6 +425,7 @@ test.describe('5.0 playable fiction', () => {
 
   test('paid review cancellation preserves the direction', async ({ page }) => {
     await startFixture(page);
+    await openContribution(page);
     await page.locator('#fictionDirection').fill('Let them speak privately.');
     await page.getByRole('button', { name: 'Send direction' }).click();
     await expect(page.getByRole('dialog')).toContainText('hidden world truth');
@@ -442,6 +469,7 @@ test.describe('5.0 playable fiction', () => {
     await page.route('**/api/fiction/*/replies', async (route) => {
       count++; await route.fulfill({ status: 502, json: { error: 'The story response was invalid.', billed_attempts: 1, cost_usd: 0.01 } });
     });
+    await openContribution(page);
     await page.locator('#fictionDirection').fill('Keep the reunion quiet.');
     await page.getByRole('button', { name: 'Send direction' }).click(); await approve(page);
     await expect(page.locator('#fictionStatus')).toContainText('invalid');
@@ -481,6 +509,75 @@ test.describe('5.0 playable fiction', () => {
       await page.evaluate(() => document.documentElement.style.setProperty('--fiction-reading-size', '24px'));
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
       await expect(page.locator('#fictionContinue')).toBeVisible();
+      const nav = await page.locator('#workspaceRooms').boundingBox();
+      if (width < 900) expect(Math.abs(nav.y + nav.height - 900)).toBeLessThanOrEqual(2);
     }
+  });
+
+  test('five production rooms preserve reading return and reach every existing tool without buying generation', async ({ page }, testInfo) => {
+    const story = await startFixture(page); let paid = 0;
+    const beats = [story.beats[0], ...['second', 'third'].map(id => ({ ...story.beats[0], id, kind: 'scene', prose: `The ${id} saved passage.`, summary: `The ${id} moment` }))];
+    await page.route(`**/api/fiction/${story.id}`, route => route.fulfill({ json: { story: { ...story, beats, head_beat_id: 'third' } } }));
+    await page.route('**/api/fiction/*/replies', async route => { paid++; await route.abort(); });
+    await page.reload(); await expect(page.locator('#fictionStoryTitle')).toHaveText(story.title);
+    await page.locator('#fictionLatestPage').click(); await page.locator('#fictionPreviousPage').click();
+    for (const room of ['Chronicle', 'Codex', 'Gallery', 'Gate', 'Desk']) {
+      await goRoom(page, room);
+      const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
+      expect(results.violations, room).toEqual([]);
+    }
+    await expect(page.locator('#fictionProse')).toHaveText('The second saved passage.');
+    await page.reload(); await expect(page.locator('#fictionProse')).toHaveText('The second saved passage.');
+    await goRoom(page, 'Codex'); await expect(page.getByText('This room shows current public state', { exact: false })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Correct a story fact', exact: true })).toBeVisible();
+    await goRoom(page, 'Gallery'); await expect(page.getByRole('button', { name: 'Illustrate a moment', exact: true })).toBeVisible();
+    await goRoom(page, 'Gate'); await expect(page.getByRole('button', { name: 'Export this reading path', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Download a playable save', exact: true })).toBeVisible();
+    await goRoom(page, 'Desk'); await page.screenshot({ path: testInfo.outputPath('b1-production-desk.png') });
+    expect(paid).toBe(0);
+  });
+
+  test('browser Back cancels the paid review and keeps the contribution draft without a request', async ({ page }) => {
+    await startFixture(page); let paid = 0;
+    await page.route('**/api/fiction/*/replies', async route => { paid++; await route.abort(); });
+    await openContribution(page); await page.locator('#fictionDirection').fill('Let the reunion remain awkward.');
+    await page.getByRole('button', { name: 'Send direction', exact: true }).click();
+    await expect(page.getByRole('dialog')).toContainText('hidden world truth');
+    await page.goBack(); await expect(page.locator('#workspaceTask')).toBeHidden();
+    await expect(page.locator('.dialog-manager')).toBeHidden();
+    await expect(page.locator('#workspaceSteer')).toBeEnabled();
+    await openContribution(page); await expect(page.locator('#fictionDirection')).toHaveValue('Let the reunion remain awkward.');
+    await page.keyboard.press('Escape'); await expect(page.locator('#workspaceTask')).toBeHidden();
+    expect(paid).toBe(0);
+  });
+
+  test('late completion while browsing Chronicle does not steal the room or reading cursor', async ({ page }) => {
+    const story = await startFixture(page); let finish;
+    await page.route('**/api/fiction/*/replies', async route => {
+      await new Promise(resolve => { finish = resolve; });
+      await route.fulfill({ json: { story: { ...story, revision: 2, head_beat_id: 'new', beats: [...story.beats, { ...story.beats[0], id: 'new', kind: 'scene', prose: 'A newly completed passage.' }] } } });
+    });
+    await page.locator('#fictionContinue').click(); await approve(page);
+    await expect.poll(() => Boolean(finish)).toBe(true); await goRoom(page, 'Chronicle');
+    finish(); await expect(page.locator('#fictionContinue')).toBeEnabled();
+    await expect(page.locator('#workspaceChronicle')).toBeVisible();
+    await goRoom(page, 'Desk'); await expect(page.locator('#fictionProse')).not.toContainText('A newly completed passage.');
+    await expect(page.locator('#workspaceNewPassage')).toBeVisible();
+    await page.locator('#fictionLatestPage').click(); await expect(page.locator('#fictionProse')).toContainText('A newly completed passage.');
+  });
+
+  test('Settings reading preferences are local and Lock clears content before logout returns', async ({ page }) => {
+    await startFixture(page); await page.getByRole('link', { name: 'Settings', exact: true }).click();
+    await page.getByLabel('Reading typeface', { exact: true }).selectOption('system');
+    await page.getByLabel('Line spacing', { exact: true }).selectOption('2.1');
+    await page.getByLabel('Reading paper', { exact: true }).selectOption('dusk');
+    await page.locator('#workspaceReturn').click();
+    await expect(page.locator('#fictionProse')).toHaveCSS('line-height', '37.8px');
+    let finish;
+    await page.route('**/api/auth/logout', async route => { await new Promise(resolve => { finish = resolve; }); await route.fulfill({ json: { state: 'locked' } }); });
+    await page.getByRole('button', { name: 'Lock', exact: true }).click();
+    await expect(page.locator('#fictionProse')).toBeEmpty(); await expect(page.locator('#workspaceHistory')).toBeEmpty();
+    await expect(page.locator('#authLoginForm')).toBeVisible();
+    await expect.poll(() => Boolean(finish)).toBe(true); finish();
   });
 });

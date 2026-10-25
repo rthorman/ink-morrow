@@ -19,7 +19,7 @@ export function createMediaDialogs({ api, dialogs, getCurrent, isBusy, runAction
     if (isReference) {
       target.control.append(option('reference', reference.kind === 'character' ? story.state.cast.find((person) => person.id === reference.subject_id)?.name || 'Character' : reference.kind));
       target.control.disabled = true;
-    } else { target.control.append(...scenes.map((beat) => option(beat.id, beat.prose.slice(0, 100)))); if (scenes.length) target.control.value = scenes.at(-1).id; }
+    } else { target.control.append(...scenes.map((beat) => option(beat.id, beat.prose.slice(0, 100)))); if (scenes.length) target.control.value = scenes.some(beat => beat.id === reference?.beat_id) ? reference.beat_id : scenes.at(-1).id; }
     const placement = () => isReference ? { kind: reference.kind, subject_id: reference.subject_id || null } : { beat_id: target.control.value };
     const placed = () => isReference ? story.state.visuals?.find((item) => item.kind === reference.kind && item.subject_id === (reference.subject_id || null)) : story.state.illustrations?.find((item) => item.beat_id === target.control.value);
     const alt = field('Image description (required for readers and export)', 'textarea', '', { maxLength: 1000, rows: 2 });

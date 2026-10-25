@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="styles/components.css">
   <link rel="stylesheet" href="styles/features/auth.css">
   <link rel="stylesheet" href="styles/fiction.css">
+  <link rel="stylesheet" href="styles/fiction-workspace.css">
 </head>
 <body class="im-gated">
   <a class="skip-link" href="#fictionMain">Skip to the story</a>
@@ -31,12 +32,12 @@
       <p id="fictionStatus" role="status" aria-live="polite"></p>
       <section id="shelfScreen" class="fiction-screen" aria-labelledby="shelfTitle" hidden>
         <div class="fiction-welcome">
-          <div><p class="eyebrow">Make room for another world</p><h1 id="shelfTitle">A story worth following.</h1>
+          <div><p class="eyebrow">Make room for another world</p><h1 id="shelfTitle">A place for your stories.</h1>
           <p>Follow the cast. Steer what unfolds. Step into a character only if you want to.</p>
           <a href="#/new" class="btn btn-primary">Start a story</a></div>
-          <img src="brand/vesper-threshold.webp" alt="" width="1672" height="941">
+          <picture><source media="(max-width:600px)" srcset="brand/hero-scriptorium-tablet-portrait.webp"><source media="(max-width:1100px)" srcset="brand/hero-scriptorium-tablet-landscape.webp"><img src="brand/hero-scriptorium-desktop.webp" alt="" width="1672" height="941"></picture>
         </div>
-        <h2>Your stories</h2>
+        <nav class="fiction-toolbar workspace-library-tabs" aria-label="Library collections"><a href="#/stories">Stories</a><a href="#/catalog/world">Worlds</a><a href="#/catalog/character">Characters</a><a href="#/catalog/scribe">Scribes</a></nav><h2>Your stories</h2>
         <button class="btn btn-secondary" id="fictionImportSave" type="button">Import a playable save</button>
         <div id="fictionShelf" class="fiction-shelf"></div>
         <nav class="fiction-toolbar" aria-label="Story pages"><button class="btn btn-secondary" id="fictionShelfPrevious" type="button" hidden>Previous stories</button><button class="btn btn-secondary" id="fictionShelfNext" type="button" hidden>More stories</button></nav>
@@ -72,66 +73,52 @@
           <button class="btn btn-primary" type="submit" id="startFiction">Begin this story</button>
         </form>
       </section>
-      <section id="readerScreen" class="fiction-screen" aria-labelledby="fictionStoryTitle" hidden>
-        <header class="fiction-story-header"><div id="fictionCover"></div><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1><p id="fictionControl"></p><p id="fictionPlayStyle"></p><p class="fiction-muted" id="fictionQualityState" hidden></p><p class="fiction-muted" id="fictionSpend"></p></header>
-        <div class="fiction-toolbar">
-          <button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button>
-          <button type="button" class="btn btn-secondary" id="fictionDetailsToggle" aria-expanded="false" aria-controls="fictionDetails">Cast &amp; story</button>
-          <button type="button" class="btn btn-secondary" id="fictionRecap">Catch me up</button>
-          <button type="button" class="btn btn-secondary" id="fictionEarlier" hidden>Read earlier moments</button>
-        </div>
-        <aside id="fictionDetails" class="fiction-details" hidden>
-          <h2>World and Scribe</h2><div id="fictionReferences"></div>
-          <h2>The cast</h2><p>Taking a role is optional. Otherwise the narrator runs the cast and you direct the story.</p><div id="fictionCast"></div>
-          <button class="btn btn-secondary" id="releaseFictionControl" type="button" hidden>Return to reader-director</button>
-          <button class="btn btn-secondary" id="fictionAddCast" type="button">Add to the cast</button>
-          <h2>What matters now</h2><div id="fictionFacts"></div>
-          <button class="btn btn-secondary" id="fictionRecall" type="button">Recall older facts</button>
-          <button class="btn btn-secondary" id="fictionCorrect" type="button">Correct a story fact</button>
-          <button class="btn btn-secondary" id="fictionRetire" type="button">Retire a fact</button>
-          <button class="btn btn-secondary" id="fictionPreferences" type="button">Story preferences</button>
-          <details id="fictionCallHistory" hidden><summary>Recent model calls and costs</summary><div id="fictionCalls"></div></details>
-          <section id="fictionChallengeSection" hidden><h2>Approaches to this situation</h2><p>Optional attempts, not guaranteed outcomes. Repeating an unchanged approach reuses its ruling without an AI purchase. Free-form dialogue is less predictable; model prose can still disagree with a ruling.</p><div id="fictionChallenges"></div></section>
-          <h2>Alternate paths</h2><label for="fictionBranch">Reading path</label><select id="fictionBranch"></select>
-          <button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button>
-          <button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button>
-          <p>Both preserve the current path. A new path restores facts, commitments and control at the selected moment.</p>
-          <h2>Episodes</h2><p id="fictionEpisodeFocus"></p><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
-          <h2>Illustrations and books</h2>
-          <button class="btn btn-secondary" id="fictionCoverEdit" type="button">Story cover: upload or paint</button>
-          <button class="btn btn-secondary" id="fictionIllustrate" type="button">Illustrate a moment</button>
-          <button class="btn btn-secondary" id="fictionExportBook" type="button">Export this reading path</button>
-          <div id="fictionSaveControls"><h2>Keep your story</h2><p>Reading progress is saved automatically on this server. Download a private save to preserve every path and continue elsewhere.</p><button class="btn btn-secondary" id="fictionDownloadSave" type="button">Download a playable save</button></div>
-        </aside>
-        <nav class="fiction-pagination" aria-label="Story pages">
-          <button id="fictionPreviousPage" class="btn btn-secondary" type="button">Previous</button>
-          <span id="fictionPageLabel" role="status" aria-live="polite"></span>
-          <button id="fictionNextPage" class="btn btn-secondary" type="button">Next</button>
-          <button id="fictionLatestPage" class="btn btn-secondary" type="button">Latest</button>
-        </nav>
-        <p id="fictionPageContext" class="fiction-page-context fiction-muted" hidden>Reading an earlier page. Continue extends the latest moment; use Rewind to change the path.</p>
-        <div id="fictionProse" class="fiction-prose" aria-label="The story" tabindex="-1"></div>
-        <section id="fictionEnded" class="fiction-ended" hidden><h2>A good place to stop.</h2><p id="fictionEpisodeSummary"></p><p>Your story is saved. Nothing moves forward while you are away.</p><button class="btn btn-primary" id="fictionNextEpisode" type="button">Begin another episode</button></section>
-        <form id="fictionComposer" class="fiction-composer">
+      <section id="readerScreen" class="fiction-screen fiction-workspace" aria-labelledby="fictionStoryTitle" hidden>
+        <header class="fiction-story-header"><div><p class="eyebrow" id="fictionEpisode"></p><h1 id="fictionStoryTitle"></h1></div><p id="fictionControl"></p></header>
+        <nav id="workspaceRooms" class="workspace-rooms" aria-label="Story rooms"></nav>
+        <div id="workspaceRoomArea" class="workspace-room-area">
+          <section id="workspaceDesk" class="workspace-room workspace-desk" aria-label="Desk">
+            <div class="workspace-desk-tools"><button type="button" class="btn btn-secondary" id="fictionRefresh">Refresh story</button><button type="button" class="btn btn-secondary" id="fictionDetailsToggle">Cast &amp; story</button><button type="button" class="btn btn-secondary" id="fictionRecap">Catch me up</button></div>
+            <div id="workspaceReader" class="workspace-reader" tabindex="0" aria-label="Reading passage"><div id="fictionProse" class="fiction-prose" aria-label="The story" tabindex="-1"></div></div>
+            <div class="workspace-desk-footer"><nav class="fiction-pagination" aria-label="Story pages"><button id="fictionPreviousPage" class="btn btn-secondary" type="button">Previous</button><span id="fictionPageLabel" role="status" aria-live="polite"></span><button id="fictionNextPage" class="btn btn-secondary" type="button">Next</button><button id="fictionLatestPage" class="btn btn-secondary" type="button">Latest</button></nav>
+            <p id="fictionPageContext" class="fiction-page-context fiction-muted" hidden>Reading an earlier page. New actions target the latest moment on the named active path.</p>
+            <p id="workspacePositionStatus" class="fiction-muted" role="status"></p><p id="workspaceActionTarget" class="workspace-target"></p><p id="workspaceNewPassage" role="status" hidden>A new passage is ready. Choose Latest when you want to read it.</p>
           <div class="fiction-continue-row"><button class="btn btn-primary" id="fictionContinue" type="button">Continue</button><span id="fictionActionStatus" role="status" aria-live="polite"></span></div>
-          <div id="fictionFocus" hidden><p id="fictionFocusText"></p><button class="btn btn-secondary" id="fictionClearFocus" type="button">Clear ongoing focus</button></div>
-          <details><summary>Possible directions (optional)</summary><p>Choose one to fill the box, then edit or send it. These are intentions, not promises. Continue needs no selection.</p><div id="fictionInvitations"></div></details>
-          <label for="fictionDirection" id="fictionDirectionLabel">Or steer the story</label>
-          <textarea id="fictionDirection" rows="3" maxlength="4000" placeholder="Stay with their reunion. Let the awkwardness breathe."></textarea>
-          <div class="fiction-send-row"><label class="sr-only" for="fictionInputKind">How to contribute</label><select id="fictionInputKind"><option value="steer">Steer the story</option><option value="ask">Ask outside the story</option></select><button class="btn btn-secondary" id="fictionSend" type="submit">Send direction</button></div>
-          <label for="fictionDirectionScope">How long should this direction guide the story?</label><select id="fictionDirectionScope"><option value="moment">This moment only</option><option value="ongoing">Keep this focus</option></select>
-          <p class="fiction-muted">Continue and Send use your selected AI provider. Ctrl/⌘ + Enter sends your direction.</p>
-        </form>
+            <div id="workspaceContributionActions" class="workspace-contribution-actions"><button type="button" class="btn btn-secondary" id="workspaceSteer">Steer</button><button type="button" class="btn btn-secondary" id="workspaceAsk">Ask at latest</button></div>
+            <section id="fictionEnded" class="fiction-ended" hidden><h2>A good place to stop.</h2><p id="fictionEpisodeSummary"></p><p>Your story is saved. Nothing moves forward while you are away.</p><button class="btn btn-primary" id="fictionNextEpisode" type="button">Begin another episode</button></section></div>
+          </section>
+          <section id="workspaceChronicle" class="workspace-room" aria-labelledby="workspaceChronicleTitle" hidden><p class="eyebrow">Chronicle</p><h2 id="workspaceChronicleTitle" tabindex="-1">Every path leaves a trace</h2><p>History below is a bounded window of the active path. Selecting a different active path changes the destination for future actions; it is not a read-only preview.</p>
+            <label for="fictionBranch">Active path for future actions</label><select id="fictionBranch"></select><div class="fiction-toolbar"><button class="btn btn-secondary" id="fictionFork" type="button">Explore an alternative</button><button class="btn btn-secondary" id="fictionRewind" type="button">Rewind a choice</button><button type="button" class="btn btn-secondary" id="fictionEarlier" hidden>Read earlier moments</button></div>
+            <p id="workspaceHistoryStatus" role="status"></p><div id="workspaceHistory"></div><h2>Episodes</h2><p id="fictionEpisodeFocus"></p><button class="btn btn-secondary" id="fictionEndEpisode" type="button">End this episode</button>
+          </section>
+          <aside id="fictionDetails" class="workspace-room fiction-details" aria-labelledby="workspaceCodexTitle" hidden><p class="eyebrow">Codex</p><h2 id="workspaceCodexTitle" tabindex="-1">People, places and what matters</h2><p class="workspace-scope-note">This room shows current public state on the active path, even when you are reading an earlier passage. Historical state inspection comes in a later batch.</p>
+            <p id="fictionPlayStyle"></p><p id="fictionQualityState" class="fiction-muted" hidden></p><button class="btn btn-secondary" id="fictionPreferences" type="button">Story preferences</button>
+            <h2>World and Scribe</h2><div id="fictionReferences"></div><h2>The cast</h2><p>Taking a role is optional. Otherwise the narrator runs the cast and you direct the story.</p><div id="fictionCast"></div><button class="btn btn-secondary" id="releaseFictionControl" type="button" hidden>Return to reader-director</button><button class="btn btn-secondary" id="fictionAddCast" type="button">Add to the cast</button>
+            <h2>What matters now</h2><div id="fictionFacts"></div><button class="btn btn-secondary" id="fictionRecall" type="button">Recall older facts</button><button class="btn btn-secondary" id="fictionCorrect" type="button">Correct a story fact</button><button class="btn btn-secondary" id="fictionRetire" type="button">Retire a fact</button>
+            <section id="fictionChallengeSection" hidden><h2>Approaches to this situation</h2><p>Optional attempts, not guaranteed outcomes. An unchanged approach reuses its ruling without an AI purchase.</p><div id="fictionChallenges"></div></section>
+          </aside>
+          <section id="workspaceGallery" class="workspace-room" aria-labelledby="workspaceGalleryTitle" hidden><p class="eyebrow">Gallery</p><h2 id="workspaceGalleryTitle" tabindex="-1">An image belongs somewhere</h2><p>Current cover, frozen reference images and illustrations in the loaded history window. This is not yet a complete inventory of unplaced or older art.</p><div class="fiction-toolbar"><button class="btn btn-secondary" id="fictionCoverEdit" type="button">Story cover: upload or paint</button><button class="btn btn-secondary" id="fictionIllustrate" type="button">Illustrate a moment</button></div><div id="fictionCover"></div><div id="workspaceImages" class="fiction-shelf"></div></section>
+          <section id="workspaceGate" class="workspace-room" aria-labelledby="workspaceGateTitle" hidden><p class="eyebrow">Gate</p><h2 id="workspaceGateTitle" tabindex="-1">Make a work worth keeping</h2><p>A book includes the active reading path. A private save keeps every path and can contain hidden story information.</p><button class="btn btn-primary" id="fictionExportBook" type="button">Export this reading path</button><div id="fictionSaveControls"><h2>Keep your story</h2><p>The server stores story history. Your reading position is remembered on this device. Download a private playable save to preserve all paths, story-owned images and private state; credentials and paid permissions never travel.</p><button class="btn btn-secondary" id="fictionDownloadSave" type="button">Download a playable save</button></div><p id="fictionSpend"></p><details id="fictionCallHistory" hidden><summary>Recent model calls and costs</summary><div id="fictionCalls"></div></details></section>
+        </div>
       </section>
       <section id="settingsScreen" class="fiction-screen" aria-labelledby="fictionSettingsTitle" hidden>
-        <h1 id="fictionSettingsTitle">Your storyteller</h1><p>Choose a provider and model. Credentials never go into stories, browser storage or exported saves.</p>
+        <h1 id="fictionSettingsTitle">Settings</h1><p>Choose a provider and model. Credentials never go into stories, browser storage or exported saves.</p>
         <div id="fictionProviderPanel"></div>
-        <h2>Reading</h2><label for="fictionTextSize">Text size</label><select id="fictionTextSize"><option value="18">Comfortable</option><option value="21">Large</option><option value="24">Extra large</option></select>
-        <p><a href="/user-manual.pdf">Open the user guide</a></p>
+        <a id="workspaceReturn" class="btn btn-secondary" href="#/stories" hidden>Return to your workspace</a><h2>Reading on this device</h2><p id="workspaceReadingStatus" role="status"></p><p class="workspace-reading-sample">Rain tapped at the window. For a while, they let the silence be enough.</p><label for="fictionTextSize">Text size</label><select id="fictionTextSize"><option value="18">Comfortable</option><option value="21">Large</option><option value="24">Extra large</option></select>
+        <label for="workspaceFont">Reading typeface</label><select id="workspaceFont"><option value="literata">Literata</option><option value="system">System typeface</option></select><label for="workspaceSpacing">Line spacing</label><select id="workspaceSpacing"><option value="1.65">Compact</option><option value="1.85" selected>Comfortable</option><option value="2.1">Spacious</option></select><label for="workspaceWidth">Reading column</label><select id="workspaceWidth"><option value="normal">Comfortable</option><option value="narrow">Narrow</option></select><label for="workspacePaper">Reading paper</label><select id="workspacePaper"><option value="vellum">Light vellum</option><option value="dusk">Dusk</option></select><p><button id="workspaceResetReading" type="button" class="btn btn-secondary">Reset reading preferences</button></p><h2>Paid approvals on this device</h2><p>Reset future approval without deleting credentials or cancelling work already requested.</p><button id="workspaceResetPaid" type="button" class="btn btn-secondary">Review ordinary paid actions again</button><button id="workspaceResetQualityPaid" type="button" class="btn btn-secondary">Review quality checks again</button><p id="workspaceConsentStatus" role="status"></p><h2>Access</h2><form id="passwordChangeForm" class="fiction-form"><label for="passwordCurrent">Current password</label><input id="passwordCurrent" type="password" autocomplete="current-password" required><label for="passwordNew">New password (at least 15 characters)</label><input id="passwordNew" type="password" autocomplete="new-password" minlength="15" maxlength="128" required><label for="passwordConfirm">Confirm new password</label><input id="passwordConfirm" type="password" autocomplete="new-password" minlength="15" maxlength="128" required><p id="passwordChangeStatus" role="status"></p><button type="submit" class="btn btn-secondary">Change password</button></form><p><a href="/user-manual.pdf">Open the user guide</a></p>
       </section>
     </main>
     <footer class="fiction-footer"><img src="brand/ink-morrow-lockup.svg" alt="Ink Morrow" width="900" height="240"><p>Your choices, their lives, a story to return to.</p></footer>
   </div>
+  <div id="workspaceTask" class="burn-modal workspace-task" hidden><section class="workspace-task-panel fiction-screen" role="dialog" aria-modal="true" aria-labelledby="workspaceTaskTitle"><header><h2 id="workspaceTaskTitle">Steer the story</h2><button id="workspaceTaskClose" class="btn btn-secondary" type="button">Close · keep draft</button></header><p id="workspaceTaskTarget" class="workspace-target"></p>        <form id="fictionComposer" class="fiction-composer"><div class="workspace-task-fields">
+          <div id="fictionFocus" hidden><p id="fictionFocusText"></p><button class="btn btn-secondary" id="fictionClearFocus" type="button">Clear ongoing focus</button></div>
+          <details><summary>Possible directions (optional)</summary><p>Choose one to fill the box, then edit or send it. These are intentions, not promises. Continue needs no selection.</p><div id="fictionInvitations"></div></details>
+          <label for="fictionDirection" id="fictionDirectionLabel">Or steer the story</label>
+          <textarea id="fictionDirection" rows="3" maxlength="4000" placeholder="Stay with their reunion. Let the awkwardness breathe."></textarea>
+          <div id="workspaceScope"><label for="fictionDirectionScope">How long should this direction guide the story?</label><select id="fictionDirectionScope"><option value="moment">This moment only</option><option value="ongoing">Keep this focus</option></select></div>
+          <p id="workspaceDraftStatus" class="fiction-muted">Draft held in this open session. Reloading or locking clears it.</p><p class="fiction-muted">Send uses your selected AI provider. Ctrl/⌘ + Enter sends your direction.</p>
+</div>          <div class="fiction-send-row"><label class="sr-only" for="fictionInputKind">How to contribute</label><select id="fictionInputKind"><option value="steer">Steer the story</option><option value="ask">Ask outside the story</option></select><button class="btn btn-secondary" id="fictionSend" type="submit">Send direction</button></div>
+        </form></section></div>
   <script type="module" src="app/fiction/bootstrap.js"></script>
 </body>
 </html>
