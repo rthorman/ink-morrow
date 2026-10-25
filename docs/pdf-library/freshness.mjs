@@ -48,7 +48,13 @@ if (write) {
   console.log(`Wrote ${path.relative(root, manifestPath)}`);
 } else {
   const expected = JSON.parse(await fs.readFile(manifestPath, 'utf8'));
-  if (JSON.stringify(expected) !== JSON.stringify(current)) {
+  let policy=null;
+  try{policy=JSON.parse(await fs.readFile(path.join(here,'update-policy.json'),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}
+  if(policy){
+    if(policy.mode!=='deferred'||policy.until!=='final-recovery-work-package')throw new Error('Unsupported PDF update policy.');
+    if(JSON.stringify(expected.outputs)!==JSON.stringify(current.outputs))throw new Error('Deferred PDF files differ from the last verified build.');
+    console.log(`PDF regeneration deferred until the final recovery work package; ${outputs.length} existing PDFs verified against their last build. Source guides remain current.`);
+  } else if (JSON.stringify(expected) !== JSON.stringify(current)) {
     const message = 'Committed PDFs may be stale. Run npm run docs:pdf and commit the PDFs plus docs/pdf-library/generated.json.';
     if (process.env.GITHUB_ACTIONS) console.log(`::warning title=PDF documentation freshness::${message}`);
     else console.warn(`WARNING: ${message}`);

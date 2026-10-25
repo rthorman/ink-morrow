@@ -104,6 +104,7 @@ async function listModelsWithConfig(cfg, onCatalogue = null) {
         id: m.id,
         name: m.name || m.id,
         context_length: typeof m.context_length === 'number' ? m.context_length : null,
+        max_output_tokens: Number.isSafeInteger(m.top_provider?.max_completion_tokens)?m.top_provider.max_completion_tokens:Number.isSafeInteger(m.max_completion_tokens)?m.max_completion_tokens:null,
         reasoning,
         reasoning_efforts: efforts,
         reasoning_default: defaultEffort,
@@ -347,17 +348,17 @@ async function computeCostUsd(cfg, model, usage, onCatalogue = null) {
  */
 async function chatCompletion(
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts } = {}
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts, strictBudget = false } = {}
 ) {
   return chatCompletionWithConfig(aiConfig(), messages, {
-    temperature, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts,
+    temperature, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts, strictBudget,
   });
 }
 
 async function chatCompletionWithConfig(
   cfg,
   messages,
-  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts } = {},
+  { temperature = 0.85, model, maxTokens, reasoningEffort, reasoningMaxTokens, quality, responseFormat, requireParameters, maxBillableAttempts, maxAttempts, strictBudget = false } = {},
   onCatalogue = null
 ) {
   if (!cfg.apiKey) {
@@ -373,7 +374,8 @@ async function chatCompletionWithConfig(
     ? Math.min(reasoningMaxTokens, 128000)
     : null;
   let useMaxTokens = Number.isFinite(maxTokens) && maxTokens > 0 ? Math.min(Math.round(maxTokens), 16000) : cfg.maxTokens;
-  if (useReasoningEffort && useReasoningEffort !== 'none') {
+  if (strictBudget && useReasoningEffort && useReasoningEffort!=='none' && useMaxTokens<6000)throw Object.assign(new Error('The reviewed reasoning budget is too small.'),{code:'STORY_BUDGET_CHANGED',statusCode:409});
+  if (!strictBudget && useReasoningEffort && useReasoningEffort !== 'none') {
     // Reasoning tokens come out of the same budget: give the model room to think.
     useMaxTokens = Math.max(useMaxTokens, 6000);
   }

@@ -6,6 +6,37 @@ Operate a private, single-owner InkMorrow 5.0 installation. Protect data first, 
 
 </div>
 
+## B3 operating checkpoint
+
+Current storage is schema 25 in the existing `ink-morrow-5` family; application
+5.0.0 and its isolated data directory remain. Migration 25 appends creative
+revision/source/plan tables and preserves migration 24 and older ledgers. Take the
+usual stopped/consistent backup before upgrading an owner installation; rollback
+tests are not a live-backup procedure. This development batch performs no deployment.
+
+Unknown narration capacity is repaired by provider model discovery or Settings →
+Advanced model capacity for the assigned Storyteller/Memory model. Use documented
+context and maximum-output limits. Discovery never overwrites an owner declaration.
+Model, capacity, length, quality or reference changes can invalidate a prepared
+purchase; review a fresh plan instead of retrying an old key. Local reading and
+creative editing remain available. Invalid/oversized paid results can still cost
+money; inspect known/unknown usage and keep the draft rather than auto-retrying.
+
+Story-local and campaign drafts have destination/base scope, optimistic revisions
+and acknowledged local-command identities. A missing response is **unknown** until
+receipt inspection establishes success or a cancellation fence prevents an
+undispatched action. Recovery compares earlier fields and copies into a fresh
+current-target proposal; it never replays the prior mutation. Lock clears the
+private interface; unsaved offline memory is not durable device-loss recovery.
+
+Private playable saves retain creative revisions, bindings, actual goal outcomes,
+scene provenance and exact narrative source assemblies. Import creates new IDs and
+preserves prose bytes. Credentials, provider capacities, paid permissions, plans
+and drafts do not travel. Genuine old B2 v2 and frozen v1 saves remain importable.
+The current manual sources describe B3; existing PDFs remain the verified B2 build
+until the stakeholder's final-package regeneration checkpoint.
+
+
 ## The installation you are operating
 
 InkMorrow serves its static browser interface and authenticated API from one Node

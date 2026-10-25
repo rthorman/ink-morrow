@@ -6,6 +6,34 @@ Change the playable-fiction product without losing causal history, paid authorit
 
 </div>
 
+## B3 verification and documentation policy
+
+Read recovery/B3-DELIVERY.md and CONTINUATION.md. Storage is schema 25; public
+version remains 5.0.0. Never modify published migration 24 or frozen save-v1 modules.
+The genuine synthetic schema-24 database/baseline and B2-v2 save were captured
+before B3 implementation; keep them alongside original schema-23/v1 fixtures.
+Verify unchanged ledger/beat bytes, interrupted migration rollback/reopen, strict
+revision ancestry/producers, bound facts outside compaction and portable source
+closure. New response tests cover exact conditional Say, goal dispositions,
+editorial wishes, scene proposals and promise-cardinality-independent quiet scenes.
+
+All possible quality stages must fit before the first provider call. Tests declare
+synthetic capacities explicitly; do not weaken unknown-capacity production checks
+to satisfy fixtures. Exercise plan expiry/change/replay, actual stage/candidate
+bounds, fixed reasoning allowance and known/unknown usage with deterministic
+transports. Browser tests use isolated authenticated data and mock paid endpoints;
+run desktop and mobile separately. Screenshots and emulation are not actual Android
+IME/rotation or literary acceptance, and authorize no paid benchmark/deployment.
+
+The stakeholder explicitly deferred PDF regeneration until the final recovery work
+package. Update all six source manuals now. `update-policy.json` records the deferral;
+freshness checks verify existing B2 PDF hashes and do not claim current-source
+renderings. At final completion remove the policy, regenerate all six, inspect every
+page and update the source/output manifest. Until then do not regenerate PDFs in
+feature PRs. Require all five checks green on the exact feature head before merging
+main, keep guides/state on main and delete only the integrated feature branch.
+
+
 ## Repository and product ownership
 
 Read AGENTS.md and the current release decisions before changing behaviour.
@@ -32,7 +60,7 @@ generated fixtures as human playtesting or an unrun benchmark as research eviden
 
 B1 introduces five current-fiction room adapters and a contribution sheet using the shared dialog stack. Test preserved workflows through their new destinations: history/path/episodes in Chronicle, cast/facts/preferences in Codex, upload/paint in Gallery, and book/save export in Gate. Old `#/story/:id` links remain Desk aliases. B2 deepens Chronicle and Codex with server-bounded historical inspection and durable private drafts; complete image inventory remains B5. Do not revive authoring APIs. Preserve genuine schema-23/save-v1 fixtures and the frozen validator manifest; every schema change appends a checksum-bound migration. Verify rollback/reopen, exact quote/hash/remapping, public/private and sibling/future boundaries, cursor binding, draft conflicts, Lock and prepared-action recovery. `node scripts/benchmark-inspection.cjs` measures host query latency at 500, 3,000 and 10,000 moments; it is not Android or literary acceptance.
 
-Regression cases include cross-room reading return without additional generation, an old bookmark outside the loaded window, foreign/deleted bookmark rejection, pending generation during history browsing, newer identical draft text, paid-review cancellation back to the same sheet, immediate Lock and reading reflow. Keep source/CI evidence separate from real Android IME/Back/rotation and stakeholder acceptance. All six manuals and their source manifest are regenerated together for this UI change.
+Regression cases include cross-room reading return without additional generation, an old bookmark outside the loaded window, foreign/deleted bookmark rejection, pending generation during history browsing, newer identical draft text, paid-review cancellation back to the same sheet, immediate Lock and reading reflow. Keep source/CI evidence separate from real Android IME/Back/rotation and stakeholder acceptance. All six source manuals are updated together; PDF regeneration is deferred until the final recovery work package.
 
 The PDF renderer serves only local documentation/type/brand assets on an ephemeral loopback HTTP listener, so it works in browser environments that prohibit file URLs. It never starts the application or opens its database. The listener closes when rendering finishes or fails.
 
@@ -56,7 +84,7 @@ Include invalid input, delayed responses, navigation/lock, concurrent revision,
 restart and zero-provider paths where relevant. Use fixtures with exact expected
 effects rather than accepting whichever prose a model returns.
 
-Update all affected manual sources and regenerate the full six-book set together.
+Update all affected manual sources; regenerate the six-book PDF set at final recovery completion.
 A substantial feature is incomplete if the user guide still describes retired
 controls or if a version label masks inherited operating instructions.
 

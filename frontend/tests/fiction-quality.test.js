@@ -24,11 +24,11 @@ describe('quality choice, progress and paid scope', () => {
   });
   afterEach(() => { app.dispose(); jest.useRealTimers(); });
   test('preferences offer Off, Standard, Memory and Both without buying anything', async () => {
-    await app.start(); document.getElementById('fictionPreferences').click(); const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+    await app.start(); document.getElementById('fictionPreferences').click();await tick();await tick();const spec = dialogs.openDialog.mock.calls.at(-1)[0];
     const select = spec.body.flatMap((node) => [...node.querySelectorAll('select')]).find((node) => [...node.options].some((option) => option.value === 'both'));
     expect([...select.options].map((option) => option.value)).toEqual(['off', 'standard', 'memory', 'both']);
     select.value = 'memory'; await spec.actions.find((action) => action.label === 'Save preferences').onClick(jest.fn());
-    expect(api).toHaveBeenCalledWith('/fiction/quality/preferences', 'PUT', expect.objectContaining({ quality_mode: 'memory' })); expect(dialogs.confirmPaid).not.toHaveBeenCalled();
+    expect(api).toHaveBeenCalledWith('/fiction/quality/commands/configuration', 'POST', expect.objectContaining({patch:expect.objectContaining({ quality_mode: 'memory' })})); expect(dialogs.confirmPaid).not.toHaveBeenCalled();
   });
   test('review names both models, the total ceiling and private-context exposure; cancellation retains direction', async () => {
     await app.start(); dialogs.confirmPaid.mockResolvedValue(false); document.getElementById('fictionDirection').value = 'Stay in the garden.';

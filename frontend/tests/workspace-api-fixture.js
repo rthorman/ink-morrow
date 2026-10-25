@@ -42,6 +42,8 @@ export function workspaceApiFixture(api, storyOf) {
       return { draft: clone(row) };
     }
     const story = storyOf();
+    if(base.endsWith('/creative'))return {revision:story.revision,target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,config_revision_id:null,reference_heads:{},cast:story.state.cast,settings:{pacing:story.state.pacing||'balanced',consequences:story.state.consequences||'gentle',boundaries:story.state.boundaries||'',voice:story.state.voice||'',focus:story.state.focus||'',play_style:story.state.play_style||'story-shaping',fourth_wall:story.state.fourth_wall||'never',quality_mode:story.state.quality_mode||'off',perspective:'flexible',speaker_id:null,focal_id:null,framing_narrator:'',tense:'past',language:'English',length:{preset:'legacy-short',target:180,unit:'words',definition_version:1},genre_description:'',tone:'',disclosure:'limited',scene_plan:null}};
+    if(base.endsWith('/operation-plans'))return {plan:{id:'fixture-plan',consent_id:story.quality_generation?.review_id||'fixture-bounds',max_calls:story.quality_generation?.max_calls||1,stages:[{purpose:'draft',output_tokens:3040}]}};
     if (base.endsWith('/timeline'))
       return {
         entries: [...story.beats]

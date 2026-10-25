@@ -4,6 +4,23 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
+## Unreleased — recovery B3
+
+- Restore full story-local world, character and Scribe studios with immutable,
+  future-only revisions, selected template fields, private drafts and fact bindings.
+- Compare AI candidates against seed/current/baseline; accept selected fields and
+  compare before restoring, preserving edits made during requests.
+- Add perspective, speaker/focal identity, tense, language, independent passage
+  length and proposed scenes; retain old-story legacy-short behavior.
+- Add typed campaign declarations, goal outcomes, optional episode closures and
+  immediate append-only undo; improve Library setup handoff/search/latest/rename.
+- Compile narrative context and preflight every possible quality stage against
+  explicit model capacities before purchase; keep output/reasoning bounds fixed.
+- Distinguish intentions, attempts, reported claims and events. Assemble conditional
+  Say exactly once; preserve ordinary narration/speech/aside provenance in saves.
+- Append schema 25 and creative save-v2 collections without changing frozen v1 or
+  migration 24. Update source manuals; defer PDFs until final recovery completion.
+
 ## Unreleased — recovery B2
 
 - Browse bounded Chronicle history and categorized Codex records on a selected

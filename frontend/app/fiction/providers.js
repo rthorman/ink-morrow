@@ -38,13 +38,21 @@ export function createProviderPanel({ api }) {
           const response = await api(`/providers/${selected}/models`);
           if (!live() || profile.control.value !== selected) return;
           const picker = field('Available model', 'select');
-          picker.control.append(option('', 'Choose a model'), ...response.models.map((entry) => option(entry.id, entry.name || entry.id)));
+          const search=field('Find a model','input','',{type:'search'});const count=el('p','','fiction-muted');const showModels=()=>{const matches=response.models.filter(entry=>`${entry.id} ${entry.name||''}`.toLowerCase().includes(search.control.value.toLowerCase()));picker.control.replaceChildren(option('','Choose a model'),...matches.slice(0,80).map(entry=>option(entry.id,entry.name||entry.id)));count.textContent=`${matches.length} matching models. Showing up to 80; refine your search.`;};search.control.addEventListener('input',showModels);showModels();
           picker.control.addEventListener('change', () => { if (picker.control.value) model.control.value = picker.control.value; });
-          catalogue.replaceChildren(picker.wrapper);
+          catalogue.replaceChildren(search.wrapper,count,picker.wrapper);
         } catch (error) { if (live()) status.textContent = error.message; }
         finally { if (live()) { load.disabled = false; load.textContent = 'Browse this provider’s models'; } }
       });
       root().append(profile.wrapper, model.wrapper, save, load, catalogue, status);
+      const limits=el('details');limits.append(el('summary','Advanced model capacity'));
+      const capacityRole=field('Model role for capacity','select');capacityRole.control.append(option('scribe','Storyteller'),option('archivist','Memory support'));
+      const capacityContext=field('Model context capacity (tokens)','input','',{type:'number',min:4096,max:2000000});
+      const capacityOutput=field('Maximum output capacity (tokens)','input','',{type:'number',min:1024,max:128000});
+      const capacityNote=el('p','Model discovery saves declared catalogue limits when available. For a custom model, enter its documented limits. Unknown capacity blocks the affected purchase, while reading and local editing remain available.');
+      const capacitySave=button('Save model capacity',async()=>{const selected=data.roles.find(role=>role.role===capacityRole.control.value);if(!selected)return;capacitySave.disabled=true;try{await api(`/providers/${selected.profile_id}/model-limits`,'PUT',{model_id:selected.model_id,context_tokens:Number(capacityContext.control.value),output_tokens:Number(capacityOutput.control.value)});if(live())capacityNote.textContent='Model capacity saved. Return to the preserved task and review it again.';}catch(error){if(live())capacityNote.textContent=error.message;}finally{if(live())capacitySave.disabled=false;}});
+      const showCapacity=()=>{const selected=data.roles.find(role=>role.role===capacityRole.control.value);capacityContext.control.value=selected?.model_limits?.context_tokens||'';capacityOutput.control.value=selected?.model_limits?.output_tokens||'';};capacityRole.control.addEventListener('change',showCapacity);showCapacity();limits.append(capacityRole.wrapper,capacityContext.wrapper,capacityOutput.wrapper,capacityNote,capacitySave);root().append(limits);
+
 
       const memory = data.roles.find((role) => role.role === 'archivist');
       const memoryProfile = field('Memory-support provider', 'select');

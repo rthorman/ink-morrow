@@ -14,6 +14,7 @@ const { inspectCopy, hasDatabaseSidecars } = require('./core/database-inspection
 const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA } = require('./modules/fiction/schema');
 const { FICTION_LIBRARY_SCHEMA, FICTION_LIBRARY_DRAFT_SCHEMA } = require('./modules/fiction/library-schema');
 const workspaceMigration = require('./modules/fiction/workspace-migration-v24');
+const creativeMigration = require('./modules/fiction/creative-migration-v25');
 
 const LEGACY_TABLES = new Set([
   'worlds',
@@ -1933,6 +1934,7 @@ const MIGRATIONS = Object.freeze([
     checksumSource: fs.readFileSync(require.resolve('./modules/fiction/workspace-migration-v24'), 'utf8'),
     up(db) { workspaceMigration.up(db); },
   }),
+  Object.freeze({version:25,name:'story-local creative reference and configuration revisions',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/creative-migration-v25'),'utf8'),up(db){creativeMigration.up(db);}}),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

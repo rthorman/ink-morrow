@@ -268,7 +268,7 @@ describe('5.0 reader-director interface', () => {
 
   test('taking a character is explicit and only then adds Act and Say', async () => {
     await app.start();
-    document.querySelector('#fictionCast button').click();
+    [...document.querySelectorAll('#fictionCast button')].find(button=>button.textContent==='Inhabit Mara').click();
     expect(api.mock.calls.filter(([, method]) => method === 'PUT')).toHaveLength(0);
     const spec = dialogs.openDialog.mock.calls[0][0];
     expect(spec.title).toBe('Inhabit Mara?');
@@ -404,17 +404,17 @@ describe('5.0 reader-director interface', () => {
   });
 
   test('fourth-wall settings are visible only for Living-world and save locally', async () => {
-    await app.start(); document.getElementById('fictionPreferences').click();
+    await app.start(); document.getElementById('fictionPreferences').click();await tick();await tick();
     const spec = dialogs.openDialog.mock.calls.at(-1)[0];
     const selects = spec.body.flatMap((node) => [...node.querySelectorAll('select')]);
-    const [style, fourthWall] = selects;
+    const style=selects.find(select=>[...select.options].some(option=>option.value==='living-world'));const fourthWall=selects.find(select=>[...select.options].some(option=>option.value==='freely'));
     expect(fourthWall.parentElement.hidden).toBe(true); expect(fourthWall.value).toBe('never');
     style.value = 'living-world'; style.dispatchEvent(new Event('change'));
     expect(fourthWall.parentElement.hidden).toBe(false); expect(fourthWall.disabled).toBe(false);
     expect([...fourthWall.options].map((entry) => entry.textContent)).toEqual(['Never', 'Rarely', 'Freely']);
     fourthWall.value = 'rarely';
     await spec.actions.find((item) => item.label === 'Save preferences').onClick(jest.fn());
-    expect(api).toHaveBeenCalledWith('/fiction/one/preferences', 'PUT', expect.objectContaining({ play_style: 'living-world', fourth_wall: 'rarely' }));
+    expect(api).toHaveBeenCalledWith('/fiction/one/commands/configuration', 'POST', expect.objectContaining({patch:expect.objectContaining({ play_style: 'living-world', fourth_wall: 'rarely' })}));
     expect(dialogs.confirmPaid).not.toHaveBeenCalled();
   });
 

@@ -56,8 +56,9 @@ function createProviderRouter({ providers, ai }) {
     catch (error) { next(error); }
   });
 
+  router.put('/api/providers/:id/model-limits',(req,res)=>res.json({limits:providers.setModelLimits(req.params.id,req.body)}));
   router.get('/api/providers/:id/models', async (req, res, next) => {
-    try { res.json({ models: await ai.listModelsForProfile(req.params.id) }); }
+    try { const models=await ai.listModelsForProfile(req.params.id);for(const model of models)if(Number.isSafeInteger(model.context_length)&&Number.isSafeInteger(model.max_output_tokens)){try{providers.setModelLimits(req.params.id,{model_id:model.id,context_tokens:model.context_length,output_tokens:Math.min(model.max_output_tokens,128000)},'catalogue');}catch{/* Incomplete capability records stay unknown. */}}res.json({models}); }
     catch (error) { next(error); }
   });
 

@@ -21,16 +21,17 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
-Recovery B2 adds read-only historical/path inspection, categorized Codex records,
-exact new evidence and recoverable private drafts. The application remains 5.0.0;
-schema 24 upgrades the V5 database and playable-save v2 still imports v1.
-See [delivery and continuation](docs/recovery/B2-DELIVERY.md).
+Recovery B3 adds full story-local creative studios, selected-field AI comparisons,
+explicit perspective and passage length, typed campaign records, conditional Say
+and preflighted narration budgets. Historical inspection and private recovery
+remain available. The application stays 5.0.0, now schema 25; playable-save v2
+retains frozen v1 import. See [delivery and continuation](docs/recovery/B3-DELIVERY.md).
+Manual sources stay current; PDF regeneration is deferred until the final recovery package.
 
 ## Recovery planning
 
 The proposed recovery uses the final Version 4.1 experience as its historical
-reference while retaining Version 5's playable-fiction model. The first production workspace batch, B1, is implemented; deeper recovery
-batches remain planned. See the [planning index](docs/recovery/README.md),
+reference while retaining Version 5's playable-fiction model. B1–B3 are implemented; B4 and later recovery batches remain planned. See the [planning index](docs/recovery/README.md),
 [implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
 [continuation state](docs/recovery/CONTINUATION.md).
 

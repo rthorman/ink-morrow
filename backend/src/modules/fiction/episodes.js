@@ -17,7 +17,7 @@ function recordEpisode(state, changes, beatId, lookup = () => null) {
   const episode = state.episode;
   const ids = episode.goal_ids || [];
   const goals = episodeGoals(state, lookup);
-  const complete = ids.length > 0 && goals.length === ids.length && goals.every((fact) => fact.status === 'resolved');
+  const complete = ids.length > 0 && goals.length === ids.length && goals.every((fact) => fact.status === 'resolved'&&(state.version!==2||fact.resolution_disposition==='achieved'));
   if (complete && (episode.payoff_beat_id || changes.some((change) => change.op === 'resolve' && ids.includes(change.fact?.id)))) {
     episode.phase = episode.payoff_beat_id ? 'aftermath' : 'payoff';
     episode.payoff_beat_id ||= beatId;

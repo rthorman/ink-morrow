@@ -21,6 +21,9 @@ export async function openUnlocked(page, target = '/') {
 
   await page.waitForFunction(() => !document.body.classList.contains('im-gated'));
   await page.waitForSelector('.container', { state: 'visible' });
+  // Explicit synthetic model capacities; these tests never contact a provider.
+  const providers=await(await page.request.get('/api/providers')).json();
+  for(const role of providers.roles.filter(role=>['scribe','archivist'].includes(role.role)))await apiPut(page,`/api/providers/${role.profile_id}/model-limits`,{model_id:role.model_id,context_tokens:2000000,output_tokens:16000});
 }
 
 export async function csrfToken(page) {

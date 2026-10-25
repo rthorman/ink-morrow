@@ -10,10 +10,13 @@ const { makeEpisode, returnRecap } = require('./episodes');
 const { QUALITY_MODES, callLimit } = require('./quality');
 const { createCallLedger } = require('./call-ledger');
 const { validateLibrary, validateVisuals, visualTarget } = require('./library-model');
+const {assemble}=require('./narrative-assembly');
+const { createCreativeCollections } = require('./creative-collections');
 const { createEvidence } = require('./evidence');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
+  const hasCreative=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_config_revisions'").get());
   const hasEvidence = Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_effect_evidence'").get());
   const evidenceRecords = hasEvidence ? createEvidence(db) : null;
   const transaction = (fn) => {
@@ -66,7 +69,7 @@ function createFictionStore(db) {
     const rows = headId ? historyRows(id, headId, bounded) : [];
     return {
       id: g.id, title: g.title, premise: g.premise, genre: g.genre, revision: g.revision,
-      active_branch_id: b.id, head_beat_id: b.head_beat_id, state: publicState(state),
+      active_branch_id: b.id, head_beat_id: b.head_beat_id, state: publicState(effectiveState(g.id,state)),
       branches: db.prepare('SELECT id, name, head_beat_id, fork_beat_id, parent_branch_id FROM fiction_branches WHERE game_id = ? ORDER BY created_at, rowid').all(id),
       beats: rows.map(publicBeat), has_earlier: Boolean(rows[0]?.parent_id),
       pending: Boolean(db.prepare("SELECT id FROM fiction_requests WHERE game_id = ? AND status = 'pending'").get(id)),
@@ -81,15 +84,23 @@ function createFictionStore(db) {
       pending_stage: db.prepare(`SELECT c.role, c.purpose, c.call_index FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
         WHERE r.game_id = ? AND r.status = 'pending' ORDER BY c.rowid DESC LIMIT 1`).get(id) || null,
       call_limit: callLimit(state.quality_mode || 'off'),
+      can_undo_episode:canUndoEpisode(g,b,state),
       created_at: g.created_at, updated_at: g.updated_at,
     };
   }
+  function canUndoEpisode(g,b,state){if(state.episode.status!=='ended'||!b.head_beat_id)return false;const row=beat(g.id,b.head_beat_id);if(row.kind!=='episode')return false;const previous=stateAt(g,row.parent_id).episode;return previous.status==='active'&&previous.number===state.episode.number;}
   function isAncestor(gameId, headId, targetId) {
     if (targetId === null) return true;
     return Boolean(db.prepare(`WITH RECURSIVE path(id, parent_id) AS (
       SELECT id, parent_id FROM fiction_beats WHERE id = ? AND game_id = ?
       UNION ALL SELECT b.id, b.parent_id FROM fiction_beats b JOIN path ON b.id = path.parent_id WHERE b.game_id = ?
     ) SELECT id FROM path WHERE id = ? LIMIT 1`).get(headId, gameId, gameId, targetId));
+  }
+  function narrativeRows(gameId,headId,limit=12){
+    if(!hasEvidence)return historyRows(gameId,headId,100).filter(row=>['opening','scene'].includes(row.kind)).slice(-limit);
+    const at=headId?db.prepare('SELECT * FROM fiction_history_index WHERE game_id=? AND beat_id=?').get(gameId,headId):null;
+    let id=at?.is_narrative?headId:at?.previous_narrative_id;const rows=[];
+    while(id&&rows.length<Math.min(12,limit)){rows.push(beat(gameId,id));id=db.prepare('SELECT previous_narrative_id FROM fiction_history_index WHERE beat_id=?').get(id).previous_narrative_id;}return rows.reverse();
   }
   function publicationRows(gameId, headId) {
     const cte = `WITH RECURSIVE path(id, parent_id, depth) AS (
@@ -106,9 +117,11 @@ function createFictionStore(db) {
       json_extract(b.state_json, '$.episode.title') AS episode_title
       FROM path JOIN fiction_beats b ON b.id = path.id WHERE b.kind IN ('opening', 'scene') ORDER BY path.depth DESC`).all(...args);
   }
-  function append({ game: g, branch: b }, { id = randomUUID(), kind, prose = '', summary, input = {}, state, changes = [], evidence = [] }) {
+  function append({ game: g, branch: b }, { id = randomUUID(), kind, prose = '', summary, input = {}, state, changes = [], evidence = [],assembly=null }) {
     db.prepare(`INSERT INTO fiction_beats (id, game_id, branch_id, parent_id, kind, prose, summary, input_json, state_json, changes_json)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, g.id, b.id, b.head_beat_id, kind, prose, summary, JSON.stringify(input), JSON.stringify(state), JSON.stringify(changes));
+    if(hasCreative&&['opening','scene','clarification'].includes(kind)){const manifest=assembly||assemble({prose,intent:input,cast:state.cast,curated:kind==='opening'}).manifest;db.prepare('INSERT INTO fiction_narrative_assemblies(beat_id,manifest_json) VALUES(?,?)').run(id,JSON.stringify(manifest));}
+    creativeRecords?.afterAppend(g.id,id);
     evidenceRecords?.write(g.id, { id, kind, prose, input, changes }, evidence);
     db.prepare('UPDATE fiction_branches SET head_beat_id = ? WHERE id = ?').run(id, b.id);
     bump(g.id);
@@ -121,10 +134,11 @@ function createFictionStore(db) {
     const premise = text(input.premise, 'Premise', 4000);
     const genre = choice(input.genre, GENRES, 'drama', 'Genre');
     const opening = text(input.opening, 'Opening', LIMITS.prose, { optional: true });
-    const state = initialState(input);
+    let state = initialState(input);
     if (library) state.library = validateLibrary(library, state.cast.map((person) => person.id));
     state.visuals = validateVisuals(visuals, state);
     if (assets.length > 27 || visuals.some((item) => !assets.some((asset) => asset.id === item.asset_id))) fail('Invalid story image copies.');
+    if(hasCreative)state=creativeRecords.upgrade(null,state,true);
     const id = randomUUID(); const branchId = randomUUID();
     transaction(() => {
       db.prepare('INSERT INTO fiction_games (id, title, premise, genre, initial_state_json) VALUES (?, ?, ?, ?, ?)').run(id, title, premise, genre, JSON.stringify(state));
@@ -190,6 +204,7 @@ function createFictionStore(db) {
     });
   }
   function episode(id, expected, input) {
+    if(creativeRecords){const context=current(id);return creativeRecords.episode(id,{action_key:randomUUID(),expected_revision:expected,target_branch_id:context.branch.id,expected_head_beat_id:context.branch.head_beat_id,...input}).story;}
     keys(input, ['action', 'title', 'summary', 'question'], 'Episode');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
@@ -206,6 +221,7 @@ function createFictionStore(db) {
     });
   }
   function preferences(id, expected, input) {
+    if(creativeRecords){keys(input,['pacing','consequences','boundaries','voice','focus','play_style','fourth_wall','quality_mode'],'Story preferences');const context=current(id);return creativeRecords.configure(id,{action_key:randomUUID(),expected_revision:expected,target_branch_id:context.branch.id,expected_head_beat_id:context.branch.head_beat_id,expected_config_id:context.state.config_revision_id||null,patch:input}).story;}
     keys(input, ['pacing', 'consequences', 'boundaries', 'voice', 'focus', 'play_style', 'fourth_wall', 'quality_mode'], 'Story preferences');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state);
@@ -282,22 +298,22 @@ function createFictionStore(db) {
       .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
   }
   function referenceTarget(id, kind, subjectId = null) {
-    const context = current(id); visualTarget(context.state, kind, subjectId);
+    const context = current(id);const state=effectiveState(id,context.state);visualTarget(state, kind, subjectId);
     if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
     if (kind === 'cover') return { kind, name: context.game.title, description: context.game.premise, data: {} };
     if (kind === 'character') {
-      const person = context.state.cast.find((entry) => entry.id === subjectId);
-      const copy = context.state.library?.characters.find((entry) => entry.character_id === subjectId)?.snapshot;
+      const person = state.cast.find((entry) => entry.id === subjectId);
+      const copy = state.library?.characters.find((entry) => entry.character_id === subjectId)?.snapshot;
       return { kind, name: person.name, description: person.description, data: { appearance: copy?.data.appearance || '' } };
     }
-    return { kind, ...context.state.library[kind] };
+    return { kind, ...state.library[kind] };
   }
   function visualize(id, expected, { asset, kind, subject_id = null, alt_text }, request = null, usage = {}) {
     const alt = text(alt_text, 'Image description', 1000);
     const result = (context) => {
-      const target = visualTarget(context.state, kind, subject_id); const state = structuredClone(context.state);
+      const validation=effectiveState(id,context.state);const target = visualTarget(validation, kind, subject_id); const state = structuredClone(context.state);
       insertAsset(id, asset);
-      state.visuals = [...(state.visuals || []).filter((item) => visualTarget(state, item.kind, item.subject_id) !== target), { kind, subject_id, asset_id: asset.id, alt_text: alt }];
+      state.visuals = [...(state.visuals || []).filter((item) => visualTarget(validation, item.kind, item.subject_id) !== target), { kind, subject_id, asset_id: asset.id, alt_text: alt }];
       return { kind: 'correction', summary: `The story’s ${kind} image was updated.`, state };
     };
     if (request) { completeRequest(request, result, usage); return view(id); }
@@ -306,8 +322,8 @@ function createFictionStore(db) {
   function editVisual(id, expected, input, remove = false) {
     const alt = remove ? '' : text(input.alt_text, 'Image description', 1000);
     return mutate(id, expected, (context) => {
-      const state = structuredClone(context.state); const target = visualTarget(state, input.kind, input.subject_id ?? null);
-      const image = state.visuals.find((item) => visualTarget(state, item.kind, item.subject_id) === target);
+      const state = structuredClone(context.state);const validation=effectiveState(id,state); const target = visualTarget(validation, input.kind, input.subject_id ?? null);
+      const image = state.visuals.find((item) => visualTarget(validation, item.kind, item.subject_id) === target);
       if (!image) fail('This story reference has no image.', 'IMAGE_NOT_FOUND', 404);
       if (remove) state.visuals = state.visuals.filter((item) => item !== image); else image.alt_text = alt;
       append(context, { kind: 'correction', summary: remove ? 'A story reference image was removed. Earlier snapshots retain it.' : 'A story image description was updated.', state });
@@ -357,8 +373,8 @@ function createFictionStore(db) {
       return db.prepare("UPDATE fiction_requests SET status = 'interrupted', error_code = 'STORY_INTERRUPTED', finished_at = CURRENT_TIMESTAMP WHERE status = 'pending'").run().changes;
     });
   }
-  const list = (offset = 0) => db.prepare('SELECT id, title, premise, genre, revision, updated_at FROM fiction_games ORDER BY updated_at DESC, rowid DESC LIMIT 81 OFFSET ?').all(offset)
-    .map((entry) => ({ ...entry, cover: current(entry.id).state.visuals?.find((item) => item.kind === 'cover') || null }));
+  const list = (offset = 0,{query='',genre=null}={}) => db.prepare('SELECT id,title,premise,genre,revision,updated_at FROM fiction_games WHERE (?=\'\' OR instr(lower(title || \' \' || premise),lower(?))>0) AND (? IS NULL OR genre=?) ORDER BY updated_at DESC,rowid DESC LIMIT 81 OFFSET ?').all(query,query,genre,genre,offset)
+    .map((entry) => ({ ...entry, active_path:current(entry.id).branch.name,episode:current(entry.id).state.episode.title,cover: current(entry.id).state.visuals?.find((item) => item.kind === 'cover') || null }));
   function recall(id, query) {
     const context = current(id);
     return memory.facts(id, context.branch.head_beat_id, { query: text(query, 'Memory search', 200, { optional: true }), publicOnly: true });
@@ -379,7 +395,9 @@ function createFictionStore(db) {
   }
   const requestResult = (request) => ({ beat: publicBeat(beat(request.game_id, request.beat_id)), cost_usd: request.cost_usd, billed_attempts: request.billed_attempts, model: request.model,
     ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
-  return { create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
+  const creativeRecords=hasCreative?createCreativeCollections({db,current,transaction,assertRevision,assertIdle,append,isAncestor,memory,view}):null;
+  function effectiveState(id,state){return creativeRecords?creativeRecords.effective(id,state):state;}
+  return { creativeRecords,upgradeState:(id,state,newStory=false)=>creativeRecords?creativeRecords.upgrade(id,state,newStory):state,effectiveState,narrativeRows,create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
 }
 
 module.exports = { createFictionStore };

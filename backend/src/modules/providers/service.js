@@ -136,6 +136,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
       required_capability: ROLE_CAPABILITY[row.role],
       profile_id: row.profile_id,
       model_id: row.model_id,
+      model_limits:hasModelLimits?db.prepare('SELECT context_tokens,output_tokens,source FROM provider_model_limits WHERE profile_id=? AND model_id=?').get(row.profile_id,row.model_id)||null:null,
       status: roleState(row),
       model_verified: Boolean(observedCatalogues.get(row.profile_id)?.has(ROLE_CAPABILITY[row.role])),
       updated_at: row.updated_at,
@@ -288,6 +289,15 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     return '';
   }
 
+  const hasModelLimits=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='provider_model_limits'").get());
+  function setModelLimits(profileId,input,source='owner'){
+    if(!hasModelLimits)throw providerError('Model capacity storage is unavailable.','MODEL_CAPACITY_UNKNOWN',409);
+    if(!input||typeof input!=='object'||Array.isArray(input)||Object.keys(input).some(key=>!['model_id','context_tokens','output_tokens'].includes(key)))throw providerError('Invalid model capacity fields.','INVALID_MODEL_CAPACITY');
+    const model=cleanText(input.model_id,500);const context=input.context_tokens,output=input.output_tokens;
+    if(!profileRow(profileId)||!model||!Number.isSafeInteger(context)||context<4096||context>2000000||!Number.isSafeInteger(output)||output<1024||output>128000||output>context)throw providerError('Declare the model context and output capacity within supported bounds.','INVALID_MODEL_CAPACITY');
+    db.prepare(`INSERT INTO provider_model_limits(profile_id,model_id,context_tokens,output_tokens,source) VALUES(?,?,?,?,?) ON CONFLICT(profile_id,model_id) DO UPDATE SET context_tokens=excluded.context_tokens,output_tokens=excluded.output_tokens,source=excluded.source WHERE provider_model_limits.source!='owner' OR excluded.source='owner'`).run(profileId,model,context,output,source);
+    return db.prepare('SELECT model_id,context_tokens,output_tokens,source FROM provider_model_limits WHERE profile_id=? AND model_id=?').get(profileId,model);
+  }
   function resolve(role, { capability = ROLE_CAPABILITY[role], model = null, credentialOptional = false } = {}) {
     const assignment = db.prepare('SELECT * FROM provider_role_assignments WHERE role = ?').get(role);
     if (!assignment) throw providerError(`The ${role} role is not configured.`, 'PROVIDER_ROLE_UNCONFIGURED', 503);
@@ -318,6 +328,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
       maxTokens: Number.parseInt(env.AI_MAX_TOKENS || '1500', 10) || 1500,
       profileId: profile.id,
       profileName: profile.display_name,
+      modelLimits:hasModelLimits?db.prepare('SELECT context_tokens,output_tokens,source FROM provider_model_limits WHERE profile_id=? AND model_id=?').get(profile.id,cleanText(model,500)||assignment.model_id)||null:null,
     };
   }
 
@@ -398,6 +409,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
       role,
       provider: profile ? { id: profile.id, display_name: profile.display_name } : null,
       model_id: assignment?.model_id || null,
+      model_limits:hasModelLimits&&assignment?db.prepare('SELECT context_tokens,output_tokens,source FROM provider_model_limits WHERE profile_id=? AND model_id=?').get(assignment.profile_id,assignment.model_id)||null:null,
       data_categories: [...new Set(data_categories.filter((item) => typeof item === 'string'))],
       references: Boolean(references),
       operation_count: Number.isInteger(operation_count) && operation_count > 0 ? operation_count : 1,
@@ -441,6 +453,7 @@ function createProviderService({ db, auth, env = process.env, vaultOptions = {} 
     resolve,
     catalogConfig,
     recordCatalogue,
+    setModelLimits,
     validateStartup,
     exposure,
     redact,

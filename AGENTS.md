@@ -2,10 +2,12 @@
 
 ## Recovery planning and continuation (25 October 2026)
 
+- Latest stakeholder direction: B3 is authorized. Keep source guides, delivery records and continuation state current; defer PDF regeneration until the last recovery work package. `docs/pdf-library/update-policy.json` records this deferral; existing PDF integrity remains checked. Remove the deferral and regenerate all six PDFs at final completion.
+
 - Current recovery plan: [guide 1.1](docs/recovery/IMPLEMENTATION-GUIDE.md); resume through [continuation state](docs/recovery/CONTINUATION.md). These documents describe proposed work, not an implemented release.
 - The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
 - Stakeholder-authorized cleanup removed 53 integrated branches. Keep immutable `release/4.0.0`, historical tags and the 13 pending dependency branches. Exact tips and evidence are in `docs/recovery/BRANCH-CLEANUP.json`. Do not recreate deleted branches to resume old integration instructions.
-- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 implements bounded historical inspection, exact new evidence, private server drafts, schema 24 and playable-save v2 with frozen v1 import. Read B2-DELIVERY.md before resuming; B3 creative depth is next. Preserve separate inspection/action destinations and acknowledged-draft honesty.
+- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 implements bounded historical inspection, exact new evidence, private server drafts, schema 24 and playable-save v2 with frozen v1 import. Read B2-DELIVERY.md before resuming; B3 implements creative depth, schema 25 and creative save-v2 collections; read B3-DELIVERY.md. B4 editorial organization is next. Preserve separate inspection/action destinations and acknowledged-draft honesty.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
@@ -36,7 +38,7 @@
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 24, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 25, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;

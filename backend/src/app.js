@@ -20,6 +20,7 @@ const { createFictionRouter } = require('./modules/fiction/routes');
 const { createFictionMedia } = require('./modules/fiction/media');
 const { createFictionPublication } = require('./modules/fiction/publication');
 const { createFictionSaves } = require('./modules/fiction/saves');
+const {createCreativeRouter}=require('./modules/fiction/creative-routes');
 const { createWorkspaceQueries } = require('./modules/fiction/workspace-queries');
 const { createOwnerDrafts } = require('./modules/fiction/drafts');
 const { createWorkspaceRouter } = require('./modules/fiction/workspace-routes');
@@ -114,7 +115,7 @@ function createApp(
   const ai = createAiClient({ providers });
   const fictionStore = createFictionStore(db);
   fictionStore.reconcile();
-  const fiction = createFictionService({ store: fictionStore, chatCompletion: ai.chatCompletion, archivistCompletion: ai.archivistCompletion, providers });
+  const fiction = createFictionService({ db,store: fictionStore, chatCompletion: ai.chatCompletion, archivistCompletion: ai.archivistCompletion, providers });
   app.locals.validateStartup = () => legacyEnabled ? providers.validateStartup(ai.listModelsForProfile) : Promise.resolve();
   const imageClient = createImageClient({ providers });
   const { generateIllustration } = imageClient;
@@ -131,6 +132,7 @@ function createApp(
   const workspaceQueries=createWorkspaceQueries({db,store:fictionStore});
   app.use(createWorkspaceRouter({db,store:fictionStore,queries:workspaceQueries,drafts:ownerDrafts}));
   app.use(createFictionLibraryRouter({ library: fictionLibrary, media: fictionMedia, drafts:ownerDrafts }));
+  app.use(createCreativeRouter({store:fictionStore,providers}));
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 

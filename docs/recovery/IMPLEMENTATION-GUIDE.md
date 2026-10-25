@@ -14,8 +14,10 @@ The guide is organized so a developer can implement a coherent slice without red
 B1 is the production five-room workspace. [B2 delivery](B2-DELIVERY.md) now supplies
 bounded read-only inspection, categorized Codex, new precise evidence, private
 owner drafts, schema 24 and save-v2/v1 compatibility. Its endpoint/table choices
-are recorded there and in source. The B3–B9 sections below remain a plan. Actual
+are recorded there and in source. B3 is now implemented as recorded in [B3 delivery](B3-DELIVERY.md): schema 25, local creative revisions, typed campaign adaptation, conditional Say and bounded narration plans. The B4–B9 sections below remain a plan. Actual
 Android, literary and deployment acceptance are separate from source/CI evidence.
+
+**Documentation policy:** keep source guides current; the stakeholder deferred PDF regeneration until the final recovery work package. Existing PDF hashes remain verified.
 
 ## 1. Product boundary and decision status
 

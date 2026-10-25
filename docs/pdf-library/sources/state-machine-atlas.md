@@ -6,6 +6,40 @@ Read each entry as trigger, guard, transition, persistence and failure consequen
 
 </div>
 
+## B3 creative, speech and ending transitions
+
+A private creative form moves through local edit → acknowledged draft → reviewed
+exact target/base → acknowledged action key → local immutable revision/receipt.
+Conflict keeps both proposals. Stale target requires explicit comparison; an
+unknown action checks its receipt and can be fenced only if undispatched. Earlier
+proposals copy into a fresh reviewed destination. Lock discards private DOM and
+late callbacks cannot reopen it. AI reference development adds a distinct candidate
+state: received → selected-field acceptance → explicit save. Restore is another
+comparison, with later edits left unchecked.
+
+Scene proposal → accepted narrative consumption is distinct from narrated scene
+circumstance → established framing with exact evidence. Failure and Ask do not
+consume the proposal. A saved incomplete first-person/close-third configuration
+blocks paid preflight until its required speaker/framing narrator/focal is supplied.
+New stories use developed length; inherited ones retain legacy-short. Pacing does
+not change the target.
+
+A free narration plan binds target, intent, configuration, models/capacities and
+all potential stages. Unknown/oversized/expired/changed plans fail before purchase.
+An actual oversized stage dispatches no further call; an oversized paid candidate
+retains its charge. Quality remains bounded to 1/4/6 calls, at most one repair.
+Say occurrence is performed/attempted/interrupted/not-performed. Only performed
+assembles the exact authorized utterance once. Source segments distinguish speech,
+aside and ordinary narration; only an eligible exact source can support an effect.
+Goals transition to achieved/abandoned/failed/superseded; unspecified legacy outcomes
+never imply achievement. Optional ending records open-ending/vignette/resolved-thread;
+the latter needs actual achievement. Immediate unchanged ending → append-only undo;
+later activity requires another path instead. No timer or goal count forces ending.
+
+This source describes schema 25/B3. PDFs remain the verified B2 build until final
+recovery completion; no runtime behavior is inferred from a stale PDF.
+
+
 ## Conventions and terminal outcomes
 
 Local means no model request. It can still need the local server and can fail

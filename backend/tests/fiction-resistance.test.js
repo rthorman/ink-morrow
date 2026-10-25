@@ -112,10 +112,8 @@ describe('fair resistance and durable working memory', () => {
   });
   test('save validation checks challenge references, outcomes and ancestry', async () => {
     await attempt();
-    const game = store.current(story.id).game;
-    const value = { format: 'ink-morrow-fiction-save', version: 1, game: { id: game.id, title: game.title, premise: game.premise, genre: game.genre, initial_state: JSON.parse(game.initial_state_json), active_branch_id: game.active_branch_id },
-      branches: db.prepare('SELECT id, name, parent_branch_id, fork_beat_id, head_beat_id FROM fiction_branches WHERE game_id = ?').all(game.id),
-      beats: db.prepare('SELECT * FROM fiction_beats WHERE game_id = ?').all(game.id).map((row) => ({ id: row.id, branch_id: row.branch_id, parent_id: row.parent_id, kind: row.kind, prose: row.prose, summary: row.summary, input: JSON.parse(row.input_json), state: JSON.parse(row.state_json), changes: JSON.parse(row.changes_json) })), assets: [], spend: story.spend };
+    const saves=createFictionSaves({db,store,media:{}});
+    const value=JSON.parse(require('node:zlib').gunzipSync(await saves.exportSave(story.id)));
     expect(() => validateSave(value)).not.toThrow();
     const bad = structuredClone(value); bad.beats.at(-1).state.adjudications[0].outcome = 'maybe';
     expect(() => validateSave(bad)).toThrow();

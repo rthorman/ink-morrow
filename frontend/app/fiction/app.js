@@ -6,6 +6,8 @@ import { createInfluence } from './influence.js';
 import { qualityPaidReview, renderQuality } from './quality.js';
 import { createVisualLibrary, storyImage } from './library.js';
 import { createFictionWorkspace } from './workspace-shell.js';
+import {createCampaignStudio} from './campaign-studio.js';
+import {createCreativeStudio} from './creative-studio.js';
 import { createInspection } from './inspection.js';
 import { createPrivateDraft } from './private-drafts.js';
 import { parseWorkspace, workspaceUrl, getBookmark } from './workspace-state.js';
@@ -16,13 +18,13 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const $ = (id) => document.getElementById(id);
   let unlocked = false; let epoch = 0; let current = null; let busy = false; let poll = null; let earlierBusy = false;
   const drafts = new Map();
-  const scopes = new Map(); let shelfOffset = 0; let nextShelfOffset = null;
+  const scopes = new Map(); let shelfOffset = 0; let nextShelfOffset = null;let shelfQuery='';let shelfGenre='';
   const castRows = [];
   let scenario = null;
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
-  let workspace = null; let inspection = null;
+  let workspace = null; let inspection = null;let creativeStudio=null;let campaignStudio=null;
   const durableDrafts = new Map(); let activeDurable = null; let setupDraft = null;
   let bookmarkRestoring = false;
   let roomEpoch = 0;
@@ -109,7 +111,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   function controls() {
     const blocked = busy || bookmarkRestoring || !current || current.pending;
-    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEndEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
+    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionCampaign','fictionEndEpisode','fictionUndoEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
     $('fictionEarlier').disabled = Boolean(!current || earlierBusy || bookmarkRestoring);
     $('fictionDownloadSave').disabled = Boolean(blocked);
     $('fictionCoverEdit').disabled = Boolean(blocked);
@@ -165,10 +167,14 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       if (story.cover) card.append(storyImage(story.id, story.cover, 'fiction-shelf-cover'));
       card.append(el('p', story.genre, 'eyebrow'), el('h2', story.title), el('p', story.premise.slice(0, 220)));
       const link = el('a', 'Return to this story', 'btn btn-secondary'); link.href = `#/story/${encodeURIComponent(story.id)}`;
-      card.append(link); root.append(card);
+      const latest=el('a','Latest','btn btn-secondary');latest.href=`#/story/${encodeURIComponent(story.id)}/desk?latest=1`;
+      if(story.active_path)card.append(el('p',`${story.active_path}${story.episode?' · '+story.episode:''}`,'fiction-muted'));
+      card.append(link,latest,button('Catch me up',()=>shelfRecap(story)),button('Rename story',()=>renameStory(story)));if(!story.cover)card.append(el('p','No story cover yet.','fiction-muted'));root.append(card);
     }
   }
 
+  async function shelfRecap(story){const token=epoch;const body=el('div','Opening a free recap of the active path…');dialogs.openDialog({title:`Return to ${story.title}`,body:[body],actions:[{label:'Close',className:'btn-secondary',onClick:close=>close(true)}]});try{const {recap}=await api(`/fiction/${story.id}/recap`);if(!alive(token))return;body.replaceChildren(el('p',recap.question||'Follow what matters to the cast.'));for(const record of recap.recent)body.append(el('p',record.summary));for(const fact of recap.commitments)body.append(el('p',fact.text));}catch(error){if(alive(token))body.textContent=error.message;}}
+  async function renameStory(story){const token=epoch;const fieldTitle=field('Story title','input',story.title,{maxLength:200});const error=el('p');error.setAttribute('role','alert');let command=null;dialogs.openDialog({title:'Rename this story',body:[fieldTitle.wrapper,el('p','This is a local title change. It does not rewrite prose or buy generation.'),error],actions:[{label:'Cancel',className:'btn-secondary',onClick:close=>close(true)},{label:'Save title',className:'btn-primary',onClick:async close=>{try{if(!command){const {story:latest}=await api(`/fiction/${story.id}`);if(!alive(token))return;command={action_key:crypto.randomUUID(),expected_revision:latest.revision,target_branch_id:latest.active_branch_id,expected_head_beat_id:latest.head_beat_id,title:fieldTitle.control.value.trim()};}else if(command.title!==fieldTitle.control.value.trim())throw Error('A previous title change needs reconciliation before changing this proposal.');await api(`/fiction/${story.id}/commands/metadata`,'POST',command);if(alive(token)){close(true);await route();}}catch(caught){if(alive(token))error.textContent=caught.message;}}}]});}
   function renderProse(beats) {
     const root = $('fictionProse'); root.replaceChildren();
     if (!beats.length) root.append(el('p', 'The situation is set. Continue when you are ready, or give the story a direction.'));
@@ -230,6 +236,9 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       $('fictionReferences').append(card);
     }
     if (!$('fictionReferences').children.length) $('fictionReferences').append(el('p', 'No catalogue world or Scribe was selected at setup. This story still has its own situation and narration preferences.'));
+    $('fictionReferences').append(button('Edit story-local world',()=>creativeStudio.open('world')),button('Edit story-local Scribe',()=>creativeStudio.open('scribe')));
+    const creative=story.state.creative;if(creative)$('fictionReferences').append(el('p',`Effective telling: ${creative.perspective.replaceAll('-',' ')} · ${creative.tense} · ${creative.language} · about ${creative.length.target} ${creative.length.unit} · ${creative.pacing} pacing. Cast ownership and recorded truth take precedence.`,'fiction-muted'));
+    $('fictionUndoEpisode').hidden=!story.can_undo_episode;
     $('fictionEpisode').textContent = `Episode ${story.state.episode.number} · ${story.state.episode.title}`;
     const owned = story.state.cast.find((character) => character.id === story.state.control.character_id);
     $('fictionControl').textContent = owned ? `You control ${owned.name}. Their decisions and speech remain yours.` : 'You are the reader-director. The narrator runs the cast.';
@@ -240,7 +249,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       const card = el('div', '', 'fiction-detail-card');
       const portrait = visuals.find((item) => item.kind === 'character' && item.subject_id === character.id);
       if (portrait) card.append(storyImage(story.id, portrait));
-      card.append(el('h3', character.name), el('p', character.description));
+      card.append(el('h3', character.name), el('p', character.description),button('Edit story-local reference',()=>creativeStudio.open('character',character.id)));
       if (owned?.id !== character.id) card.append(button(`Inhabit ${character.name}`, () => confirmControl(character)));
       card.append(button(`Portrait for ${character.name}`, () => mediaDialogs.illustrate({ kind: 'character', subject_id: character.id })));
       $('fictionCast').append(card);
@@ -262,6 +271,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     for (const fact of story.state.facts) {
       const card = el('div', '', 'fiction-detail-card');
       card.append(el('p', `${fact.status === 'resolved' ? 'Resolved · ' : ''}${fact.text}${fact.value !== null ? ` (${fact.value})` : ''}`));
+      if(fact.campaign_section)card.append(el('p',`Campaign: ${fact.campaign_section}`,'fiction-muted'));if(fact.claim_kind&&fact.claim_kind!=='legacy-unspecified')card.append(el('p',`Recorded as: ${fact.claim_kind.replaceAll('-',' ')}`,'fiction-muted'));if(fact.kind==='goal'&&fact.status==='resolved')card.append(el('p',`Resolution: ${(fact.resolution_disposition||'legacy unspecified').replaceAll('-',' ')}`,'fiction-muted'));
       if (fact.evidence_beat_id) card.append(influence.sourceButton(fact.evidence_beat_id));
       $('fictionFacts').append(card);
     }
@@ -354,7 +364,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         selectedDraftKind = [...$('fictionInputKind').options].some(option => option.value === selectedDraftKind) ? selectedDraftKind : 'steer';
         $('fictionInputKind').value = selectedDraftKind;
         $('fictionDirection').value = drafts.get(draftKey()) || ''; $('fictionDirectionScope').value = scopes.get(draftKey()) || 'moment';
-        await restoreReadingPosition(token);
+        if(new URLSearchParams(hash.split('?')[1]||'').get('latest')==='1'){renderStory(data.story,{forceLatest:true});history.replaceState(null,'',workspaceUrl(data.story.id,destination.room));}else await restoreReadingPosition(token);
         if (!alive(token)) return;
         workspace.showRoom(destination.room);
         inspection.render(destination.room);
@@ -363,7 +373,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
         controls();
       } else {
         showScreen('shelfScreen'); $('fictionShelf').textContent = 'Opening your stories…';
-        const data = await api(shelfOffset ? `/fiction?offset=${shelfOffset}` : '/fiction'); if (alive(token)) renderShelf(data.stories, data.next_offset ?? null);
+        const params=new URLSearchParams();if(shelfOffset)params.set('offset',shelfOffset);if(shelfQuery)params.set('q',shelfQuery);if(shelfGenre)params.set('genre',shelfGenre);$('fictionShelfQuery').value=shelfQuery;$('fictionShelfGenre').value=shelfGenre;const data = await api('/fiction'+(params.size?'?'+params:'')); if (alive(token)) renderShelf(data.stories, data.next_offset ?? null);
       }
     } catch (error) { if (alive(token)) { status(error.message, true); controls(); } }
   }
@@ -398,12 +408,16 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       }
       const quality = (story.state.quality_mode || 'off') !== 'off';
       if (!free && quality && (!story.quality_generation?.available || story.quality_generation.mode !== story.state.quality_mode)) { status('The selected quality roles are unavailable. Configure them in Settings and refresh this story before continuing.', true); return; }
-      const approved = free || await dialogs.confirmPaid(qualityPaidReview(story) || {
+      const operationPlan=free?null:(await api(`/fiction/${story.id}/operation-plans`,'POST',{expected_revision:story.revision,target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,input,...(story.generation?.provider?{provider_id:story.generation.provider.id,model:story.generation.model_id}:{})})).plan;
+      if(!alive(token))return;
+      const paidReview=qualityPaidReview(story)||{
         title: 'Let the story unfold?',
         body: 'This sends the premise, selected cast, frozen world/Scribe/character references, boundaries, relevant facts (including hidden world truth), recent story text and your direction to your selected text provider. One completion is requested; cost depends on your provider and model. Invalid replies can still incur a charge. No automatic paid follow-up is started.',
         review: { action: `Continue latest moment on ${story.branches.find(branch => branch.id === story.active_branch_id)?.name || 'the active path'}`, object: story.title, model: story.generation?.provider ? `Storyteller (Scribe) · ${story.generation.provider.display_name} · ${story.generation.model_id}` : 'Your selected storyteller', quantity: 'One bounded narrative response', sends: 'Recent story, relevant facts (including hidden world truth), cast, boundaries and your direction', estimate: 0.02, note: 'A rough text-call estimate, not a spending cap. No automatic paid follow-up.' },
         confirmLabel: 'Continue with AI',
-      });
+      };
+      if(operationPlan){paidReview.consentScope=`fiction-${quality?'quality':'narration'}-${operationPlan.consent_id}`;paidReview.rememberChoice=true;paidReview.review.quantity+=` · target ${story.state.creative?.length?.target||180} ${story.state.creative?.length?.unit||'words'}`;paidReview.review.note+=` Reviewed maximum: ${operationPlan.max_calls} calls; narration output allowance ${operationPlan.stages.find(stage=>stage.purpose==='draft').output_tokens} tokens. No automatic retry.`;}
+      const approved=free||await dialogs.confirmPaid(paidReview);
       if (!approved || !alive(token)) return;
       if (quality && !free) {
         const updateProgress = async () => {
@@ -423,10 +437,10 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
       openContributionDraft();if(kind!=='follow'&&activeDurable?.state?.scope.head_id!==story.head_beat_id)throw Error('This draft belongs to an earlier moment. Choose Use this draft at the latest moment, then review it.'); let submittedController=activeDurable;
       if(kind==='follow'||approach){const key=draftKey(story,kind==='follow'?'follow':'approach');submittedController=durableDrafts.get(key);if(!submittedController?.state){submittedController=createPrivateDraft({api});durableDrafts.set(key,submittedController);await submittedController.open({type:'contribution',game_id:story.id,branch_id:story.active_branch_id,head_id:story.head_beat_id,kind:kind==='follow'?'follow':kind},{text:direction});}}
       submittedController.edit({text:kind==='follow'?'':direction,direction_scope:$('fictionDirectionScope').value});
-      const prepared=await submittedController.submit({game_id:story.id,branch_id:story.active_branch_id,head_beat_id:story.head_beat_id,revision:story.revision});
+      const prepared=await submittedController.submit({game_id:story.id,branch_id:story.active_branch_id,head_beat_id:story.head_beat_id,revision:story.revision,...(operationPlan?{plan_id:operationPlan.id}:{})});
       if(!alive(token))return;
       const data = await api(`/fiction/${story.id}/replies`, 'POST', {
-        expected_revision: story.revision, target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,idempotency_key: prepared.actionKey, input,
+        expected_revision: story.revision, target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,idempotency_key: prepared.actionKey, input,...(operationPlan?{operation_plan_id:operationPlan.id}:{}),
         ...(story.generation?.provider ? { provider_id: story.generation.provider.id, model: story.generation.model_id } : {}),
         ...(quality ? { quality_review: story.quality_generation?.review_id } : {}),
       });
@@ -526,15 +540,16 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   function episodeDialog(start) {
     if (busy || !current || current.pending) return;
     const entry = field(start ? 'Episode title' : 'A short recap (optional)', start ? 'input' : 'textarea', start ? `Episode ${current.state.episode.number + 1}` : '', { maxLength: start ? 200 : 2000 });
+    const closure=start?null:field('How does this episode end?','select');if(closure)closure.control.append(option('open-ending','Open ending · questions can remain'),option('vignette','Vignette · a complete moment'),option('resolved-thread','Resolved thread · requires a recorded achievement'));
     const question = start ? field('What question might this episode explore? (optional)', 'input', '', { maxLength: 500 }) : null;
     const error = el('p'); error.setAttribute('role', 'alert');
     const id = current.id; const revision = current.revision;
-    dialogs.openDialog({ title: start ? 'Begin another episode' : 'End this episode', body: [el('p', start ? 'Your cast, history and commitments continue with you. A question gives focus, not a fixed plot or a requirement to finish.' : 'Mark a resting point. Nothing changes while you are away, and you can begin another episode whenever you want.'), entry.wrapper, ...(question ? [question.wrapper] : []), error], actions: [
+    dialogs.openDialog({ title: start ? 'Begin another episode' : 'End this episode', body: [el('p', start ? 'Your cast, history and commitments continue with you. A question gives focus, not a fixed plot or a requirement to finish.' : 'Mark a resting point. Nothing changes while you are away, and you can begin another episode whenever you want.'), entry.wrapper,...(closure?[closure.wrapper]:[]), ...(question ? [question.wrapper] : []), error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
       { label: start ? 'Begin episode' : 'End episode', className: 'btn-primary', pendingLabel: 'Saving episode…', onClick: async (close) => {
         if (start && !entry.control.value.trim()) { entry.control.focus(); return; }
         if (current?.id !== id || current.revision !== revision) { error.textContent = 'The story changed. Refresh before saving this episode.'; return; }
-        const result = await localAction('episodes', 'POST', start ? { action: 'start', title: entry.control.value.trim(), question: question.control.value.trim() } : { action: 'end', summary: entry.control.value.trim() });
+        const result = await localAction('episodes', 'POST', start ? { action: 'start', title: entry.control.value.trim(), question: question.control.value.trim() } : { action: 'end', summary: entry.control.value.trim(),closure_kind:closure.control.value });
         if (result?.ok) close(true); else error.textContent = result?.error || 'Not saved. Your episode details are still here.';
       } },
     ] });
@@ -568,6 +583,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     }));
   }
 
+  async function useInSetup(entry){const token=epoch;try{if(setupDraft?.state)await setupDraft.flush();if(!alive(token))return;setupDraft?.close();setupDraft=null;const scope={type:'setup',id:'new-story'};const recovered=await api(`/fiction/drafts?scope=${encodeURIComponent(JSON.stringify(scope))}`);if(!alive(token))return;if(recovered.creation&&!recovered.draft){status('A previous setup already created a story. Open Start a story to recover or acknowledge it first.',true);return;}const content=recovered.draft?.content||setupValue();const selection=content.library||{world_id:null,scribe_id:null,character_ids:[]};if(entry.kind==='character')selection.character_ids=[...new Set([...(selection.character_ids||[]),entry.id])];else selection[entry.kind+'_id']=entry.id;content.library=selection;if(recovered.draft)await api(`/fiction/drafts/${recovered.draft.id}`,'PATCH',{expected_revision:recovered.draft.revision,content});else await api('/fiction/drafts','POST',{id:crypto.randomUUID(),scope,content});if(alive(token))location.hash='#/new';}catch(error){if(alive(token))status(error.message+' Your setup fields are preserved.',true);}}
   function setupValue() {
     const cast=castRows.map(row=>({id:row.id,name:row.name.control.value.trim(),description:row.description.control.value.trim(),motive:row.motive.control.value.trim()}));
     const value={title:$('fictionTitle').value.trim(),premise:$('fictionPremise').value.trim(),genre:$('fictionGenre').value,play_style:$('fictionStartStyle').value,fourth_wall:$('fictionFourthWall').value,cast,pacing:$('fictionPacing').value,consequences:$('fictionConsequences').value,boundaries:$('fictionBoundaries').value.trim(),voice:$('fictionVoice').value.trim(),...(scenario?{scenario_id:scenario.id}:{})};
@@ -611,8 +627,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
-    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null; scenario = null; castRows.length = 0;
+    workspace.position(); creativeStudio?.clear();campaignStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
+    unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null;shelfQuery='';shelfGenre='';$('fictionShelfQuery').value='';$('fictionShelfGenre').value=''; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
     const dialogTitle = document.querySelector('.dialog-manager__title'); if (dialogTitle) dialogTitle.textContent = '';
@@ -632,11 +648,13 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     pageControls();
   }
 
-  const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction });
+  const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction,openPreferences:()=>creativeStudio.open() });
   const influence = createInfluence({ api, dialogs, getCurrent: () => current, isBusy: () => busy, localAction, send, correct: correctionDialog,
     setDirection: (value) => { workspace.contribution('steer'); $('fictionDirection').value = value; draftRevision++; saveDraft(); status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
-  const library = createVisualLibrary({ api, dialogs });
+  campaignStudio=createCampaignStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
+  creativeStudio=createCreativeStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
+  const library = createVisualLibrary({ api, dialogs,onUseInSetup:useInSetup });
   const saveDialogs = createSaveDialogs({ dialogs, getCurrent: () => current, getLive: () => { const token = epoch; return () => alive(token); }, runAction: runMediaAction });
   workspace = createFictionWorkspace({ getCurrent: () => current, getShown: () => shownBeatId,
     readBeat: (id) => { const index = readingPages().findIndex(beat => beat.id === id); if (index >= 0) showPage(index); },
@@ -665,6 +683,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('addFictionCast').addEventListener('click', () => addCast());
   $('fictionRefresh').addEventListener('click', () => route({ refresh: true }));
   for (const [id, family] of [['workspaceResetPaid', 'ordinary'], ['workspaceResetQualityPaid', 'quality']]) $(id).addEventListener('click', () => { dialogs.resetPaidConsent?.(family); $('workspaceConsentStatus').textContent = 'Future purchases in this family require review again. This does not cancel an active request.'; });
+  $('fictionShelfFilters').addEventListener('submit',event=>{event.preventDefault();shelfQuery=$('fictionShelfQuery').value;shelfGenre=$('fictionShelfGenre').value;shelfOffset=0;route();});
   $('fictionShelfPrevious').addEventListener('click', () => { shelfOffset = Math.max(0, shelfOffset - 80); $('fictionShelfPrevious').disabled = true; route(); });
   $('fictionShelfNext').addEventListener('click', () => { if (nextShelfOffset !== null) { shelfOffset = nextShelfOffset; $('fictionShelfNext').disabled = true; route(); } });
   $('fictionContinue').addEventListener('click', () => send('follow'));
@@ -679,7 +698,9 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionFork').addEventListener('click', () => pathDialog(false));
   $('fictionRewind').addEventListener('click', () => pathDialog(true));
   $('fictionCorrect').addEventListener('click', correctionDialog);
+  $('fictionCampaign').addEventListener('click',()=>campaignStudio.open());
   $('fictionEndEpisode').addEventListener('click', () => episodeDialog(false));
+  $('fictionUndoEpisode').addEventListener('click',()=>localAction('episodes','POST',{action:'undo'}));
   $('fictionNextEpisode').addEventListener('click', () => episodeDialog(true));
   async function loadEarlier() {
     if (!current || $('fictionEarlier').disabled) return;

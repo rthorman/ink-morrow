@@ -21,6 +21,9 @@ async function goRoom(page, name) {
   await expect(page.locator('#workspaceRooms').getByRole('link', { name, exact: true })).toHaveAttribute('aria-current', 'page');
 }
 async function openContribution(page) {
+  // A reloaded task route restores asynchronously; wait for its sheet instead
+  // of clicking the room navigation while the restored sheet is opening.
+  if(new URLSearchParams(new URL(page.url()).hash.split('?')[1]||'').has('task')){await expect(page.locator('#workspaceTask')).toBeVisible();return;}
   if (await page.locator('#workspaceTask').isVisible()) return;
   await goRoom(page, 'Desk');
   await page.locator('#workspaceSteer').click();
@@ -92,10 +95,19 @@ test.describe('5.0 playable fiction', () => {
     await page.getByRole('dialog').getByRole('button', { name: 'Develop with AI', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('All currently entered reference fields');
     await page.getByRole('button', { name: 'Develop this reference', exact: true }).click();
+    await expect(page.getByRole('button',{name:'Use selected candidate fields',exact:true})).toBeVisible();
+    await expect(page.getByRole('dialog').getByLabel('Name',{exact:true})).toHaveValue('A gloved guide');
+    await page.getByRole('button',{name:'Use selected candidate fields',exact:true}).click();
     await expect(page.getByRole('dialog').getByLabel('Name', { exact: true })).toHaveValue('Neris Vale');
-    await expect(page.getByRole('dialog')).toContainText('AI take ready · $0.0140');
+    await expect(page.getByRole('dialog')).toContainText('Selected candidate fields accepted');
     await expect(page.locator('#catalogEntries article').filter({ hasText: 'Neris Vale' })).toHaveCount(0);
     await page.screenshot({ path: testInfo.outputPath('character-catalogue-studio.png'), fullPage: true });
+    await page.getByRole('dialog').getByLabel('Name',{exact:true}).fill('Neris Vale — revised');
+    await page.getByRole('button',{name:'Restore previous fields…',exact:true}).click();
+    await expect(page.getByRole('dialog').getByLabel('Use name · changed since request',{exact:true})).not.toBeChecked();
+    await page.getByRole('button',{name:'Restore selected previous fields',exact:true}).click();
+    await expect(page.getByRole('dialog').getByLabel('Name',{exact:true})).toHaveValue('Neris Vale — revised');
+    await expect(page.getByRole('dialog').getByLabel('Personality',{exact:true})).toHaveValue('Careful with strangers.');
     await page.getByRole('button', { name: 'Save & add portrait', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('image studio');
   });

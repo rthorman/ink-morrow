@@ -73,3 +73,13 @@ inspection from actions and adds server-acknowledged private drafts; read
 [its delivery record](docs/recovery/B2-DELIVERY.md), preserve frozen save-v1
 validators, append migrations and test projection/privacy/save closure; do not enable
 legacy authoring routes to supply those capabilities.
+
+
+Recovery B3 uses appended schema 25, immutable story-local creative revisions and
+strict creative collections inside save v2. Read [B3 delivery](docs/recovery/B3-DELIVERY.md)
+before changing context compilation, Say assembly, local draft receipts or source
+closure. Keep migration 24 and save-v1 dependencies frozen. Model capacity must be
+known before a narration purchase; isolated tests explicitly declare synthetic
+limits. Keep all five checks green on the exact PR head before main merge.
+The stakeholder deferred PDF regeneration until the last recovery package; update
+all affected source manuals now and retain the existing PDF integrity check.

@@ -252,17 +252,19 @@ function createDialogManager() {
   // what will be spent and sent; later actions bypass the modal on this device.
   // `body` is plain copy; `review` is the structured shared grammar (see
   // core/cost.js reviewBody) rendered as uniform rows.
-  function confirmPaid({ title, body, review, confirmLabel, cancelLabel = 'Cancel', disabled = false, consentScope = '' }) {
+  function confirmPaid({ title, body, review, confirmLabel, cancelLabel = 'Cancel', disabled = false, consentScope = '',rememberChoice=false }) {
     if (!disabled && hasPaidConsent(consentScope)) return Promise.resolve(true);
+    const remember=document.createElement('input');remember.type='checkbox';const rememberLabel=document.createElement('label');rememberLabel.append(remember,document.createTextNode(' Remember this operation configuration on this device'));
+    const paidBody=paidReviewContent(body,review,consentScope);if(rememberChoice){const note=paidBody.find(node=>node.classList?.contains('review-consent'));if(note)note.textContent='Approval applies to this request. Remembering this configuration allows future requests within the same reviewed model, exposure and output bounds. Changed bounds require a new review.';paidBody.push(rememberLabel);}
     return new Promise((resolve) => {
       openDialog({
         title,
-        body: paidReviewContent(body, review, consentScope),
+        body: paidBody,
         variant: 'cost',
         onFreeClose: () => resolve(false), // Escape/backdrop = a deliberate no
         actions: [
           { label: cancelLabel, className: 'btn-secondary', autofocus: true, onClick: () => { close(true); resolve(false); } },
-          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { rememberPaidConsent(consentScope); close(true); resolve(true); } },
+          { label: confirmLabel, className: 'btn-primary', disabled, onClick: () => { if(!rememberChoice||remember.checked)rememberPaidConsent(consentScope); close(true); resolve(true); } },
         ],
       });
     });
@@ -274,7 +276,7 @@ function createDialogManager() {
 
   function cancel() { const resolveNo = lastSpec?.onFreeClose; close(true); resolveNo?.(); }
   function resetPaidConsent(family = 'ordinary') {
-    const matches = key => family === 'quality' ? key.startsWith(`${PAID_CONSENT_KEY}:fiction-quality-`) : key === PAID_CONSENT_KEY;
+    const matches = key => family === 'quality' ? key.startsWith(`${PAID_CONSENT_KEY}:fiction-quality-`) : key === PAID_CONSENT_KEY||key.startsWith(`${PAID_CONSENT_KEY}:fiction-narration-`);
     for (const key of paidConsentForSession) if (matches(key)) paidConsentForSession.delete(key);
     try { for (const key of Object.keys(localStorage)) if (matches(key)) localStorage.removeItem(key); } catch { /* session consent has still been cleared */ }
   }

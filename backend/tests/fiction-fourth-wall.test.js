@@ -71,7 +71,7 @@ describe('Living-world character fourth-wall permission', () => {
   test('an aside is not evidence for a world-state change', async () => {
     story = store.preferences(story.id, story.revision, { fourth_wall: 'freely' });
     output({ aside, effects: [{ op: 'remember', fact: { id: 'invented', text: 'The reader gave Jo a key.' }, evidence: aside.text }] });
-    await expect(reply()).rejects.toThrow('no direct evidence');
+    await expect(reply()).rejects.toThrow('declared exact ordinary source');
     expect(store.current(story.id).state.last_fourth_wall_scene).toBeNull();
     expect(store.current(story.id).state.facts.some((fact) => fact.id === 'invented')).toBe(false);
   });

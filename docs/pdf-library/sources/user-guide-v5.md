@@ -8,6 +8,63 @@
 
 </div>
 
+## Recovery B3: creative work without losing the story
+
+The running app remains 5.0.0. The six PDF files still show the verified B2 edition:
+PDF regeneration is deferred until the final recovery package; these source
+instructions describe B3.
+
+In the Visual Library, **Develop with AI** prepares a separate candidate. Review
+seed, current fields and candidate; fields edited during the request start
+unchecked. **Use selected candidate fields** changes only the private form. Save
+details is a separate action. **Restore previous fields** opens another comparison
+so later edits remain yours. A saved-entry baseline stays available for reference.
+Use in a new story/Add to this setup preserves the other acknowledged setup fields.
+On the shelf, search title/premise, filter genre, resume your reading position,
+open the latest moment, rename locally or read a free return recap.
+
+In a story's Codex, use **Story preferences**, **Edit story-local world**, **Edit
+story-local Scribe** or a character's **Edit story-local reference**. These edit
+this story's future telling; templates and earlier prose stay intact. Compare a
+reusable template, copy selected fields into the proposal, then Apply selected
+fields. Review recorded facts first: a motive or backstory never establishes a
+new event. Fact-binding checkboxes keep important older constraints available to
+the Storyteller. Private proposals have Save now, copy/comparison recovery and a
+previous-action receipt check after an uncertain response. Recover earlier
+proposals explicitly into the current destination; saving a draft does not apply it.
+
+Creative settings choose perspective, cast speaker or outside framing narrator,
+focal character, tense, language, genre/tone, voice, boundaries, focus and knowledge
+disclosure. Perspective does not assign you a character. A required missing speaker
+or focal identity must be repaired before narration. Length targets are brief 180,
+developed 400, extended 800 or custom 50–2,000 words/characters, approximately.
+Length, pacing and reading layout are independent. Older stories keep legacy-short;
+new stories begin at developed. Next-scene location/time/presence is a proposal,
+not an established transition. Failed requests keep it; an accepted scene consumes
+it, and only ordinary narrated evidence establishes what actually happened.
+
+**Campaign records** makes an explicit owner declaration with section, actor,
+knowledge holders, visibility and reason. Search older records outside the working
+snapshot before updating one. Relationships use descriptions; resources can have
+amounts. Goals distinguish achieved, abandoned, failed and superseded. Secrets stay
+in private planning. These are adaptations of existing facts, commitments,
+relationships, goals and resources, not independent faction or inventory engines.
+
+In Chronicle, End this episode can leave an open ending, mark a vignette or close
+an actually achieved thread. The optional recap need not resolve every question.
+Undo this episode ending is available immediately, before subsequent activity.
+It appends a new record; it does not delete the ending.
+
+Continue performs a free context/budget check before the paid review. Unknown or
+insufficient model capacity asks for discovery/advanced limits in Settings. No
+purchase occurs on that failure. Optional quality includes all potential reviews
+and repair in the checked plan. Remembering narration permission is optional and
+scoped to the reviewed configuration/bounds. A changed plan needs review again.
+Say keeps your exact words once only when performed; attempted/interrupted/not-
+performed outcomes do not insert spoken words. An intention or request is not an
+achieved event, and quiet or goal-free scenes need no compulsory crisis.
+
+
 ## A story worth following
 
 InkMorrow is playable fiction. You normally remain outside the cast: you follow

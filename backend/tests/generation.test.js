@@ -416,6 +416,7 @@ describe('Model selection, usage and cost accounting', () => {
         id: 'a/b',
         name: 'B Model',
         context_length: 8,
+        max_output_tokens: null,
         reasoning: false,
         reasoning_efforts: [],
         reasoning_default: null,

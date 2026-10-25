@@ -22,7 +22,12 @@ describe('quality through the real API and role-specific AI client', () => {
     const response = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain', quality_mode: 'memory' });
     expect(response.status).toBe(201); return response.body.story;
   }
-  const purchase = (story) => request(fixture.app).post(`/api/fiction/${story.id}/replies`).send({ expected_revision: story.revision, idempotency_key: 'reviewed-purchase', quality_review: story.quality_generation.review_id, input: { kind: 'follow' } });
+  const plans=new Map();
+  const purchase = async(story) => {
+    let plan=plans.get(story.id);
+    if(!plan){const settings=await request(fixture.app).get('/api/providers');for(const role of settings.body.roles.filter(role=>['scribe','archivist'].includes(role.role))){const limits=await request(fixture.app).put(`/api/providers/${role.profile_id}/model-limits`).send({model_id:role.model_id,context_tokens:2000000,output_tokens:16000});expect(limits.status).toBe(200);}const prepared=await request(fixture.app).post(`/api/fiction/${story.id}/operation-plans`).send({expected_revision:story.revision,target_branch_id:story.active_branch_id,expected_head_beat_id:story.head_beat_id,input:{kind:'follow'}});expect(prepared.status).toBe(200);plan=prepared.body.plan.id;plans.set(story.id,plan);}
+    return request(fixture.app).post(`/api/fiction/${story.id}/replies`).send({ expected_revision: story.revision, idempotency_key: 'reviewed-purchase', quality_review: story.quality_generation.review_id,operation_plan_id:plan,input: { kind: 'follow' } });
+  };
   test('standard Continue explains provider authentication failure without treating it as an owner logout', async () => {
     const created = await request(fixture.app).post('/api/fiction').send({ scenario_id: 'garden-after-rain' });
     const story = created.body.story;
