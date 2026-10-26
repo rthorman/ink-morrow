@@ -31,7 +31,7 @@ describe('bounded historical workspace and private recovery', () => {
     fs.copyFileSync(path.join(fixture, 'schema-23.db'), file);
     const baseline = JSON.parse(fs.readFileSync(path.join(fixture, 'baseline.json')));
     let old = createDb(file);
-    expect(schemaIdentity(old).version).toBe(25);
+    expect(schemaIdentity(old).version).toBe(26);
     expect(old.prepare('SELECT * FROM schema_migrations WHERE version<=23 ORDER BY version').all()).toEqual(
       baseline.ledger
     );
@@ -63,7 +63,7 @@ describe('bounded historical workspace and private recovery', () => {
     expect(raw.prepare("SELECT name FROM sqlite_master WHERE name='fiction_owner_drafts'").get()).toBeUndefined();
     raw.close();
     const repaired = createDb(file);
-    expect(schemaIdentity(repaired).version).toBe(25);
+    expect(schemaIdentity(repaired).version).toBe(26);
     repaired.close();
   });
   test('frozen version-1 dependencies match their reviewed manifest and reject invented fields', () => {

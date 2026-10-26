@@ -15,6 +15,7 @@ const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA } = require('.
 const { FICTION_LIBRARY_SCHEMA, FICTION_LIBRARY_DRAFT_SCHEMA } = require('./modules/fiction/library-schema');
 const workspaceMigration = require('./modules/fiction/workspace-migration-v24');
 const creativeMigration = require('./modules/fiction/creative-migration-v25');
+const editorialMigration = require('./modules/fiction/editorial-migration-v26');
 
 const LEGACY_TABLES = new Set([
   'worlds',
@@ -1935,6 +1936,7 @@ const MIGRATIONS = Object.freeze([
     up(db) { workspaceMigration.up(db); },
   }),
   Object.freeze({version:25,name:'story-local creative reference and configuration revisions',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/creative-migration-v25'),'utf8'),up(db){creativeMigration.up(db);}}),
+  Object.freeze({version:26,name:'branch-scoped editorial chapter and volume revisions',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/editorial-migration-v26'),'utf8'),up(db){editorialMigration.up(db);}}),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

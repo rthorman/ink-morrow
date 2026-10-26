@@ -1,6 +1,6 @@
 # Ink Morrow 5.0 PDF documentation library
 
-The current set is the **5.0 Edition**. The six committed PDFs are the verified B2 build. The stakeholder deferred PDF regeneration until the final recovery work package; source manuals describe B3 now. `update-policy.json` records that deferral and freshness checks still verify every PDF digest. Remove it and rebuild/inspect the complete set at final completion. All six active books describe the
+The current set is the **5.0 Edition**. The six committed PDFs are the verified B2 build. The stakeholder deferred PDF regeneration until the final recovery work package; source manuals describe B4 now. `update-policy.json` records that deferral and freshness checks still verify every PDF digest. Remove it and rebuild/inspect the complete set at final completion. All six active books describe the
 playable-fiction product, including fresh storage and the retired-route boundary.
 Filenames, covers, metadata, headers, links and freshness output names use 5.0.
 All product-logo placements reuse frontend/brand/ink-morrow-lockup.svg, the exact

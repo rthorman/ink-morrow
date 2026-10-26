@@ -6,6 +6,7 @@ import { createInfluence } from './influence.js';
 import { qualityPaidReview, renderQuality } from './quality.js';
 import { createVisualLibrary, storyImage } from './library.js';
 import { createFictionWorkspace } from './workspace-shell.js';
+import {createEditorialStudio} from './editorial-studio.js';
 import {createCampaignStudio} from './campaign-studio.js';
 import {createCreativeStudio} from './creative-studio.js';
 import { createInspection } from './inspection.js';
@@ -24,7 +25,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
-  let workspace = null; let inspection = null;let creativeStudio=null;let campaignStudio=null;
+  let workspace = null; let inspection = null;let creativeStudio=null;let campaignStudio=null;let editorialStudio=null;
   const durableDrafts = new Map(); let activeDurable = null; let setupDraft = null;
   let bookmarkRestoring = false;
   let roomEpoch = 0;
@@ -111,7 +112,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
   function controls() {
     const blocked = busy || bookmarkRestoring || !current || current.pending;
-    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionCampaign','fictionEndEpisode','fictionUndoEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
+    for (const id of ['fictionContinue', 'fictionSend', 'fictionInputKind', 'fictionBranch', 'fictionFork', 'fictionRewind', 'fictionCorrect', 'releaseFictionControl', 'fictionEditorial','fictionCampaign','fictionEndEpisode','fictionUndoEpisode', 'fictionNextEpisode', 'fictionPreferences', 'fictionAddCast', 'fictionRetire', 'fictionIllustrate', 'fictionExportBook']) $(id).disabled = blocked;
     $('fictionEarlier').disabled = Boolean(!current || earlierBusy || bookmarkRestoring);
     $('fictionDownloadSave').disabled = Boolean(blocked);
     $('fictionCoverEdit').disabled = Boolean(blocked);
@@ -493,24 +494,130 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     ] });
   }
 
-  function pathDialog(rewind) {
+  function pathDialog(rewind, preset = null) {
     if (busy || !current || current.pending) return;
     const select = field('Continue from after this moment', 'select');
-    select.control.append(option('', 'Before the opening'), ...current.beats.map((beat) => option(beat.id, beat.summary.slice(0, 120))));
-    select.control.value = rewind ? current.beats.at(-2)?.id || '' : current.head_beat_id || '';
-    const name = field('Name this path', 'input', rewind ? 'A different choice' : 'An alternative', { maxLength: 120 });
-    const note = el('p', 'The original path remains available. This restores all story state at that moment. Read earlier moments first if the moment you want is not listed.');
-    const error = el('p'); error.setAttribute('role', 'alert');
-    const id = current.id; const revision = current.revision;
-    dialogs.openDialog({ title: rewind ? 'Rewind a choice' : 'Explore an alternative', body: [note, select.wrapper, name.wrapper, error], actions: [
-      { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
-      { label: 'Create this path', className: 'btn-primary', pendingLabel: 'Creating path…', onClick: async (close) => {
-        if (!name.control.value.trim()) { name.control.focus(); return; }
-        if (current?.id !== id || current.revision !== revision) { error.textContent = 'The story changed. Refresh before creating this path.'; return; }
-        const result = await localAction('branches', 'POST', { beat_id: select.control.value || null, name: name.control.value.trim() });
-        if (result?.ok) close(true); else error.textContent = result?.error || 'Not saved. Your path name and selected moment are still here.';
-      } },
-    ] });
+    select.control.append(
+      option('', 'Before the opening'),
+      ...current.beats.map((beat) =>
+        option(beat.id, beat.summary.slice(0, 120)),
+      ),
+    );
+    if (preset && !current.beats.some((beat) => beat.id === preset.id))
+      select.control.append(option(preset.id, preset.summary.slice(0, 120)));
+    select.control.value =
+      preset?.id ||
+      (rewind ? current.beats.at(-2)?.id || '' : current.head_beat_id || '');
+    const name = field(
+      'Name this path',
+      'input',
+      rewind ? 'A different choice' : 'An alternative',
+      { maxLength: 120 },
+    );
+    const note = el(
+      'p',
+      'The original path remains available. This restores all story state at that moment. Read earlier moments first if the moment you want is not listed.',
+    );
+    const error = el('p');
+    error.setAttribute('role', 'alert');
+    let previewed = null;
+    let previewSerial = 0;
+    let createButton = null;
+    const preview = el('p', 'Opening restore preview…', 'workspace-scope-note');
+    const showRestore = async () => {
+      const request = ++previewSerial;
+      const beatId = select.control.value;
+      previewed = null;
+      if (createButton?.isConnected) createButton.disabled = true;
+      try {
+        const q = new URLSearchParams({
+          branch_id: current.active_branch_id,
+          inspection_at: beatId || 'initial',
+        });
+        const [snapshot, structure] = await Promise.all([
+          api(`/fiction/${current.id}/workspace?${q}`),
+          api(`/fiction/${current.id}/editorial?${q}&outline=1`),
+        ]);
+        if (
+          request !== previewSerial ||
+          current?.id !== id ||
+          current.revision !== revision
+        )
+          return;
+        if (snapshot.revision !== undefined && snapshot.revision !== revision)
+          throw Error(
+            'The story changed. Refresh before creating another path.',
+          );
+        preview.textContent = `Restore after ${beatId ? 'the selected moment' : 'the beginning'}: ${snapshot.state.cast.length} cast members${
+          snapshot.state.cast.length
+            ? ' (' +
+              snapshot.state.cast
+                .slice(0, 6)
+                .map((person) => person.name)
+                .join(', ') +
+              (snapshot.state.cast.length > 6 ? ', …' : '') +
+              ')'
+            : ''
+        }; ${snapshot.state.control.character_id ? 'Inhabit: ' + (snapshot.state.cast.find((person) => person.id === snapshot.state.control.character_id)?.name || 'the selected role') : 'reader-director ownership'}; ${snapshot.state.creative?.perspective || 'inherited'} telling; ${structure.virtual ? 'automatic episode-based' : 'the saved'} chapter layout. Truth, knowledge, references and private creative settings follow that same moment. The original future stays available.`;
+        previewed = beatId;
+        if (
+          createButton?.isConnected &&
+          createButton.textContent === 'Create this path'
+        )
+          createButton.disabled = false;
+      } catch (caught) {
+        if (request === previewSerial) preview.textContent = caught.message;
+      }
+    };
+    select.control.addEventListener('change', showRestore);
+    const id = current.id;
+    const revision = current.revision;
+    dialogs.openDialog({
+      title: 'Explore another path',
+      body: [note, select.wrapper, name.wrapper, preview, error],
+      actions: [
+        {
+          label: 'Cancel',
+          className: 'btn-secondary',
+          onClick: (close) => close(true),
+        },
+        {
+          label: 'Create this path',
+          disabled: true,
+          className: 'btn-primary',
+          pendingLabel: 'Creating path…',
+          onClick: async (close) => {
+            if (!name.control.value.trim()) {
+              name.control.focus();
+              return;
+            }
+            if (previewed !== select.control.value) {
+              error.textContent =
+                'Review the restore preview for this selected moment before creating a path.';
+              return;
+            }
+            if (current?.id !== id || current.revision !== revision) {
+              error.textContent =
+                'The story changed. Refresh before creating this path.';
+              return;
+            }
+            const result = await localAction('branches', 'POST', {
+              beat_id: select.control.value || null,
+              name: name.control.value.trim(),
+            });
+            if (result?.ok) close(true);
+            else
+              error.textContent =
+                result?.error ||
+                'Not saved. Your path name and selected moment are still here.';
+          },
+        },
+      ],
+    });
+    createButton = [
+      ...document.querySelectorAll('.dialog-manager__actions button'),
+    ].find((button) => button.textContent === 'Create this path');
+    showRestore();
   }
 
   function correctionDialog(recalled = null) {
@@ -627,7 +734,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); creativeStudio?.clear();campaignStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
+    workspace.position(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null;shelfQuery='';shelfGenre='';$('fictionShelfQuery').value='';$('fictionShelfGenre').value=''; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
@@ -652,6 +759,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const influence = createInfluence({ api, dialogs, getCurrent: () => current, isBusy: () => busy, localAction, send, correct: correctionDialog,
     setDirection: (value) => { workspace.contribution('steer'); $('fictionDirection').value = value; draftRevision++; saveDraft(); status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
+  editorialStudio=createEditorialStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;const room=roomEpoch;const hash=location.hash;return()=>alive(token)&&roomEpoch===room&&location.hash===hash;},runAction:async work=>{const result=await runMediaAction(work);if(result?.ok)inspection.render(workspace.room);return result;}});
   campaignStudio=createCampaignStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
   creativeStudio=createCreativeStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
   const library = createVisualLibrary({ api, dialogs,onUseInSetup:useInSetup });
@@ -660,7 +768,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     readBeat: (id) => { const index = readingPages().findIndex(beat => beat.id === id); if (index >= 0) showPage(index); },
     sourceButton: influence.sourceButton, illustrate: mediaDialogs.illustrate, contributionChanged: selectDraft,
   });
-  inspection = createInspection({api,dialogs,getCurrent:()=>current,activate:branch=>localAction('branch','PUT',{branch_id:branch})});
+  inspection = createInspection({api,dialogs,getCurrent:()=>current,getReadingBeat:()=>shownBeatId,explore:record=>pathDialog(false,record),activate:branch=>localAction('branch','PUT',{branch_id:branch})});
   async function loadLatest() {
     if (!current || $('fictionLatestPage').disabled) return;
     if (!current.windowPast) { showPage(readingPages().length - 1); return; }
@@ -698,6 +806,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionFork').addEventListener('click', () => pathDialog(false));
   $('fictionRewind').addEventListener('click', () => pathDialog(true));
   $('fictionCorrect').addEventListener('click', correctionDialog);
+  $('fictionEditorial').addEventListener('click',()=>editorialStudio.open());
   $('fictionCampaign').addEventListener('click',()=>campaignStudio.open());
   $('fictionEndEpisode').addEventListener('click', () => episodeDialog(false));
   $('fictionUndoEpisode').addEventListener('click',()=>localAction('episodes','POST',{action:'undo'}));

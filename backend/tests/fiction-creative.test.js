@@ -39,7 +39,7 @@ describe('story-local creative authority', () => {
         ),
       );
       const old = createDb(file);
-      expect(schemaIdentity(old).version).toBe(25);
+      expect(schemaIdentity(old).version).toBe(26);
       expect(
         old
           .prepare(
@@ -292,7 +292,7 @@ describe('story-local creative authority', () => {
         file,
       );
       const migrations = MIGRATIONS.map((row) => ({ ...row }));
-      const last = migrations.at(-1);
+      const last = migrations.find(row=>row.version===25);
       const up = last.up;
       last.up = (handle) => {
         up(handle);
@@ -310,7 +310,7 @@ describe('story-local creative authority', () => {
       ).toBeUndefined();
       raw.close();
       const reopened = createDb(file);
-      expect(schemaIdentity(reopened).version).toBe(25);
+      expect(schemaIdentity(reopened).version).toBe(26);
       reopened.close();
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

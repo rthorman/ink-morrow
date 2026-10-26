@@ -132,7 +132,8 @@ function createWorkspaceQueries({ db, store }) {
         pacing: state.pacing,
         consequences: state.consequences,
         fourth_wall: state.fourth_wall,
-        quality_mode: state.quality_mode
+        quality_mode: state.quality_mode,
+        creative:state.creative
       },
       branches: db
         .prepare(
@@ -145,6 +146,8 @@ function createWorkspaceQueries({ db, store }) {
         read_only_paths: true,
         precise_evidence: true,
         private_drafts: true,
+        editorial_organization:Boolean(store.hasEditorial),
+        prose_editing:false,
         save_version: 2
       }
     };
@@ -163,6 +166,7 @@ function createWorkspaceQueries({ db, store }) {
       entries.push({
         id: beat.id,
         kind: beat.kind,
+        ...(JSON.parse(row(id,beat.id).input_json).operation==='editorial'?{record_type:'editorial'}:{}),
         summary: beat.summary,
         narrative_ordinal: meta.is_narrative ? meta.narrative_ordinal : null,
         excerpt: beat.prose.slice(0, 240),

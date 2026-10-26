@@ -103,7 +103,7 @@ function initialState(input) {
 }
 
 function publicState(state) {
-  const reader={...state};for(const field of ['creative_baseline','creative_sources','creative_scene_plan','opportunity_round','consumed_scene_plan_id','reference_heads','config_revision_id'])delete reader[field];
+  const reader={...state};for(const field of ['editorial_revision_id','creative_baseline','creative_sources','creative_scene_plan','opportunity_round','consumed_scene_plan_id','reference_heads','config_revision_id'])delete reader[field];
   if(reader.creative)reader.creative=require('./creative-model').publicConfiguration(reader.creative);
   const visible = (entry) => entry ? { name: entry.name, description: entry.description, data: { appearance: entry.data.appearance || '', setting: entry.data.setting || '' } } : null;
   return { ...reader, play_style: state.play_style || 'story-shaping', challenges: publicChallenges(state),

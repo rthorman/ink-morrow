@@ -6,6 +6,34 @@ InkMorrow 5.0 is a single-owner playable-fiction system. This book explains the 
 
 </div>
 
+## B4 editorial architecture
+
+`editorial-migration-v26.js` adds immutable complete-value editorial revisions with
+parent/producing-beat closure and a snapshot head. `editorial-model.js` represents
+chapters with after/through narrative anchors and exactly one final open tail.
+`editorial.js` provides bounded selected-ancestry outline/boundary reads, free
+preview and one atomic local adoption command through the existing receipt/fence
+contract. New records cap at 64 volumes, 512 chapters and 64 KiB; aggregate creative/
+reference/editorial revisions share the 10,000 cap. Snapshots do not duplicate full
+layouts or rewrite historical JSON.
+
+Virtual defaults materialize existing episode grouping in memory. Published
+revision heads resolve only on their selected branch history. Gap fallback groups
+keep every narrative passage visible. Empty plans create no prose, and future
+passages enter the active open tail. `editorial-save.js` validates producer/parent/
+anchor ancestry and unchanged heads, then supplies a temporary stripped projection
+to existing B3/frozen-v1 validators. Import remaps revision IDs, parent/producer and
+passage anchors; layout-local group identities remain scoped to the copied story.
+
+The existing PublicationDocument resolver applies effective groups before any of
+its nine adapters. Original prose, placed images, exact evidence, episode phase and
+scene framing keep their own authority. Wording/display overlays remain D1-gated.
+Chronicle has a paged historical outline and the full-height private editor; late
+callbacks are fenced on Close/Back/room changes/Lock. See B4-DELIVERY.md and genuine
+schema-25 fixtures for preservation evidence. PDF regeneration remains deferred.
+
+
+
 ## B3 creative and narration architecture
 
 Schema 25 appends `creative-migration-v25.js`. `creative-collections.js` owns
@@ -95,7 +123,7 @@ recreated at each surface.
 ## Fresh storage and startup order
 
 The release identifies itself as 5.0.0, database family ink-morrow-5,
-schema 25 and SQLite application ID 0x494D3530. Package identities agree across
+schema 26 and SQLite application ID 0x494D3530. Package identities agree across
 root, backend, frontend and E2E. Playable saves separately identify their own
 format and version; these are not interchangeable schema numbers.
 

@@ -9,6 +9,7 @@
 | [B1 production workspace](B1-DELIVERY.md) | Current-fiction room adapters, reading return, contribution tasks, screenshots and remaining boundaries |
 | [B2 historical inspection and private drafts](B2-DELIVERY.md) | Delivered query/evidence/draft/save contracts, fixtures and verification limits |
 | [B3 creative depth](B3-DELIVERY.md) | Story-local studios, typed campaign records, bounded narration, Say/source closure and preservation fixtures |
+| [B4 chapters and volumes](B4-DELIVERY.md) | Versioned branch-local organization, outline/restore preview, common book grouping and preservation |
 | [Capability ledger](CAPABILITY-LEDGER.md) | Explicit final-4.1/V5 dispositions, deferrals and policy gates |
 | [Implementation guide](IMPLEMENTATION-GUIDE.md) | Authoritative current engineering plan and batch acceptance |
 | [Final Version 4.1 baseline](V4.1-BASELINE.md) | Pinned source map, feature dispositions and comparative tasks |

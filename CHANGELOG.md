@@ -4,6 +4,19 @@ All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
 
+## Unreleased — recovery B4
+
+- Organize chapters and volumes in Chronicle with stable passage boundaries,
+  local preview, recoverable private drafts and immutable adoption revisions.
+- Preserve automatic episode-based layout until adoption; keep empty plans and
+  fallback ranges visible without inventing prose. New passages join the open tail.
+- Inspect applicable historical layouts, navigate chapter openings and preview
+  restored state before exploring another path.
+- Apply the selected layout to the common nine-format book document and strict
+  playable-save v2 collections, with remapped anchors and genuine B3 preservation.
+- Append schema 26. Keep original prose/evidence and earlier migrations unchanged;
+  wording editing remains gated and PDF regeneration remains deferred.
+
 ## Unreleased — dependency maintenance
 
 - Update brace-expansion to patched 1.1.21 in the root, backend and frontend

@@ -1,6 +1,6 @@
-# Version 4.1 / V5 capability ledger — B3
+# Version 4.1 / V5 capability ledger — B4
 
-This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. B3 adds creative depth; see B3-DELIVERY.md for actual contracts and verification limits.
+This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. B3 adds creative depth; B4 adds editorial organization. See their delivery records for actual contracts and verification limits.
 
 | Capability | Disposition | Owning batch / decision | Acceptance contract |
 |---|---|---|---|
@@ -9,7 +9,7 @@ This is a delivery/disposition ledger, not a claim of production parity. Current
 | Reader pagination and recoverable Continue errors | Current V5 | B1 deepens | No purchase on page turns; stable reading position. |
 | All-path fiction graph, evidence and corrections | Implemented B2 | B2 | Read-only selected ancestry/moment; exact new sources, legacy passage-level attribution. |
 | First-class Scribe craft and full story-local references | Implemented B3 | B3 | Explicit field inventory and future-only adoption. |
-| Optional scenes, viewpoint and chapter/volume grouping | Restored in batch | B3/B4 | Plans are not events; grouping changes no prose. |
+| Optional scenes, viewpoint and chapter/volume grouping | Implemented B3/B4 | B3/B4 | Plans are not events; grouping changes no prose. |
 | Ownership / Act / Say / Ask / Direct boundaries | Implemented B3 | B3 | No compulsory avatar or Session Zero; performed speech remains conditional. |
 | Alternate paths and exact fork points | Implemented B2 | B2 | Read-only path preview remains separate from explicit active-path mutation on one fiction graph. |
 | Campaign: Relationships | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |

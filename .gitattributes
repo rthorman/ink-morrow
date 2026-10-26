@@ -2,3 +2,5 @@
 backend/src/modules/fiction/workspace-migration-v24.js text eol=lf
 backend/src/modules/fiction/save-v1/*.js text eol=lf
 backend/src/modules/fiction/creative-migration-v25.js text eol=lf
+
+backend/src/modules/fiction/editorial-migration-v26.js text eol=lf

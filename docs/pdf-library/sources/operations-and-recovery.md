@@ -6,6 +6,31 @@ Operate a private, single-owner InkMorrow 5.0 installation. Protect data first, 
 
 </div>
 
+## B4 editorial operating checkpoint
+
+Storage now appends schema 26; public version remains 5.0.0 in `ink-morrow-5`.
+Migration 24/25 and historical snapshots are preserved. Existing episode-based book
+layout stays virtual until explicit adoption. No deployment or live migration is
+performed by this development batch; retain the normal consistent-backup procedure
+before upgrading an owner installation.
+
+An editorial save is a local command with expected story revision, active path,
+head and layout base. Draft acknowledgement precedes command dispatch. Lost-response
+receipts and cancellation fences prevent duplicate or delayed changes; never retry
+with a fresh key before reviewing the old result. Recover an older proposal by
+comparing/copying fields into a fresh current-target draft. Invalid bounds fail a
+free preview before preparing a new action key. Offline text is honestly unsaved.
+
+Playable-save v2 carries optional editorial revisions and remaps anchors/heads on
+copy. Genuine B3 saves still import and can adopt a B4 layout without rewriting
+older beats. Empty plans remain empty; book exports omit them. Reading/export of
+large automatic layouts remains available even above new-record adoption limits.
+Source manuals cover B4; existing PDFs remain the integrity-checked B2 build until
+the final recovery package. D1 wording editing and future Gallery/audio/jobs are
+not activated by this migration.
+
+
+
 ## B3 operating checkpoint
 
 Current storage is schema 25 in the existing `ink-morrow-5` family; application
