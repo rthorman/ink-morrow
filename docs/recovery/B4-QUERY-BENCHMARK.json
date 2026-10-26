@@ -1,0 +1,40 @@
+{
+  "node": "v24.19.0",
+  "fixture": "Synthetic in-memory projection stress data; not owner data, portable-story validation or Android acceptance.",
+  "samples_after_warmup": 5,
+  "results": [
+    {
+      "narrative_passages": 500,
+      "outline": {
+        "median_ms": 2.18,
+        "max_ms": 3.77
+      },
+      "boundary_page": {
+        "median_ms": 2.11,
+        "max_ms": 2.15
+      }
+    },
+    {
+      "narrative_passages": 3000,
+      "outline": {
+        "median_ms": 9.59,
+        "max_ms": 9.96
+      },
+      "boundary_page": {
+        "median_ms": 11.68,
+        "max_ms": 13.76
+      }
+    },
+    {
+      "narrative_passages": 10000,
+      "outline": {
+        "median_ms": 31.93,
+        "max_ms": 34.06
+      },
+      "boundary_page": {
+        "median_ms": 34.11,
+        "max_ms": 38.26
+      }
+    }
+  ]
+}

@@ -90,7 +90,7 @@ export function createMediaDialogs({ api, dialogs, getCurrent, isBusy, runAction
     const author = field('Author credit (optional)', 'input', '', { maxLength: 300 });
     const language = field('Book language', 'input', 'en', { maxLength: 40 });
     const error = el('p'); error.setAttribute('role', 'alert');
-    dialogs.openDialog({ title: 'Export this reading path', body: [el('p', 'A readable book, not a playable save: only this path’s prose and placed images. Private facts, motives, directions, questions and other paths are excluded. No AI request. EPUB images have their own pages; prose stays resizable.'), format.wrapper, author.wrapper, language.wrapper, error], actions: [
+    dialogs.openDialog({ title: 'Export this reading path', body: [el('p', 'A readable book, not a playable save: only this path’s prose and placed images. Books use this path’s current chapter and volume layout. Empty planned groups are omitted. Private facts, motives, directions, questions and other paths are excluded. No AI request. EPUB images have their own pages; prose stays resizable.'), format.wrapper, author.wrapper, language.wrapper, error], actions: [
       { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
       { label: 'Download book', className: 'btn-primary', pendingLabel: 'Building book…', onClick: async (close) => {
         if (getCurrent()?.id !== story.id || getCurrent()?.revision !== story.revision) { error.textContent = 'The story changed. Reopen export to choose the current path.'; return; }

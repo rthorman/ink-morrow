@@ -103,7 +103,7 @@ describe('5.0 reader-director interface', () => {
       ['fictionFork', 'Create this path', 'input', 'The patient choice'],
       ['fictionEndEpisode', 'End episode', 'textarea', 'They pause beside the quay.'],
     ]) {
-      document.getElementById(id).click(); const spec = dialogs.openDialog.mock.calls.at(-1)[0];
+      document.getElementById(id).click();await tick();const spec = dialogs.openDialog.mock.calls.at(-1)[0];
       const field = spec.body.flatMap((node) => [...node.querySelectorAll(selector)])[0]; field.value = value;
       const close = jest.fn(); await spec.actions.find((item) => item.label === action).onClick(close);
       expect(close).not.toHaveBeenCalled(); expect(field.value).toBe(value);

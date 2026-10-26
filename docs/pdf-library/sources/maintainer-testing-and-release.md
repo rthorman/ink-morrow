@@ -6,6 +6,32 @@ Change the playable-fiction product without losing causal history, paid authorit
 
 </div>
 
+## B4 editorial verification
+
+Read recovery/B4-DELIVERY.md. Public version remains 5.0.0; schema 26 appends an
+immutable migration module. Preserve migration 24/25 and frozen save-v1 bytes.
+Genuine synthetic schema-25/B3-save fixtures were captured before B4; compare ledger,
+initial-state and beat bytes and inject rollback/reopen failure during migration 26.
+Verify old-save continuation followed by adoption/save-copy.
+
+Tests must cover virtual episode defaults, immutable adoption/replay/fences,
+chronological non-overlap, ancestral narrative anchors, future/sibling rejection,
+empty/gap fallbacks, open-tail extension, fork-before/after behavior, incomplete
+private drafts, save closure/remapping and shared PublicationDocument grouping.
+Large automatic layouts must retain book behavior above adopted-record limits.
+Frozen documents retain previous headings. Empty plans never manufacture prose.
+
+Browser journeys use a synthetic five-passage garden save created with injected
+responses, never paid provider calls. Exercise splits/volume assignment/preview,
+short keyboard viewport, exports, private draft reload/Lock, read-only historical
+outlines, restore preview and Back during a delayed load. Keep real Android/IME/
+rotation and literary/deployment acceptance separate. Run full backend/frontend,
+desktop/mobile E2E and all four dependency audits; require all five exact-head CI
+checks before main merge. Source manuals and continuation state go on main. PDFs
+remain deferred until final recovery completion.
+
+
+
 ## B3 verification and documentation policy
 
 Read recovery/B3-DELIVERY.md and CONTINUATION.md. Storage is schema 25; public

@@ -35,7 +35,7 @@ export async function csrfToken(page) {
   });
 }
 
-async function writerSessionId(page) {
+export async function writerSessionId(page) {
   return page.evaluate(() => {
     const key = 'im-writer-session-v1';
     let value = window.sessionStorage.getItem(key);

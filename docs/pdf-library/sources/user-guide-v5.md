@@ -8,11 +8,47 @@
 
 </div>
 
+## Recovery B4: chapters and volumes
+
+Open Chronicle to browse the chapter outline at a selected path/moment. Chapter
+opening links return to the existing reader. Outline pages and passage choices
+load 80 at a time. Historical layouts are read-only; return to the active path
+before using **Organize chapters & volumes**.
+
+The initial chapter layout follows episodes automatically. Saving your first
+custom layout adopts it for this path. Rename chapters/volumes, split after a
+passage, assign a chapter to a volume, or start a new tail chapter/volume. Preview
+before saving. Boundaries keep reading order: chapters cannot overlap or reorder
+passages. A scene can cross chapter boundaries and an episode need not be a chapter.
+
+The last chapter is an open tail and receives future prose. Starting another
+chapter closes that tail at the current last passage and creates an empty future
+chapter. Empty plans create no prose; books omit them. Removing a grouping never
+removes prose: uncovered ranges appear as **Unassigned passages**. Remove a volume
+only after its chapters have been reassigned or removed. A custom layout can have
+up to 64 volumes and 512 chapters within its 64 KiB record limit. Larger automatic
+layouts remain readable/exportable; the editor explains its adoption limit.
+
+Use Save private layout draft now, Copy or earlier-proposal recovery for unfinished
+work. A stale destination requires reopening and comparing at latest. After an
+uncertain save, inspect the previous layout-change receipt before trying another
+change. Saving a private draft does not adopt its layout. Lock clears the private
+editor. Explore/Rewind use one path-creation task with a restore preview, keeping
+the original future. A fork sees only the layout applicable at its chosen moment.
+
+All nine book formats use the active path's saved chapter/volume layout and original
+prose/placed images. A later build uses newer headings; an existing download stays
+unchanged. Playable saves keep layouts and every branch; paid authority/drafts stay
+private to the installation. Prose wording editing remains disabled. This source is
+current through B4/schema 26; PDF regeneration remains deferred until final recovery.
+
+
+
 ## Recovery B3: creative work without losing the story
 
 The running app remains 5.0.0. The six PDF files still show the verified B2 edition:
 PDF regeneration is deferred until the final recovery package; these source
-instructions describe B3.
+instructions describe B4.
 
 In the Visual Library, **Develop with AI** prepares a separate candidate. Review
 seed, current fields and candidate; fields edited during the request start

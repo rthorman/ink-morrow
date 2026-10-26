@@ -7,6 +7,8 @@ const sharp = require('sharp');
 const { assertTechnicalInput } = require('../imagery/art-store');
 const { keys, fail } = require('./model');
 const {validateCreativeSave}=require('./creative-save');
+const {validateEditorialSave}=require('./editorial-save');
+const {remapLayout}=require('./editorial-model');
 const {validateSave:validateV1}=require('./save-v1/validate');
 const {validateEvidence}=require('./evidence');
 
@@ -23,11 +25,12 @@ const record = (value, fields, label) => {
 // Validation never writes. Import always creates a new story and new media IDs.
 function validateSave(value) {
   if (value?.version===1) return validateV1(value);
-  record(value,['format','version','game','branches','beats','assets','spend','evidence',...(Object.hasOwn(value,'creative')?['creative']:[])],'Save');
+  record(value,['format','version','game','branches','beats','assets','spend','evidence',...(Object.hasOwn(value,'creative')?['creative']:[]),...(Object.hasOwn(value,'editorial')?['editorial']:[])],'Save');
   if(value.version!==2) fail('Unsupported playable-save version.','SAVE_VERSION_UNSUPPORTED');
   if(!Array.isArray(value.evidence)||value.evidence.length>120000)fail('Invalid evidence collection.','INVALID_SAVE');
-  const baseline={...value,version:1};delete baseline.evidence;
-  const result=Object.hasOwn(value,'creative')?validateCreativeSave(value,validateV1):validateV1(baseline);
+  const checked=Object.hasOwn(value,'editorial')?validateEditorialSave(value):value;
+  const baseline={...checked,version:1};delete baseline.evidence;
+  const result=Object.hasOwn(value,'creative')?validateCreativeSave(checked,validateV1):validateV1(baseline);
   if(!Array.isArray(value.evidence)||value.evidence.length>120000) fail('Invalid evidence collection.','INVALID_SAVE');
   const seen=new Set();
   for(const evidence of value.evidence) {
@@ -45,7 +48,8 @@ function createFictionSaves({ db, store, media }) {
     const size = db.prepare('SELECT count(*) AS n, coalesce(sum(length(CAST(prose AS BLOB))+length(CAST(summary AS BLOB))+length(CAST(input_json AS BLOB))+length(CAST(state_json AS BLOB))+length(CAST(changes_json AS BLOB))), 0) AS nbytes FROM fiction_beats WHERE game_id = ?').get(id);
     const imageSize = db.prepare('SELECT coalesce(sum(byte_size), 0) AS n FROM fiction_assets WHERE game_id = ?').get(id).n;
     const extraBytes=store.creativeRecords?db.prepare('SELECT (SELECT coalesce(sum(length(CAST(value_json AS BLOB))),0) FROM fiction_config_revisions WHERE game_id=?)+(SELECT coalesce(sum(length(CAST(value_json AS BLOB))+length(CAST(bindings_json AS BLOB))),0) FROM fiction_reference_revisions WHERE game_id=?)+(SELECT coalesce(sum(length(CAST(manifest_json AS BLOB))),0) FROM fiction_narrative_assemblies WHERE beat_id IN (SELECT id FROM fiction_beats WHERE game_id=?))+(SELECT coalesce(sum(length(CAST(quote AS BLOB))+64),0) FROM fiction_effect_evidence WHERE game_id=?) AS n').get(id,id,id,id).n:0;
-    if (size.n > 10000 || size.nbytes + Math.ceil(imageSize*4/3) + extraBytes > MAX_EXPANDED) fail('This story exceeds the portable save limit (10,000 moments / 128 MB expanded).', 'SAVE_TOO_LARGE', 413);
+    const editorialBytes=db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'").get()?db.prepare('SELECT coalesce(sum(length(CAST(value_json AS BLOB))),0) AS n FROM fiction_editorial_revisions WHERE game_id=?').get(id).n:0;
+    if (size.n > 10000 || size.nbytes + Math.ceil(imageSize*4/3) + extraBytes + editorialBytes > MAX_EXPANDED) fail('This story exceeds the portable save limit (10,000 moments / 128 MB expanded).', 'SAVE_TOO_LARGE', 413);
     const value = { format: SAVE_FORMAT, version: 2,
       game: { id, title: g.title, premise: g.premise, genre: g.genre, initial_state: JSON.parse(g.initial_state_json), active_branch_id: g.active_branch_id },
       branches: db.prepare('SELECT id, name, parent_branch_id, fork_beat_id, head_beat_id FROM fiction_branches WHERE game_id = ? ORDER BY rowid').all(id),
@@ -61,6 +65,7 @@ function createFictionSaves({ db, store, media }) {
       const assemblies=db.prepare('SELECT beat_id,manifest_json FROM fiction_narrative_assemblies WHERE beat_id IN (SELECT id FROM fiction_beats WHERE game_id=?)').all(id);
       value.creative={version:1,configurations:configs.map(({value_json,...row})=>({...row,value:JSON.parse(value_json)})),references:refs.map(({subject_kind,value_json,source_json,bindings_json,...row})=>({...row,kind:subject_kind,value:JSON.parse(value_json),source:source_json?JSON.parse(source_json):null,binding_fact_ids:JSON.parse(bindings_json)})),assemblies:assemblies.map(row=>({beat_id:row.beat_id,manifest:JSON.parse(row.manifest_json)}))};
     }
+    if(store.editorialValue&&db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'").get())value.editorial={version:1,revisions:db.prepare('SELECT id,parent_id,beat_id,value_json FROM fiction_editorial_revisions WHERE game_id=? ORDER BY rowid').all(id).map(({value_json,...row})=>({...row,value:JSON.parse(value_json)}))};
     const json = Buffer.from(JSON.stringify(value));
     if (json.length > MAX_EXPANDED) fail('This save exceeds the 128 MB expanded limit.', 'SAVE_TOO_LARGE', 413);
     const buffer = await pack(json);
@@ -103,12 +108,13 @@ function createFictionSaves({ db, store, media }) {
      const gameId = randomUUID(); const staged = [];
     const branchIds = new Map(value.branches.map((row) => [row.id, randomUUID()]));
     const beatIds = new Map(value.beats.map((row) => [row.id, randomUUID()])); const assetIds = new Map();
+    const editorialIds=new Map((value.editorial?.revisions||[]).map(row=>[row.id,randomUUID()]));
     const configIds=new Map((value.creative?.configurations||[]).map(row=>[row.id,randomUUID()]));
     const referenceIds=new Map((value.creative?.references||[]).map(row=>[row.id,randomUUID()]));
     const remapConfig=value=>({...value,...(value.scene_plan?{scene_plan:{...value.scene_plan,id:configIds.get(value.scene_plan.id)}}:{})});
     const beatRef = (id) => id === null ? null : beatIds.get(id);
     const remapFact = (fact) => ({ ...fact, evidence_beat_id: beatRef(fact.evidence_beat_id) });
-    const remapState = (state) => ({ ...state,...(state.version===2?{config_revision_id:state.config_revision_id===null?null:configIds.get(state.config_revision_id),reference_heads:Object.fromEntries(Object.entries(state.reference_heads).map(([key,id])=>[key,referenceIds.get(id)])),consumed_scene_plan_id:state.consumed_scene_plan_id===null?null:configIds.get(state.consumed_scene_plan_id),...(state.scene_frame?{scene_frame:{...state.scene_frame,beat_id:beatRef(state.scene_frame.beat_id)}}:{})}:{}), facts: state.facts.map(remapFact),
+    const remapState = (state) => ({ ...state,...(Object.hasOwn(state,'editorial_revision_id')?{editorial_revision_id:state.editorial_revision_id===null?null:editorialIds.get(state.editorial_revision_id)}:{}),...(state.version===2?{config_revision_id:state.config_revision_id===null?null:configIds.get(state.config_revision_id),reference_heads:Object.fromEntries(Object.entries(state.reference_heads).map(([key,id])=>[key,referenceIds.get(id)])),consumed_scene_plan_id:state.consumed_scene_plan_id===null?null:configIds.get(state.consumed_scene_plan_id),...(state.scene_frame?{scene_frame:{...state.scene_frame,beat_id:beatRef(state.scene_frame.beat_id)}}:{})}:{}), facts: state.facts.map(remapFact),
       ...(state.visuals ? { visuals: state.visuals.map((item) => ({ ...item, asset_id: assetIds.get(item.asset_id) })) } : {}),
       episode: { ...state.episode, ...(Object.hasOwn(state.episode, 'payoff_beat_id') ? { payoff_beat_id: beatRef(state.episode.payoff_beat_id) } : {}) },
       ...(state.adjudications ? { adjudications: state.adjudications.map((entry) => ({ ...entry, beat_id: beatRef(entry.beat_id) })) } : {}),
@@ -137,6 +143,7 @@ function createFictionSaves({ db, store, media }) {
         for(const e of value.evidence||[]) db.prepare('INSERT INTO fiction_effect_evidence(game_id,beat_id,change_index,source_kind,source_beat_id,source_field,quote,sha256,visibility) VALUES(?,?,?,?,?,?,?,?,?)').run(gameId,beatRef(e.beat_id),e.change_index,e.source_kind,beatRef(e.source_beat_id),e.source_field,e.quote,e.sha256,e.visibility);
         for(const row of value.creative?.configurations||[])db.prepare('INSERT INTO fiction_config_revisions(id,game_id,parent_id,beat_id,value_json,public_change) VALUES(?,?,?,?,?,?)').run(configIds.get(row.id),gameId,row.parent_id===null?null:configIds.get(row.parent_id),beatRef(row.beat_id),JSON.stringify(remapConfig(row.value)),row.public_change);
         for(const row of value.creative?.references||[])db.prepare('INSERT INTO fiction_reference_revisions(id,game_id,subject_kind,subject_id,parent_id,beat_id,value_json,source_json,bindings_json,public_change) VALUES(?,?,?,?,?,?,?,?,?,?)').run(referenceIds.get(row.id),gameId,row.kind,row.subject_id,row.parent_id===null?null:referenceIds.get(row.parent_id),beatRef(row.beat_id),JSON.stringify(row.value),row.source?JSON.stringify(row.source):null,JSON.stringify(row.binding_fact_ids),row.public_change);
+        for(const row of value.editorial?.revisions||[])db.prepare('INSERT INTO fiction_editorial_revisions(id,game_id,parent_id,beat_id,value_json) VALUES(?,?,?,?,?)').run(editorialIds.get(row.id),gameId,row.parent_id===null?null:editorialIds.get(row.parent_id),beatRef(row.beat_id),JSON.stringify(remapLayout(row.value,beatRef)));
         for(const row of value.creative?.assemblies||[])db.prepare('INSERT INTO fiction_narrative_assemblies(beat_id,manifest_json) VALUES(?,?)').run(beatRef(row.beat_id),JSON.stringify(row.manifest));
         if(value.creative)store.creativeRecords.reindex(gameId);
         // Carry accounting, not request keys, provider configuration or authority.

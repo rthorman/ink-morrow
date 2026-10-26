@@ -14,6 +14,13 @@ function createCreativeCollections({
   memory,
   view,
 }) {
+  const hasEditorial = Boolean(
+    db
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'",
+      )
+      .get(),
+  );
   const revision = (table, game, id) =>
     db
       .prepare(`SELECT * FROM ${table} WHERE game_id=? AND id=?`)
@@ -166,10 +173,17 @@ function createCreativeCollections({
         );
       const count = db
         .prepare(
-          'SELECT (SELECT count(*) FROM fiction_config_revisions WHERE game_id=?)+(SELECT count(*) FROM fiction_reference_revisions WHERE game_id=?) AS n',
+          'SELECT (SELECT count(*) FROM fiction_config_revisions WHERE game_id=?)+(SELECT count(*) FROM fiction_reference_revisions WHERE game_id=?)' +
+            (hasEditorial
+              ? '+(SELECT count(*) FROM fiction_editorial_revisions WHERE game_id=?)'
+              : '') +
+            ' AS n',
         )
-        .get(game, game).n;
-      if (['configuration', 'reference'].includes(kind) && count >= 10000)
+        .get(...(hasEditorial ? [game, game, game] : [game, game])).n;
+      if (
+        ['configuration', 'reference', 'editorial'].includes(kind) &&
+        count >= 10000
+      )
         fail(
           'This story reached the 10,000 creative-revision limit.',
           'CREATIVE_LIMIT',
@@ -459,6 +473,19 @@ function createCreativeCollections({
     });
   }
   function afterAppend(game, beatId) {
+    if (
+      hasEditorial &&
+      db
+        .prepare(
+          'SELECT 1 FROM fiction_editorial_revisions WHERE game_id=? AND beat_id=?',
+        )
+        .get(game, beatId)
+    ) {
+      db.prepare(
+        'UPDATE fiction_history_index SET reader_visible=1 WHERE beat_id=?',
+      ).run(beatId);
+      return;
+    }
     const publicChange = db
       .prepare(
         'SELECT public_change FROM fiction_config_revisions WHERE game_id=? AND beat_id=? UNION ALL SELECT public_change FROM fiction_reference_revisions WHERE game_id=? AND beat_id=?',
@@ -687,6 +714,7 @@ function createCreativeCollections({
     };
   }
   return {
+    command,
     config,
     reference,
     upgrade,

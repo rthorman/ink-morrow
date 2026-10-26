@@ -83,3 +83,11 @@ known before a narration purchase; isolated tests explicitly declare synthetic
 limits. Keep all five checks green on the exact PR head before main merge.
 The stakeholder deferred PDF regeneration until the last recovery package; update
 all affected source manuals now and retain the existing PDF integrity check.
+
+
+B4 appends schema 26 for immutable editorial layouts; read
+[B4 delivery](docs/recovery/B4-DELIVERY.md). Do not edit migrations 24/25 or frozen
+save-v1 modules. Editorial grouping changes neither prose nor canonical events.
+Preserve virtual episode layout before adoption, branch-local anchors, open-tail
+semantics, exact-source saves and all four full dependency audits. D1 prose editing
+remains disabled. Source manuals stay current and PDFs remain deferred.

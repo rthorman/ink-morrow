@@ -16,6 +16,7 @@ const { createEvidence } = require('./evidence');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
+  const hasEditorial=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'").get());
   const hasCreative=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_config_revisions'").get());
   const hasEvidence = Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_effect_evidence'").get());
   const evidenceRecords = hasEvidence ? createEvidence(db) : null;
@@ -102,6 +103,7 @@ function createFictionStore(db) {
     let id=at?.is_narrative?headId:at?.previous_narrative_id;const rows=[];
     while(id&&rows.length<Math.min(12,limit)){rows.push(beat(gameId,id));id=db.prepare('SELECT previous_narrative_id FROM fiction_history_index WHERE beat_id=?').get(id).previous_narrative_id;}return rows.reverse();
   }
+  function editorialValue(game,state,rows,title){const model=require('./editorial-model');if(!state.editorial_revision_id)return {virtual:true,revision_id:null,...model.resolve(model.defaultLayout(rows,title),rows,{virtual:true})};const row=db.prepare('SELECT value_json FROM fiction_editorial_revisions WHERE game_id=? AND id=?').get(game,state.editorial_revision_id);if(!row)fail('Editorial revision not found.','EDITORIAL_MISSING',404);return {virtual:false,revision_id:state.editorial_revision_id,...model.resolve(JSON.parse(row.value_json),rows)};}
   function publicationRows(gameId, headId) {
     const cte = `WITH RECURSIVE path(id, parent_id, depth) AS (
       SELECT id, parent_id, 0 FROM fiction_beats WHERE id = ? AND game_id = ?
@@ -397,7 +399,7 @@ function createFictionStore(db) {
     ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
   const creativeRecords=hasCreative?createCreativeCollections({db,current,transaction,assertRevision,assertIdle,append,isAncestor,memory,view}):null;
   function effectiveState(id,state){return creativeRecords?creativeRecords.effective(id,state):state;}
-  return { creativeRecords,upgradeState:(id,state,newStory=false)=>creativeRecords?creativeRecords.upgrade(id,state,newStory):state,effectiveState,narrativeRows,create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
+  return { hasEditorial, editorialValue, creativeRecords,upgradeState:(id,state,newStory=false)=>creativeRecords?creativeRecords.upgrade(id,state,newStory):state,effectiveState,narrativeRows,create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
 }
 
 module.exports = { createFictionStore };

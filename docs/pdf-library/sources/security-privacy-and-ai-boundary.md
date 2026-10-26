@@ -6,6 +6,31 @@ InkMorrow is private-by-default self-hosted software for one owner. This book di
 
 </div>
 
+## B4 editorial authority boundary
+
+Chapter/volume organization is local, versioned presentation metadata. It performs
+no provider call, establishes no fictional event and grants no wording-editing
+permission. Ordinary outlines expose headings/ranges at a selected ancestry; drafts
+remain explicit authenticated owner work. New commands require the actual active
+path/head, current story revision and expected layout base. Historical browsing
+cannot silently become the mutation destination.
+
+Stable anchors must already be narrative passages on the producing history. Strict
+save validation rejects sibling/future/local anchors, unknown fields, duplicate or
+shared producers, invalid parent chains, canonical effects on editorial records
+and snapshot heads changed without a producing revision. A temporary validation
+projection preserves original evidence and frozen-v1 contracts. Layout revisions
+travel in private saves; draft keys, receipts and paid authority do not.
+
+The editor preserves private draft conflicts and uncertain local-action receipts.
+Close/Back/room changes/Lock fence abandoned callbacks; incomplete offline edits
+are not called server saved. Book formats consume the same effective grouping and
+original prose/placed images; empty plans add no synthetic paragraphs. D1 wording
+editing, D2 conversion and D3 image conditioning remain disabled pending separate
+decisions. Source manuals cover B4/schema 26; PDF regeneration stays deferred.
+
+
+
 ## B3 private creative data and bounded narration
 
 World lore, character motives/background, Scribe craft, creative free text, scene

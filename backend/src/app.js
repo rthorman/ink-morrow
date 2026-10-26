@@ -133,6 +133,8 @@ function createApp(
   app.use(createWorkspaceRouter({db,store:fictionStore,queries:workspaceQueries,drafts:ownerDrafts}));
   app.use(createFictionLibraryRouter({ library: fictionLibrary, media: fictionMedia, drafts:ownerDrafts }));
   app.use(createCreativeRouter({store:fictionStore,providers}));
+  const editorial=require('./modules/fiction/editorial').createEditorial({db,store:fictionStore,queries:workspaceQueries,providers});
+  app.use(editorial.router);
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 

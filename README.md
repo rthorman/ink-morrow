@@ -21,17 +21,17 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
-Recovery B3 adds full story-local creative studios, selected-field AI comparisons,
-explicit perspective and passage length, typed campaign records, conditional Say
-and preflighted narration budgets. Historical inspection and private recovery
-remain available. The application stays 5.0.0, now schema 25; playable-save v2
-retains frozen v1 import. See [delivery and continuation](docs/recovery/B3-DELIVERY.md).
-Manual sources stay current; PDF regeneration is deferred until the final recovery package.
+Recovery B4 adds chapter/volume organization, historical outlines, restore previews
+and layout-aware books/saves. Creative studios, independent length/pacing, typed
+campaign records and bounded narration remain. The application stays 5.0.0,
+now schema 26; playable-save v2 retains earlier saves and frozen v1 import.
+See [B4 delivery](docs/recovery/B4-DELIVERY.md) and the continuation checkpoint.
+Manual sources stay current; PDFs remain deferred until the final recovery package.
 
 ## Recovery planning
 
 The proposed recovery uses the final Version 4.1 experience as its historical
-reference while retaining Version 5's playable-fiction model. B1–B3 are implemented; B4 and later recovery batches remain planned. See the [planning index](docs/recovery/README.md),
+reference while retaining Version 5's playable-fiction model. B1–B4 are implemented; B5 and later recovery batches remain planned. See the [planning index](docs/recovery/README.md),
 [implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
 [continuation state](docs/recovery/CONTINUATION.md).
 

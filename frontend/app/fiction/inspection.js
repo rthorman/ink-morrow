@@ -1,7 +1,7 @@
 import { el, button, field, option } from './dom.js';
 import { workspaceUrl } from './workspace-state.js';
 
-export function createInspection({ api, dialogs, getCurrent, activate }) {
+export function createInspection({ api, dialogs, getCurrent, activate,getReadingBeat=()=>null,explore=null }) {
   const $ = (id) => document.getElementById(id);
   let serial = 0;
   let owner = null;
@@ -174,10 +174,11 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
             const card = el('article', '', 'workspace-history-card');
             card.dataset.beatId = record.id;
             card.append(
-              el('p', record.is_narrative ? `Passage ${record.narrative_ordinal}` : record.kind, 'eyebrow'),
+              el('p', record.is_narrative ? `Passage ${record.narrative_ordinal}` : record.record_type==='editorial'?'Editorial organization':record.kind, 'eyebrow'),
               el('h3', record.summary),
               el('p', record.excerpt)
             );
+            if(record.id===getReadingBeat())card.append(el('p','Your reading cursor','workspace-scope-note'));if(record.id===story.head_beat_id)card.append(el('p','Latest action moment','workspace-scope-note'));for(const path of story.branches.filter(path=>path.fork_beat_id===record.id))card.append(el('p',`Path branches here: ${path.name}`,'fiction-muted'));
             card.append(
               button('Inspect state here', () => navigate('codex', { at: record.id, planning: null })),
               button('Recorded evidence', () => evidence(record.id, context))
@@ -186,6 +187,7 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
               card.append(
                 button('Read this passage', () => navigate('desk', { page: record.id, at: query.get('at') }))
               );
+            if(explore&&data.view_branch_id===story.active_branch_id)card.append(button('Explore from this moment',()=>explore(record)));
             history.append(card);
           }
           if (data.next_cursor) {
@@ -204,6 +206,10 @@ export function createInspection({ api, dialogs, getCurrent, activate }) {
           if (!data.entries.length) history.append(el('p', 'No reader-visible records at this moment.'));
         };
         await load(null);
+        const outline=root('workspaceEditorial','workspaceChronicle',true);outline.replaceChildren(el('p','Opening chapter outline…'));
+        const loadOutline=async(offset=null,boundary=null)=>{const q=new URLSearchParams(context);q.set('outline','1');if(offset!==null)q.set('offset',offset);if(boundary){q.set('branch_id',boundary.view_branch_id);q.set('inspection_at',boundary.inspection_head_id||'initial');}const editorial=await api(`/fiction/${story.id}/editorial?${q}`);if(!live())return;if(offset===null)outline.replaceChildren(el('p',editorial.virtual?'Automatic episode-based layout.':'Saved layout at the inspected moment.'));let previousVolume=null;for(const chapter of editorial.groups){if(chapter.volume_id!==previousVolume){outline.append(el('h3',editorial.volumes.find(volume=>volume.id===chapter.volume_id)?.title||'Volume'));previousVolume=chapter.volume_id;}const card=el('article','','fiction-detail-card');card.append(el('h4',chapter.title),el('p',`${chapter.count?`Passages ${chapter.start+1}–${chapter.end+1}`:'Empty planned chapter'}${chapter.open_tail?' · open tail':''}${chapter.automatic?' · automatic fallback':''}`));if(chapter.first_beat_id)card.append(button('Read chapter opening',()=>navigate('desk',{page:chapter.first_beat_id,at:query.get('at')})));outline.append(card);}if(editorial.next_offset!==null){const more=button('More chapter groups',async()=>{more.disabled=true;try{await loadOutline(editorial.next_offset,editorial);more.remove();}catch(error){more.disabled=false;outline.append(el('p',error.message));}});outline.append(more);}};
+        await loadOutline();
+        $('fictionEditorial').hidden=inspected;
       }
       if (room === 'codex') {
         if (inspected)

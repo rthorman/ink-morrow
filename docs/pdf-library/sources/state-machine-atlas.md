@@ -6,6 +6,31 @@ Read each entry as trigger, guard, transition, persistence and failure consequen
 
 </div>
 
+## B4 editorial transitions
+
+Virtual episode layout → private proposal → free range/target preview → acknowledged
+command identity → immutable layout revision + local bookkeeping beat + receipt.
+Failure preserves the proposal. Stale target/base requires comparison; unknown
+submission requires receipt inspection or an undispatched fence. Editing a private
+heading may be incomplete; a published layout must be complete and valid.
+
+A closed chapter covers passages after one anchor through another. The final open
+tail resolves through the selected head and receives future prose. Splitting keeps
+chronology. Starting another chapter closes the previous tail and creates an empty
+future tail. Removing a grouping yields explicit fallback ranges, never removed
+prose. Empty plans are omitted from book output without creating narrative records.
+Volume assignment follows volume order; overlapping/future/non-narrative anchors
+fail. These operations change no scene circumstance, knowledge or episode ending.
+
+Fork before adoption → virtual layout; fork after adoption → applicable revision
+with tail limited to that fork's head. A sibling's future cannot enter the range.
+Historical outline inspection is read-only and pages pin their original boundary.
+Save-copy validates/remaps all revision/anchor/producer pointers. A returned book
+keeps earlier headings; a later build resolves newer layout. Prose editing remains
+separately gated. Current storage is schema 26; PDFs remain deferred.
+
+
+
 ## B3 creative, speech and ending transitions
 
 A private creative form moves through local edit → acknowledged draft → reviewed
