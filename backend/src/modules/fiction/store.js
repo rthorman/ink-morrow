@@ -76,10 +76,11 @@ function createFictionStore(db) {
       pending: Boolean(db.prepare("SELECT id FROM fiction_requests WHERE game_id = ? AND status = 'pending'").get(id)),
       spend: db.prepare(`WITH charges AS (
         SELECT cost_usd, billed_attempts FROM fiction_requests r WHERE r.game_id = ? AND NOT EXISTS (SELECT 1 FROM fiction_calls c WHERE c.request_id = r.id)
+        ${db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get() ? 'UNION ALL SELECT cost_usd,billed_attempts FROM fiction_art_jobs WHERE game_id = ?' : ''}
         UNION ALL SELECT c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id WHERE r.game_id = ?
       ) SELECT coalesce(sum(cost_usd), 0) AS known_usd,
         coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts
-        FROM charges`).get(id, id),
+        FROM charges`).get(...(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get()?[id,id,id]:[id,id])),
       recent_calls: db.prepare(`SELECT c.role, c.purpose, c.model, c.status, c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
         WHERE r.game_id = ? ORDER BY c.rowid DESC LIMIT 12`).all(id),
       pending_stage: db.prepare(`SELECT c.role, c.purpose, c.call_index FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
@@ -291,7 +292,6 @@ function createFictionStore(db) {
     const target = beat(id, beatId);
     if (!['opening', 'scene'].includes(target.kind)) fail('Illustrate a story passage, not a control or clarification.');
     if ((context.state.illustrations || []).filter((entry) => entry.beat_id !== beatId).length >= 200) fail('A path supports at most 200 illustrated moments.');
-    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
     return target;
   }
   function insertAsset(id, asset) {
@@ -301,7 +301,6 @@ function createFictionStore(db) {
   }
   function referenceTarget(id, kind, subjectId = null) {
     const context = current(id);const state=effectiveState(id,context.state);visualTarget(state, kind, subjectId);
-    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
     if (kind === 'cover') return { kind, name: context.game.title, description: context.game.premise, data: {} };
     if (kind === 'character') {
       const person = state.cast.find((entry) => entry.id === subjectId);
@@ -314,7 +313,8 @@ function createFictionStore(db) {
     const alt = text(alt_text, 'Image description', 1000);
     const result = (context) => {
       const validation=effectiveState(id,context.state);const target = visualTarget(validation, kind, subject_id); const state = structuredClone(context.state);
-      insertAsset(id, asset);
+      const retained=db.prepare('SELECT id FROM fiction_assets WHERE id=? AND game_id=?').get(asset.id,id);
+      if(!retained) insertAsset(id, asset);
       state.visuals = [...(state.visuals || []).filter((item) => visualTarget(validation, item.kind, item.subject_id) !== target), { kind, subject_id, asset_id: asset.id, alt_text: alt }];
       return { kind: 'correction', summary: `The story’s ${kind} image was updated.`, state };
     };
@@ -339,8 +339,9 @@ function createFictionStore(db) {
       const state = structuredClone(context.state);
       const placements = (state.illustrations || []).filter((entry) => entry.beat_id !== beat_id);
       if (placements.length >= 200) fail('A path supports at most 200 illustrated moments.');
-      if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
-      db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      const retained=db.prepare('SELECT id FROM fiction_assets WHERE id=? AND game_id=?').get(asset.id,id);
+      if (!retained && db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+      if(!retained) db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
         .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
       state.illustrations = [...placements, { beat_id, asset_id: asset.id, alt_text: alt, caption: label }];
       return { kind: 'correction', summary: 'An illustration was added above a story passage.', state };

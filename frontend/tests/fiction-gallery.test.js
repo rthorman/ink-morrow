@@ -1,0 +1,11 @@
+import {jest} from '@jest/globals';
+import {createGallery} from '../app/fiction/gallery.js';
+const tick=()=>new Promise(resolve=>setTimeout(resolve,0));
+describe('retained Gallery UI authority',()=>{
+ let current,api,dialogs,localAction,root,gallery;
+ const image={id:'retained',alt_text:'A garden',provenance:'upload',thumbnail_url:'/thumbnail',image_url:'/image',placements:[]};
+ beforeEach(()=>{document.body.innerHTML='<section id="workspaceImages"></section>';root=document.getElementById('workspaceImages');current={id:'story',revision:1,active_branch_id:'path',head_beat_id:'opening',state:{cast:[],library:{},visuals:[],illustrations:[]}};api=jest.fn(async route=>route.includes('/assets/retained')?{retained_uses:[],placements:[]}:{assets:[image],inventory_revision:1,next_offset:null});dialogs={openDialog:jest.fn(spec=>{for(const child of spec.body)document.body.append(child);})};localAction=jest.fn().mockResolvedValue({ok:true});gallery=createGallery({api,dialogs,getCurrent:()=>current,localAction,illustrate:jest.fn()});});
+ test('lazy thumbnails and ready unplaced status do not start a purchase',async()=>{gallery.render(current,root);await tick();expect(root.textContent).toContain('Retained; not placed');expect(root.querySelector('img').loading).toBe('lazy');expect(api.mock.calls.every(([,method])=>!method)).toBe(true);expect(localAction).not.toHaveBeenCalled();});
+ test('a changed path requires another placement preview',async()=>{gallery.render(current,root);await tick();[...root.querySelectorAll('button')].find(node=>node.textContent==='Preview and place').click();await tick();current={...current,revision:2,active_branch_id:'different'};const spec=dialogs.openDialog.mock.calls.at(-1)[0];await spec.actions.find(action=>action.label==='Place on current path').onClick(jest.fn());expect(localAction).not.toHaveBeenCalled();expect(document.body.textContent).toContain('The path changed. Reopen this preview');});
+ test('Lock fences an outstanding inventory response',async()=>{let resolve;api.mockImplementation(()=>new Promise(done=>{resolve=done;}));gallery.render(current,root);gallery.clear();current=null;root.replaceChildren();resolve({assets:[image],inventory_revision:1,next_offset:null});await tick();expect(root.textContent).toBe('');expect(root.querySelector('img')).toBeNull();});
+});

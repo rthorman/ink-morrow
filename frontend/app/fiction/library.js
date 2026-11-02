@@ -1,3 +1,4 @@
+import {bundleControls} from './reference-bundles.js';
 import {fieldComparison} from './field-comparison.js';
 import { createPrivateDraft } from './private-drafts.js';
 import { apiFetch } from '../core/api.js';
@@ -41,7 +42,7 @@ export function createVisualLibrary({ api, dialogs,onUseInSetup=null }) {
       const [info, data] = await Promise.all([api('/fiction/catalog/metadata'), api(`/fiction/catalog?kind=${kind}&offset=${offset}`)]);
       if (!active()) return;
       metadata = info; next = data.next_offset ?? null;
-      const root = $('catalogEntries'); root.replaceChildren();
+      const root = $('catalogEntries'); root.replaceChildren(bundleControls({dialogs,entries:data.entries||[],refresh,live:active}));
       for (const entry of data.entries || []) {
         const card = el('article', '', `fiction-card fiction-catalog-card fiction-catalog-card--${entry.kind}`);
         const visual = el('div', '', 'fiction-catalog-card__visual');

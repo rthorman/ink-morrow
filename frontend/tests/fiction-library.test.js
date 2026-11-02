@@ -90,7 +90,7 @@ describe('visual Library and story images', () => {
     else [...document.querySelectorAll('#fictionReferences article')].find((node) => node.textContent.includes(`My ${kind}`)).querySelector('button').click();
     const spec = dialogs.openDialog.mock.calls.at(-1)[0]; expect(spec.title).toBe(`Story ${kind} image`);
     await spec.actions.find((action) => action.label === 'Paint with AI').onClick(jest.fn());
-    expect(api).toHaveBeenCalledWith('/fiction/story-id/images/generate', 'POST', expect.objectContaining({ expected_revision: 1, input: expect.objectContaining({ kind, subject_id: kind === 'character' ? 'character-id' : null, provider_id: 'images', model: 'image-model' }) }));
+    expect(api).toHaveBeenCalledWith('/fiction/story-id/assets/paint', 'POST', expect.objectContaining({ expected_revision: 1, input: expect.objectContaining({ kind, subject_id: kind === 'character' ? 'character-id' : null, provider_id: 'images', model: 'image-model' }) }));
     expect(dialogs.confirmPaid).toHaveBeenCalledTimes(1);
   });
   test('late catalogue reads cannot refill private content after lock', async () => {

@@ -1,8 +1,8 @@
 # Project memory
 
-## Recovery planning and continuation (26 October 2026)
+## Recovery planning and continuation (2 November 2026)
 
-- Latest stakeholder direction: B4 is authorized. Keep source guides, delivery records and continuation state current; defer PDF regeneration until the last recovery work package. `docs/pdf-library/update-policy.json` records this deferral; existing PDF integrity remains checked. Remove the deferral and regenerate all six PDFs at final completion.
+- Latest stakeholder direction (2 November): complete remaining development. B5–B7 and final recovery documentation/checks are authorized; D1/D2/D3 remain separately gated. B5 is in implementation/verification on `recovery/b5-visual-collection`; do not call it delivered until main merge. Keep source guides, delivery records and continuation state current; defer PDF regeneration until the last recovery work package. `docs/pdf-library/update-policy.json` records this deferral; existing PDF integrity remains checked. Remove the deferral and regenerate all six PDFs at final completion.
 
 - Current recovery plan: [guide 1.1](docs/recovery/IMPLEMENTATION-GUIDE.md); resume through [continuation state](docs/recovery/CONTINUATION.md). These documents describe proposed work, not an implemented release.
 - The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
@@ -38,7 +38,7 @@
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 26, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 27, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;
