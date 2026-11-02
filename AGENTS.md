@@ -1,5 +1,15 @@
 # Project memory
 
+## Current scope — no backward compatibility (2 November 2026)
+
+The owner explicitly clarified that backward compatibility is not needed. Current
+InkMorrow runtime and formats are the development target; supporting retired
+runtimes, old save formats or earlier APIs is no longer an acceptance requirement.
+Do not add compatibility layers or expand development to preserve them. This does
+not authorize deleting owner files/data or rewriting integrated migration history;
+retain safe storage boundaries and historical records. Existing compatibility
+checks may remain historical tests, not a mandate for new product behavior.
+
 ## Development resumed — 2 November 2026
 
 The owner explicitly resumed development after the saved pause. Continue B6/B7,

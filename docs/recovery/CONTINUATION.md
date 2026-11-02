@@ -1,5 +1,15 @@
 # Development resumed — 2 November 2026
 
+## Current scope — no backward compatibility (2 November 2026)
+
+The owner explicitly clarified that backward compatibility is not needed. Current
+InkMorrow runtime and formats are the development target; supporting retired
+runtimes, old save formats or earlier APIs is no longer an acceptance requirement.
+Do not add compatibility layers or expand development to preserve them. This does
+not authorize deleting owner files/data or rewriting integrated migration history;
+retain safe storage boundaries and historical records. Existing compatibility
+checks may remain historical tests, not a mandate for new product behavior.
+
 Canonical main is `5842623e5e6ac4735a3b370559891e0922d211b8`: B6 listening
 merged through PR #114 after all five checks passed on exact head `61e97b1`.
 B7 finishing is active on `recovery/b7-finishing`. It adds schema 29 frozen book
