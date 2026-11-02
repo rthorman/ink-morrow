@@ -38,14 +38,13 @@ merely to satisfy local testing when CI can provide it.
 
 ## Pull requests and documentation
 
-Use substantial, coherent feature batches targeting release/5.0.0.
+Branch from current `main` and target `main` with coherent changes.
 Explain the user outcome, changed contract, verification and limits.
 Cover failures, concurrency, cancelled review, late navigation and known/unknown
 costs, not only the happy path. Screenshots should use fixture stories.
 
 All five CI gates must pass on the exact current head before merge.
-Final integration to main follows complete approved implementation and its own
-green PR. Deployment or starting the old port is a separate owner decision.
+Deployment or starting the owner's server is a separate owner decision.
 
 Update every affected manual source and regenerate all six PDFs plus the
 freshness manifest. Run strict freshness and inspect rendered pages.
@@ -61,33 +60,20 @@ for understanding, testing, reviewing and having rights to the contribution.
 Follow the [Code of Conduct](CODE_OF_CONDUCT.md). Project code is accepted under
 [AGPL-3.0-only](LICENSE), preserving separately licensed third-party materials.
 
-## Current-fiction recovery work
+## Current development baseline
 
-B1 composes the existing V5 engine through five room adapters. Read
-[the delivery record](docs/recovery/B1-DELIVERY.md) and
-[continuation state](docs/recovery/CONTINUATION.md) before changing their scope.
-Same-story room navigation keeps narrative authority alive; independent room
-fences prevent an old media/dialog result from replacing a newer task. Preserve
-legacy story-link aliases and truthful scope/loaded-window labels. B2 separates
-inspection from actions and adds server-acknowledged private drafts; read
-[its delivery record](docs/recovery/B2-DELIVERY.md), preserve frozen save-v1
-validators, append migrations and test projection/privacy/save closure; do not enable
-legacy authoring routes to supply those capabilities.
+Recovery B1–B8 and narrative tasks N1–N6 are complete on `main`, application
+5.0.0/schema 29. Start with the [capability ledger](docs/recovery/CAPABILITY-LEDGER.md),
+[final qualification](docs/recovery/B8-DELIVERY.md) and
+[continuation state](docs/recovery/CONTINUATION.md). Earlier delivery records
+explain historical checkpoints; they do not queue another recovery batch.
 
+The PDF deferral has ended: all six manuals and their freshness manifest are
+current. Keep affected manual sources and rendered outputs current together.
+README-only presentation changes do not change the manual sources or assets.
 
-Recovery B3 uses appended schema 25, immutable story-local creative revisions and
-strict creative collections inside save v2. Read [B3 delivery](docs/recovery/B3-DELIVERY.md)
-before changing context compilation, Say assembly, local draft receipts or source
-closure. Keep migration 24 and save-v1 dependencies frozen. Model capacity must be
-known before a narration purchase; isolated tests explicitly declare synthetic
-limits. Keep all five checks green on the exact PR head before main merge.
-The stakeholder deferred PDF regeneration until the last recovery package; update
-all affected source manuals now and retain the existing PDF integrity check.
-
-
-B4 appends schema 26 for immutable editorial layouts; read
-[B4 delivery](docs/recovery/B4-DELIVERY.md). Do not edit migrations 24/25 or frozen
-save-v1 modules. Editorial grouping changes neither prose nor canonical events.
-Preserve virtual episode layout before adoption, branch-local anchors, open-tail
-semantics, exact-source saves and all four full dependency audits. D1 prose editing
-remains disabled. Source manuals stay current and PDFs remain deferred.
+Target current runtime and formats; backwards compatibility is not required.
+Preserve owner data and immutable integrated migrations and their dependencies.
+Keep accepted prose and branch-local history intact, source/evidence boundaries
+explicit, private material out of public exports, and paid calls subject to
+reviewed authority and durable accounting. Do not revive retired authoring routes.
