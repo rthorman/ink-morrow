@@ -1,6 +1,7 @@
-# Paused development tasks — 2 November 2026
+# Active development tasks — 2 November 2026
 
-Paused at the owner’s explicit request. Read PAUSED-STATE-2026-11-02.md before resuming.
+The owner explicitly resumed development on 2 November. The pause record remains
+historical evidence; this checklist and CONTINUATION.md describe active work.
 
 GitHub main is canonical. Complete coherent batches through PRs with all five
 checks green on the exact head. Preserve owner data and the single fiction graph.
@@ -11,7 +12,7 @@ conversion, D3 image conditioning and optional B9 solo tools remain separate.
 
 - [x] B5 retained Gallery and reference portability — PR #113, merged as
   `9395fcf09f5fb9a55467c545ca5f2d72765b79ba`; five checks green at `c9801c6`.
-- [ ] B6 listening — paused checkpoint, not merged on `recovery/b6-listening`: saved-text plans,
+- [ ] B6 listening — final verification in progress, not merged on `recovery/b6-listening`: saved-text plans,
   sequential synthesis, free cache replay, cancellation/restart and shared player.
 - [ ] B7 finishing — frozen book previews/jobs, nine formats, retained Bookshelf
   and functional current-fiction sharing, with independent private export.

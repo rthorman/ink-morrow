@@ -1,12 +1,12 @@
 # Project memory
 
-## Explicit development pause — 2 November 2026
+## Development resumed — 2 November 2026
 
-The owner requested a good checkpoint, full state and push, then pause until a later
-date. Read `docs/recovery/PAUSED-STATE-2026-11-02.md` first. B5 is merged; B6 is an
-unmerged draft checkpoint. Do not continue development, merge or deploy without a
-later explicit resume request. Earlier development authorization below is paused.
-
+The owner explicitly resumed development after the saved pause. Continue B6/B7,
+then N1–N6 and final qualification/manuals through exact-head green PRs. The old
+pause record remains historical evidence, not a current stop instruction. No
+production startup/deployment or paid evaluation is authorized. Current tasks and
+status live in `docs/recovery/DEVELOPMENT-TASKS.md` and `CONTINUATION.md`.
 
 ## Recovery planning and continuation (2 November 2026)
 
@@ -52,7 +52,7 @@ later explicit resume request. Earlier development authorization below is paused
   legacyEnabled:false. Old authoring/catalogue/share routes and their automatic
   runtime are not mounted. Only explicitly opted-in inherited tests use
   legacy-runtime.js; do not revive manual prose through an API or test-mode server.
-- Fresh storage is family ink-morrow-5, schema 27, SQLite application ID IM50,
+- Fresh storage is family ink-morrow-5, schema 28, SQLite application ID IM50,
   default database-v5/ink-morrow-5.db. Server and password reset share the same
   DATA_DIR/DB_PATH resolver (relative paths start from backend/). Inspect existing
   DB/WAL/journal files only through a private scratch copy before acceptance;

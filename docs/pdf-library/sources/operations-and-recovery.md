@@ -6,6 +6,43 @@ Operate a private, single-owner InkMorrow 5.0 installation. Protect data first, 
 
 </div>
 
+## B6 listening to saved fiction
+
+Desk and Gallery offer **Listen to saved text**. Choose the configured MP3-capable
+Narrator voice, Read aloud, Auto-read or an audiobook edition, and a saved passage,
+path, chapter or volume. **Preview listening plan (free)** freezes that selection
+and shows segment counts, cached reuse, maximum synthesis calls and exposure.
+Only selected narrative prose goes to the Narrator: no Ask, private references,
+owner directions, correction records or sibling paths. Generated prose itself may
+contain fictional secrets; this is not semantic spoiler filtering.
+
+A new purchase needs consent scoped to that immutable plan. Synthesis is sequential,
+with no transport retry, recursive splitting or purchased PCM fallback. Read aloud
+caps at 16 segments; Auto-read/audiobooks at 512. A unit caps at 16 MiB and an edition
+at 512 MiB. Choose a smaller passage/chapter/volume if preflight rejects the range.
+There is a 20-job installation queue and a conservative 4 GiB retained-audio quota.
+
+The shared player keeps a labelled source, preparation progress, cancellation and
+Return action across rooms. Pause/Stop playback differs from **Cancel remaining
+synthesis**. Voice choice and playback speed are device preferences; changing speed
+and replaying a cached edition are free. A story/path change pauses Auto-read and
+requests cancellation of its remaining synthesis. A failed cancellation is reported
+rather than treated as confirmation. Tap to resume handles browser autoplay refusal
+without another purchase. Lock clears private playback UI.
+
+Cancellation prevents undispatched units; dispatched work may still cost money and
+produce reusable cache bytes. Restart interrupts unfinished work without automatic
+resumption. Review a new plan to reuse completed units and purchase only permitted
+missing units. A disappeared or corrupt reviewed cache hit fails instead of silently
+buying a replacement. Retained job status shows known dollars and unknown-cost
+attempts separately. A late status reply cannot revive a cancelled player display.
+
+Audio editions retain their source and are labelled older when the selected path
+has moved on. Download the MP3 separately. Private playable saves carry aggregate
+spend but exclude synthesized audio, listening plans/jobs, credentials and resumable
+purchase authority. Keep cold installation backups for configured database/media.
+
+
 ## B5 retained visual collection
 
 Gallery now lists the story-owned image collection in metadata pages of forty,

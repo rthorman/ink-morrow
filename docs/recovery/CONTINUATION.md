@@ -1,3 +1,13 @@
+# Development resumed — 2 November 2026
+
+The owner explicitly requested continuing development. B6 draft PR #114 at
+`a13e8ab` has all five CI checks green. Finish the focused final-player checks,
+source manuals and delivery record, then verify the updated exact head and merge.
+Next are B7 and the queued N1–N6 narrative/consistency batch before final recovery
+qualification and all six PDFs. No production startup or paid evaluation.
+
+The saved pause record below remains historical context; it no longer pauses work.
+
 # Development paused — 2 November 2026
 
 The owner explicitly requested a full checkpoint and push, then development pause.
