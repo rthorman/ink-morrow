@@ -1,10 +1,11 @@
 # B6 — saved-text listening and immutable audio editions
 
-Implemented on `recovery/b6-listening`, PR #114, based on canonical main `9395fcf`.
+Delivered through PR #114, merged as `5842623e5e6ac4735a3b370559891e0922d211b8`
+after all five checks passed at `61e97b1d310a125a391616c4845dfe36c656dc30`.
 Application stays 5.0.0; appended schema 28 supplies immutable source plans, cache
-metadata, durable jobs and disjoint synthesis call records. Final updated-head CI
-and main integration remain pending; the earlier checkpoint at `a13e8ab` passed
-all five checks while the PR was draft.
+metadata, durable jobs and disjoint synthesis call records. Full local mobile
+coverage passed 58/58; the two affected desktop journeys passed isolated reruns.
+The inherited scale timing assertion passed unchanged in isolation (46.493s).
 
 ## B6 listening to saved fiction
 

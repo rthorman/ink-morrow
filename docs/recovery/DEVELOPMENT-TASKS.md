@@ -12,8 +12,8 @@ conversion, D3 image conditioning and optional B9 solo tools remain separate.
 
 - [x] B5 retained Gallery and reference portability — PR #113, merged as
   `9395fcf09f5fb9a55467c545ca5f2d72765b79ba`; five checks green at `c9801c6`.
-- [ ] B6 listening — final verification in progress, not merged on `recovery/b6-listening`: saved-text plans,
-  sequential synthesis, free cache replay, cancellation/restart and shared player.
+- [x] B6 listening — PR #114, merged as `5842623e5e6ac4735a3b370559891e0922d211b8`;
+  five checks green at `61e97b1d310a125a391616c4845dfe36c656dc30`.
 - [ ] B7 finishing — frozen book previews/jobs, nine formats, retained Bookshelf
   and functional current-fiction sharing, with independent private export.
 

@@ -6,6 +6,57 @@ Read each entry as trigger, guard, transition, persistence and failure consequen
 
 </div>
 
+## B7 readable books, Bookshelf and reading copies
+
+Gate separates **Make a readable book** from **Keep playing elsewhere**. A book
+uses the viewed path and inspection moment without activating it. Set title,
+author credit, language and optional front/back matter. Details are private server
+drafts and recover after reload; edits invalidate the current preview. Preview
+shows contents, included cover/placed art, sample prose and exclusions. Empty
+planned groups, Ask, directions, private references, other paths and audio do not
+enter the frozen PublicationDocument. Prose itself may contain fictional secrets.
+
+**Build frozen edition** renders selected formats or all nine locally: DOCX, ODT,
+RTF, EPUB, PDF, HTML, Markdown, plain text and JSON. Every adapter uses the same
+immutable source. EPUB places art on a separate page immediately before its prose.
+A build is a durable job, independent of later story changes. Reopen a retained
+edition to inspect/cancel a running job. Restart marks abandoned jobs interrupted;
+navigation/restart never silently rebuilds. A partial failure retains successful
+formats. Missing/damaged files remain unavailable until an explicit local build;
+verified identical files can be reused for free. Earlier editions stay frozen.
+
+Bookshelf loads bounded pages of retained books, audio and owner-only story art.
+Filter the collection, download available formats, play prepared MP3, or return to
+the source story. Older source, interrupted jobs and unavailable bytes are labelled.
+Loading the collection starts no renderer, model request or full-story download.
+Removing a book edition revokes its links and releases only files with no other
+edition pins. Source fiction remains intact. Private `.inkmorrow5` saves preserve
+all paths and source images, but exclude prepared books/audio, jobs and reading-link
+authority. Download prepared editions separately.
+
+Reading links appear only when an administrator configures `PUBLIC_SHARE_BASE_URL`
+as an HTTP(S) origin and separately provides reachable hosting/allowed-host/proxy
+configuration. Local export works with sharing unconfigured. Review the exact
+frozen contents, choose expiry and explicitly create a link. Anyone possessing it
+can read that copy until expiry/revocation; downloaded copies cannot be retracted.
+Copy the URL, or select it manually if clipboard access fails. Stored link listings
+show expiry/revocation, never recoverable bearer tokens. Create a new link if lost.
+
+The new current-fiction adapter stores only a SHA-256 capability hash. Its token
+travels in a URL fragment and an Authorization header, not a query/path or request
+log. The unauthenticated adapter serves only the immutable reader-safe document;
+all owner edition/assets/job APIs remain behind owner/origin/CSRF guards. Reader
+responses and pages use no-store/noindex/no-referrer, render text safely and make
+no AI call. Retired authoring and legacy share APIs remain disabled in production.
+This feature supplies no automatic hosting/deployment or promise of public reachability.
+
+Schema 29 is appended without altering earlier migration source checksums. Source
+snapshots embed bounded art bytes in one synchronous read cut, independent of later
+media removal. Initial limits: 96 MiB per source, 1,000 sources / 512 MiB aggregate,
+20 queued/running jobs, 10,000 retained jobs, 256 MiB per output and 2 GiB available
+rendered files. GC marks unreferenced files unavailable before unlink; new pins
+require availability. No story prose, private state or provider spend is rewritten.
+
 ## B6 listening to saved fiction
 
 Desk and Gallery offer **Listen to saved text**. Choose the configured MP3-capable

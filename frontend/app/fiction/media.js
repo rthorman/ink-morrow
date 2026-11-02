@@ -132,24 +132,5 @@ export function createMediaDialogs({ api, dialogs, getCurrent, isBusy, runAction
     ] });
     show(); // synchronous: no catalogue, model or provider wait before feedback
   }
-  function exportBook() {
-    const story = getCurrent(); if (!story || isBusy() || story.pending) return;
-    const format = field('Book format', 'select');
-    format.control.append(...['epub', 'pdf', 'html', 'docx', 'odt', 'rtf', 'md', 'txt', 'json'].map((id) => option(id, id.toUpperCase())));
-    const author = field('Author credit (optional)', 'input', '', { maxLength: 300 });
-    const language = field('Book language', 'input', 'en', { maxLength: 40 });
-    const error = el('p'); error.setAttribute('role', 'alert');
-    dialogs.openDialog({ title: 'Export this reading path', body: [el('p', 'A readable book, not a playable save: only this path’s prose and placed images. Books use this path’s current chapter and volume layout. Empty planned groups are omitted. Private facts, motives, directions, questions and other paths are excluded. No AI request. EPUB images have their own pages; prose stays resizable.'), format.wrapper, author.wrapper, language.wrapper, error], actions: [
-      { label: 'Cancel', className: 'btn-secondary', onClick: (close) => close(true) },
-      { label: 'Download book', className: 'btn-primary', pendingLabel: 'Building book…', onClick: async (close) => {
-        if (getCurrent()?.id !== story.id || getCurrent()?.revision !== story.revision) { error.textContent = 'The story changed. Reopen export to choose the current path.'; return; }
-        const result = await runAction(async (live) => {
-          const query = new URLSearchParams({ author: author.control.value.trim(), language: language.control.value.trim(), expected_revision: story.revision, branch_id: story.active_branch_id });
-          await downloadFile(`/api/fiction/${story.id}/book/${format.control.value}?${query}`, `InkMorrow-story.${format.control.value}`, live); return {};
-        });
-        if (result.ok) close(true); else if (!result.stale) error.textContent = result.error || 'Not exported.';
-      } },
-    ] });
-  }
-  return { illustrate, exportBook, clear(){for(const draft of openDrafts)draft.close();openDrafts.clear();} };
+  return { illustrate, clear(){for(const draft of openDrafts)draft.close();openDrafts.clear();} };
 }

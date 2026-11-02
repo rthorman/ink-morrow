@@ -39,7 +39,7 @@ describe('story-local creative authority', () => {
         ),
       );
       const old = createDb(file);
-      expect(schemaIdentity(old).version).toBe(28);
+      expect(schemaIdentity(old).version).toBe(29);
       expect(
         old
           .prepare(
@@ -310,7 +310,7 @@ describe('story-local creative authority', () => {
       ).toBeUndefined();
       raw.close();
       const reopened = createDb(file);
-      expect(schemaIdentity(reopened).version).toBe(28);
+      expect(schemaIdentity(reopened).version).toBe(29);
       reopened.close();
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

@@ -39,6 +39,7 @@ function createApp(
     audioDir = path.join(__dirname, '../../database-v5/audio'),
     transferDir = null,
     publicationDir = null,
+    publicShareBaseUrl = process.env.PUBLIC_SHARE_BASE_URL || null,
     authRequired = process.env.NODE_ENV !== 'test',
     legacyEnabled = false,
     authOptions = {},
@@ -93,8 +94,11 @@ function createApp(
     res.setHeader('Cache-Control', 'no-cache');
     res.download(manualPath, 'Ink-Morrow-User-Manual.pdf');
   });
+  const publicReading = express.Router();
+  app.use(publicReading);
   // Only inherited tests can mount the retired public-reader seam. Production
-  // has no unauthenticated story API or sharing capability.
+  // keeps those retired APIs disabled; the separate current-fiction reading-copy
+  // adapter below exposes only an explicitly shared immutable reader document.
   if (legacyEnabled) app.use(createPublicShareRouter({ shares: () => app.locals.publicationShares }));
   app.use('/api', auth.requireAuth, auth.requireSameOrigin, auth.requireCsrf);
 
@@ -140,12 +144,15 @@ function createApp(
   gallery.reconcile();app.use(gallery.router);
   const listening=require('./modules/fiction/listening').createListening({db,store:fictionStore,queries:workspaceQueries,providers,ai,rootDir:audioDir});
   listening.reconcile();app.use(listening.router);
+  const editions=require('./modules/fiction/editions').createEditions({db,store:fictionStore,queries:workspaceQueries,publication:fictionPublication,listening,rootDir:publicationDir||path.join(imageDir,'..','publications'),shareBaseUrl:publicShareBaseUrl,clock});
+  editions.reconcile();publicReading.use(editions.publicRouter);app.use(editions.router);
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 
   // -- static frontend + error handling -------------------------------------
 
   if (staticDir) {
+    app.get(['/reading-copy','/reading-copy/','/reading-copy.html'],(req,res)=>{res.set({'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow, noarchive','Referrer-Policy':'no-referrer'}).sendFile(path.join(staticDir,'reading-copy.html'));});
     app.get(['/share', '/share/', '/share.html'], (req, res) => {
       if (!legacyEnabled) return res.status(404).send('Public sharing is not part of InkMorrow 5.0.');
       res.setHeader('Cache-Control', 'no-store');
@@ -196,7 +203,7 @@ function createApp(
 
   // Test/runtime disposal: queues stop accepting work; persisted user data
   // and in-flight cleanup are never deleted.
-  app.locals.dispose = () => { listening.dispose();legacy?.dispose(); providers.dispose(); };
+  app.locals.dispose = () => { editions.dispose();listening.dispose();legacy?.dispose(); providers.dispose(); };
 
   return app;
 }

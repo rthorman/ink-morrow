@@ -1,10 +1,12 @@
 # Development resumed — 2 November 2026
 
-The owner explicitly requested continuing development. B6 draft PR #114 at
-`a13e8ab` has all five CI checks green. Finish the focused final-player checks,
-source manuals and delivery record, then verify the updated exact head and merge.
-Next are B7 and the queued N1–N6 narrative/consistency batch before final recovery
-qualification and all six PDFs. No production startup or paid evaluation.
+Canonical main is `5842623e5e6ac4735a3b370559891e0922d211b8`: B6 listening
+merged through PR #114 after all five checks passed on exact head `61e97b1`.
+B7 finishing is active on `recovery/b7-finishing`. It adds schema 29 frozen book
+sources, asynchronous local rendering, Bookshelf and current-fiction reading copies.
+Do not call B7 delivered until its own final checks and actual merge are recorded.
+Next are N1–N6, then B8 qualification and all six regenerated PDFs. No production
+startup/deployment or paid model evaluation is authorized.
 
 The saved pause record below remains historical context; it no longer pauses work.
 
@@ -28,10 +30,9 @@ benchmark is authorized. D1 wording edits, D2 old-series conversion and D3 image
 conditioning remain outside this scope. B9 solo tools are an optional follow-on.
 
 B5 merged through PR #113 at `9395fcf`, after all five exact-head checks passed at
-`c9801c6`. B6 listening is in progress on `recovery/b6-listening`, based on that
-canonical main. Its appended schema 28 supplies immutable listening plans, cached
-MP3 units, sequential jobs and disjoint call accounting. It is not delivered until
-its own tests/CI and main merge are verified.
+`c9801c6`. B6 listening subsequently merged as `5842623` through PR #114. Its appended
+schema 28 supplies immutable listening plans, cached MP3 units, sequential jobs
+and disjoint call accounting. B7 starts from that integrated main.
 
 The stakeholder has added the Character Forge-inspired narrative improvements as
 authorized tasks and resumed development. [Development tasks](DEVELOPMENT-TASKS.md)
