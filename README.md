@@ -21,22 +21,16 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
-Recovery now includes retained Gallery art, reviewed saved-text listening,
-frozen books/Bookshelf/reading copies, branch-local chapters/volumes, creative
-studios and source-grounded narrative guidance. Application stays **5.0.0**, schema
-**29**. Current runtime/formats are the target; backwards compatibility is not an
-acceptance requirement. All six manuals are regenerated at the final checkpoint;
-the User Guide remains 35 A4 pages.
+Keep a cast whose memories, relationships and commitments carry forward. Shape
+chapters and volumes, collect illustrations, listen to saved passages, and turn
+a chosen story path into a book or a revocable reading link.
 
-## Recovery checkpoint
+<p align="center">
+  <img src="docs/readme/desk-desktop.png" alt="InkMorrow Desk showing The Drowned Bell opening, passage navigation, story rooms and controls to continue or steer the story" width="1100">
+</p>
 
-B1–B7 and N1–N6 are implemented. See the [current capability ledger](docs/recovery/CAPABILITY-LEDGER.md),
-[final qualification](docs/recovery/B8-DELIVERY.md) and
-[continuation state](docs/recovery/CONTINUATION.md) for source/CI integration and
-honest acceptance limits. Historical comparisons and the isolated
-[B0 prototype](docs/recovery/B0-EXPERIENCE.md) remain design evidence.
-Source integration is separate from deployment, real Android review or a paid
-literary benchmark; none is implied by screenshots or automated fixtures.
+*The current Desk, captured from the built-in Drowned Bell opening in an isolated
+documentation instance. No provider calls were made.*
 
 ## What 5.0 includes
 
@@ -104,11 +98,13 @@ local reading, correction, upload, export and save/import do not buy generation.
 > spending limit where supported. Quality reviews disclose their larger call plan
 > separately; there are no automatic transport retries or speculative successors.
 
-## Fresh data, not a 4.x upgrade
+## Storage and portable saves
 
-The default database is `database-v5/ink-morrow-5.db`, family `ink-morrow-5`.
-An existing 4.x database is refused without adoption or rewriting its database
-or journal files. Keep old installations and important data separate.
+The current application is **5.0.0**, database family `ink-morrow-5`, schema **29**.
+The default database is `database-v5/ink-morrow-5.db`. Current runtime and formats
+are the supported target; backwards compatibility is not required. An existing
+4.x database is refused without adoption or rewriting its database or journal
+files. Keep old installations and important data separate.
 
 `DATA_DIR` chooses the media/data root; `DB_PATH` can override the exact database
 file. Relative paths resolve from `backend/` in both startup and terminal password
@@ -120,7 +116,7 @@ credentials, provider configuration, consent and resumable purchases.
 They are unencrypted and can contain spoilers and private directions.
 Frozen catalogue selections and story images travel in playable saves. The reusable
 catalogues themselves need a full installation backup; old-series template import
-is still not provided. Existing 5.0 schema-21 stores migrate to schema 22 normally.
+is not provided.
 
 Books contain the chosen reading path, not the private playable world. Keep
 operator-level cold backups as well: stop the process and copy the complete
@@ -143,8 +139,23 @@ README and the running app.
 The [source and rendering workflow](docs/pdf-library/README.md), [5.0 release
 record](docs/releases/5.0.0/README.md), [known limits](docs/releases/5.0.0/KNOWN-ISSUES.md)
 and [media/save format notes](docs/fiction-media-saves.md) provide more detail.
-Older documents about Desk, Chronicle, Codex, Gallery, Gate or manuscript
-archives are historical contracts, not current operating instructions.
+Archived release documents describe their own checkpoints. Use the current manuals
+and capability ledger for today's Desk, Chronicle, Codex, Gallery and Gate.
+
+## Development status
+
+All approved recovery batches **B1–B8** and narrative tasks **N1–N6** are complete
+and consolidated on **main**, with all five CI checks passing on each final PR
+head. All six manuals are current; the User Guide is 35 A4 pages.
+
+See the [current capability ledger](docs/recovery/CAPABILITY-LEDGER.md),
+[final qualification](docs/recovery/B8-DELIVERY.md) and
+[continuation state](docs/recovery/CONTINUATION.md) for delivered scope and
+verification limits. Historical comparisons and the isolated
+[B0 prototype](docs/recovery/B0-EXPERIENCE.md) remain design evidence.
+Deployment, real Android review and a paid literary benchmark have not been
+performed as part of this completion; screenshots and automated fixtures do not
+establish those results.
 
 ## Development and verification
 
@@ -166,9 +177,8 @@ Tests use isolated data; browser tests use port 3100, never the owner's port 300
 Do not download a browser solely for local verification when an existing
 browser-capable environment or CI is available.
 
-Feature PRs target `release/5.0.0` and merge only after all five checks pass on
-the exact head. Final main integration follows complete implementation and
-green CI. A merge is not deployment or permission to start a server.
+New work branches from and targets `main`. Merge only after all five checks pass
+on the exact PR head. A merge is not deployment or permission to start a server.
 See [Contributing](CONTRIBUTING.md).
 
 ## Credits, license and privacy
