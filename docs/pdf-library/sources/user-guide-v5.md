@@ -8,245 +8,6 @@
 
 </div>
 
-## Narrative drive and character continuity
-
-Future narration now receives a source-linked attention aid alongside complete
-effective cast/reference fields, selected facts and recent prose. Relationships,
-active goals, commitments, prior structured outcomes and chapter handoff remain
-available without requiring every quiet scene to revisit the opening problem.
-A remembered object has not moved or changed owner; significance, possession,
-presence and each person's knowledge remain distinct. Intentions and proposals
-are not completed events. Current attention never erases offscreen truth.
-
-Use personality, motive and background fields to describe a whole character:
-recognizable voice, competing values, limits, willingness to bear costs and
-interests that can matter after success or rejection. New AI reference drafts
-receive this guidance in their existing call and remain unsaved until you adopt
-them. Existing references and accepted prose are not rewritten. A relationship
-can develop after acceptance, a practical goal can finish, and quiet enjoyment
-can carry a scene. Authored fixation and deliberate persistence remain possible.
-
-The final narration guidance connects present purpose, feasible method, observable
-choice and consequence while preserving an inhabited character's decisions.
-Chapter handoff follows recorded sources and grouping; it does not advance time,
-move people or manufacture payoff. No extra planner/critic calls are added. The
-reviewed plan includes selected exact evidence, which may include private owner
-assertions or submitted input, plus prior outcomes and handoff. This can increase
-input size/cost within the existing bounded plan. Reading remains free.
-
-These changes improve supplied context and guidance, not a guarantee of better
-prose or semantic consistency. **Live narrative quality has not been evaluated.**
-No paid comparison was run. Existing optional review remains Off by default and
-keeps its one/four/six-call ceilings. Check important output against its evidence.
-
-## B7 readable books, Bookshelf and reading copies
-
-Gate separates **Make a readable book** from **Keep playing elsewhere**. A book
-uses the viewed path and inspection moment without activating it. Set title,
-author credit, language and optional front/back matter. Details are private server
-drafts and recover after reload; edits invalidate the current preview. Preview
-shows contents, included cover/placed art, sample prose and exclusions. Empty
-planned groups, Ask, directions, private references, other paths and audio do not
-enter the frozen PublicationDocument. Prose itself may contain fictional secrets.
-
-**Build frozen edition** renders selected formats or all nine locally: DOCX, ODT,
-RTF, EPUB, PDF, HTML, Markdown, plain text and JSON. Every adapter uses the same
-immutable source. EPUB places art on a separate page immediately before its prose.
-A build is a durable job, independent of later story changes. Reopen a retained
-edition to inspect/cancel a running job. Restart marks abandoned jobs interrupted;
-navigation/restart never silently rebuilds. A partial failure retains successful
-formats. Missing/damaged files remain unavailable until an explicit local build;
-verified identical files can be reused for free. Earlier editions stay frozen.
-
-Bookshelf loads bounded pages of retained books, audio and owner-only story art.
-Filter the collection, download available formats, play prepared MP3, or return to
-the source story. Older source, interrupted jobs and unavailable bytes are labelled.
-Loading the collection starts no renderer, model request or full-story download.
-Removing a book edition revokes its links and releases only files with no other
-edition pins. Source fiction remains intact. Private `.inkmorrow5` saves preserve
-all paths and source images, but exclude prepared books/audio, jobs and reading-link
-authority. Download prepared editions separately.
-
-Reading links appear only when an administrator configures `PUBLIC_SHARE_BASE_URL`
-as an HTTP(S) origin and separately provides reachable hosting/allowed-host/proxy
-configuration. Local export works with sharing unconfigured. Review the exact
-frozen contents, choose expiry and explicitly create a link. Anyone possessing it
-can read that copy until expiry/revocation; downloaded copies cannot be retracted.
-Copy the URL, or select it manually if clipboard access fails. Stored link listings
-show expiry/revocation, never recoverable bearer tokens. Create a new link if lost.
-
-The new current-fiction adapter stores only a SHA-256 capability hash. Its token
-travels in a URL fragment and an Authorization header, not a query/path or request
-log. The unauthenticated adapter serves only the immutable reader-safe document;
-all owner edition/assets/job APIs remain behind owner/origin/CSRF guards. Reader
-responses and pages use no-store/noindex/no-referrer, render text safely and make
-no AI call. Retired authoring and legacy share APIs remain disabled in production.
-This feature supplies no automatic hosting/deployment or promise of public reachability.
-
-Schema 29 is appended without altering earlier migration source checksums. Source
-snapshots embed bounded art bytes in one synchronous read cut, independent of later
-media removal. Initial limits: 96 MiB per source, 1,000 sources / 512 MiB aggregate,
-20 queued/running jobs, 10,000 retained jobs, 256 MiB per output and 2 GiB available
-rendered files. GC marks unreferenced files unavailable before unlink; new pins
-require availability. No story prose, private state or provider spend is rewritten.
-
-## B6 listening to saved fiction
-
-Desk and Gallery offer **Listen to saved text**. Choose the configured MP3-capable
-Narrator voice, Read aloud, Auto-read or an audiobook edition, and a saved passage,
-path, chapter or volume. **Preview listening plan (free)** freezes that selection
-and shows segment counts, cached reuse, maximum synthesis calls and exposure.
-Only selected narrative prose goes to the Narrator: no Ask, private references,
-owner directions, correction records or sibling paths. Generated prose itself may
-contain fictional secrets; this is not semantic spoiler filtering.
-
-A new purchase needs consent scoped to that immutable plan. Synthesis is sequential,
-with no transport retry, recursive splitting or purchased PCM fallback. Read aloud
-caps at 16 segments; Auto-read/audiobooks at 512. A unit caps at 16 MiB and an edition
-at 512 MiB. Choose a smaller passage/chapter/volume if preflight rejects the range.
-There is a 20-job installation queue and a conservative 4 GiB retained-audio quota.
-
-The shared player keeps a labelled source, preparation progress, cancellation and
-Return action across rooms. Pause/Stop playback differs from **Cancel remaining
-synthesis**. Voice choice and playback speed are device preferences; changing speed
-and replaying a cached edition are free. A story/path change pauses Auto-read and
-requests cancellation of its remaining synthesis. A failed cancellation is reported
-rather than treated as confirmation. Tap to resume handles browser autoplay refusal
-without another purchase. Lock clears private playback UI.
-
-Cancellation prevents undispatched units; dispatched work may still cost money and
-produce reusable cache bytes. Restart interrupts unfinished work without automatic
-resumption. Review a new plan to reuse completed units and purchase only permitted
-missing units. A disappeared or corrupt reviewed cache hit fails instead of silently
-buying a replacement. Retained job status shows known dollars and unknown-cost
-attempts separately. A late status reply cannot revive a cancelled player display.
-
-Audio editions retain their source and are labelled older when the selected path
-has moved on. Download the MP3 separately. Private playable saves carry aggregate
-spend but exclude synthesized audio, listening plans/jobs, credentials and resumable
-purchase authority. Keep cold installation backups for configured database/media.
-
-
-## B5 retained visual collection
-
-Gallery now lists the story-owned image collection in metadata pages of forty,
-including unplaced uploads and painting results. Thumbnails load lazily; Preview
-shows the full image, provenance and bounded retained-use metadata. Choose a cover,
-private reference or ancestral passage before placing an existing image. Placement
-and removal are local actions; earlier path snapshots and retained collection bytes
-remain available. New painting is one explicitly reviewed Illustrator purchase.
-A changed path, cancellation or restart cannot silently attach a late result:
-validated bytes remain ready and unplaced, and known/unknown spend remains visible.
-There is no automatic retry or reference-image conditioning.
-
-The existing 400-image story ceiling remains. Every inventory member is an owned
-retained root; this batch exposes no permanent asset deletion or garbage collection.
-Playable save v2 carries all owned images and optional inventory descriptions and
-provenance, but no painting jobs, action keys, consent or provider credentials.
-Import creates new image identities and a fresh inventory concurrency value.
-
-Visual Library offers selected-reference bundles (`.inkrefs`): worlds, characters
-and Scribes with normalized images and private lore/motives. Preview names matching
-existing entries; import always makes independent copies. A repeated identical
-import action returns the original copies, changed bytes conflict, and deleted
-results are reported rather than recreated. Bundles omit credentials, purchase
-journals and image-conditioning permission. They are unencrypted private files,
-not reader-safe books or full installation backups.
-
-
-## Recovery B4: chapters and volumes
-
-Open Chronicle to browse the chapter outline at a selected path/moment. Chapter
-opening links return to the existing reader. Outline pages and passage choices
-load 80 at a time. Historical layouts are read-only; return to the active path
-before using **Organize chapters & volumes**.
-
-The initial chapter layout follows episodes automatically. Saving your first
-custom layout adopts it for this path. Rename chapters/volumes, split after a
-passage, assign a chapter to a volume, or start a new tail chapter/volume. Preview
-before saving. Boundaries keep reading order: chapters cannot overlap or reorder
-passages. A scene can cross chapter boundaries and an episode need not be a chapter.
-
-The last chapter is an open tail and receives future prose. Starting another
-chapter closes that tail at the current last passage and creates an empty future
-chapter. Empty plans create no prose; books omit them. Removing a grouping never
-removes prose: uncovered ranges appear as **Unassigned passages**. Remove a volume
-only after its chapters have been reassigned or removed. A custom layout can have
-up to 64 volumes and 512 chapters within its 64 KiB record limit. Larger automatic
-layouts remain readable/exportable; the editor explains its adoption limit.
-
-Use Save private layout draft now, Copy or earlier-proposal recovery for unfinished
-work. A stale destination requires reopening and comparing at latest. After an
-uncertain save, inspect the previous layout-change receipt before trying another
-change. Saving a private draft does not adopt its layout. Lock clears the private
-editor. Explore/Rewind use one path-creation task with a restore preview, keeping
-the original future. A fork sees only the layout applicable at its chosen moment.
-
-All nine book formats use the active path's saved chapter/volume layout and original
-prose/placed images. A later build uses newer headings; an existing download stays
-unchanged. Playable saves keep layouts and every branch; paid authority/drafts stay
-private to the installation. Prose wording editing remains disabled. This source is
-current through B4/schema 26; PDF regeneration remains deferred until final recovery.
-
-
-
-## Recovery B3: creative work without losing the story
-
-The running app remains 5.0.0. The six PDF files still show the verified B2 edition:
-PDF regeneration is deferred until the final recovery package; these source
-instructions describe B4.
-
-In the Visual Library, **Develop with AI** prepares a separate candidate. Review
-seed, current fields and candidate; fields edited during the request start
-unchecked. **Use selected candidate fields** changes only the private form. Save
-details is a separate action. **Restore previous fields** opens another comparison
-so later edits remain yours. A saved-entry baseline stays available for reference.
-Use in a new story/Add to this setup preserves the other acknowledged setup fields.
-On the shelf, search title/premise, filter genre, resume your reading position,
-open the latest moment, rename locally or read a free return recap.
-
-In a story's Codex, use **Story preferences**, **Edit story-local world**, **Edit
-story-local Scribe** or a character's **Edit story-local reference**. These edit
-this story's future telling; templates and earlier prose stay intact. Compare a
-reusable template, copy selected fields into the proposal, then Apply selected
-fields. Review recorded facts first: a motive or backstory never establishes a
-new event. Fact-binding checkboxes keep important older constraints available to
-the Storyteller. Private proposals have Save now, copy/comparison recovery and a
-previous-action receipt check after an uncertain response. Recover earlier
-proposals explicitly into the current destination; saving a draft does not apply it.
-
-Creative settings choose perspective, cast speaker or outside framing narrator,
-focal character, tense, language, genre/tone, voice, boundaries, focus and knowledge
-disclosure. Perspective does not assign you a character. A required missing speaker
-or focal identity must be repaired before narration. Length targets are brief 180,
-developed 400, extended 800 or custom 50–2,000 words/characters, approximately.
-Length, pacing and reading layout are independent. Older stories keep legacy-short;
-new stories begin at developed. Next-scene location/time/presence is a proposal,
-not an established transition. Failed requests keep it; an accepted scene consumes
-it, and only ordinary narrated evidence establishes what actually happened.
-
-**Campaign records** makes an explicit owner declaration with section, actor,
-knowledge holders, visibility and reason. Search older records outside the working
-snapshot before updating one. Relationships use descriptions; resources can have
-amounts. Goals distinguish achieved, abandoned, failed and superseded. Secrets stay
-in private planning. These are adaptations of existing facts, commitments,
-relationships, goals and resources, not independent faction or inventory engines.
-
-In Chronicle, End this episode can leave an open ending, mark a vignette or close
-an actually achieved thread. The optional recap need not resolve every question.
-Undo this episode ending is available immediately, before subsequent activity.
-It appends a new record; it does not delete the ending.
-
-Continue performs a free context/budget check before the paid review. Unknown or
-insufficient model capacity asks for discovery/advanced limits in Settings. No
-purchase occurs on that failure. Optional quality includes all potential reviews
-and repair in the checked plan. Remembering narration permission is optional and
-scoped to the reviewed configuration/bounds. A changed plan needs review again.
-Say keeps your exact words once only when performed; attempted/interrupted/not-
-performed outcomes do not insert spoken words. An intention or request is not an
-achieved event, and quiet or goal-free scenes need no compulsory crisis.
-
-
 ## A story worth following
 
 InkMorrow is playable fiction. You normally remain outside the cast: you follow
@@ -469,6 +230,15 @@ paid review or provider purchase; new attempts use the ordinary paid boundary.
 **Read the decision moment** opens its actual record. Controls concerning a person
 you inhabit do not supply that person's decisions for you.
 
+For a personal comparison, fork the same moment and keep boundaries, context,
+control and quality settings comparable. Declare a spend ceiling first; start
+with quality Off, record actual model/settings, failures, latency and known/unknown
+costs, and read whole sequences. Compare unchanged refusal versus sufficient new
+grounds, private knowledge, affection versus trust, player speech and quiet scenes.
+Then, if useful, compare optional review separately. A second model can share the
+first one's mistakes; one attractive sample is not certification. No live model
+ranking or literary-quality improvement has been established by release tests.
+
 ## Optional consistency quality
 
 Standard play is the default: one storyteller call for each new passage or Ask.
@@ -531,41 +301,38 @@ unchanged recorded challenge ruling remains free even with quality mode enabled
 and providers unavailable. New evidence can make a new narration appropriate;
 repeated pleading alone does not.
 
-## A small, honest model comparison
+## Develop references and creative plans
 
-Models can write beautiful prose and still be poor at consistent resistance.
-Test the behaviours important to your game instead of treating price or apparent
-confidence as a quality score. A personal trial is useful; it is not certification.
+Open Codex → **Edit story-local world**, **Edit story-local Scribe** or a character's
+**Edit story-local reference**. These change this story's future telling; reusable
+templates, earlier references and accepted prose remain intact. Compare a reusable
+template, copy selected fields into the proposal, then **Apply selected fields**.
+Review recorded facts first: reference lore, a motive or backstory never silently
+establishes or corrects an event. Fact-binding checkboxes keep important older
+constraints available to the Storyteller.
 
-Create two alternatives from the same moment. Keep style, boundaries, context,
-control and quality settings comparable. In Settings, explicitly assign the
-model before each trial and note the actual provider/model identifier. Changing
-a global role affects future purchases, not the identity of already saved prose.
+Private proposals offer Save now, copy/comparison recovery and an earlier-action
+receipt check after an uncertain response. Recover an earlier proposal explicitly
+into the current destination. Saving a private draft does not apply it. A changed
+destination requires a new comparison; your acknowledged draft remains available.
 
-Try a compact set of situations:
+**Story preferences** includes perspective, cast speaker or outside framing
+narrator, focal character, tense, language, genre/tone, voice, boundaries, focus and
+knowledge disclosure. Perspective never assigns you a character. Repair a required
+missing speaker/focal identity before narration. Explicit settings outrank Scribe
+craft and remain below recorded truth and player ownership.
 
-- An unchanged plea should not overturn an explicit structured refusal.
-- Genuinely sufficient new grounds should allow reconsideration.
-- A hidden fact should not become character knowledge without a discovery.
-- Affection should not automatically imply trust or cooperation.
-- An inhabited person's words and commitments must remain yours.
-- A quiet scene should remain interesting without invented danger.
-- Fourth-wall permission should respect Never or the Rarely allowance.
+Length targets are approximately brief 180, developed 400, extended 800 or custom
+50–2,000 words/characters. Length, pacing and reading layout are independent. New
+stories begin at developed. A shorter target is not permission to cut off an owned
+decision or return incomplete JSON. Model capacity is checked locally before purchase.
 
-Inspect recorded state as well as prose. A well-written sentence may contradict
-the game record; a valid record may accompany awkward writing. Record failures,
-latency and known/unknown costs separately. Repeat enough to notice variability,
-but choose your own spending ceiling before beginning.
-
-First compare with quality Off. If you then test quality, hold the storyteller
-constant and compare Off, one selected reviewer, or Both on comparable paths.
-Using the same model twice is not an independent judgment, and a second model
-may share the first one's weaknesses.
-
-InkMorrow's release tests use deterministic fixtures. They prove bounded calls,
-state guards and failure handling, not that any live commercial model wins this
-comparison. No model ranking is implied by an example identifier in a test or
-configuration file.
+A next-scene location, time, presence and purpose is a **proposal**, not a completed
+transition. A failed request retains it; an accepted scene consumes it. Only
+ordinary narrated evidence establishes what actually happened. Character references
+should describe voice, motives, competing values, limits and authored cost tolerance.
+An interest can support independent activity after success or rejection. New AI
+reference drafts receive that guidance; existing references are never rewritten.
 
 ## Let characters address the reader
 
@@ -638,6 +405,20 @@ also gathers current relationships, including older records. If something was
 recorded incorrectly, use a factual correction or return to an earlier path.
 Disagreeing with a character is not itself evidence that the game needs repair.
 
+Future narration receives source-linked relationships, goals, commitments, prior
+outcomes and chapter handoff alongside complete effective character references.
+Lasting truth persists independently of current attention. Acceptance can develop,
+a practical goal can finish, and a character can enjoy an established interest
+without another interruption from the opening problem. Purposeful persistence and
+authored fixation remain possible; there is no forced novelty or agreeable response.
+
+The final guidance connects a present purpose, feasible method, observable choice
+and consequence. Quiet enjoyment, routine, silence and rest are valid. A salient
+object has not moved or changed owner just because it is remembered; presence,
+possession, knowledge and claims remain distinct. Plans are not completed payoffs.
+These are context/guidance improvements, not proof of live model quality. No extra
+planner/critic call is added and accepted story text is unchanged.
+
 ## What matters now
 
 A small scene director makes recorded history consequential. A live commitment
@@ -693,14 +474,23 @@ a correction tool, not required memory maintenance: automatic working-set
 compaction already preserves older facts for retrieval. Do not retire commitments
 you still want to matter.
 
+**Campaign records** makes an explicit owner declaration with section, actor,
+knowledge holders, visibility and reason. Search older records before updating one.
+Relationships use descriptions; resources can have amounts. Goals distinguish
+achieved, abandoned, failed and superseded. Secrets remain in private planning.
+These are existing facts, promises, relationships, goals and resources, not separate
+faction/inventory engines. An intention-only record does not prove achievement.
+
 ## Cast and story preferences
 
 The **Visual Library** contains separate Worlds, Characters and Scribes catalogues.
 Choose **New entry** to open its full studio. Enter anything from one small seed to
 a complete reference, choose a development depth, then select **Develop with AI**.
 The paid review names the Storyteller and warns that every entered reference field,
-including private lore, motives and background, is sent. The returned take fills the
-form but remains editable and unsaved. Develop another take for a different reading,
+including private lore, motives and background, is sent. The returned take is a separate candidate. Compare seed, current fields and
+candidate; fields edited during the request start unchecked. **Use selected candidate
+fields** changes only the private form. Saving is a separate action. **Restore
+previous fields** opens another comparison so later edits stay yours. Develop another take for a different reading,
 or save only after the reference feels right. At most one corrective second call is
 made when the first structured answer is unusable; both can be charged. Ordinary
 saving never paints an image or calls a model.
@@ -735,6 +525,13 @@ and narration voice on this path. The attention field shows a deliberately retai
 focus; clear it to release that focus. Preferences are restored with a rewind. Pacing
 does not change model randomness, and dramatic consequences do not imply constant
 danger. Voice guides style without overriding character control or boundaries.
+
+Selected references can travel in private **.inkrefs** bundles, with normalized
+images and private lore/motives. Preview entries and any matching names before
+import; import makes independent copies, never overwrites existing entries. The
+bundle excludes credentials and purchase authority and is unencrypted. It is not
+a reader-safe book or a complete installation backup. Story setup freezes its own
+copies, so later catalogue edits/removal do not change an existing story.
 
 ## Rewind and explore alternatives
 
@@ -775,29 +572,36 @@ or begin another question when ready. **End this episode** is a local resting
 point with an optional short recap, not another paid request. Your cast, facts,
 relationships, promises, settings and paths continue into the next episode.
 
-## Two ways to reach a satisfying pause
+## Chapters and volumes
 
-In **The Drowned Bell**, follow or steer the sisters as they investigate the chart
-sale and the bell. Public survey traces provide a fair starting point; the hidden
-answer is fixed. Learning who bought the chart does not automatically repair
-trust. Allow the sisters to decide a next step together, then linger over what
-their new understanding means. Vale's optional survey-record approach can refuse
-a plain appeal in Living-world and reconsider when relevant evidence is publicly
-established. Repeating the unchanged appeal makes no new AI purchase. You do not
-need to inhabit either sister.
+Chronicle offers optional book organization alongside playable history. The default
+uses episode-based chapters until you choose **Organize chapters and volumes**.
+Compare **Preview adoption**, then explicitly adopt it. No AI request, passage
+rewrite, scene transition or episode change occurs.
 
-In **The Garden After Rain**, explore the working tap, space for a bench and the
-neighbours' different wishes. Jo can decline a group role without being hostile.
-A genuinely agreed quiet task can create a different basis for cooperation. Let
-the layout become welcoming and give each person room to join a first shared
-pause on their own terms. Tea and seedlings are sufficient; no surprise catastrophe,
-affection meter or compulsory romance is needed to make this a complete episode.
+Choose a new chapter's first passage with a unique title. A volume can begin only
+at a chapter boundary. Rename chapters/volumes, combine the last chapter with its
+predecessor, move the final boundary, or split a new chapter into a new volume.
+Only the last chapter is open. Boundaries must name existing narrative passages
+on this path; prose cannot be reordered. An empty planned chapter never fabricates
+text. Automatic fallback groups keep unassigned passages readable and exportable.
 
-These are possible journeys, not fixed scripts or guaranteed model behaviour.
-Story-shaping gives requested developments more influence; Living-world allows
-credible refusal. Both support quiet care, alternative paths and stopping without
-an avatar. Each new narrated passage is a reviewed AI request. Reading, recaps,
-evidence, episode controls and saved-path management are local.
+The layout editor supports 64 volumes and 512 chapters within its bounded record
+limit. Larger automatic layouts remain readable/exportable; adoption explains its
+limit. Use **Save private layout draft now**, Copy or earlier-proposal recovery for
+unfinished work. Draft saving does not adopt the layout. A stale destination needs
+a fresh comparison; after an uncertain save, inspect the prior action receipt.
+
+Chronicle has bounded, searchable passages within a chapter. **Read this chapter**
+opens its first passage; Desk Previous chapter/Next chapter use those boundaries.
+Changing organization does not move your reading anchor. Explore/Rewind previews
+the selected state/layout and keeps the original future; a fork sees only the
+revision applicable at its selected moment.
+
+Book preview uses that chosen path/head's applicable layout, original prose,
+cover and placed images. A frozen edition stays unchanged after later renaming or
+narration. Current-format playable saves preserve layouts and every path. Grouping
+never edits prose wording; that editor remains outside this development scope.
 
 ## End an episode and return later
 
@@ -811,6 +615,11 @@ characters do not punish absence from the app. When you want to continue, choose
 
 Ending remains explicitly reader-controlled. The scene director can invite a
 resting point after a resolved thread but cannot end the episode for you.
+
+Chronicle can leave an open ending, mark a vignette or close an actually achieved
+thread. The optional recap need not resolve every question. **Undo this episode
+ending** is available immediately, before subsequent activity; it appends a new
+record rather than deleting the ending.
 
 ## Return without catching up on chores
 
@@ -828,59 +637,76 @@ and the reader's earlier moments remain available for a particular detail.
 
 ## Illustrate a moment
 
-In Gallery, choose Illustrate a moment. The dialog opens immediately. Select
-a loaded story passage and supply an image description. Read earlier moments first
-to illustrate an older passage. Images appear **above** their associated prose.
+Gallery lists story-owned images, including unplaced uploads and painting results,
+in metadata pages of forty. Thumbnails load lazily; Preview shows the full image,
+provenance and retained uses. Choose a cover, private reference or ancestral passage
+before placing an existing image. Placement/removal is local and branch-scoped;
+earlier snapshots and retained collection bytes remain available.
 
-Upload image accepts a local raster file up to 20 MB and makes no provider request.
-The server removes metadata/animation, normalizes orientation and stores a bounded
-WebP. Unsupported or unsafe files are refused without changing the story.
+**Illustrate a moment** opens immediately. Select a story passage, supply an image
+description and either upload a local raster (up to 20 MB) or review **Paint with
+AI**. Upload removes metadata/animation, normalizes orientation and stores bounded
+WebP without a provider request. Images appear **above** associated reader prose.
+EPUB instead gives each illustration a separate page before its text.
 
-Paint with AI uses the separate Illustrator provider/model in Settings. The
-selected passage and art direction are sent; hidden facts, motives, other passages
-and uploaded image references are not. It buys one image attempt, with no automatic
-retry. Cancellation and failure retain your direction. Charges may still occur on
-failure. Check the result and use Save description only to correct its accessible
-description without buying another image.
+Painting uses the separate Illustrator role in Settings: one reviewed attempt,
+with no automatic retry or reference-image conditioning. Only the selected passage
+and art direction are sent, excluding hidden facts/motives, other passages and
+uploaded references. A failure may still cost money. Check an uncertain painting
+outcome before another purchase. A changed path, cancellation or restart cannot
+silently attach a late result: validated bytes stay ready and unplaced in Gallery.
 
-Replacing or removing an image changes only the current path. Earlier snapshots
-retain the old illustration. Rewind can restore it. There is a 200-illustrated-moment
-limit per path and a 400-image limit per story including historical assets.
+Upload/paint is also available for story cover, cast portraits and selected world/
+Scribe references. Reference painting sends name, visible description and appearance
+or setting; a cover sends title/premise. Private lore/motives and uploaded bytes do
+not travel. The cover enters books; other reference portraits remain private.
+Creation alone never proves a story event, possession or character knowledge.
 
-The same upload/paint choices are available for **Story cover: upload or paint**,
-each cast member's **Portrait**, and the selected world and Scribe under Codex.
-The cover appears on Your stories and above the reader header, and enters the front
-of a book. Reference portraits stay in the private story/save, outside the book.
-These controls edit the story copy, never its reusable catalogue entry.
-
-Reference painting sends its name, visible description and appearance or setting;
-cover painting sends the title and premise. Your art direction also travels. Private
-lore, motives and uploaded image bytes do not. Every surface supports upload without
-a provider. Image creation alone never establishes a story event or character knowledge.
+**Save description only** corrects accessible text locally. Replacing/removing an
+image changes the current path, not prior snapshots or reusable catalogue entries.
+There are 200 illustrated moments per path and 400 retained images per story,
+including historical assets. The collection has no permanent asset-delete control.
+Private saves keep all owned source images/descriptions, not paint jobs or purchase
+permissions. Keep a full installation backup for the reusable library.
 
 ## Export a reading path or keep a playable save
 
-Choose Export this reading path for a book: EPUB, PDF, HTML, DOCX, ODT, RTF,
-Markdown, plain text or JSON. Supply an optional author credit and language tag.
-Only current-path prose, its cover and placed illustrations are included—not reference portraits, private facts, motives,
-questions, directions or other paths. No AI request is made. EPUB images each have
-a separate page immediately before their prose; text remains resizable. Text-only
-formats describe illustrations instead of embedding pixels. Missing media makes
-export fail visibly rather than silently producing a broken book.
+Gate separates **Make a readable book** from **Keep playing elsewhere**. A book
+starts from the viewed path and inspection moment without activating it. Set title,
+author credit, language and optional front/back matter. Private server drafts
+recover after reload. **Preview readable book** shows contents, included art, sample
+prose and exclusions. Source links return to the selected prose/grouping or Gallery
+if missing media prevents preflight. Editing details requires another preview;
+earlier frozen editions remain available.
 
-Choose Download a playable save to preserve **all** paths and continue elsewhere.
-The `.inkmorrow5` file includes cast, hidden truth, commitments, knowledge, control,
-episodes, director history, frozen catalogue references, all story images and aggregate known/unknown spend. It
-excludes credentials, provider configuration, payment consent and pending requests.
-It is unencrypted: keep it private, and use a book to share with ordinary readers.
+Choose one/several formats or **Select all formats**, then **Build frozen edition**:
+EPUB, PDF, HTML, DOCX, ODT, RTF, Markdown, plain text or JSON. All nine use one frozen
+reader-safe document. Only selected-path narrative prose, grouping, cover/placed
+art and approved front/back matter enter it. Ask, directions, private references,
+other paths and audio are excluded. Prose itself may contain fictional secrets.
+EPUB has separate illustration pages; prose stays resizable. Text-only formats
+describe art. Missing media fails visibly rather than being silently omitted.
 
-On Your stories, choose Import a playable save. Select the file, Check this save,
-review its story/path/moment/image counts, then Import as a new story. The original
-is never overwritten. No provider call starts. Configure credentials separately
-on the destination. Older `.inkmorrow` archives and databases are not accepted.
-Portable saves support up to 10,000 moments, 40 paths, 64 MB compressed and 128 MB
-expanded, with conservative preflight for unusually large stories. Keep a cold
-operator backup as well. A downloaded book cannot restore the playable world.
+Rendering is local and durable, independent of later story changes. Close/reopen
+a retained edition to inspect/cancel work. A partial failure keeps successful
+formats. Restart marks unfinished jobs interrupted without automatic rebuild.
+Missing/damaged output requires an explicit new build; verified identical files
+can be reused free. Bookshelf retains available downloads and older-edition labels.
+Download initiation does not prove your browser actually saved the file.
+
+**Download a playable save** preserves all paths, cast, hidden truth, knowledge,
+control, episodes, references, source images, layouts and aggregate spend. The
+current **.inkmorrow5** file is unencrypted: keep it private. Credentials, provider
+configuration, consent, jobs, prepared books/audio and reading-link authority do
+not travel. Download prepared editions separately. A readable book cannot restore
+the playable world.
+
+On Your stories choose **Import a playable save**, Check this save, review counts,
+then Import as a new story. The original is never overwritten; no provider call
+starts. Configure credentials separately. Limits are 10,000 moments, 40 paths,
+64 MiB compressed and 128 MiB expanded; oversized material fails preflight without
+dropping history. Keep a cold installation backup too. Current runtime/formats are
+the target; old-series conversion or backwards compatibility is not promised.
 
 ## Check your save before you need it
 
@@ -1121,7 +947,7 @@ with one deliberately player-controlled exchange, preserved in a playable save.
 playable copy. Spread this journey over several sessions; features are options,
 not a checklist the game expects you to perform every night.
 
-1. Configure storyteller, memory-support and Illustrator roles. Choose session
+1. Configure Storyteller, memory-support, Illustrator and Narrator roles. Choose session
 credentials or the encrypted vault deliberately, and set an upstream spend limit.
 2. In Visual Library create a compatible world, an additional character and a
 Scribe. Upload reference art or explicitly paint it. Start The Drowned Bell,
@@ -1145,51 +971,53 @@ cast portraits in Codex; change a story portrait without changing its template.
 Correct descriptions locally. Passage art appears above its prose.
 10. Reach a satisfying pause, end the episode, and later begin another question.
 Use Catch me up on return rather than buying a recap.
-11. Export a reading path as EPUB and inspect its separate illustration pages.
-Download a private save, check it, import it as a new story, and verify an
+11. Organize chapters/volumes, preview the viewed path in Gate, build EPUB and
+inspect its separate illustration pages. Edit metadata and make another preview;
+the earlier edition remains fixed. Review one saved-text listening plan, purchase
+only explicitly approved synthesis, then replay/change speed free in Bookshelf.
+12. If public reading is configured, review a frozen edition, choose expiry,
+create/copy a reading link and test revocation. Otherwise keep local export.
+13. Download a private save, check it, import it as a new story, and verify an
 alternate path, cover and portrait. Keep a full installation backup for reusable catalogues.
 
-**Cost boundary:** new narration, Ask, selected quality calls and AI painting are
-paid. The remaining actions are local. **Outcome:** one reader-facing book and
-one private, verified, all-path continuation copy. Nothing is published publicly
-by these actions.
+**Cost boundary:** new narration, Ask, selected quality calls, AI painting and new speech
+synthesis are paid. The remaining actions are local. **Outcome:** one reader-facing book and
+one private, verified, all-path continuation copy. Only the explicit reading-link step enables public access to its selected copy.
 
-## Coming from the 4 series
+## Listen, collect and share
 
-Version 5.0 is a new game, not a new layout for the old writing suite.
-Your usual position is reader-director outside the cast. Follow and Steer are
-complete ways to play; Inhabit is optional.
+Desk/Gallery offer **Listen to saved text**. Configure an MP3-capable Narrator role,
+then choose Read aloud, Auto-read or audiobook, voice and a saved passage/path/
+chapter/volume. **Preview listening plan (free)** freezes saved narrative prose and
+shows segments, cached reuse, maximum synthesis calls and exposure. Ask, owner
+directions, private references, corrections and sibling paths are excluded.
 
-Manual prose editing, manuscript import,
-prepared successor pages, Chronicle/Codex/Gallery/Gate rooms, narration,
-audiobooks and public snapshot sharing are not the 5.0 production workflow.
-Natural-language direction, starting situations, cast descriptions, factual
-correction and short episode recaps remain because they support play.
+Review any new synthesis purchase explicitly. Work is sequential without retry or
+PCM fallback. Read aloud caps at 16 segments; Auto-read/audiobooks at 512. A unit
+caps at 16 MiB and an edition at 512 MiB. Choose a smaller range if preflight
+rejects it. Retained audio has a conservative 4 GiB quota and 20-job queue.
 
-Reusable visual world, character and Scribe catalogues are available in the new
-Visual Library, with upload and AI painting. They are new 5.0 references, not an
-import path for old templates. All selected details and images freeze into each story.
+One labelled player follows you across rooms with source/Return, progress and
+cancellation. Pause/Stop playback differs from **Cancel remaining synthesis**.
+Replay and speed changes are free. Story/path changes pause Auto-read and request
+cancellation of undispatched synthesis. A dispatched unit may still cost money.
+Restart interrupts rather than resumes work; a fresh reviewed plan can reuse good
+units. A missing/corrupt cache hit fails instead of silently buying replacement.
+Tap to resume handles autoplay refusal without another purchase. Lock clears the
+private player. Download prepared MP3 separately from the playable save.
 
-The database family is ink-morrow-5. The default location is
-database-v5/ink-morrow-5.db, separate from the old database directory. Pointing
-5.0 at a 4.x database fails closed; it does not migrate or erase that file.
-Keep the old application with its old data if you still need to read it there.
+**Bookshelf** pages retained books, audio and owner-only story art. Filter, download,
+play prepared MP3 or return to a story. Older sources, unavailable files and
+interrupted jobs remain visible. Opening the collection starts no renderer or
+purchase. Private reference art is labelled and stays outside books unless it is
+an applicable cover/placed illustration. Removing a retained book revokes its
+links and releases only unshared output files; source fiction remains intact.
 
-Old .inkmorrow manuscript archives are not accepted. New .inkmorrow5 saves
-preserve playable stories and all their paths. Character-template import from
-the old series is not provided as a release feature. No conversion is required
-or promised before you can enjoy a new story.
-
-Images are now attached to playable moments. They appear above their associated
-prose in the reader, and on a separate preceding page in EPUB. A book is a
-selected-path reading export; a save is an unencrypted, private continuation
-package. Neither includes credentials.
-
-If an older bookmark names Desk, Gallery or a retired API, return to the new
-story shelf. Do not try to revive the writing system by changing a URL or
-environment setting. The production server exposes the game, while inherited
-internal modules remain only for tested implementation reuse.
-
-The short version: start fresh, keep old data separate, and use the new save
-format for 5.0 continuity. Historical release records stay in the repository
-for reference; they are not current operating instructions.
+If the installation is configured for public reading, a frozen book preview offers
+expiry and **Create reading link**. Review exactly what it includes, then copy the
+URL or select it manually if clipboard access fails. Active/expired/revoked records
+are identifiable; use **Revoke link** to block future access. A lost URL cannot be
+recovered: create another and revoke the old one if necessary. Anyone with the
+link can read that frozen prose/art until expiry or revocation; downloaded copies
+cannot be retracted. Reading is AI-free. If sharing is unconfigured, local export
+still works; no automatic hosting/deployment is supplied.

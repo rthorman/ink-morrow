@@ -1,8 +1,8 @@
 # N1–N6 — source-grounded narrative drive and character consistency
 
-Implemented on `recovery/narrative-drive`, based on B7 main `7ec3fa9`. Application
-5.0.0/schema 29 stay unchanged. Delivery remains pending final exact-head checks
-and actual integration. Current runtime/formats are the target; the owner has
+Delivered through PR #116, merged as `0d23a704a901c5d7d15188062f9f8842563ef1df`,
+after all five checks passed at `d958de19737032d60015ad1f867ff2f86f90f69d`.
+Application 5.0.0/schema 29 stay unchanged. Current runtime/formats are the target; the owner has
 explicitly waived backwards compatibility. Owner files/history remain protected.
 
 ## Implemented behavior

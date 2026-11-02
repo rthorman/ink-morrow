@@ -164,7 +164,7 @@ with tail limited to that fork's head. A sibling's future cannot enter the range
 Historical outline inspection is read-only and pages pin their original boundary.
 Save-copy validates/remaps all revision/anchor/producer pointers. A returned book
 keeps earlier headings; a later build resolves newer layout. Prose editing remains
-separately gated. Current storage is schema 26; PDFs remain deferred.
+separately gated. Current storage is schema 29; all six PDFs are regenerated at the final checkpoint.
 
 
 
@@ -198,8 +198,8 @@ never imply achievement. Optional ending records open-ending/vignette/resolved-t
 the latter needs actual achievement. Immediate unchanged ending → append-only undo;
 later activity requires another path instead. No timer or goal count forces ending.
 
-This source describes schema 25/B3. PDFs remain the verified B2 build until final
-recovery completion; no runtime behavior is inferred from a stale PDF.
+B3 introduced schema 25; current schema is 29. All six manuals are regenerated
+together at the final recovery checkpoint.
 
 
 ## Conventions and terminal outcomes

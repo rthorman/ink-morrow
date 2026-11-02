@@ -1,6 +1,11 @@
 # InkMorrow 5.0.0 — playable fiction
 
-Approved 4 September 2026. Integration branch: `release/5.0.0`.
+Approved 4 September 2026; that release integration is historical. Current work
+uses GitHub main. The November recovery checkpoint adds B5–B7 and N1–N6 on
+application 5.0.0/schema 29, with B8 final engineering/manual qualification.
+See [the current ledger](../../recovery/CAPABILITY-LEDGER.md) and
+[qualification record](../../recovery/B8-DELIVERY.md). Backwards compatibility is
+not required; source integration does not imply deployment or live literary review.
 
 Latest owner direction, 4 September 2026: add a Living-world fourth-wall setting
 (Never, Rarely, Freely). The owner briefly cancelled the main merge and then

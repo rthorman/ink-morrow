@@ -73,6 +73,31 @@ describe("B7 frozen current-fiction books", () => {
     }
     throw Error("Render did not finish");
   }
+  test("an already-rolled-back storage failure preserves the original error and draft source", () => {
+    editions.dispose();
+    const error = Object.assign(Error("Fixture storage unavailable"), {
+      code: "BOOK_DISK_LOW",
+      statusCode: 413,
+    });
+    editions = createEditions({
+      db,
+      store,
+      queries: createWorkspaceQueries({ db, store }),
+      publication: {
+        documentAt() {
+          db.exec("ROLLBACK");
+          throw error;
+        },
+      },
+      rootDir: root,
+    });
+    const before = store.view(story.id);
+    expect(() => freeze()).toThrow(error);
+    expect(
+      db.prepare("SELECT count(*) AS n FROM fiction_book_snapshots").get().n,
+    ).toBe(0);
+    expect(store.view(story.id)).toEqual(before);
+  });
   test("one frozen reader-safe document renders every adapter without changing story authority", async () => {
     const before = store.view(story.id);
     const edition = freeze();

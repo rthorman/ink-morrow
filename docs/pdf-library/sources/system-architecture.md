@@ -171,7 +171,7 @@ its nine adapters. Original prose, placed images, exact evidence, episode phase 
 scene framing keep their own authority. Wording/display overlays remain D1-gated.
 Chronicle has a paged historical outline and the full-height private editor; late
 callbacks are fenced on Close/Back/room changes/Lock. See B4-DELIVERY.md and genuine
-schema-25 fixtures for preservation evidence. PDF regeneration remains deferred.
+schema-25 fixtures for preservation evidence. All six PDFs are regenerated together at this final checkpoint.
 
 
 
@@ -203,7 +203,7 @@ opportunity scheduler nominates categories independently of fact cardinality.
 `creative-save.js` validates producers, parents, subject/ancestry, complete shapes,
 bindings, unchanged baselines/heads and source closure before import remaps IDs.
 Frozen save-v1 modules and migration 24 remain untouched. See B3-DELIVERY.md for
-limits and fixtures; current source manuals advance while PDFs stay deferred.
+limits and fixtures; current source manuals and PDFs are updated together.
 
 
 ## Product and system context
@@ -220,7 +220,8 @@ generators reached only at reviewed purchase boundaries.
 
 The production composer creates auth, provider and fiction services. It does not
 instantiate the retired writing, continuity, catalogue, image-backfill, audiobook,
-transfer or public-share runtime. legacy-runtime.js is an explicit internal test
+transfer or public-share runtime. Current-fiction listening and reading copies
+are independent active services. legacy-runtime.js is an explicit internal test
 and reuse seam; server.js always selects legacyEnabled:false.
 
 Historical tables and migrations remain for tested infrastructure reuse. Their
@@ -247,7 +248,7 @@ Bookmarks contain only story/path/passage identities and a relative paragraph an
 | fiction/service.js and memory.js | Bounded relevant authoritative context |
 | fiction/resistance.js and director.js | Structured rulings and scene opportunities |
 | fiction/service and quality modules | Reviewed, bounded model work and accounting |
-| fiction/media, publication, saves | Path-local art, reader-safe books, private copies |
+| fiction/media, gallery, publication, editions, listening, saves | Retained art, frozen books/reading copies, reviewed audio and private copies |
 | fiction/library and library-model | Reusable visual references, frozen setup copies, separate image journal |
 | frontend/app/fiction | Shelf, start, reader, controls, dialogs and route fencing |
 
@@ -264,7 +265,7 @@ recreated at each surface.
 ## Fresh storage and startup order
 
 The release identifies itself as 5.0.0, database family ink-morrow-5,
-schema 26 and SQLite application ID 0x494D3530. Package identities agree across
+schema 29 and SQLite application ID 0x494D3530. Package identities agree across
 root, backend, frontend and E2E. Playable saves separately identify their own
 format and version; these are not interchangeable schema numbers.
 

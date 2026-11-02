@@ -21,24 +21,22 @@ Both allow quiet cooperation, meaningful relationships and a satisfying place
 to stop. Nothing advances while you are away, except a request you already
 authorised finishing.
 
-Recovery B4 adds chapter/volume organization, historical outlines, restore previews
-and layout-aware books/saves. Creative studios, independent length/pacing, typed
-campaign records and bounded narration remain. The application stays 5.0.0,
-now schema 26; playable-save v2 retains earlier saves and frozen v1 import.
-See [B4 delivery](docs/recovery/B4-DELIVERY.md) and the continuation checkpoint.
-Manual sources stay current; PDFs remain deferred until the final recovery package.
+Recovery now includes retained Gallery art, reviewed saved-text listening,
+frozen books/Bookshelf/reading copies, branch-local chapters/volumes, creative
+studios and source-grounded narrative guidance. Application stays **5.0.0**, schema
+**29**. Current runtime/formats are the target; backwards compatibility is not an
+acceptance requirement. All six manuals are regenerated at the final checkpoint;
+the User Guide remains 35 A4 pages.
 
-## Recovery planning
+## Recovery checkpoint
 
-The proposed recovery uses the final Version 4.1 experience as its historical
-reference while retaining Version 5's playable-fiction model. B1–B4 are implemented; B5 and later recovery batches remain planned. See the [planning index](docs/recovery/README.md),
-[implementation guide](docs/recovery/IMPLEMENTATION-GUIDE.md) and
-[continuation state](docs/recovery/CONTINUATION.md).
-
-The [B0 experience prototype](docs/recovery/B0-EXPERIENCE.md) provides an
-interactive fictional example, isolated from production stories and providers.
-The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the working
-current-fiction workspace, screenshots, scope and verification limits.
+B1–B7 and N1–N6 are implemented. See the [current capability ledger](docs/recovery/CAPABILITY-LEDGER.md),
+[final qualification](docs/recovery/B8-DELIVERY.md) and
+[continuation state](docs/recovery/CONTINUATION.md) for source/CI integration and
+honest acceptance limits. Historical comparisons and the isolated
+[B0 prototype](docs/recovery/B0-EXPERIENCE.md) remain design evidence.
+Source integration is separate from deployment, real Android review or a paid
+literary benchmark; none is implied by screenshots or automated fixtures.
 
 ## What 5.0 includes
 
@@ -63,6 +61,7 @@ current-fiction workspace, screenshots, scope and verification limits.
   AI painting handle scenes and portraits. Setup makes frozen story copies, so
   later catalogue edits do not change them.
 - Tablet-friendly passage pagination; Previous, Next and Latest never buy prose.
+- Reviewed MP3 saved-text listening, cached replay and a shared source-labelled player.
 - Frozen previews and resumable local jobs for nine reader-safe book formats;
   a retained Bookshelf for books, prepared MP3 and owner-only story art.
 - Optional expiring/revocable reading links through a current-fiction snapshot

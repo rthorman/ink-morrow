@@ -10,34 +10,36 @@ not authorize deleting owner files/data or rewriting integrated migration histor
 retain safe storage boundaries and historical records. Existing compatibility
 checks may remain historical tests, not a mandate for new product behavior.
 
-## Development resumed — 2 November 2026
+## Current recovery checkpoint — 2 November 2026
 
-The owner explicitly resumed development after the saved pause. Continue B6/B7,
-then N1–N6 and final qualification/manuals through exact-head green PRs. The old
-pause record remains historical evidence, not a current stop instruction. No
-production startup/deployment or paid evaluation is authorized. Current tasks and
-status live in `docs/recovery/DEVELOPMENT-TASKS.md` and `CONTINUATION.md`.
+The owner explicitly resumed after the historical B6 pause. B5 Gallery (#113),
+B6 listening (#114), B7 books/Bookshelf/reading copies (#115), and N1–N6 narrative
+context/guidance (#116) are merged on main after five exact-head green checks.
+Current feature main is `0d23a70`, application 5.0.0/schema 29. B8 is the final
+qualification/manual candidate; finish its five-check PR/main boundary, record
+final state, and consolidate on main with checkouts clean/current. The canonical
+InkMorrow checkout must end on main, per the owner’s latest direction. Do not restart completed batches.
 
-## Recovery planning and continuation (2 November 2026)
+Read `docs/recovery/CONTINUATION.md`, `DEVELOPMENT-TASKS.md`, `CAPABILITY-LEDGER.md`
+and the delivery records. The historical 4.1 comparator, roundtables and B6 pause
+remain records, not outstanding compatibility targets or a stop instruction.
+Historical release/integration directions below are superseded by current main.
+Keep immutable release/4.0.0, historical tags and the retained dependency branches;
+do not recreate removed feature branches from old continuation instructions.
 
-- Latest stakeholder direction (2 November): complete remaining development. B5–B7 and final recovery documentation/checks are authorized; D1/D2/D3 remain separately gated. B5 is in implementation/verification on `recovery/b5-visual-collection`; do not call it delivered until main merge. Keep source guides, delivery records and continuation state current; defer PDF regeneration until the last recovery work package. `docs/pdf-library/update-policy.json` records this deferral; existing PDF integrity remains checked. Remove the deferral and regenerate all six PDFs at final completion.
+No production startup/deployment, paid literary evaluation or new release number
+is authorized. D1 wording edits and D3 image conditioning stay separate; D2
+conversion is not required and B9 solo tools remain optional.
 
-- Current recovery plan: [guide 1.1](docs/recovery/IMPLEMENTATION-GUIDE.md); resume through [continuation state](docs/recovery/CONTINUATION.md). These documents describe proposed work, not an implemented release.
-- The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
-- Stakeholder-authorized cleanup removed 53 integrated branches. Keep immutable `release/4.0.0`, historical tags and the 13 pending dependency branches. Exact tips and evidence are in `docs/recovery/BRANCH-CLEANUP.json`. Do not recreate deleted branches to resume old integration instructions.
-- Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 implements bounded historical inspection, exact new evidence, private server drafts, schema 24 and playable-save v2 with frozen v1 import. Read B2-DELIVERY.md before resuming; B3 implements creative depth, schema 25 and creative save-v2 collections; read B3-DELIVERY.md. B4 implements branch-scoped editorial chapters/volumes with schema 26; read B4-DELIVERY.md. B5 Gallery is next; D1 wording editing remains separately gated. Preserve separate inspection/action destinations and acknowledged-draft honesty.
+N1–N6 uses read-only source/outcome/editorial projections and existing calls, with
+no new schema/planner/critic call or accepted-fiction rewrite. Exact evidence can
+include private assertions/submitted input; consent/exposure and byte bounds count
+it. NARRATIVE-EVALUATION-PROTOCOL.md is an opt-in proposal, not paid authority.
 
-- Latest direction (2 November, resumed): add the six Character Forge-derived
-  narrative/consistency ideas as tasks and continue development. The checklist is
-  `docs/recovery/DEVELOPMENT-TASKS.md`: B5 is merged (PR #113 / `9395fcf`), B6 is
-  merged (PR #114 / `5842623`), B7 is merged (PR #115 / `7ec3fa9`), N1–N6 is active before final qualification/manuals. Start narrative work
-  with existing calls/context; no new planner/critic calls or paid benchmark.
-
-- N1–N6 implementation uses read-only narrative source/outcome/editorial projections
-  and existing calls. See `docs/recovery/NARRATIVE-DELIVERY.md` and the opt-in
-  `NARRATIVE-EVALUATION-PROTOCOL.md`. No new schema, planner/critic call or accepted
-  fiction rewrite. Exact evidence can include private assertions/submitted input;
-  consent/exposure and byte bounds include it. No paid literary trial is authorized.
+The temporary PDF deferral ends at B8. All six source manuals/PDFs and their combined
+freshness manifest are regenerated/inspected; the User Guide keeps 33 task/journey
+chapters and 35 A4 pages at the existing typography. Subsequent behavior changes
+must keep affected sources and all six rendered outputs current together.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 
