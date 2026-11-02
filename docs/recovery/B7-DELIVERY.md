@@ -69,6 +69,11 @@ storage. Playable saves exclude rendered editions, audio, jobs and share authori
   paths; all 51 generation tests pass. The repeated full backend run passed
   583/583 across 54 suites. Later thumbnail/private-art availability assertions
   passed in the focused 11-case edition suite. Exact final-head CI follows.
+- CI at `411ee5f` passed all functional cases but the inherited scale import took
+  62.6s against its unchanged 60s limit while Jest ran other suites in parallel.
+  CI now runs that exact performance fixture separately from the parallel
+  correctness suites. No test/data/threshold is removed or relaxed. The local
+  full sequential run passed, with the scale suite completing in 46.7s.
 - Automated screenshot inspected for the mobile frozen-book form. This is not
   real Android touch/IME, deployment or live literary evaluation evidence.
 
