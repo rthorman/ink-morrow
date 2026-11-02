@@ -839,12 +839,12 @@ describe('Speculative next-page preview', () => {
     const fs = require('fs');
     const os = require('os');
     const path = require('path');
-    const { createDb } = require('../src/db');
-    const { createApp } = require('../src/app');
     const dbFile = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'im-preview-')), 'preview.db');
+    let first;
+    let second;
     try {
-      const db1 = createDb(dbFile);
-      const app1 = createApp(db1, { legacyEnabled: true, staticDir: null });
+      first = createTestApp({ dbPath: dbFile });
+      const app1 = first.app;
       const world = await createWorld(app1, { name: 'Restart Realm' });
       const story = await createStory(app1, world.id, []);
 
@@ -852,9 +852,10 @@ describe('Speculative next-page preview', () => {
       const prepared = await request(app1).post(`/api/stories/${story.id}/pages/preview`).send({}).expect(200);
 
       // Full restart: new app instance on the same database file
-      db1.close();
-      const db2 = createDb(dbFile);
-      const app2 = createApp(db2, { legacyEnabled: true, staticDir: null });
+      first.close();
+      first = null;
+      second = createTestApp({ dbPath: dbFile });
+      const app2 = second.app;
 
       // The prepared page is still there and commits as-is - no silent
       // fallback to a fresh (re-billed) generation
@@ -862,8 +863,9 @@ describe('Speculative next-page preview', () => {
         .send({ preview_id: prepared.body.preview.preview_id }).expect(201);
       expect(commit.body.page.page_number).toBe(1);
       expect(commit.body.page.content).toBe('The prepared continuation.');
-      db2.close();
     } finally {
+      first?.close();
+      second?.close();
       fs.rmSync(path.dirname(dbFile), { recursive: true, force: true });
     }
   });

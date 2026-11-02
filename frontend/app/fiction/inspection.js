@@ -142,7 +142,7 @@ export function createInspection({ api, dialogs, getCurrent, activate,getReading
     const desk = root('inspectionReader', 'workspaceDesk');
     desk.hidden = !inspected;
     if (!inspected) desk.replaceChildren();
-    for(const [name,parent] of [['gate','workspaceGate'],['gallery','workspaceGallery']]){
+    for(const [name,parent] of [['gallery','workspaceGallery']]){
       const scope=root(`inspection-${name}-target`,parent,true);scope.hidden=room!==name;
       if(room===name){const active=story.branches.find(path=>path.id===story.active_branch_id);scope.replaceChildren(el('p',`${name==='gate'?'Book export':'Image tools'} destination: ${active?.name||'active path'} at its latest moment. Read-only browsing does not change this destination.`,'workspace-scope-note'));}
     }

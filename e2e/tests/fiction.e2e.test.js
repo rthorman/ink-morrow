@@ -223,10 +223,14 @@ test.describe('5.0 playable fiction', () => {
     expect(await page.locator('.fiction-beat').first().evaluate((node) => node.firstElementChild.tagName)).toBe('FIGURE');
     await page.screenshot({ path: testInfo.outputPath('illustrated-reader.png'), fullPage: true });
     await goRoom(page, 'Gate');
-    await page.getByRole('button', { name: 'Export this reading path', exact: true }).click();
-    const bookEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download book', exact: true }).click();
+    await page.getByRole('button', { name: 'Make a readable book', exact: true }).click();
+    await page.getByRole('button', { name: 'Preview readable book', exact: true }).click();
+    await page.getByRole('button', { name: 'Build frozen edition', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Download EPUB', exact: true })).toBeVisible();
+    const bookEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download EPUB', exact: true }).click();
     const book = readFileSync(await (await bookEvent).path()).toString('utf8');
     expect(book).toContain('rendition:layout-pre-paginated'); expect(book).toContain('image-2.xhtml'); expect(book).toContain('text-3.xhtml');
+    await page.getByRole('dialog').getByRole('button', { name: 'Close', exact: true }).click();
     await expect(page.getByRole('dialog')).toBeHidden();
     await goRoom(page, 'Gate');
     await page.getByRole('button', { name: 'Download a playable save', exact: true }).click();
@@ -584,7 +588,7 @@ test.describe('5.0 playable fiction', () => {
     await goRoom(page, 'Codex'); await expect(page.getByText('Inspect public records at a chosen moment.', { exact: false })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Correct a story fact', exact: true })).toBeVisible();
     await goRoom(page, 'Gallery'); await expect(page.getByRole('button', { name: 'Illustrate a moment', exact: true })).toBeVisible();
-    await goRoom(page, 'Gate'); await expect(page.getByRole('button', { name: 'Export this reading path', exact: true })).toBeVisible();
+    await goRoom(page, 'Gate'); await expect(page.getByRole('button', { name: 'Make a readable book', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Download a playable save', exact: true })).toBeVisible();
     await goRoom(page, 'Desk'); await page.screenshot({ path: testInfo.outputPath('b1-production-desk.png') });
     expect(paid).toBe(0);

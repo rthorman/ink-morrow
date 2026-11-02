@@ -1,13 +1,13 @@
-'use strict';
+"use strict";
 
 const {
   PUBLICATION_FORMAT,
   PUBLICATION_SCHEMA_VERSION,
   blocksOf,
   validatePublicationDocument,
-} = require('../publication/document');
-const { renderPublication } = require('../publication/adapters');
-const { keys, text, fail } = require('./model');
+} = require("../publication/document");
+const { renderPublication } = require("../publication/adapters");
+const { keys, text, fail } = require("./model");
 
 // The game supplies one reader-safe PublicationDocument to every adapter.
 // No transcript, directions, private state, other paths or credentials travel.
@@ -16,16 +16,16 @@ function createFictionPublication({ store, media }) {
   function document(gameId, input = {}) {
     keys(
       input,
-      ['author', 'language', 'expected_revision', 'branch_id'],
-      'Book metadata',
+      ["author", "language", "expected_revision", "branch_id"],
+      "Book metadata",
     );
-    const author = text(input.author, 'Author credit', 300, { optional: true });
+    const author = text(input.author, "Author credit", 300, { optional: true });
     const language =
       input.language === undefined
-        ? 'en'
-        : text(input.language, 'Language', 40);
+        ? "en"
+        : text(input.language, "Language", 40);
     if (!/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(language))
-      fail('Use a language tag such as en or en-GB.');
+      fail("Use a language tag such as en or en-GB.");
     const { game, branch, state } = store.current(gameId);
     if (
       (input.expected_revision !== undefined &&
@@ -34,11 +34,22 @@ function createFictionPublication({ store, media }) {
       (input.branch_id !== undefined && input.branch_id !== branch.id)
     )
       fail(
-        'The reading path changed. Reopen export before downloading.',
-        'STORY_CHANGED',
+        "The reading path changed. Reopen export before downloading.",
+        "STORY_CHANGED",
         409,
       );
-    const rows = store.publicationRows(gameId, branch.head_beat_id);
+    return documentAt(
+      { game, viewBranch: branch, head: branch.head_beat_id, state },
+      {
+        metadata: { title: game.title, author, language },
+        front_matter: [],
+        back_matter: [],
+      },
+    );
+  }
+  function documentAt(ctx, details) {
+    const { game, state } = ctx;
+    const rows = store.publicationRows(game.id, ctx.head);
     const placements = new Map(
       (state.illustrations || []).map((item) => [item.beat_id, item]),
     );
@@ -49,12 +60,12 @@ function createFictionPublication({ store, media }) {
     const artBlock = (placed) => {
       let key = assetKeys.get(placed.asset_id);
       if (!key) {
-        const asset = media.read(gameId, placed.asset_id);
+        const asset = media.read(game.id, placed.asset_id);
         byteCount += asset.byte_size;
         if (byteCount > 64 * 1024 * 1024)
           fail(
-            'This illustrated book exceeds the 64 MB content limit.',
-            'BOOK_TOO_LARGE',
+            "This illustrated book exceeds the 64 MB content limit.",
+            "BOOK_TOO_LARGE",
             413,
           );
         key = `asset-${assets.length + 1}`;
@@ -67,21 +78,21 @@ function createFictionPublication({ store, media }) {
           height: asset.height,
           title: placed.caption || null,
           alt_text: placed.alt_text,
-          content_base64: asset.buffer.toString('base64'),
+          content_base64: asset.buffer.toString("base64"),
         });
       }
       return {
-        type: 'art',
+        type: "art",
         asset_key: key,
         alt_text: placed.alt_text,
-        position: 'before',
+        position: "before",
       };
     };
-    const cover = (state.visuals || []).find((item) => item.kind === 'cover');
+    const cover = (state.visuals || []).find((item) => item.kind === "cover");
     const frontMatter = cover
-      ? [{ role: 'other', title: 'Cover', blocks: [artBlock(cover)] }]
+      ? [{ role: "other", title: "Cover", blocks: [artBlock(cover)] }]
       : [];
-    const structure = store.editorialValue(gameId, state, rows, game.title);
+    const structure = store.editorialValue(game.id, state, rows, game.title);
     const volumes = structure.layout.volumes.map((volume, index) => ({
       ordinal: index + 1,
       title: volume.title,
@@ -109,8 +120,8 @@ function createFictionPublication({ store, media }) {
         if (placed) blocks.push(artBlock(placed));
         if (byteCount > 64 * 1024 * 1024)
           fail(
-            'This book exceeds the 64 MB content limit.',
-            'BOOK_TOO_LARGE',
+            "This book exceeds the 64 MB content limit.",
+            "BOOK_TOO_LARGE",
             413,
           );
         blocks.push(...blocksOf(beat.prose));
@@ -122,13 +133,13 @@ function createFictionPublication({ store, media }) {
       }
     }
     if (!chapters.length)
-      fail('Continue the story before exporting its prose.');
+      fail("Continue the story before exporting its prose.");
     return validatePublicationDocument({
       format: PUBLICATION_FORMAT,
       schema_version: PUBLICATION_SCHEMA_VERSION,
-      metadata: { title: game.title, author, language },
-      front_matter: frontMatter,
-      back_matter: [],
+      metadata: details.metadata,
+      front_matter: [...frontMatter, ...details.front_matter],
+      back_matter: details.back_matter,
       assets,
       volumes: volumes
         .filter((volume) => volume.chapters.length)
@@ -137,11 +148,12 @@ function createFictionPublication({ store, media }) {
   }
   return {
     document,
+    documentAt,
     export: async (id, format, input) => {
       if (exporting)
         fail(
-          'Another book is being built. Try again after it finishes.',
-          'BOOK_BUSY',
+          "Another book is being built. Try again after it finishes.",
+          "BOOK_BUSY",
           409,
         );
       exporting = true;

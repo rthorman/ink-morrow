@@ -1,5 +1,15 @@
 # Active development tasks — 2 November 2026
 
+## Current scope — no backward compatibility (2 November 2026)
+
+The owner explicitly clarified that backward compatibility is not needed. Current
+InkMorrow runtime and formats are the development target; supporting retired
+runtimes, old save formats or earlier APIs is no longer an acceptance requirement.
+Do not add compatibility layers or expand development to preserve them. This does
+not authorize deleting owner files/data or rewriting integrated migration history;
+retain safe storage boundaries and historical records. Existing compatibility
+checks may remain historical tests, not a mandate for new product behavior.
+
 The owner explicitly resumed development on 2 November. The pause record remains
 historical evidence; this checklist and CONTINUATION.md describe active work.
 
@@ -12,8 +22,8 @@ conversion, D3 image conditioning and optional B9 solo tools remain separate.
 
 - [x] B5 retained Gallery and reference portability — PR #113, merged as
   `9395fcf09f5fb9a55467c545ca5f2d72765b79ba`; five checks green at `c9801c6`.
-- [ ] B6 listening — final verification in progress, not merged on `recovery/b6-listening`: saved-text plans,
-  sequential synthesis, free cache replay, cancellation/restart and shared player.
+- [x] B6 listening — PR #114, merged as `5842623e5e6ac4735a3b370559891e0922d211b8`;
+  five checks green at `61e97b1d310a125a391616c4845dfe36c656dc30`.
 - [ ] B7 finishing — frozen book previews/jobs, nine formats, retained Bookshelf
   and functional current-fiction sharing, with independent private export.
 

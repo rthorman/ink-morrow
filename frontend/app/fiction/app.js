@@ -1,3 +1,4 @@
+import {createBookStudio} from './book-studio.js';
 import {createListening} from './listening.js';
 import { el, button, field, option } from './dom.js';
 import { createStoryDialogs } from './story-dialogs.js';
@@ -26,7 +27,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
-  let listening=null;
+  let listening=null;let bookStudio=null;
   let workspace = null; let inspection = null;let creativeStudio=null;let campaignStudio=null;let editorialStudio=null;
   const durableDrafts = new Map(); let activeDurable = null; let setupDraft = null;
   let bookmarkRestoring = false;
@@ -737,7 +738,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); listening?.clear();mediaDialogs.clear(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
+    workspace.position(); listening?.clear();bookStudio?.clear();mediaDialogs.clear(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null;shelfQuery='';shelfGenre='';$('fictionShelfQuery').value='';$('fictionShelfGenre').value=''; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
@@ -763,6 +764,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
     setDirection: (value) => { workspace.contribution('steer'); $('fictionDirection').value = value; draftRevision++; saveDraft(); status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
   listening=createListening({api,dialogs,getCurrent:()=>current,getShown:()=>shownBeatId,onSettled:async id=>{const token=epoch;try{const data=await api(`/fiction/${id}`);if(alive(token)&&current?.id===id)renderStory(data.story);}catch{/* Retained job accounting stays available for explicit refresh. */}}});
   for(const parent of ['workspaceGallery','workspaceDesk']){const control=button('Listen to saved text',()=>listening.open());document.getElementById(parent).append(control);}
+  bookStudio=createBookStudio({api,dialogs,getCurrent:()=>current,playAudio:(story,job)=>listening.play(story,job)});
+  for(const parent of ['workspaceGate','shelfScreen'])document.getElementById(parent).append(button('Bookshelf',()=>bookStudio.bookshelf()));
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
   editorialStudio=createEditorialStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;const room=roomEpoch;const hash=location.hash;return()=>alive(token)&&roomEpoch===room&&location.hash===hash;},runAction:async work=>{const result=await runMediaAction(work);if(result?.ok)inspection.render(workspace.room);return result;}});
   campaignStudio=createCampaignStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
@@ -787,7 +790,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   $('fictionImportSave').addEventListener('click', saveDialogs.importSave);
   $('fictionIllustrate').addEventListener('click', mediaDialogs.illustrate);
   $('fictionCoverEdit').addEventListener('click', () => mediaDialogs.illustrate({ kind: 'cover' }));
-  $('fictionExportBook').addEventListener('click', mediaDialogs.exportBook);
+  $('fictionExportBook').addEventListener('click', bookStudio.open);
   for (const [id, action] of [['fictionPreferences', 'preferences'], ['fictionAddCast', 'cast'], ['fictionRetire', 'retire']]) $(id).addEventListener('click', storyDialogs[action]);
 
   $('fictionStartForm').addEventListener('input',saveSetupDraft);$('fictionStartForm').addEventListener('change',saveSetupDraft);

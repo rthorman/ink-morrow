@@ -60,7 +60,11 @@ current-fiction workspace, screenshots, scope and verification limits.
   AI painting handle scenes and portraits. Setup makes frozen story copies, so
   later catalogue edits do not change them.
 - Tablet-friendly passage pagination; Previous, Next and Latest never buy prose.
-- Nine reader-safe book formats and private, all-path `.inkmorrow5` saves.
+- Frozen previews and resumable local jobs for nine reader-safe book formats;
+  a retained Bookshelf for books, prepared MP3 and owner-only story art.
+- Optional expiring/revocable reading links through a current-fiction snapshot
+  adapter; local export works without public hosting. Private, all-path
+  `.inkmorrow5` saves remain a separate way to keep playing elsewhere.
 - One-owner authentication, logical provider roles and optional encrypted
   credential storage.
 
