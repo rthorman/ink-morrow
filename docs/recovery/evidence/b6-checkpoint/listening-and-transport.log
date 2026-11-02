@@ -1,0 +1,10 @@
+(node:9) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS backend/tests/fiction-listening.test.js (6.904 s)
+PASS backend/tests/fiction-transport.test.js
+
+Test Suites: 2 passed, 2 total
+Tests:       16 passed, 16 total
+Snapshots:   0 total
+Time:        8.206 s
+Ran all test suites matching /backend\/tests\/fiction-listening.test.js|backend\/tests\/fiction-transport.test.js/i.

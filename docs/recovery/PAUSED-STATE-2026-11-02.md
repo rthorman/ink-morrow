@@ -1,18 +1,23 @@
 # Paused development state — 2 November 2026
 
-## Publication status — approved retry in progress
+## Publication status — published; development paused
 
-The owner explicitly requested another attempt after being asked whether to publish
-this exact checkpoint to the public `rthorman/ink-morrow` repository. Local write
-permissions are now available. The verified 34-file saved snapshot has been restored
-to the existing B6 checkout, with the earlier local WIP archived before restoration.
-The snapshot will be committed and pushed to `recovery/b6-listening`; main will not
-be changed. Development remains paused. Verify the branch head and draft PR for
-publication status; no B6 acceptance or five-green CI result is implied.
+The owner explicitly requested another attempt after being asked to approve this
+exact checkpoint for public `rthorman/ink-morrow`. The B6 source checkpoint was
+successfully pushed to `recovery/b6-listening` at `54efdd4af2ad47ffacc2eddc051200f5be4e1589`.
+This follow-up records successful publication and includes the six saved
+verification logs that Git's general log ignore rule omitted from the first commit.
+Inspect the branch head/draft PR for the complete final checkpoint.
 
-The earlier tree-upload approval rejection is historical. It was not bypassed;
-publication is being retried after the owner's explicit response and updated
-permissions. No owner data or credentials enter the checkpoint.
+The original local WIP was archived before restoring the hash-verified saved
+snapshot. The corrected visibility fixture and full pause/task records are now
+committed in the existing checkout. The earlier permission-review timeouts and
+tree-upload rejections are historical; publication succeeded after the owner's
+explicit retry and updated permissions. No owner data or credentials were added.
+
+Development remains paused. B6 remains unmerged, with final acceptance checks and
+manual updates still pending. B7 and N1–N6 remain queued. No production startup,
+deployment, paid evaluation or new feature development accompanied publication.
 
 ## Owner direction and authoritative checkpoint
 
@@ -129,7 +134,7 @@ hard reset, production change, owner-data deletion or new feature work was done.
 
 The existing `recovery/b6-listening` checkout now contains the restored snapshot,
 including the corrected `secret` visibility fixture and full pause/task records.
-After publication, use the GitHub branch as canonical and preserve any later local
+Use the published GitHub branch as canonical and preserve any later local
 changes before updating. Do not reapply the older pre-checkpoint WIP over it.
 
 ## Concrete remaining work, in order

@@ -1,8 +1,8 @@
 # Development paused — 2 November 2026
 
 The owner explicitly requested a full checkpoint and push, then development pause.
-The owner explicitly requested a publication retry; the saved checkpoint is being
-committed and pushed to the existing B6 branch. Development remains paused.
+The owner explicitly requested a publication retry. The checkpoint is committed
+and published on `recovery/b6-listening`; development remains paused and B6 unmerged.
 **Read [the full paused state](PAUSED-STATE-2026-11-02.md) first.** It records the
 canonical main/B5 merge, unmerged B6 implementation, exact test evidence, pending
 acceptance, queued narrative tasks, local permission timeout and safe resumption.
