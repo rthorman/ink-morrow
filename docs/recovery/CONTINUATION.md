@@ -1,3 +1,14 @@
+# Development paused — 2 November 2026
+
+The owner explicitly requested a full checkpoint and push, then development pause.
+The owner explicitly requested a publication retry; the saved checkpoint is being
+committed and pushed to the existing B6 branch. Development remains paused.
+**Read [the full paused state](PAUSED-STATE-2026-11-02.md) first.** It records the
+canonical main/B5 merge, unmerged B6 implementation, exact test evidence, pending
+acceptance, queued narrative tasks, local permission timeout and safe resumption.
+Do not continue development or merge merely because earlier authorization follows.
+A later explicit owner request to resume supersedes this pause.
+
 # Current authorized development — 2 November 2026
 
 The stakeholder asked to complete development after selecting GitHub as canon.
@@ -6,12 +17,17 @@ normal exact-head five-check PR/main boundary; no deployment or paid-provider
 benchmark is authorized. D1 wording edits, D2 old-series conversion and D3 image
 conditioning remain outside this scope. B9 solo tools are an optional follow-on.
 
-B5 is being verified on `recovery/b5-visual-collection`, based on canonical main
-`80a5236`. Application remains 5.0.0; appended migration 27 supplies retained image
-inventory and independent painting journals. Read B5-DELIVERY.md for working
-contracts and outstanding acceptance. B6 listening and B7 finishing follow after
-B5 passes its checks and merges. Do not describe any branch as delivered before
-its actual main merge. PDFs remain deferred until final recovery completion.
+B5 merged through PR #113 at `9395fcf`, after all five exact-head checks passed at
+`c9801c6`. B6 listening is in progress on `recovery/b6-listening`, based on that
+canonical main. Its appended schema 28 supplies immutable listening plans, cached
+MP3 units, sequential jobs and disjoint call accounting. It is not delivered until
+its own tests/CI and main merge are verified.
+
+The stakeholder has added the Character Forge-inspired narrative improvements as
+authorized tasks and resumed development. [Development tasks](DEVELOPMENT-TASKS.md)
+is the current checklist: complete B6/B7, then N1–N6, then final qualification and
+all six PDFs. No new planner/critic calls or paid benchmark is authorized. Preserve
+source evidence, character/player boundaries and original accepted fiction.
 
 The previous B4 checkpoint follows for preservation context.
 

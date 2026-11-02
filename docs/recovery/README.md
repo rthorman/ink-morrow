@@ -4,6 +4,8 @@
 
 | Document | Purpose |
 |---|---|
+| [Full paused state](PAUSED-STATE-2026-11-02.md) | Durable B6 checkpoint, verification limits and safe resumption instructions |
+| [Development tasks](DEVELOPMENT-TASKS.md) | Authorized recovery, narrative/consistency and final qualification checklist |
 | [Continuation state](CONTINUATION.md) | Decisions, completed work, limits and the next concrete slice |
 | [B0 experience and preview](B0-EXPERIENCE.md) | Implemented synthetic five-room prototype, screenshots and tablet review tasks |
 | [B1 production workspace](B1-DELIVERY.md) | Current-fiction room adapters, reading return, contribution tasks, screenshots and remaining boundaries |

@@ -1,3 +1,4 @@
+import {createListening} from './listening.js';
 import { el, button, field, option } from './dom.js';
 import { createStoryDialogs } from './story-dialogs.js';
 import { createMediaDialogs } from './media.js';
@@ -25,6 +26,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   let shownBeatId = null;
   let progressTimer = null; let progressSerial = 0;
   let actionFeedback = ''; let actionError = false;
+  let listening=null;
   let workspace = null; let inspection = null;let creativeStudio=null;let campaignStudio=null;let editorialStudio=null;
   const durableDrafts = new Map(); let activeDurable = null; let setupDraft = null;
   let bookmarkRestoring = false;
@@ -213,6 +215,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   }
 
   function renderStory(story, { forceLatest = false } = {}) {
+    listening?.sync(story);
     const beforeCursor = shownBeatId; const beforePosition = workspace?.position();
     const samePath = current?.id === story.id && current.active_branch_id === story.active_branch_id;
     if (current && !samePath) saveDraft();
@@ -734,7 +737,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); mediaDialogs.clear(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
+    workspace.position(); listening?.clear();mediaDialogs.clear(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null;shelfQuery='';shelfGenre='';$('fictionShelfQuery').value='';$('fictionShelfGenre').value=''; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
@@ -758,6 +761,8 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   const storyDialogs = createStoryDialogs({ dialogs, getCurrent: () => current, isBusy: () => busy, localAction,openPreferences:()=>creativeStudio.open() });
   const influence = createInfluence({ api, dialogs, getCurrent: () => current, isBusy: () => busy, localAction, send, correct: correctionDialog,
     setDirection: (value) => { workspace.contribution('steer'); $('fictionDirection').value = value; draftRevision++; saveDraft(); status('Direction filled in. Edit it or send when ready; nothing has happened yet.'); } });
+  listening=createListening({api,dialogs,getCurrent:()=>current,getShown:()=>shownBeatId,onSettled:async id=>{const token=epoch;try{const data=await api(`/fiction/${id}`);if(alive(token)&&current?.id===id)renderStory(data.story);}catch{/* Retained job accounting stays available for explicit refresh. */}}});
+  for(const parent of ['workspaceGallery','workspaceDesk']){const control=button('Listen to saved text',()=>listening.open());document.getElementById(parent).append(control);}
   const mediaDialogs = createMediaDialogs({ api, dialogs, getCurrent: () => current, isBusy: () => busy, runAction: runMediaAction, localAction });
   editorialStudio=createEditorialStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;const room=roomEpoch;const hash=location.hash;return()=>alive(token)&&roomEpoch===room&&location.hash===hash;},runAction:async work=>{const result=await runMediaAction(work);if(result?.ok)inspection.render(workspace.room);return result;}});
   campaignStudio=createCampaignStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
@@ -841,5 +846,5 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   });
   try { const size = localStorage.getItem('im-fiction-text-size'); if (['18', '21', '24'].includes(size)) { $('fictionTextSize').value = size; document.documentElement.style.setProperty('--fiction-reading-size', `${size}px`); } } catch { /* blocked storage */ }
   window.addEventListener('hashchange', route);
-  return { start: () => { unlocked = true; return route(); }, lock: clearPrivate, dispose: () => { clearPrivate(); workspace.dispose(); window.removeEventListener('hashchange', route); }, route, send, renderStory, getCurrent: () => current, addCast, setScenario: (value) => { scenario = value; } };
+  return { start: () => { unlocked = true; return route(); }, lock: clearPrivate, dispose: () => { clearPrivate(); listening.dispose();workspace.dispose(); window.removeEventListener('hashchange', route); }, route, send, renderStory, getCurrent: () => current, addCast, setScenario: (value) => { scenario = value; } };
 }

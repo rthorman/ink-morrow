@@ -1,5 +1,13 @@
 # Project memory
 
+## Explicit development pause — 2 November 2026
+
+The owner requested a good checkpoint, full state and push, then pause until a later
+date. Read `docs/recovery/PAUSED-STATE-2026-11-02.md` first. B5 is merged; B6 is an
+unmerged draft checkpoint. Do not continue development, merge or deploy without a
+later explicit resume request. Earlier development authorization below is paused.
+
+
 ## Recovery planning and continuation (2 November 2026)
 
 - Latest stakeholder direction (2 November): complete remaining development. B5–B7 and final recovery documentation/checks are authorized; D1/D2/D3 remain separately gated. B5 is in implementation/verification on `recovery/b5-visual-collection`; do not call it delivered until main merge. Keep source guides, delivery records and continuation state current; defer PDF regeneration until the last recovery work package. `docs/pdf-library/update-policy.json` records this deferral; existing PDF integrity remains checked. Remove the deferral and regenerate all six PDFs at final completion.
@@ -8,6 +16,12 @@
 - The stakeholder explicitly selected final **4.1.0**, schema 18, as the historical comparator. Use `archive/v4.1-pre-v5`; implementation still starts from current V5 main and preserves its single fiction graph. Do not enable the legacy runtime.
 - Stakeholder-authorized cleanup removed 53 integrated branches. Keep immutable `release/4.0.0`, historical tags and the 13 pending dependency branches. Exact tips and evidence are in `docs/recovery/BRANCH-CLEANUP.json`. Do not recreate deleted branches to resume old integration instructions.
 - Guides, reviews and continuation records are maintained on main at the stakeholder's request. This documentation publication does not accept optional prose editing, old-series conversion, a new release number, deployment or paid testing. The stakeholder explicitly requested continuing with B1. The [B1 delivery record](docs/recovery/B1-DELIVERY.md) covers the production five-room workspace and preserved V5 tasks; B0 remains the separate fictional preview. No actual Android, live literary or deployment acceptance is claimed. B2 implements bounded historical inspection, exact new evidence, private server drafts, schema 24 and playable-save v2 with frozen v1 import. Read B2-DELIVERY.md before resuming; B3 implements creative depth, schema 25 and creative save-v2 collections; read B3-DELIVERY.md. B4 implements branch-scoped editorial chapters/volumes with schema 26; read B4-DELIVERY.md. B5 Gallery is next; D1 wording editing remains separately gated. Preserve separate inspection/action destinations and acknowledged-draft honesty.
+
+- Latest direction (2 November, resumed): add the six Character Forge-derived
+  narrative/consistency ideas as tasks and continue development. The checklist is
+  `docs/recovery/DEVELOPMENT-TASKS.md`: B5 is merged (PR #113 / `9395fcf`), B6 is
+  active, then B7 and N1–N6 before final qualification/manuals. Start narrative work
+  with existing calls/context; no new planner/critic calls or paid benchmark.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 

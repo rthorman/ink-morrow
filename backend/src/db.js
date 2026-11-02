@@ -15,6 +15,7 @@ const { FICTION_SCHEMA, FICTION_MEDIA_SCHEMA, FICTION_CALL_SCHEMA } = require('.
 const { FICTION_LIBRARY_SCHEMA, FICTION_LIBRARY_DRAFT_SCHEMA } = require('./modules/fiction/library-schema');
 const workspaceMigration = require('./modules/fiction/workspace-migration-v24');
 const creativeMigration = require('./modules/fiction/creative-migration-v25');
+const listeningMigration = require('./modules/fiction/listening-migration-v28');
 const galleryMigration = require('./modules/fiction/gallery-migration-v27');
 const editorialMigration = require('./modules/fiction/editorial-migration-v26');
 
@@ -1939,6 +1940,7 @@ const MIGRATIONS = Object.freeze([
   Object.freeze({version:25,name:'story-local creative reference and configuration revisions',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/creative-migration-v25'),'utf8'),up(db){creativeMigration.up(db);}}),
   Object.freeze({version:26,name:'branch-scoped editorial chapter and volume revisions',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/editorial-migration-v26'),'utf8'),up(db){editorialMigration.up(db);}}),
   Object.freeze({version:27,name:'retained Gallery inventory and independent art purchases',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/gallery-migration-v27'),'utf8'),up(db){galleryMigration.up(db);}}),
+  Object.freeze({version:28,name:'immutable listening plans cached audio and sequential synthesis jobs',checksumSource:fs.readFileSync(require.resolve('./modules/fiction/listening-migration-v28'),'utf8'),up(db){listeningMigration.up(db);}}),
 ]);
 
 if (MIGRATIONS[MIGRATIONS.length - 1].version !== DATABASE_SCHEMA_VERSION) {

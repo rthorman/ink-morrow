@@ -138,6 +138,8 @@ function createApp(
   app.use(editorial.router);
   const gallery=require('./modules/fiction/gallery').createGallery({db,store:fictionStore,media:fictionMedia,queries:workspaceQueries,providers,generateIllustration});
   gallery.reconcile();app.use(gallery.router);
+  const listening=require('./modules/fiction/listening').createListening({db,store:fictionStore,queries:workspaceQueries,providers,ai,rootDir:audioDir});
+  listening.reconcile();app.use(listening.router);
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 
@@ -194,7 +196,7 @@ function createApp(
 
   // Test/runtime disposal: queues stop accepting work; persisted user data
   // and in-flight cleanup are never deleted.
-  app.locals.dispose = () => { legacy?.dispose(); providers.dispose(); };
+  app.locals.dispose = () => { listening.dispose();legacy?.dispose(); providers.dispose(); };
 
   return app;
 }
