@@ -110,6 +110,53 @@ describe("frozen book workspace authority", () => {
     expect(api.mock.calls).toEqual([["/fiction/bookshelf?kind=all&offset=0"]]);
     expect(document.body.textContent).toContain("No retained items");
   });
+  test("reading links need explicit creation and retain a manual copy fallback", async () => {
+    edition.sharing_available = true;
+    const original = api.getMockImplementation();
+    const url = "https://reader.invalid/reading-copy#" + "T".repeat(43);
+    api.mockImplementation(async (path, method, body) => {
+      if (path === "/fiction/story/editions/edition")
+        return {
+          shares: [{ id: "link", status: "active", expires_at: "2026-11-09" }],
+        };
+      if (path.endsWith("/shares")) return { share: { url, id: "link" } };
+      if (path.endsWith("/revoke")) return { revoked: true };
+      return original(path, method, body);
+    });
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: jest.fn().mockRejectedValue(Error("Clipboard unavailable")),
+      },
+    });
+    studio.open();
+    await tick();
+    await tick();
+    click("Preview readable book");
+    await tick();
+    await tick();
+    expect(
+      api.mock.calls.some(([p, m]) => p.endsWith("/shares") && m === "POST"),
+    ).toBe(false);
+    click("Create reading link");
+    await tick();
+    click("Copy reading link");
+    await tick();
+    expect(document.body.textContent).toContain(
+      "Select and copy the link above.",
+    );
+    const input = [...document.querySelectorAll("input")].find(
+      (item) => item.value === url,
+    );
+    expect(input.selectionEnd - input.selectionStart).toBe(url.length);
+    click("Revoke link");
+    await tick();
+    expect(api).toHaveBeenCalledWith(
+      "/fiction/story/editions/edition/shares/link/revoke",
+      "POST",
+      {},
+    );
+  });
   test("public reader treats text as text and pages through frozen prose", () => {
     const root = document.getElementById("task");
     renderReadingCopy(root, {

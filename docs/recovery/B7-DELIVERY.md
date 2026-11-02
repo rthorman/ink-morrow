@@ -57,13 +57,18 @@ storage. Playable saves exclude rendered editions, audio, jobs and share authori
   provider-free bounded collection loading and XSS-safe paginated public reading.
 - Browser tests cover actual draft reload, JSON build/download, retained Bookshelf,
   no provider calls, public reading and the inherited illustrated EPUB/save journey.
-- Full frontend run: 343/343 passed before final follow-up assertions. Focused
+  All four new B7 browser cases passed across desktop/mobile; the inherited
+  illustrated EPUB/save case passed on both profiles. Clipboard refusal now has
+  an explicit select-and-copy frontend regression.
+- Full frontend run: 343/343 passed, plus the added clipboard fallback test. Focused
   backend: 11/11 passed. Both desktop/mobile B7 export journeys passed. The inherited
   illustrated EPUB/save journey also passed on both browser profiles.
 - An inherited restart test closed SQLite without disposing its app. Its deferred
   callback failed the next test in the initial full run (577/578). The test now uses
   isolated createTestApp fixtures with disposal before close, including failure
-  paths; all 51 generation tests pass. Full final backend/CI evidence follows.
+  paths; all 51 generation tests pass. The repeated full backend run passed
+  583/583 across 54 suites. Later thumbnail/private-art availability assertions
+  passed in the focused 11-case edition suite. Exact final-head CI follows.
 - Automated screenshot inspected for the mobile frozen-book form. This is not
   real Android touch/IME, deployment or live literary evaluation evidence.
 

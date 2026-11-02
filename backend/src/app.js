@@ -144,7 +144,7 @@ function createApp(
   gallery.reconcile();app.use(gallery.router);
   const listening=require('./modules/fiction/listening').createListening({db,store:fictionStore,queries:workspaceQueries,providers,ai,rootDir:audioDir});
   listening.reconcile();app.use(listening.router);
-  const editions=require('./modules/fiction/editions').createEditions({db,store:fictionStore,queries:workspaceQueries,publication:fictionPublication,listening,rootDir:publicationDir||path.join(imageDir,'..','publications'),shareBaseUrl:publicShareBaseUrl,clock});
+  const editions=require('./modules/fiction/editions').createEditions({db,store:fictionStore,queries:workspaceQueries,publication:fictionPublication,media:fictionMedia,listening,rootDir:publicationDir||path.join(imageDir,'..','publications'),shareBaseUrl:publicShareBaseUrl,clock});
   editions.reconcile();publicReading.use(editions.publicRouter);app.use(editions.router);
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
@@ -181,7 +181,7 @@ function createApp(
     }
     let message = providers.redact(error.message || 'Request failed');
     if (error.type === 'entity.parse.failed') message = 'The request body is not valid JSON.';
-    else if (status === 413) message = 'The request is too large.';
+    else if (status === 413 && error.type === 'entity.too.large') message = 'The request is too large.';
     else if (status === 500) message = `Internal server error. Reference: ${reference}`;
     const body = { error: message };
     if (error.code) body.code = error.code;

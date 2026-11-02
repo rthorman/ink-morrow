@@ -13,6 +13,7 @@ function createEditions({
   store,
   queries,
   publication,
+  media = null,
   listening = null,
   rootDir,
   shareBaseUrl = null,
@@ -735,15 +736,37 @@ function createEditions({
           return { ...common, audio: listening.view(item.game_id, item.id) };
         const asset = db
           .prepare(
-            "SELECT i.alt_text FROM fiction_inventory i WHERE asset_id=?",
+            "SELECT i.alt_text,a.storage_key,a.byte_size FROM fiction_inventory i JOIN fiction_assets a ON a.id=i.asset_id WHERE a.id=?",
           )
           .get(item.id);
+        let available = false;
+        try {
+          available =
+            Boolean(media) &&
+            fs.statSync(media.assetPath(asset.storage_key)).size ===
+              asset.byte_size;
+        } catch {
+          /* Owner can see unavailable art without downloading it. */
+        }
+        const uses = db
+          .prepare(
+            `SELECT coalesce(json_extract(j.value,'$.kind'),'passage') AS kind FROM fiction_beats b,json_each(b.state_json,'$.visuals') j WHERE b.id=? AND json_extract(j.value,'$.asset_id')=?
+          UNION ALL SELECT 'passage' FROM fiction_beats b,json_each(b.state_json,'$.illustrations') j WHERE b.id=? AND json_extract(j.value,'$.asset_id')=? LIMIT 10`,
+          )
+          .all(game.head_beat_id, item.id, game.head_beat_id, item.id)
+          .map((use) => use.kind);
         return {
           ...common,
+          available,
+          current_uses: uses,
           title: asset?.alt_text || "Retained story art",
-          preview_url: `/api/fiction/${item.game_id}/images/${item.id}`,
-          privacy:
-            "Owner-only collection; inclusion in a book requires placement and a new preview.",
+          preview_url: `/api/fiction/${item.game_id}/assets/${item.id}/thumbnail`,
+          download_url: `/api/fiction/${item.game_id}/images/${item.id}`,
+          privacy: uses.some((kind) =>
+            ["world", "character", "scribe"].includes(kind),
+          )
+            ? "Private reference art on the active path; reference portraits are excluded from books."
+            : "Owner-only collection; inclusion in a book requires placement and a new preview.",
         };
       }),
       next_offset: rows.length > 20 ? offset + 20 : null,

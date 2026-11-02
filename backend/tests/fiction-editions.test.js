@@ -196,6 +196,9 @@ describe("B7 frozen current-fiction books", () => {
       action_key: "pin2",
     });
     await done(second.id);
+    expect(editions.read(story.id, second.id, "txt").filename).toBe(
+      editions.read(story.id, first.id, "txt").filename,
+    );
     editions.remove(story.id, edition.id);
     expect(editions.read(story.id, second.id, "txt").filename).toBeTruthy();
     const queued = editions.start(story.id, {

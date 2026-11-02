@@ -585,6 +585,19 @@ export function createBookStudio({ api, dialogs, getCurrent, playAudio }) {
             );
         } else {
           card.append(el("p", item.privacy));
+          card.append(
+            el(
+              "p",
+              item.current_uses?.length
+                ? `Active-path use: ${item.current_uses.join(", ")}`
+                : "Not placed on the active reading path.",
+            ),
+          );
+          if (!item.available) {
+            card.append(el("p", "Image file unavailable."));
+            root.append(card);
+            continue;
+          }
           const image = el("img");
           image.src = item.preview_url;
           image.alt = item.title;
@@ -595,7 +608,7 @@ export function createBookStudio({ api, dialogs, getCurrent, playAudio }) {
             button("Download image", () =>
               safe(
                 () =>
-                  downloadFile(item.preview_url, "InkMorrow-art.webp", live),
+                  downloadFile(item.download_url, "InkMorrow-art.webp", live),
                 error,
               ),
             ),

@@ -26,6 +26,7 @@ describe("B7 source and owner boundaries", () => {
       db,
       store,
       publication: createFictionPublication({ store, media }),
+      media,
       queries: createWorkspaceQueries({ db, store }),
       rootDir: root,
     });
@@ -83,7 +84,9 @@ describe("B7 source and owner boundaries", () => {
     const edition = editions.snapshot(story.id, {});
     expect(edition.art).toHaveLength(1);
     const asset = db.prepare("SELECT * FROM fiction_assets").get();
+    expect(editions.bookshelf({ kind: "art" }).items[0].available).toBe(true);
     fs.unlinkSync(media.assetPath(asset.storage_key));
+    expect(editions.bookshelf({ kind: "art" }).items[0].available).toBe(false);
     const frozen = JSON.parse(
       db.prepare("SELECT document_json FROM fiction_book_snapshots").get()
         .document_json,
