@@ -1,0 +1,167 @@
+{
+  "base_source_sha": "0d23a704a901c5d7d15188062f9f8842563ef1df",
+  "measurement_phase": "B8 candidate before its final commit; source file digests identify measured runtime code",
+  "source_digests": {
+    "scripts/benchmark-recovery.cjs": "08f0ce7c1a481b092e3691cefed7060e466c53f6dc0bb8ea8d86f2873612b039",
+    "backend/src/modules/fiction/context-compiler.js": "1253d44f87c44478e2f92f2d83166b1e399283da814cda0da7c2381f56d83be2",
+    "backend/src/modules/fiction/narrative-memory.js": "fcf11d04a4d9c5739424edadc7946e971d22bdaa5878dff4b197a9ff63279327",
+    "backend/src/modules/fiction/narrative-drive.js": "c85eacf70ea29159fe83bdd5e8065e956864e595b645394d4122c2e878289818",
+    "backend/src/modules/fiction/memory.js": "cd170314772daf1166cfb0c1264ce2b4acbcc03412edcee4735576b0ad665355",
+    "backend/src/modules/fiction/store.js": "2c65cc14aa8f898228476bdebcfb86c6af11b81a1de26965c20081bf3036239f",
+    "backend/src/modules/fiction/saves.js": "45c8fcbda142ffe85d1c43f801ba3e56e5b0294a5f487484667051521645c43c",
+    "backend/src/modules/fiction/creative-save.js": "e3aa469f65bf32283383e58e5905209b8bd9427d1aab40f2d725f700bcda4dcf",
+    "backend/src/modules/fiction/editions.js": "42f108d63126741bdefde080129f5544f7a520f568f854409b007401da054c50"
+  },
+  "runtime": "v22.23.4",
+  "platform": "linux",
+  "arch": "x64",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-1245U",
+  "hardware_threads": 12,
+  "schema": {
+    "family": "ink-morrow-5",
+    "version": 29,
+    "created_at": "2026-11-02 12:32:58",
+    "updated_at": "2026-11-02 12:32:58"
+  },
+  "fixture": "Current-format synthetic accepted graph, two paths sharing early ancestry, four normalized images (cover/two private portraits/passage), sixteen local character-reference revisions, one new evidenced fact per narrative moment with bounded 128-fact working snapshots. No real model, owner data, Android, network or prose quality measured.",
+  "samples": {
+    "queries": 30,
+    "narration_context": 10
+  },
+  "provider_calls": 0,
+  "peak_rss_bytes": 1214967808,
+  "results": [
+    {
+      "moments": 500,
+      "build_increment_ms": 728.21,
+      "cold_codex_ms": 8.2,
+      "timeline": {
+        "p50_ms": 14.89,
+        "p95_ms": 18.72,
+        "response_bytes": 8834
+      },
+      "codex": {
+        "p50_ms": 5.1,
+        "p95_ms": 6.47,
+        "response_bytes": 10418
+      },
+      "passage": {
+        "p50_ms": 2.23,
+        "p95_ms": 3.89,
+        "response_bytes": 1142
+      },
+      "narration_context": {
+        "p50_ms": 38.22,
+        "p95_ms": 55.61,
+        "response_bytes": 69706
+      },
+      "rss_bytes": 106385408,
+      "book_preview": {
+        "ms": 33.53,
+        "chapters": 1,
+        "passages": 380,
+        "images": 2,
+        "response_bytes": 1622
+      },
+      "save": {
+        "status": "exported",
+        "packed_bytes": 1272743,
+        "export_ms": 549.23,
+        "import_ms": 1576.22,
+        "restored_moments": 500,
+        "restored_paths": 2
+      },
+      "database_bytes": 18489344
+    },
+    {
+      "moments": 3000,
+      "build_increment_ms": 6094.76,
+      "cold_codex_ms": 39.16,
+      "timeline": {
+        "p50_ms": 17.6,
+        "p95_ms": 24.26,
+        "response_bytes": 9004
+      },
+      "codex": {
+        "p50_ms": 19.19,
+        "p95_ms": 23.57,
+        "response_bytes": 10547
+      },
+      "passage": {
+        "p50_ms": 0.96,
+        "p95_ms": 2.96,
+        "response_bytes": 1159
+      },
+      "narration_context": {
+        "p50_ms": 217.79,
+        "p95_ms": 231.78,
+        "response_bytes": 70187
+      },
+      "rss_bytes": 332075008,
+      "book_preview": {
+        "ms": 208.2,
+        "chapters": 1,
+        "passages": 2880,
+        "images": 2,
+        "response_bytes": 1625
+      },
+      "save": {
+        "status": "exported",
+        "packed_bytes": 9488614,
+        "export_ms": 3156.06,
+        "import_ms": 20103.26,
+        "restored_moments": 3000,
+        "restored_paths": 2
+      },
+      "database_bytes": 116199424
+    },
+    {
+      "moments": 10000,
+      "build_increment_ms": 14823.28,
+      "cold_codex_ms": 675.83,
+      "timeline": {
+        "p50_ms": 14.33,
+        "p95_ms": 19.97,
+        "response_bytes": 9006
+      },
+      "codex": {
+        "p50_ms": 93.29,
+        "p95_ms": 127.71,
+        "response_bytes": 10549
+      },
+      "passage": {
+        "p50_ms": 2.81,
+        "p95_ms": 5.5,
+        "response_bytes": 1161
+      },
+      "narration_context": {
+        "p50_ms": 1003.16,
+        "p95_ms": 1196.43,
+        "response_bytes": 70188
+      },
+      "rss_bytes": 1192759296,
+      "book_preview": {
+        "ms": 7525.86,
+        "chapters": 1,
+        "passages": 9880,
+        "images": 2,
+        "response_bytes": 1625
+      },
+      "save": {
+        "status": "explicit_preflight_rejection",
+        "code": "SAVE_TOO_LARGE",
+        "message": "This story exceeds the portable save limit (10,000 moments / 128 MB expanded).",
+        "ms": 307.69
+      },
+      "database_bytes": 390930432
+    }
+  ],
+  "history_index_plan": [
+    {
+      "id": 3,
+      "parent": 0,
+      "notused": 61,
+      "detail": "SEARCH fiction_history_index USING INDEX fiction_history_narratives (game_id=? AND narrative_ordinal=?)"
+    }
+  ]
+}

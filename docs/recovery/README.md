@@ -1,6 +1,6 @@
 # Ink Morrow recovery planning
 
-**Start or resume here:** [continuation state](CONTINUATION.md). The current plan is [implementation guide 1.1](IMPLEMENTATION-GUIDE.md), upgraded to use the final Version 4.1 historical baseline while implementing on current Version 5 main. This directory contains plans and evidence, not an implemented recovery release.
+**Start or resume here:** [continuation state](CONTINUATION.md). The current plan is [implementation guide 1.1](IMPLEMENTATION-GUIDE.md), upgraded to use the final Version 4.1 historical baseline while implementing on current Version 5 main. B1–B7 and N1–N6 are implemented; B8 records final engineering/manual qualification. This is not a new release number, deployment or backwards-compatibility programme.
 
 | Document | Purpose |
 |---|---|
@@ -13,7 +13,11 @@
 | [B3 creative depth](B3-DELIVERY.md) | Story-local studios, typed campaign records, bounded narration, Say/source closure and preservation fixtures |
 | [B4 chapters and volumes](B4-DELIVERY.md) | Versioned branch-local organization, outline/restore preview, common book grouping and preservation |
 | [B6 listening](B6-DELIVERY.md) | Frozen saved-text plans, cache/job authority, playback and verification |
-| [B5 retained Gallery](B5-DELIVERY.md) | Retained unplaced images, independent painting and private reference portability; verification in progress |
+| [B5 retained Gallery](B5-DELIVERY.md) | Delivered unplaced images, independent painting and private reference portability |
+| [B7 books/Bookshelf/reading copies](B7-DELIVERY.md) | Delivered frozen editions, local jobs and configured sharing |
+| [Narrative drive](NARRATIVE-DELIVERY.md) | Delivered source-grounded context, whole-character guidance and chapter handoff |
+| [Narrative evaluation protocol](NARRATIVE-EVALUATION-PROTOCOL.md) | Opt-in proposal; no paid evaluation run |
+| [Final qualification](B8-DELIVERY.md) | Capacity, manuals, CI and explicit acceptance limits |
 | [Capability ledger](CAPABILITY-LEDGER.md) | Explicit final-4.1/V5 dispositions, deferrals and policy gates |
 | [Implementation guide](IMPLEMENTATION-GUIDE.md) | Authoritative current engineering plan and batch acceptance |
 | [Final Version 4.1 baseline](V4.1-BASELINE.md) | Pinned source map, feature dispositions and comparative tasks |

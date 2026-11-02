@@ -52,7 +52,11 @@ function createEditions({
       db.exec("COMMIT");
       return value;
     } catch (error) {
-      db.exec("ROLLBACK");
+      try {
+        db.exec("ROLLBACK");
+      } catch {
+        /* SQLite may already have rolled back a storage failure. */
+      }
       throw error;
     }
   };

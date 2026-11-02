@@ -72,7 +72,7 @@ try {
     const headings = [...body.matchAll(/<h2 id="([^"]+)">([^<]+)<\/h2>/g)];
     const toc = `<h3>Contents</h3><div class="contents-list">${headings.map(([,id,label])=>`<a href="#${id}">${label}</a>`).join('')}</div>`;
     const bodyWithToc = body.replace('</div>',`${toc}</div>`);
-    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Ink Morrow ${editionLabel} - ${book.title}</title><style>${css}</style></head><body><section class="cover"><img src="${book.cover}" alt=""><div class="cover-copy"><img class="cover-logo" src="${logoPath}" alt="Ink Morrow — Where stories grow claws" width="900" height="240"><div class="cover-kicker">${editionLabel}</div><h1>${book.title}</h1><div class="cover-subtitle">${book.subtitle}</div><div class="cover-meta">${book.audience} &nbsp; / &nbsp; September 2026</div></div></section><main>${bodyWithToc}</main></body></html>`;
+    const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Ink Morrow ${editionLabel} - ${book.title}</title><style>${css}</style></head><body><section class="cover"><img src="${book.cover}" alt=""><div class="cover-copy"><img class="cover-logo" src="${logoPath}" alt="Ink Morrow — Where stories grow claws" width="900" height="240"><div class="cover-kicker">${editionLabel}</div><h1>${book.title}</h1><div class="cover-subtitle">${book.subtitle}</div><div class="cover-meta">${book.audience} &nbsp; / &nbsp; November 2026</div></div></section><main>${bodyWithToc}</main></body></html>`;
     const intermediate = path.join(here,`.render-${book.slug}.html`);
     await fs.writeFile(intermediate,html,'utf8');
     await page.goto(documentUrl(intermediate),{waitUntil:'networkidle'});

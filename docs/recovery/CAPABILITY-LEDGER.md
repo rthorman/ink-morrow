@@ -1,48 +1,46 @@
-# Version 4.1 / V5 capability ledger — B4
+# Current capability ledger — final recovery qualification
 
-This is a delivery/disposition ledger, not a claim of production parity. Current V5 statuses are source-derived. B0 provides the synthetic composition; B1 restores production room adapters and B2 deepens historical inspection/evidence/private draft recovery. B3 adds creative depth; B4 adds editorial organization. See their delivery records for actual contracts and verification limits.
+Application **5.0.0**, family `ink-morrow-5`, schema **29**. This describes current
+source behavior, not a new release number, deployment, real-device acceptance or
+proof of literary quality. The owner explicitly waived backwards compatibility;
+older runtimes/formats are not acceptance targets. Owner files and integrated
+migration history remain protected.
 
-| Capability | Disposition | Owning batch / decision | Acceptance contract |
-|---|---|---|---|
-| Five story rooms and branded Library | Restored in batch | B1 | Production adapters in B1; bounded history/Codex and private recovery in B2. |
-| Current catalogue studios and unsaved AI development | Implemented B3 | B3 | Keep world/character/Scribe selection, uploads and reviewed development. |
-| Reader pagination and recoverable Continue errors | Current V5 | B1 deepens | No purchase on page turns; stable reading position. |
-| All-path fiction graph, evidence and corrections | Implemented B2 | B2 | Read-only selected ancestry/moment; exact new sources, legacy passage-level attribution. |
-| First-class Scribe craft and full story-local references | Implemented B3 | B3 | Explicit field inventory and future-only adoption. |
-| Optional scenes, viewpoint and chapter/volume grouping | Implemented B3/B4 | B3/B4 | Plans are not events; grouping changes no prose. |
-| Ownership / Act / Say / Ask / Direct boundaries | Implemented B3 | B3 | No compulsory avatar or Session Zero; performed speech remains conditional. |
-| Alternate paths and exact fork points | Implemented B2 | B2 | Read-only path preview remains separate from explicit active-path mutation on one fiction graph. |
-| Campaign: Relationships | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Promises | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Debts | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Knowledge boundaries | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Secrets | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: NPC goals | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Factions | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Quests | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Conditions | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Inventory | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Resources | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: World time | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Deadlines | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Campaign: Progress clocks | Implemented typed adaptation B3 | B2/B3 | Map to existing V5 facts or a typed revision; visibility/evidence/save contract required. Explicit owner declarations use existing fact kinds; no independent simulation engine is claimed. |
-| Art upload, explicit painting, cover and passage placement | Current V5 | B5 deepens | Add complete unplaced inventory; no automatic placement or purchase. |
-| Read-aloud, cached playback and audiobooks | Restored in batch | B6 | Immutable source and reviewed explicit synthesis. |
-| Nine book formats and private complete playable saves | Current V5 | B7 deepens | Source preview, editions and all-path closure. |
-| Public immutable snapshot sharing | Restored in batch | B7 | Hide until functional; private export independent. |
-| Solo tool: Dice | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Solo tool: Likelihood oracle | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Solo tool: Weighted table | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Solo tool: Deck | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Solo tool: User-defined fields | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Solo tool: Progress clock | Deliberately deferred | B9 | Local, replay-safe results on the same ancestry/save graph. |
-| Manual prose / bounded copyediting | Policy gated | D1 | No prose editor in this prototype. |
-| V4.1 archive/database conversion | Policy gated | D2 | Separate previewed copy importer, never in-place adoption. |
-| Reference-image conditioning | Policy gated | D3 | Separate per-asset exposure review. |
-| New public release number | Policy gated | D4 | Archive tag does not declare a recovery release. |
-| Authentication, provider accounting and private projection | Current V5 | Every batch | Prototype Lock is a demonstration, not authentication. |
-| Async progress, recoverable drafts and error lifecycle | Restored in batch | B1/B2 | Prototype stores only synthetic drafts in tab session storage; production needs server acknowledgements. |
+| Capability | Current disposition | Evidence / boundary |
+|---|---|---|
+| Five-room workspace and branded Visual Library | Implemented B1–B3 | Desk, Chronicle, Codex, Gallery, Gate; explicit reader-director default. |
+| Historical inspection, exact evidence and private drafts | Implemented B2 | Selected ancestry/moment; bounded results; acknowledged draft/receipt recovery; no reading purchases. |
+| Catalogue candidate comparison and local creative references | Implemented B3 | Explicit selected-field adoption, frozen story copies, settings/scene proposals below recorded truth. |
+| Conditional Say, knowledge, goals and episode control | Implemented B3 | Exact performed utterance once; plans/claims distinct; player controls voluntary character choices and endings. |
+| Chapters/volumes and restore preview | Implemented B4 | Branch-local applicable revision, existing narrative anchors, no prose reorder/rewrite. |
+| Retained unplaced art, painting and reference bundles | Delivered B5, PR #113 | `9395fcf`; upload/place locally, explicit one-attempt AI painting, current `.inkrefs` copies. |
+| Saved-text listening and shared playback | Delivered B6, PR #114 | `5842623`; immutable plans, MP3 cache, sequential reviewed synthesis, cancellation/restart fencing and spend. |
+| Frozen book editions and nine local formats | Delivered B7, PR #115 | `7ec3fa9`; viewed path/head, embedded placed art, common document, durable partial/cancelled/interrupted jobs. |
+| Bookshelf | Delivered B7 | Bounded retained book/audio/story-art collection; thumbnails, source/availability/private-art labels; no work on load. |
+| Public immutable reading copies | Delivered B7, configured installations | Hashed bearer, expiry/revocation, safe AI-free reader; complete local export with sharing unconfigured. No automatic hosting. |
+| Current all-path playable saves | Implemented current v2 | New-copy import, source/art/reference/layout closure; credentials, consent, jobs, prepared audio/books and reading-link authority excluded. |
+| Source-grounded narrative context and whole-character guidance | Delivered N1–N6, PR #116 | `0d23a70`; existing calls, exact source types, prior outcomes, chapter handoff and final next-move gate; no rewrite of accepted fiction. |
+| Sustained literary evaluation | Protocol supplied; not run | Deterministic coverage is mechanical. No paid trial authorized; live narrative quality not evaluated. |
+| B8 code/fixture/browser/manual qualification | Final candidate | Capacity evidence, six current PDFs and exact-head CI/main integration recorded in B8-DELIVERY.md. |
+| D1 prose wording editor | Outside authorized scope | No manuscript/prose editor added. |
+| D2 old-series conversion / backwards compatibility | Not required | Explicit owner decision, 2 November 2026; no conversion feature promised. |
+| D3 reference-image conditioning | Separately gated | No uploaded reference images sent as generation conditioning. |
+| B9 dice/oracle/table/deck/custom solo fields/clocks | Optional follow-on | No independent simulation/tool engine introduced through campaign fact categories. |
+| Production startup/deployment or new public release number | Not performed | Source integration does not start or deploy the owner installation. |
 
-Campaign rows require mapping to existing V5 fact shapes or a new validated typed revision before B3 acceptance. “Restored in batch” does not imply all fourteen kinds are presently absent from V5. Deliberate deferrals and gated policies remain visible at release.
+Campaign categories remain typed uses of existing facts, commitments, relationships,
+goals and resources, not fourteen separate engines. Private references and source
+truth do not grant character knowledge or reader disclosure. Optional quality stays
+Off by default; existing one/four/six-call ceilings and per-attempt accounting apply.
 
-Use [guide sections 3.2–3.4](IMPLEMENTATION-GUIDE.md#32-version-41-preservation-matrix) and the [historical source map](V4.1-BASELINE.md) as contracts. Every new durable capability needs reader/reducer/writer/public projections and complete all-path save closure together.
+Capacity evidence uses synthetic current-format data on a WSL host, with two paths,
+four images, sixteen reference revisions and dense fact history. At 500/3,000 moments
+complete saves round-trip. The dense 10,000-moment specimen exceeds the portable
+128 MiB expanded ceiling and fails explicitly without dropping history; bounded
+reading and frozen book preview remain usable. See evidence/B8-CAPACITY.json for
+actual distributions, sizes, peak RSS and measured-source digests.
+
+Automated desktop/Mobile Chrome, real Android touch/IME/rotation, live literary
+review and deployment are separate evidence categories. Only the first is covered
+by CI. Historical comparator/roundtable documents remain historical design records,
+not outstanding backwards-compatibility obligations or proof of current parity.

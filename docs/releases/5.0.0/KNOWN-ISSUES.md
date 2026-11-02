@@ -6,13 +6,14 @@ that every model, platform or long-running story has been field-tested.
 - New product, fresh data: no 4.x database, manuscript-archive or character-template
   import. Historical files are refused, not migrated or deleted.
 - No manual prose editor or retired writing runtime. Current visual catalogues
-  and MP3 listening are restored; current-fiction sharing remains B7 work.
+  and MP3 listening are restored; frozen books/Bookshelf and configured current-fiction reading copies are available.
 - Listening supports reviewed MP3-capable Narrator profiles, not purchased format
   fallback. Cached playback is free; synthetic browser checks do not certify live
   voice quality. Audio must be downloaded separately from a playable save.
 - New passages and Ask require a configured provider. Local reading, correction,
   paths, recaps, uploads, saves and books remain available without AI purchases.
-- Models can contradict state, leak fictional secrets in prose, capitulate too
+- Source-grounded narrative guidance uses existing calls; live literary quality
+  has not been evaluated. Models can contradict state, leak fictional secrets in prose, capitulate too
   easily or refuse justified cooperation. Structured challenges protect recorded
   rulings, not arbitrary dialogue. No live-model ranking is certified.
 - Optional reviewers add cost/latency and can miss problems or reject acceptable

@@ -32,6 +32,12 @@ const FEATURES = Object.freeze([
   Object.freeze({ id: 'story-covers-and-portraits', status: 'available' }),
   Object.freeze({ id: 'fiction-books', status: 'available' }),
   Object.freeze({ id: 'fiction-saves', status: 'available' }),
+  Object.freeze({ id: 'retained-fiction-gallery', status: 'available' }),
+  Object.freeze({ id: 'saved-text-listening', status: 'available' }),
+  Object.freeze({ id: 'frozen-fiction-editions', status: 'available' }),
+  Object.freeze({ id: 'fiction-bookshelf', status: 'available' }),
+  Object.freeze({ id: 'fiction-reading-copies', status: 'available', configuration_required: 'PUBLIC_SHARE_BASE_URL and reachable allowed-host/proxy configuration' }),
+  Object.freeze({ id: 'source-grounded-narrative-context', status: 'available' }),
 ]);
 
 function releaseCapabilities(applicationVersion) {

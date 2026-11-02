@@ -1,7 +1,11 @@
 # Ink Morrow 5.0 PDF documentation library
 
-The current set is the **5.0 Edition**. The six committed PDFs are the verified B2 build. The stakeholder deferred PDF regeneration until the final recovery work package; source manuals describe B4 now. `update-policy.json` records that deferral and freshness checks still verify every PDF digest. Remove it and rebuild/inspect the complete set at final completion. All six active books describe the
-playable-fiction product, including fresh storage and the retired-route boundary.
+The current set is the **5.0 Edition**, regenerated at the final recovery checkpoint.
+All six books cover schema 29, B5 Gallery, B6 listening, B7 frozen books/Bookshelf/
+reading copies, and source-grounded narrative guidance. The temporary PDF deferral
+has ended. Current runtime/formats are the target; backwards compatibility is not
+an acceptance requirement. Live literary quality, real Android acceptance and
+deployment remain separately identified evidence, not inferred from these PDFs.
 Filenames, covers, metadata, headers, links and freshness output names use 5.0.
 All product-logo placements reuse frontend/brand/ink-morrow-lockup.svg, the exact
 artwork at the top of GitHub README, including its embedded font and tagline.

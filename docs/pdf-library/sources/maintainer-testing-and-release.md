@@ -145,11 +145,10 @@ not reader-safe books or full installation backups.
 
 ## B4 editorial verification
 
-Read recovery/B4-DELIVERY.md. Public version remains 5.0.0; schema 26 appends an
-immutable migration module. Preserve migration 24/25 and frozen save-v1 bytes.
+Read recovery/B4-DELIVERY.md. Public version remains 5.0.0; B4 introduced schema 26 in an immutable migration module; current schema is 29. Preserve migration 24/25 and frozen save-v1 bytes.
 Genuine synthetic schema-25/B3-save fixtures were captured before B4; compare ledger,
 initial-state and beat bytes and inject rollback/reopen failure during migration 26.
-Verify old-save continuation followed by adoption/save-copy.
+Verify current-format adoption and save-copy. Older fixtures remain historical evidence, not a backwards-compatibility obligation.
 
 Tests must cover virtual episode defaults, immutable adoption/replay/fences,
 chronological non-overlap, ancestral narrative anchors, future/sibling rejection,
@@ -165,13 +164,13 @@ outlines, restore preview and Back during a delayed load. Keep real Android/IME/
 rotation and literary/deployment acceptance separate. Run full backend/frontend,
 desktop/mobile E2E and all four dependency audits; require all five exact-head CI
 checks before main merge. Source manuals and continuation state go on main. PDFs
-remain deferred until final recovery completion.
+are regenerated together at this final recovery checkpoint.
 
 
 
 ## B3 verification and documentation policy
 
-Read recovery/B3-DELIVERY.md and CONTINUATION.md. Storage is schema 25; public
+Read recovery/B3-DELIVERY.md and CONTINUATION.md. Current storage is schema 29; public
 version remains 5.0.0. Never modify published migration 24 or frozen save-v1 modules.
 The genuine synthetic schema-24 database/baseline and B2-v2 save were captured
 before B3 implementation; keep them alongside original schema-23/v1 fixtures.
@@ -188,14 +187,28 @@ transports. Browser tests use isolated authenticated data and mock paid endpoint
 run desktop and mobile separately. Screenshots and emulation are not actual Android
 IME/rotation or literary acceptance, and authorize no paid benchmark/deployment.
 
-The stakeholder explicitly deferred PDF regeneration until the final recovery work
-package. Update all six source manuals now. `update-policy.json` records the deferral;
-freshness checks verify existing B2 PDF hashes and do not claim current-source
-renderings. At final completion remove the policy, regenerate all six, inspect every
-page and update the source/output manifest. Until then do not regenerate PDFs in
-feature PRs. Require all five checks green on the exact feature head before merging
+The temporary feature-batch PDF deferral ends at this checkpoint. All six sources,
+rendered PDFs and the combined freshness manifest are updated together. Inspect
+every page through raster/contact-sheet and text/outline checks; the User Guide
+remains 35 A4 pages without shrinking its type or removing task coverage. Require all five checks green on the exact feature head before merging
 main, keep guides/state on main and delete only the integrated feature branch.
 
+
+## Final capacity evidence
+
+`node scripts/benchmark-recovery.cjs` creates a private synthetic current-format
+store on the checkout's filesystem, measures 500/3,000/10,000 moments, and writes
+`docs/recovery/evidence/B8-CAPACITY.json`. It includes two paths sharing ancestry,
+four normalized images, sixteen reference revisions and dense evidenced facts.
+Queries have 30 warm samples; narration-context compilation has ten. Source file
+digests identify measured code. No provider or owner installation is opened.
+
+The 500- and 3,000-moment saves round-trip both paths and source media. The dense
+10,000-moment specimen exceeds the portable byte ceiling and fails explicitly
+before export; history is not dropped. Cold installation backup remains the way
+to retain a complete oversized store. Host metrics are not tablet/network or live
+literary acceptance. Use a scratch volume with adequate space; SQLite may already
+roll back a storage failure, whose original error must remain visible for diagnosis.
 
 ## Repository and product ownership
 
@@ -221,9 +234,9 @@ Project-owned 5.0 material remains AGPL-3.0-only. Preserve third-party licenses,
 bundled-font notices and the historical development credits. Do not describe
 generated fixtures as human playtesting or an unrun benchmark as research evidence.
 
-B1 introduces five current-fiction room adapters and a contribution sheet using the shared dialog stack. Test preserved workflows through their new destinations: history/path/episodes in Chronicle, cast/facts/preferences in Codex, upload/paint in Gallery, and book/save export in Gate. Old `#/story/:id` links remain Desk aliases. B2 deepens Chronicle and Codex with server-bounded historical inspection and durable private drafts; complete image inventory remains B5. Do not revive authoring APIs. Preserve genuine schema-23/save-v1 fixtures and the frozen validator manifest; every schema change appends a checksum-bound migration. Verify rollback/reopen, exact quote/hash/remapping, public/private and sibling/future boundaries, cursor binding, draft conflicts, Lock and prepared-action recovery. `node scripts/benchmark-inspection.cjs` measures host query latency at 500, 3,000 and 10,000 moments; it is not Android or literary acceptance.
+B1 introduces five current-fiction room adapters and a contribution sheet using the shared dialog stack. Test preserved workflows through their new destinations: history/path/episodes in Chronicle, cast/facts/preferences in Codex, upload/paint in Gallery, and book/save export in Gate. Old `#/story/:id` links remain Desk aliases. B2 deepens Chronicle and Codex with server-bounded historical inspection and durable private drafts; B5 supplies complete retained image inventory. Do not revive authoring APIs. Retain historical schema/save fixtures as immutable evidence; current runtime/formats are the support target and backwards compatibility is waived; every schema change appends a checksum-bound migration. Verify rollback/reopen, exact quote/hash/remapping, public/private and sibling/future boundaries, cursor binding, draft conflicts, Lock and prepared-action recovery. `node scripts/benchmark-inspection.cjs` measures host query latency at 500, 3,000 and 10,000 moments; it is not Android or literary acceptance.
 
-Regression cases include cross-room reading return without additional generation, an old bookmark outside the loaded window, foreign/deleted bookmark rejection, pending generation during history browsing, newer identical draft text, paid-review cancellation back to the same sheet, immediate Lock and reading reflow. Keep source/CI evidence separate from real Android IME/Back/rotation and stakeholder acceptance. All six source manuals are updated together; PDF regeneration is deferred until the final recovery work package.
+Regression cases include cross-room reading return without additional generation, an old bookmark outside the loaded window, foreign/deleted bookmark rejection, pending generation during history browsing, newer identical draft text, paid-review cancellation back to the same sheet, immediate Lock and reading reflow. Keep source/CI evidence separate from real Android IME/Back/rotation and stakeholder acceptance. All six source manuals are updated together; all six PDFs are regenerated at the final recovery checkpoint.
 
 The PDF renderer serves only local documentation/type/brand assets on an ephemeral loopback HTTP listener, so it works in browser environments that prohibit file URLs. It never starts the application or opens its database. The listener closes when rendering finishes or fails.
 
@@ -278,7 +291,7 @@ different browser engine or human session was tested when only mocks ran.
 
 ## Data and concurrency qualification
 
-The new family is ink-morrow-5, schema 22. Fresh creation, supported migration,
+The current family is ink-morrow-5, schema 29. Fresh creation, supported migration,
 repeat startup, rollback, ledger integrity, future-family refusal and source-file
 preservation need independent tests. Never edit a migration checksum merely to
 make a valuable database open.

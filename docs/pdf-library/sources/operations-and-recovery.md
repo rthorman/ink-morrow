@@ -145,7 +145,7 @@ not reader-safe books or full installation backups.
 
 ## B4 editorial operating checkpoint
 
-Storage now appends schema 26; public version remains 5.0.0 in `ink-morrow-5`.
+Current storage is schema 29; B4 introduced schema 26. Public version remains 5.0.0 in `ink-morrow-5`.
 Migration 24/25 and historical snapshots are preserved. Existing episode-based book
 layout stays virtual until explicit adoption. No deployment or live migration is
 performed by this development batch; retain the normal consistent-backup procedure
@@ -159,18 +159,17 @@ comparing/copying fields into a fresh current-target draft. Invalid bounds fail 
 free preview before preparing a new action key. Offline text is honestly unsaved.
 
 Playable-save v2 carries optional editorial revisions and remaps anchors/heads on
-copy. Genuine B3 saves still import and can adopt a B4 layout without rewriting
-older beats. Empty plans remain empty; book exports omit them. Reading/export of
+copy. Current-format copies retain grouping without rewriting accepted beats. Empty plans remain empty; book exports omit them. Reading/export of
 large automatic layouts remains available even above new-record adoption limits.
-Source manuals cover B4; existing PDFs remain the integrity-checked B2 build until
-the final recovery package. D1 wording editing and future Gallery/audio/jobs are
-not activated by this migration.
+Current sources/PDFs cover B5 Gallery, B6 listening and B7 frozen book jobs.
+D1 prose wording editing remains disabled; those media features are independent
+of editorial grouping.
 
 
 
 ## B3 operating checkpoint
 
-Current storage is schema 25 in the existing `ink-morrow-5` family; application
+Current storage is schema 29; B3 introduced schema 25 in the existing `ink-morrow-5` family; application
 5.0.0 and its isolated data directory remain. Migration 25 appends creative
 revision/source/plan tables and preserves migration 24 and older ledgers. Take the
 usual stopped/consistent backup before upgrading an owner installation; rollback
@@ -194,9 +193,9 @@ private interface; unsaved offline memory is not durable device-loss recovery.
 Private playable saves retain creative revisions, bindings, actual goal outcomes,
 scene provenance and exact narrative source assemblies. Import creates new IDs and
 preserves prose bytes. Credentials, provider capacities, paid permissions, plans
-and drafts do not travel. Genuine old B2 v2 and frozen v1 saves remain importable.
-The current manual sources describe B3; existing PDFs remain the verified B2 build
-until the stakeholder's final-package regeneration checkpoint.
+and drafts do not travel. Use current-format saves; backwards compatibility is
+not a support/acceptance requirement. All six source manuals and PDFs cover the
+completed recovery checkpoint.
 
 
 ## The installation you are operating
@@ -206,14 +205,18 @@ process. The production entry point is backend/server.js; its default address is
 127.0.0.1:3000. It is a playable-fiction game, not the retired manuscript suite.
 Opening the interface, reading, local state changes and backup do not buy prose.
 
-The live surfaces are Your stories, Visual Library, Start a story, the reader and Settings.
+The current surfaces are Your stories, Visual Library, Start a story, Settings
+and the Desk/Chronicle/Codex/Gallery/Gate workspace, with Bookshelf and the shared player.
 The default player stays outside the cast. New narration is deliberate; there is
-no speculative next-page queue, automatic cast portrait backfill, audiobook
-queue or background memory extraction in the 5.0 runtime.
+no speculative next-page queue, automatic portrait backfill or background memory
+extraction. Current-fiction listening has an explicit reviewed queue; opening a
+room or restarting never starts an audiobook purchase.
 
 Use one process per data directory. SQLite state, normalized images and encrypted
 provider-vault records form one installation. Downloaded .inkmorrow5 saves are
-portable story copies, not full installation backups.
+portable story copies, not full installation backups. A dense story can hit the
+128 MiB portable-byte ceiling before its 10,000-moment count ceiling; keep a cold
+full-installation backup rather than dropping history to make an archive fit.
 
 For this project's development, the authoritative checkout is
 /home/rthorman/src/ink-morrow-5 under WSL. Windows tools may operate on that tree;
@@ -222,7 +225,7 @@ starting a server remain explicit operator actions, separate from merging code.
 
 B1 is the five-room current-fiction workspace, not the isolated B0 demonstration. On an updated checkout, `bash setup.sh` followed by `npm start` runs the real application; there is no frontend build. `npm run prototype:recovery` still starts only the fictional B0 preview on a separate loopback port. Never use the demo as evidence that production data migrated or a live installation was updated.
 
-Device reading position and acknowledged private drafts survive reload. Drafts expire after 30 days without saving; an offline or conflicted draft needs copying before closing. Schema 23 upgrades transactionally to 24 within the same V5 family; genuine old-ledger fixtures test rollback and reopening. New playable saves use version 2, while genuine version-1 saves still import as separate copies. Import receipts recover the same copy when a response is lost. Drafts are private installation data and excluded from portable story saves. A missing saved position falls back visibly without changing the story. Password change is in Settings. Lock hides private content immediately; if session revocation fails, the access error remains visible rather than claiming the server session ended. Back up the configured database/media using the existing cold-backup procedure before operational upgrades.
+Device reading position and acknowledged private drafts survive reload. Drafts expire after 30 days without saving; an offline or conflicted draft needs copying before closing. Schema 23 upgrades transactionally to 24 within the same V5 family; genuine old-ledger fixtures test rollback and reopening. New playable saves use version 2 as the supported interchange format; older formats are not an acceptance requirement. Import receipts recover the same copy when a response is lost. Drafts are private installation data and excluded from portable story saves. A missing saved position falls back visibly without changing the story. Password change is in Settings. Lock hides private content immediately; if session revocation fails, the access error remains visible rather than claiming the server session ended. Back up the configured database/media using the existing cold-backup procedure before operational upgrades.
 
 ## Install without touching old data
 

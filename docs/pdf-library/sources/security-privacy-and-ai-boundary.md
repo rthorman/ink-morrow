@@ -165,7 +165,7 @@ Close/Back/room changes/Lock fence abandoned callbacks; incomplete offline edits
 are not called server saved. Book formats consume the same effective grouping and
 original prose/placed images; empty plans add no synthetic paragraphs. D1 wording
 editing, D2 conversion and D3 image conditioning remain disabled pending separate
-decisions. Source manuals cover B4/schema 26; PDF regeneration stays deferred.
+decisions. Current manuals cover schema 29, B5–B7 and source-grounded narrative guidance.
 
 
 
@@ -194,7 +194,7 @@ achievements. Saves validate exact source closure, producing revisions and selec
 ancestry before remapping. New local-command receipts/fences and scoped drafts
 prevent lost-response retries from becoming duplicate mutations. Lock clears
 private task controllers and DOM; offline unsaved memory is never represented as
-server acknowledgement. Sources are current B3; PDF regeneration remains deferred.
+server acknowledgement. Current sources/PDFs cover the completed recovery capabilities.
 
 
 ## Threat model and trust map
