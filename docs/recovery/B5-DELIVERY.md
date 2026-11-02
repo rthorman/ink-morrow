@@ -1,3 +1,7 @@
+> Integration verified: PR #113 merged at `9395fcf` after all five checks passed
+> on exact head `c9801c6`. Provisional wording below records the implementation
+> checkpoint and is historical; B5 is integrated in main.
+
 # B5 — retained Gallery and private reference portability
 
 Implementation branch: `recovery/b5-visual-collection`, based on main `80a5236`.

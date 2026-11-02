@@ -1,0 +1,11 @@
+[WebServer] (node:53587) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:53587) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+
+Running 1 test using 1 worker
+
+(node:53599) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/b6.e2e.test.js:8:6 › B6 listening UI with explicitly synthetic silence › review saved text, prepare once, replay and change speed without another purchase (1.4s)
+
+  1 passed (2.5s)

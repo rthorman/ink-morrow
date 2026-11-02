@@ -1,0 +1,49 @@
+
+> ink-morrow-frontend@5.0.0 test
+> node --experimental-vm-modules node_modules/jest/bin/jest.js --runInBand
+
+(node:21) ExperimentalWarning: VM Modules is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS tests/image-prompt.test.js (7.718 s)
+PASS tests/speculative.test.js
+PASS tests/fiction-reader.test.js
+PASS tests/settings.test.js
+PASS tests/components.test.js
+PASS tests/narration.test.js
+PASS tests/story-cast.test.js
+PASS tests/codex.test.js
+PASS tests/ai-draft.test.js
+PASS tests/fiction-library.test.js
+PASS tests/navigation.test.js
+PASS tests/fiction-workspace.test.js
+PASS tests/dialogs.test.js
+PASS tests/chronicle.test.js
+PASS tests/bookshelf.test.js
+PASS tests/gate.test.js
+PASS tests/audiobook.test.js
+PASS tests/transfer.test.js
+PASS tests/manuscript-start.test.js
+PASS tests/gallery.test.js
+PASS tests/fiction-quality.test.js
+PASS tests/desk-editor.test.js
+PASS tests/play.test.js
+PASS tests/auth-seam.test.js
+PASS tests/entity-editors.test.js
+PASS tests/catalog-flows.test.js
+PASS tests/modal-lifecycle.test.js
+PASS tests/reference-images.test.js
+PASS tests/private-drafts.test.js
+PASS tests/library-flow.test.js
+PASS tests/pages.test.js
+PASS tests/disk-banner.test.js
+PASS tests/scribes.test.js
+PASS tests/fiction-comparison.test.js
+PASS tests/fiction-gallery.test.js
+PASS tests/public-share.test.js
+PASS tests/cost.test.js
+
+Test Suites: 37 passed, 37 total
+Tests:       336 passed, 336 total
+Snapshots:   0 total
+Time:        35.345 s
+Ran all test suites.

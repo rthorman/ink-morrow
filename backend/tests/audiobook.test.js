@@ -39,7 +39,7 @@ beforeEach(async () => {
   db = createDb(':memory:');
   app = createApp(db, { legacyEnabled: true, staticDir: null, imageDir: fs.mkdtempSync(path.join(os.tmpdir(), 'im-ab-images-')), audioDir });
   close = () => db.close();
-  for (const f of fs.existsSync(audioDir) ? fs.readdirSync(audioDir) : []) fs.unlinkSync(path.join(audioDir, f));
+  for (const f of fs.existsSync(audioDir) ? fs.readdirSync(audioDir, {withFileTypes:true}) : []) if(f.isFile())fs.unlinkSync(path.join(audioDir, f.name));
 
   // Catalogue + authoritative generation costs, both through axios.get
   axios.get.mockImplementation((url) => {

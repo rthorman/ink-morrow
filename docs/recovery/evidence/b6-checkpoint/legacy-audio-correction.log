@@ -1,0 +1,28 @@
+(node:53455) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+PASS backend/tests/audiobook.test.js
+  Audiobook validation
+    ✓ rejects pcm-only narrators with the reason up front (144 ms)
+    ✓ rejects unconfigured narrators, empty tales, unknown stories, and double starts (154 ms)
+  Audiobook generation
+    ✓ reads every text page in order, skips plates, and assembles one mp3 (89 ms)
+    ✓ serves the finished book as an attachment (52 ms)
+    ✓ regenerates for free when nothing changed (the per-page cache remembers) (68 ms)
+    ✓ re-bills only the pages that changed (71 ms)
+    ✓ marks a book stale when the tale changed after it was read (61 ms)
+  Audiobook queue and cancellation
+    ✓ queues tales behind the running one and reports the position (250 ms)
+    ✓ cancels a queued tale immediately (72 ms)
+    ✓ cancels the running tale between pages, keeping no partial file (117 ms)
+    ✓ cancels the running tale mid-page, before the bytes are written (120 ms)
+    ✓ marks a pending row failed when a new server instance boots (116 ms)
+  Audiobook cleanup and storage listing
+    ✓ deleting the audiobook removes row and file (57 ms)
+    ✓ deleting the story removes the audiobook file too (50 ms)
+    ✓ lists per-story audiobooks and plates with sizes for the Bookshelf (75 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       15 passed, 15 total
+Snapshots:   0 total
+Time:        2.179 s, estimated 4 s
+Ran all test suites matching /backend\/tests\/audiobook.test.js/i.

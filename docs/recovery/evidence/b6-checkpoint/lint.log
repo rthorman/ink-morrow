@@ -1,0 +1,4 @@
+
+> ink-morrow@5.0.0 lint
+> node node_modules/eslint/bin/eslint.js backend frontend e2e prototypes scripts/serve-recovery-prototype.cjs scripts/build-recovery-preview.cjs
+

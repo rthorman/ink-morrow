@@ -230,7 +230,7 @@ async function createSpeech(input) {
   return createSpeechWithConfig(aiConfig(), input);
 }
 
-async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat = 'mp3' }) {
+async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat = 'mp3', noRetry = false }) {
   if (!cfg.apiKey) {
     const err = new Error('OpenRouter API key is not configured. Set OPENROUTER_API_KEY in backend/.env');
     err.statusCode = 503;
@@ -238,7 +238,7 @@ async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat
   }
   let format = responseFormat;
   let lastError = null;
-  for (let attempt = 0; attempt < RETRY_ATTEMPTS; attempt++) {
+  for (let attempt = 0; attempt < (noRetry ? 1 : RETRY_ATTEMPTS); attempt++) {
     try {
       const response = await axios.post(
         `${cfg.baseUrl}/audio/speech`,
@@ -262,7 +262,7 @@ async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat
       const err = await speechError(error);
       // pcm-only narrators (e.g. Gemini TTS) refuse mp3: fall back once.
       if (
-        format !== 'pcm' &&
+        !noRetry && format !== 'pcm' &&
         Number.isFinite(error.response?.status) &&
         error.response.status === 400 &&
         /pcm/i.test(err.message)
@@ -271,7 +271,7 @@ async function createSpeechWithConfig(cfg, { model, voice, input, responseFormat
         lastError = err;
         continue;
       }
-      if (RETRYABLE.has(error.response?.status) && attempt < RETRY_ATTEMPTS - 1) {
+      if (!noRetry && RETRYABLE.has(error.response?.status) && attempt < RETRY_ATTEMPTS - 1) {
         await sleep(cfg.retryBaseDelay * Math.pow(2, attempt));
         continue;
       }

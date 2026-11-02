@@ -34,3 +34,9 @@ test('an uncertain paid failure is visible as unknown rather than free', async (
     expect(store.view(story.id).spend.unknown_attempts).toBe(1);
   } finally { db.close(); }
 });
+
+test.each([500,400])('strict listening transport does not retry or buy a PCM fallback after %s',async status=>{
+ axios.post.mockReset();axios.post.mockRejectedValue({response:{status,data:{error:{message:'pcm required or unavailable'}}}});
+ const client=createAiClient({providers:{resolve:()=>({apiKey:'dummy',baseUrl:'https://example.invalid',model:'test',retryBaseDelay:1,timeout:100}),redact:value=>value}});
+ await expect(client.createSpeech({model:'test',voice:'voice',input:'Saved narrative.',responseFormat:'mp3',noRetry:true})).rejects.toThrow();expect(axios.post).toHaveBeenCalledTimes(1);
+});

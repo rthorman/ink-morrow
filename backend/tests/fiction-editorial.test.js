@@ -113,7 +113,7 @@ describe('B4 editorial organization on immutable fiction', () => {
       ).toBeUndefined();
       raw.close();
       let migrated = createDb(file);
-      expect(schemaIdentity(migrated).version).toBe(27);
+      expect(schemaIdentity(migrated).version).toBe(28);
       expect(
         migrated
           .prepare(
@@ -133,7 +133,7 @@ describe('B4 editorial organization on immutable fiction', () => {
       ).toEqual(baseline.beats);
       migrated.close();
       migrated = createDb(file);
-      expect(schemaIdentity(migrated).version).toBe(27);
+      expect(schemaIdentity(migrated).version).toBe(28);
       migrated.close();
     } finally {
       fs.rmSync(root, { recursive: true, force: true });

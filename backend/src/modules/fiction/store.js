@@ -77,10 +77,11 @@ function createFictionStore(db) {
       spend: db.prepare(`WITH charges AS (
         SELECT cost_usd, billed_attempts FROM fiction_requests r WHERE r.game_id = ? AND NOT EXISTS (SELECT 1 FROM fiction_calls c WHERE c.request_id = r.id)
         ${db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get() ? 'UNION ALL SELECT cost_usd,billed_attempts FROM fiction_art_jobs WHERE game_id = ?' : ''}
+        ${db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_audio_calls'").get() ? 'UNION ALL SELECT c.cost_usd,c.billed_attempts FROM fiction_audio_calls c JOIN fiction_listening_jobs j ON j.id=c.job_id WHERE j.game_id = ?' : ''}
         UNION ALL SELECT c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id WHERE r.game_id = ?
       ) SELECT coalesce(sum(cost_usd), 0) AS known_usd,
         coalesce(sum(CASE WHEN cost_usd IS NULL THEN billed_attempts ELSE 0 END), 0) AS unknown_attempts
-        FROM charges`).get(...(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get()?[id,id,id]:[id,id])),
+        FROM charges`).get(...(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get()?(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_audio_calls'").get()?[id,id,id,id]:[id,id,id]):[id,id])),
       recent_calls: db.prepare(`SELECT c.role, c.purpose, c.model, c.status, c.cost_usd, c.billed_attempts FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id
         WHERE r.game_id = ? ORDER BY c.rowid DESC LIMIT 12`).all(id),
       pending_stage: db.prepare(`SELECT c.role, c.purpose, c.call_index FROM fiction_calls c JOIN fiction_requests r ON r.id = c.request_id

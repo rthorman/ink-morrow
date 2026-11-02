@@ -1,0 +1,363 @@
+"use strict";
+const fs = require("node:fs"),
+  os = require("node:os"),
+  path = require("node:path");
+const { Readable } = require("node:stream");
+const { gunzipSync } = require("node:zlib");
+const { createDb, MIGRATIONS } = require("../src/db");
+const { createFictionStore } = require("../src/modules/fiction/store");
+const {
+  createWorkspaceQueries,
+} = require("../src/modules/fiction/workspace-queries");
+const { createListening } = require("../src/modules/fiction/listening");
+const { createFictionSaves } = require("../src/modules/fiction/saves");
+describe("B6 bounded saved-text listening", () => {
+  let root, db, store, story, listening, ai, providers;
+  const frame = Buffer.alloc(417);
+  Buffer.from([0xff, 0xfb, 0x90, 0x64]).copy(frame);
+  const sound = Buffer.concat([frame, frame]);
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), "fiction-listening-"));
+    db = createDb(":memory:");
+    store = createFictionStore(db);
+    story = store.create({
+      title: "The listening garden",
+      premise: "A quiet garden.",
+      opening: "The rain settles in the quiet garden. ".repeat(100),
+    });
+    providers = {
+      exposure: () => ({
+        provider: { id: "narrator" },
+        model_id: "voice-model",
+      }),
+      resolve: () => ({
+        baseUrl: "https://speech.invalid",
+        apiKey: "PRIVATE_CREDENTIAL",
+      }),
+    };
+    ai = {
+      listSpeechModels: jest.fn().mockResolvedValue([
+        {
+          id: "voice-model",
+          name: "Fixture voice",
+          voices: [{ id: "voice", label: "Voice" }],
+          pcm: false,
+        },
+      ]),
+      createSpeech: jest.fn().mockImplementation(async () => ({
+        stream: Readable.from([sound]),
+        contentType: "audio/mpeg",
+        generationId: "generation",
+      })),
+      fetchGenerationCost: jest.fn().mockResolvedValue(0.02),
+    };
+    listening = createListening({
+      db,
+      store,
+      queries: createWorkspaceQueries({ db, store }),
+      providers,
+      ai,
+      rootDir: root,
+    });
+  });
+  afterEach(() => {
+    listening.dispose();
+    db.close();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const input = (extra = {}) => ({
+    branch_id: story.active_branch_id,
+    inspection_at: story.head_beat_id,
+    kind: "audiobook",
+    scope: "path",
+    provider_id: "narrator",
+    model: "voice-model",
+    voice: "voice",
+    ...extra,
+  });
+  async function done(job) {
+    for (let n = 0; n < 200; n++) {
+      const row = listening.view(story.id, job.id);
+      if (!["requested", "running"].includes(row.status)) return row;
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw Error("Job did not finish");
+  }
+  test("free preflight freezes only selected narrative prose and does not claim a synthesis call", async () => {
+    const plan = await listening.prepare(story.id, input());
+    expect(plan.segments).toBeGreaterThan(1);
+    expect(plan.maximum_calls).toBe(plan.segments);
+    expect(ai.createSpeech).not.toHaveBeenCalled();
+    expect(store.view(story.id).revision).toBe(story.revision);
+    expect(
+      JSON.stringify(db.prepare("SELECT * FROM fiction_listening_plans").get()),
+    ).not.toContain("PRIVATE_CREDENTIAL");
+  });
+  test("a frozen MP3 edition continues independently of later narration and cached replay is free", async () => {
+    const plan = await listening.prepare(story.id, input());
+    story = store.preferences(story.id, story.revision, {
+      voice: "A changed literary voice.",
+    });
+    const job = listening.start(story.id, {
+      plan_id: plan.id,
+      action_key: plan.id,
+    });
+    const ready = await done(job);
+    expect(ready.status).toBe("succeeded");
+    expect(ready.older_edition).toBe(true);
+    expect(listening.read(story.id, ready.id)).toEqual(
+      Buffer.concat(Array(plan.segments).fill(sound)),
+    );
+    const unique = new Set(
+      JSON.parse(
+        db
+          .prepare(
+            "SELECT manifest_json FROM fiction_listening_plans WHERE id=?",
+          )
+          .get(plan.id).manifest_json,
+      ).map((item) => item.cache_key),
+    ).size;
+    expect(ai.createSpeech).toHaveBeenCalledTimes(unique);
+    expect(
+      ai.createSpeech.mock.calls.every(([call]) => call.noRetry === true),
+    ).toBe(true);
+    expect(store.view(story.id).spend).toEqual({
+      known_usd: unique * 0.02,
+      unknown_attempts: 0,
+    });
+    const calls = ai.createSpeech.mock.calls.length;
+    const second = await listening.prepare(story.id, input());
+    expect(second.purchase_segments).toBe(0);
+    expect(
+      (
+        await done(
+          listening.start(story.id, {
+            plan_id: second.id,
+            action_key: second.id,
+          }),
+        )
+      ).status,
+    ).toBe("succeeded");
+    expect(ai.createSpeech).toHaveBeenCalledTimes(calls);
+    expect(
+      listening.start(story.id, { plan_id: plan.id, action_key: plan.id }).id,
+    ).toBe(job.id);
+  });
+  test("Cancel stops undispatched units while the dispatched result can settle into private cache", async () => {
+    let finish;
+    ai.createSpeech.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const plan = await listening.prepare(story.id, input());
+    const job = listening.start(story.id, {
+      plan_id: plan.id,
+      action_key: plan.id,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(finish).toBeTruthy();
+    listening.cancel(story.id, job.id);
+    finish({
+      stream: Readable.from([sound]),
+      contentType: "audio/mpeg",
+      generationId: "late",
+    });
+    await listening.pump();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(listening.view(story.id, job.id).status).toBe("cancelled");
+    expect(ai.createSpeech).toHaveBeenCalledTimes(1);
+    expect(
+      db.prepare("SELECT count(*) AS n FROM fiction_audio_cache").get().n,
+    ).toBe(1);
+    expect(store.view(story.id).spend.known_usd).toBe(0.02);
+  });
+  test("restart interrupts without resuming, and a late callback cannot revive the edition", async () => {
+    let finish;
+    ai.createSpeech.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const plan = await listening.prepare(story.id, input());
+    const job = listening.start(story.id, {
+      plan_id: plan.id,
+      action_key: plan.id,
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    listening.reconcile();
+    finish({
+      stream: Readable.from([sound]),
+      contentType: "audio/mpeg",
+      generationId: "late",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(listening.view(story.id, job.id).status).toBe("interrupted");
+    expect(ai.createSpeech).toHaveBeenCalledTimes(1);
+    expect(store.view(story.id).spend).toEqual({
+      known_usd: 0.02,
+      unknown_attempts: 0,
+    });
+  });
+  test("a missing reviewed cache hit cannot turn into a surprise synthesis purchase", async () => {
+    const plan = await listening.prepare(story.id, input());
+    await done(
+      listening.start(story.id, { plan_id: plan.id, action_key: plan.id }),
+    );
+    const replay = await listening.prepare(story.id, input());
+    const count = ai.createSpeech.mock.calls.length;
+    for (const file of fs.readdirSync(path.join(root, "fiction")))
+      fs.unlinkSync(path.join(root, "fiction", file));
+    expect(() =>
+      listening.start(story.id, { plan_id: replay.id, action_key: replay.id }),
+    ).toThrow("cached segment is missing");
+    expect(ai.createSpeech).toHaveBeenCalledTimes(count);
+  });
+  test("provider failure is charged unknown, never retried, and jobs/audio do not enter a playable save", async () => {
+    ai.createSpeech.mockRejectedValue(Error("Connection lost"));
+    const plan = await listening.prepare(story.id, input());
+    const job = listening.start(story.id, {
+      plan_id: plan.id,
+      action_key: plan.id,
+    });
+    expect((await done(job)).status).toBe("failed");
+    expect(ai.createSpeech).toHaveBeenCalledTimes(1);
+    expect(store.view(story.id).spend.unknown_attempts).toBe(1);
+    const saves = createFictionSaves({ db, store, media: {} });
+    const raw = JSON.parse(gunzipSync(await saves.exportSave(story.id)));
+    expect(raw.spend.unknown_attempts).toBe(1);
+    expect(JSON.stringify(raw)).not.toContain("speech.invalid");
+    expect(JSON.stringify(raw)).not.toContain("audio_calls");
+    expect(JSON.stringify(raw)).not.toContain("PRIVATE_CREDENTIAL");
+  });
+  test.each(["malformed", "oversized"])(
+    "invalid %s paid audio retains known cost and makes no fallback call",
+    async (fault) => {
+      ai.createSpeech.mockResolvedValue({
+        stream: Readable.from([
+          fault === "oversized"
+            ? Buffer.alloc(16 * 1024 * 1024 + 1)
+            : Buffer.from("ID3 malformed payload"),
+        ]),
+        contentType: "audio/mpeg",
+        generationId: "invalid-result",
+      });
+      const plan = await listening.prepare(story.id, input());
+      const result = await done(
+        listening.start(story.id, { plan_id: plan.id, action_key: plan.id }),
+      );
+      expect(result.status).toBe("failed");
+      expect(result.spend).toEqual({ known_usd: 0.02, unknown_attempts: 0 });
+      expect(ai.createSpeech).toHaveBeenCalledTimes(1);
+      expect(
+        db.prepare("SELECT count(*) AS n FROM fiction_audio_cache").get().n,
+      ).toBe(0);
+    },
+  );
+  test("source selection excludes private corrections and unspoken local records", async () => {
+    story = store.correct(story.id, story.revision, {
+      fact: {
+        id: "private-note",
+        text: "PRIVATE hidden history",
+        visibility: "secret",
+      },
+      reason: "PRIVATE owner direction",
+    });
+    const plan = await listening.prepare(story.id, input());
+    await done(
+      listening.start(story.id, { plan_id: plan.id, action_key: plan.id }),
+    );
+    const sent = ai.createSpeech.mock.calls
+      .map(([value]) => value.input)
+      .join(" ");
+    expect(sent).toContain("The rain settles");
+    expect(sent).not.toContain("PRIVATE");
+  });
+  test("cancel an unstarted source plan fences a delayed start", async () => {
+    const plan = await listening.prepare(story.id, input());
+    db.prepare(
+      "INSERT INTO fiction_listening_jobs(id,game_id,plan_id,action_key,status) VALUES('cancelled',?,?,?,'cancelled')",
+    ).run(story.id, plan.id, plan.id);
+    expect(
+      listening.start(story.id, { plan_id: plan.id, action_key: plan.id })
+        .status,
+    ).toBe("cancelled");
+    expect(ai.createSpeech).not.toHaveBeenCalled();
+  });
+  test("a same-sized corrupt cached segment never becomes an unreviewed purchase", async () => {
+    const first = await listening.prepare(story.id, input());
+    await done(
+      listening.start(story.id, { plan_id: first.id, action_key: first.id }),
+    );
+    const replay = await listening.prepare(story.id, input());
+    const calls = ai.createSpeech.mock.calls.length;
+    for (const row of db
+      .prepare("SELECT storage_key,byte_size FROM fiction_audio_cache")
+      .all())
+      fs.writeFileSync(
+        path.join(root, "fiction", row.storage_key),
+        Buffer.alloc(row.byte_size),
+      );
+    const result = await done(
+      listening.start(story.id, { plan_id: replay.id, action_key: replay.id }),
+    );
+    expect(result.status).toBe("failed");
+    expect(result.error_code).toBe("AUDIO_CACHE_MISSING");
+    const replacement = await listening.prepare(story.id, input());
+    expect(replacement.purchase_segments).toBeGreaterThan(0);
+    expect(ai.createSpeech).toHaveBeenCalledTimes(calls);
+  });
+  test("migration 28 rolls back cleanly and preserves genuine schema-27 narrative/ledger bytes", () => {
+    const file = path.join(root, "old.db");
+    fs.copyFileSync(
+      path.join(__dirname, "fixtures/recovery/schema-27.db"),
+      file,
+    );
+    const baseline = JSON.parse(
+      fs.readFileSync(
+        path.join(__dirname, "fixtures/recovery/baseline-27.json"),
+      ),
+    );
+    const migrations = MIGRATIONS.map((row) => ({ ...row }));
+    const latest = migrations.find((row) => row.version === 28),
+      up = latest.up;
+    latest.up = (handle) => {
+      up(handle);
+      throw Error("Listening migration interrupted");
+    };
+    expect(() => createDb(file, { migrations })).toThrow(
+      "Listening migration interrupted",
+    );
+    const { DatabaseSync } = require("node:sqlite");
+    const old = new DatabaseSync(file);
+    expect(old.prepare("PRAGMA user_version").get().user_version).toBe(27);
+    expect(
+      old
+        .prepare(
+          "SELECT name FROM sqlite_master WHERE name='fiction_audio_calls'",
+        )
+        .get(),
+    ).toBeUndefined();
+    old.close();
+    const updated = createDb(file);
+    try {
+      expect(
+        updated
+          .prepare(
+            "SELECT * FROM schema_migrations WHERE version<=27 ORDER BY version",
+          )
+          .all(),
+      ).toEqual(baseline.ledger);
+      expect(updated.prepare("SELECT * FROM fiction_games").get()).toEqual(
+        baseline.game,
+      );
+      expect(
+        updated.prepare("SELECT * FROM fiction_beats ORDER BY rowid").all(),
+      ).toEqual(baseline.beats);
+    } finally {
+      updated.close();
+    }
+  });
+});

@@ -4,12 +4,15 @@
 
 | Document | Purpose |
 |---|---|
+| [Full paused state](PAUSED-STATE-2026-11-02.md) | Durable B6 checkpoint, verification limits and safe resumption instructions |
+| [Development tasks](DEVELOPMENT-TASKS.md) | Authorized recovery, narrative/consistency and final qualification checklist |
 | [Continuation state](CONTINUATION.md) | Decisions, completed work, limits and the next concrete slice |
 | [B0 experience and preview](B0-EXPERIENCE.md) | Implemented synthetic five-room prototype, screenshots and tablet review tasks |
 | [B1 production workspace](B1-DELIVERY.md) | Current-fiction room adapters, reading return, contribution tasks, screenshots and remaining boundaries |
 | [B2 historical inspection and private drafts](B2-DELIVERY.md) | Delivered query/evidence/draft/save contracts, fixtures and verification limits |
 | [B3 creative depth](B3-DELIVERY.md) | Story-local studios, typed campaign records, bounded narration, Say/source closure and preservation fixtures |
 | [B4 chapters and volumes](B4-DELIVERY.md) | Versioned branch-local organization, outline/restore preview, common book grouping and preservation |
+| [B6 listening](B6-DELIVERY.md) | Frozen saved-text plans, cache/job authority, playback and verification |
 | [B5 retained Gallery](B5-DELIVERY.md) | Retained unplaced images, independent painting and private reference portability; verification in progress |
 | [Capability ledger](CAPABILITY-LEDGER.md) | Explicit final-4.1/V5 dispositions, deferrals and policy gates |
 | [Implementation guide](IMPLEMENTATION-GUIDE.md) | Authoritative current engineering plan and batch acceptance |
