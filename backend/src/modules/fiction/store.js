@@ -295,7 +295,7 @@ function createFictionStore(db) {
     return target;
   }
   function insertAsset(id, asset) {
-    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+    if (db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n + (db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get()?db.prepare("SELECT count(*) AS n FROM fiction_art_jobs WHERE game_id=? AND asset_id IS NULL AND billed_attempts=1 AND (status='running' OR (status IN ('cancelled','interrupted') AND (error_code IS NULL OR error_code='INTERRUPTED')))").get(id).n:0) >= 400) fail('This story has reached its 400-image save limit.');
     db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
       .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
   }
@@ -340,7 +340,7 @@ function createFictionStore(db) {
       const placements = (state.illustrations || []).filter((entry) => entry.beat_id !== beat_id);
       if (placements.length >= 200) fail('A path supports at most 200 illustrated moments.');
       const retained=db.prepare('SELECT id FROM fiction_assets WHERE id=? AND game_id=?').get(asset.id,id);
-      if (!retained && db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n >= 400) fail('This story has reached its 400-image save limit.');
+      if (!retained && db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id = ?').get(id).n + (db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_art_jobs'").get()?db.prepare("SELECT count(*) AS n FROM fiction_art_jobs WHERE game_id=? AND asset_id IS NULL AND billed_attempts=1 AND (status='running' OR (status IN ('cancelled','interrupted') AND (error_code IS NULL OR error_code='INTERRUPTED')))").get(id).n:0) >= 400) fail('This story has reached its 400-image save limit.');
       if(!retained) db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
         .run(asset.id, id, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
       state.illustrations = [...placements, { beat_id, asset_id: asset.id, alt_text: alt, caption: label }];

@@ -55,7 +55,7 @@ Story spend adds independent art charges once alongside old requests and narrati
 call rows. Private-save export captures aggregate known/unknown costs and owned
 images without resumable jobs. A save cut excludes results settled later. The
 400-image cap remains; permanent removal/GC is deliberately unavailable because
-all collection entries remain retained roots.
+all collection entries remain retained roots. An unsettled dispatched painting reserves one slot, including cancellation/interruption until settlement, so another upload cannot displace its paid result.
 
 Image dialogs use server-acknowledged private Gallery drafts and submitted action
 identities. Directions and descriptions recover after reopening; files require
@@ -86,7 +86,13 @@ remain unchanged. Full tests and coverage-tool compatibility must pass after the
 changes. Remaining low-severity development-tool findings do not cross the existing
 moderate audit threshold; no audit check is weakened.
 
-Final local totals, screenshots and five exact-head CI results are still pending.
+The corrected complete desktop and mobile suites each passed 57 journeys. All
+557 backend cases passed after dependency updates; the added inventory-boundary
+regression passed separately (10 Gallery cases). All 336 frontend cases passed
+across the complete run plus the corrected UUID-fixture targeted rerun. Coverage
+tooling, lint, setup, branding/release and deferred-PDF integrity checks passed.
+The mobile Gallery screenshot is retained under `docs/screenshots/recovery-b5`.
+Five exact-head CI checks and actual main integration remain pending.
 Six manual sources are updated; PDFs intentionally remain deferred. No real Android
 IME/rotation, live literary quality, production migration or deployment acceptance
 is claimed.

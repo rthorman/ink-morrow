@@ -15,9 +15,9 @@ function createGallery({ db, store, media, queries, providers, generateIllustrat
   const base='/api/fiction/:id/assets';
   const tx=fn=>{db.exec('BEGIN IMMEDIATE');try{const value=fn();db.exec('COMMIT');return value;}catch(error){db.exec('ROLLBACK');throw error;}};
   const version=id=>db.prepare('SELECT revision FROM fiction_inventory_versions WHERE game_id=?').get(id)?.revision;
-  function capacity(id) {store.current(id);if(db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id=?').get(id).n>=400)fail('This story has reached its 400-image save limit.','IMAGE_LIMIT',413);}
-  function insert(id,asset,alt,provenance){
-    capacity(id);
+  function capacity(id,reserved=false) {store.current(id);const held=reserved?0:db.prepare("SELECT count(*) AS n FROM fiction_art_jobs WHERE game_id=? AND asset_id IS NULL AND billed_attempts=1 AND (status='running' OR (status IN ('cancelled','interrupted') AND (error_code IS NULL OR error_code='INTERRUPTED')))").get(id).n;if(db.prepare('SELECT count(*) AS n FROM fiction_assets WHERE game_id=?').get(id).n+held>=400)fail('This story has reached its 400-image save limit.','IMAGE_LIMIT',413);}
+  function insert(id,asset,alt,provenance,reserved=false){
+    capacity(id,reserved);
     db.prepare('INSERT INTO fiction_assets(id,game_id,media_type,sha256,byte_size,width,height,storage_key) VALUES(?,?,?,?,?,?,?,?)').run(asset.id,id,asset.media_type,asset.sha256,asset.byte_size,asset.width,asset.height,asset.storage_key);
     db.prepare('UPDATE fiction_inventory SET alt_text=?,provenance=? WHERE asset_id=?').run(alt,provenance,asset.id);
   }
@@ -79,7 +79,7 @@ function createGallery({ db, store, media, queries, providers, generateIllustrat
       const result=await generateIllustration({prompt,aspectRatio:ratio,resolution:'1K',quality:'low'});
       cost=Number.isFinite(result.cost)&&result.cost>=0?result.cost:null;
       asset=media.persist(await normalizeImage(result.buffer,result.mediaType));
-      tx(()=>{insert(id,asset,alt,'paint');db.prepare("UPDATE fiction_art_jobs SET cost_usd=?,asset_id=?,status=CASE WHEN status='running' THEN 'succeeded' ELSE status END WHERE id=?").run(cost,asset.id,job);});
+      tx(()=>{insert(id,asset,alt,'paint',true);db.prepare("UPDATE fiction_art_jobs SET cost_usd=?,asset_id=?,status=CASE WHEN status='running' THEN 'succeeded' ELSE status END WHERE id=?").run(cost,asset.id,job);});
       // Inventory success is independent of attachment. A stale or cancelled action keeps its ready image.
       const row=db.prepare('SELECT * FROM fiction_art_jobs WHERE id=?').get(job);const now=store.current(id);
       if(body.place&&row.status==='succeeded'&&now.game.revision===row.expected_revision&&now.branch.id===row.branch_id&&now.branch.head_beat_id===row.head_id&&!store.view(id).pending){
