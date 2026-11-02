@@ -246,7 +246,7 @@ test.describe('5.0 playable fiction', () => {
 
   test('painting shows immediate feedback, prevents duplicates and keeps direction after failure', async ({ page }) => {
     await startFixture(page); let attempts = 0; let finish;
-    await page.route('**/api/fiction/*/images/generate', async (route) => {
+    await page.route('**/api/fiction/*/assets/paint', async (route) => {
       attempts++; await new Promise((resolve) => { finish = resolve; });
       await route.fulfill({ status: 502, contentType: 'application/json', body: JSON.stringify({ error: 'Illustrator unavailable.', billed_attempts: 1, cost_usd: null }) });
     });
@@ -636,7 +636,7 @@ test.describe('5.0 playable fiction', () => {
 
   test('a late media failure cannot replace a recap opened after changing rooms', async ({ page }) => {
     await startFixture(page); let finish;
-    await page.route('**/api/fiction/*/images/generate', async route => {
+    await page.route('**/api/fiction/*/assets/paint', async route => {
       await new Promise(resolve => { finish = resolve; });
       await route.fulfill({ status: 502, json: { error: 'Illustrator unavailable.', billed_attempts: 1 } });
     });
@@ -654,7 +654,7 @@ test.describe('5.0 playable fiction', () => {
 
   test('Back from a painting review cancels without reopening the abandoned Gallery task', async ({ page }) => {
     await startFixture(page); let attempts = 0;
-    await page.route('**/api/fiction/*/images/generate', async route => { attempts++; await route.abort(); });
+    await page.route('**/api/fiction/*/assets/paint', async route => { attempts++; await route.abort(); });
     await goRoom(page, 'Gallery'); await page.getByRole('button', { name: 'Illustrate a moment', exact: true }).click();
     await page.getByLabel('Image description (required for readers and export)', { exact: true }).fill('The harbour.');
     await page.getByRole('button', { name: 'Paint with AI', exact: true }).click();

@@ -1,3 +1,20 @@
+# Current authorized development — 2 November 2026
+
+The stakeholder asked to complete development after selecting GitHub as canon.
+B5–B7 and final recovery verification/manuals are authorized. Continue through the
+normal exact-head five-check PR/main boundary; no deployment or paid-provider
+benchmark is authorized. D1 wording edits, D2 old-series conversion and D3 image
+conditioning remain outside this scope. B9 solo tools are an optional follow-on.
+
+B5 is being verified on `recovery/b5-visual-collection`, based on canonical main
+`80a5236`. Application remains 5.0.0; appended migration 27 supplies retained image
+inventory and independent painting journals. Read B5-DELIVERY.md for working
+contracts and outstanding acceptance. B6 listening and B7 finishing follow after
+B5 passes its checks and merges. Do not describe any branch as delivered before
+its actual main merge. PDFs remain deferred until final recovery completion.
+
+The previous B4 checkpoint follows for preservation context.
+
 # Ink Morrow — continuation state
 
 Updated 26 October 2026. This file is the handoff for a later session; it is stored with all recovery planning on **main**. Read [README.md](README.md), [implementation guide 1.1](IMPLEMENTATION-GUIDE.md) and the project [AGENTS.md](../../AGENTS.md) before changing runtime behavior.

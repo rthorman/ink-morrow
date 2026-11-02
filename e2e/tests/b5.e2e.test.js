@@ -1,0 +1,42 @@
+import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
+import path from 'node:path';
+import {openUnlocked,apiPost} from '../auth.js';
+const picture={name:'garden.webp',mimeType:'image/webp',buffer:readFileSync(path.join(__dirname,'../../frontend/brand/cinder-cast.webp'))};
+test.describe('B5 retained Gallery',()=>{
+ test.beforeEach(async({page})=>openUnlocked(page));
+ test('unplaced upload, local placement and removal preserve the collection across reload',async({page},info)=>{
+  const {story}=await(await apiPost(page,'/api/fiction',{scenario_id:'garden-after-rain'})).json();
+  await page.goto(`/#/story/${story.id}/gallery`);
+  await page.getByRole('button',{name:'Upload to collection',exact:true}).click();
+  await page.getByLabel('Image description',{exact:true}).fill('A quiet retained garden');
+  await page.getByLabel('Image file (up to 20 MB)',{exact:true}).setInputFiles(picture);
+  await page.getByRole('dialog').getByRole('button',{name:'Upload image',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('#workspaceImages')).toContainText('Retained; not placed on this path');
+  expect((await(await page.request.get(`/api/fiction/${story.id}`)).json()).story.revision).toBe(story.revision);
+  await page.getByRole('button',{name:'Preview and place',exact:true}).click();
+  await page.getByLabel('Place on current path',{exact:true}).selectOption('cover');
+  await page.getByRole('dialog').getByRole('button',{name:'Place on current path',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('#workspaceImages')).toContainText('Used on the current path');
+  await page.reload();await expect(page.locator('#workspaceImages img')).toBeVisible();
+  await page.screenshot({path:info.outputPath('retained-gallery.png'),fullPage:true});
+  await page.getByRole('button',{name:'Story cover: upload or paint',exact:true}).click();
+  await page.getByRole('button',{name:'Remove current image',exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('#workspaceImages')).toContainText('Retained; not placed on this path');
+ });
+ test('passage lookup and private image draft survive reopening without a purchase',async({page})=>{
+  const {story}=await(await apiPost(page,'/api/fiction',{scenario_id:'garden-after-rain'})).json();
+  await page.goto(`/#/story/${story.id}/gallery`);
+  await page.getByRole('button',{name:'Illustrate a moment',exact:true}).click();
+  await page.getByLabel('Find any passage on this path',{exact:true}).fill('garden');
+  await page.getByRole('button',{name:'Find passages',exact:true}).click();
+  await page.getByLabel('Image description (required for readers and export)',{exact:true}).fill('A draft garden image');
+  await expect(page.getByRole('dialog')).toContainText('Private draft saved on the server');
+  await page.getByRole('dialog').getByRole('button',{name:'Cancel',exact:true}).click();
+  await page.getByRole('button',{name:'Illustrate a moment',exact:true}).click();
+  await expect(page.getByLabel('Image description (required for readers and export)',{exact:true})).toHaveValue('A draft garden image');
+ });
+});

@@ -124,6 +124,7 @@ function createApp(
   const fictionSaves = createFictionSaves({ db, store: fictionStore, media: fictionMedia });
   const fictionLibrary = createFictionLibrary({ db, media: fictionMedia, store: fictionStore, providers, generateIllustration, chatCompletion: ai.chatCompletion });
   fictionLibrary.reconcile();
+  app.use(require('./modules/fiction/reference-bundles').createReferenceBundles({db,library:fictionLibrary,media:fictionMedia}).router);
   app.locals.auth = auth;
   app.locals.providers = providers;
   app.locals.releaseCapabilities = capabilities;
@@ -135,6 +136,8 @@ function createApp(
   app.use(createCreativeRouter({store:fictionStore,providers}));
   const editorial=require('./modules/fiction/editorial').createEditorial({db,store:fictionStore,queries:workspaceQueries,providers});
   app.use(editorial.router);
+  const gallery=require('./modules/fiction/gallery').createGallery({db,store:fictionStore,media:fictionMedia,queries:workspaceQueries,providers,generateIllustration});
+  gallery.reconcile();app.use(gallery.router);
   app.use(createFictionRouter({ store: fictionStore, service: fiction, providers, media: fictionMedia, publication: fictionPublication, saves: fictionSaves, library: fictionLibrary, drafts:ownerDrafts, allowManualOpening: legacyEnabled }));
   const legacy = legacyEnabled ? createLegacyRuntime({ db, app, providers, ai, imageClient, imageDir, audioDir, transferDir, publicationDir, recoveryRetentionDays, writerLeaseMs, autoSuccessorEnabled, clock, providerSafeLogger }) : null;
 

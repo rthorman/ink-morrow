@@ -6,6 +6,33 @@ Change the playable-fiction product without losing causal history, paid authorit
 
 </div>
 
+## B5 retained visual collection
+
+Gallery now lists the story-owned image collection in metadata pages of forty,
+including unplaced uploads and painting results. Thumbnails load lazily; Preview
+shows the full image, provenance and bounded retained-use metadata. Choose a cover,
+private reference or ancestral passage before placing an existing image. Placement
+and removal are local actions; earlier path snapshots and retained collection bytes
+remain available. New painting is one explicitly reviewed Illustrator purchase.
+A changed path, cancellation or restart cannot silently attach a late result:
+validated bytes remain ready and unplaced, and known/unknown spend remains visible.
+There is no automatic retry or reference-image conditioning.
+
+The existing 400-image story ceiling remains. Every inventory member is an owned
+retained root; this batch exposes no permanent asset deletion or garbage collection.
+Playable save v2 carries all owned images and optional inventory descriptions and
+provenance, but no painting jobs, action keys, consent or provider credentials.
+Import creates new image identities and a fresh inventory concurrency value.
+
+Visual Library offers selected-reference bundles (`.inkrefs`): worlds, characters
+and Scribes with normalized images and private lore/motives. Preview names matching
+existing entries; import always makes independent copies. A repeated identical
+import action returns the original copies, changed bytes conflict, and deleted
+results are reported rather than recreated. Bundles omit credentials, purchase
+journals and image-conditioning permission. They are unencrypted private files,
+not reader-safe books or full installation backups.
+
+
 ## B4 editorial verification
 
 Read recovery/B4-DELIVERY.md. Public version remains 5.0.0; schema 26 appends an

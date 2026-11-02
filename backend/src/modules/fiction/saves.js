@@ -25,10 +25,18 @@ const record = (value, fields, label) => {
 // Validation never writes. Import always creates a new story and new media IDs.
 function validateSave(value) {
   if (value?.version===1) return validateV1(value);
-  record(value,['format','version','game','branches','beats','assets','spend','evidence',...(Object.hasOwn(value,'creative')?['creative']:[]),...(Object.hasOwn(value,'editorial')?['editorial']:[])],'Save');
+  record(value,['format','version','game','branches','beats','assets','spend','evidence',...(Object.hasOwn(value,'creative')?['creative']:[]),...(Object.hasOwn(value,'editorial')?['editorial']:[]),...(Object.hasOwn(value,'inventory')?['inventory']:[])],'Save');
   if(value.version!==2) fail('Unsupported playable-save version.','SAVE_VERSION_UNSUPPORTED');
   if(!Array.isArray(value.evidence)||value.evidence.length>120000)fail('Invalid evidence collection.','INVALID_SAVE');
-  const checked=Object.hasOwn(value,'editorial')?validateEditorialSave(value):value;
+  let source=value;
+  if(value.inventory!==undefined){
+    record(value.inventory,['version','assets'],'Image inventory');
+    if(value.inventory.version!==1||!Array.isArray(value.inventory.assets)||value.inventory.assets.length!==value.assets.length)fail('Invalid image inventory.','INVALID_SAVE');
+    const ids=new Set(value.assets.map(asset=>asset.id));
+    for(const row of value.inventory.assets){record(row,['asset_id','alt_text','provenance'],'Image inventory item');if(!ids.delete(row.asset_id)||typeof row.alt_text!=='string'||row.alt_text.length>1000||!['retained','upload','paint'].includes(row.provenance))fail('Invalid image inventory metadata.','INVALID_SAVE');}
+    source={...value};delete source.inventory;
+  }
+  const checked=Object.hasOwn(source,'editorial')?validateEditorialSave(source):source;
   const baseline={...checked,version:1};delete baseline.evidence;
   const result=Object.hasOwn(value,'creative')?validateCreativeSave(checked,validateV1):validateV1(baseline);
   if(!Array.isArray(value.evidence)||value.evidence.length>120000) fail('Invalid evidence collection.','INVALID_SAVE');
@@ -66,6 +74,7 @@ function createFictionSaves({ db, store, media }) {
       value.creative={version:1,configurations:configs.map(({value_json,...row})=>({...row,value:JSON.parse(value_json)})),references:refs.map(({subject_kind,value_json,source_json,bindings_json,...row})=>({...row,kind:subject_kind,value:JSON.parse(value_json),source:source_json?JSON.parse(source_json):null,binding_fact_ids:JSON.parse(bindings_json)})),assemblies:assemblies.map(row=>({beat_id:row.beat_id,manifest:JSON.parse(row.manifest_json)}))};
     }
     if(store.editorialValue&&db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'").get())value.editorial={version:1,revisions:db.prepare('SELECT id,parent_id,beat_id,value_json FROM fiction_editorial_revisions WHERE game_id=? ORDER BY rowid').all(id).map(({value_json,...row})=>({...row,value:JSON.parse(value_json)}))};
+    if(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_inventory'").get())value.inventory={version:1,assets:db.prepare('SELECT i.asset_id,i.alt_text,i.provenance FROM fiction_inventory i JOIN fiction_assets a ON a.id=i.asset_id WHERE a.game_id=? ORDER BY a.rowid').all(id)};
     const json = Buffer.from(JSON.stringify(value));
     if (json.length > MAX_EXPANDED) fail('This save exceeds the 128 MB expanded limit.', 'SAVE_TOO_LARGE', 413);
     const buffer = await pack(json);
@@ -140,6 +149,7 @@ function createFictionSaves({ db, store, media }) {
           .run(beatIds.get(beat.id), gameId, branchIds.get(beat.branch_id), beatRef(beat.parent_id), beat.kind, beat.prose, beat.summary, JSON.stringify(beat.input), JSON.stringify(remapState(beat.state)), JSON.stringify(beat.changes.map((change) => change.fact ? { ...change, fact: remapFact(change.fact), ...(Object.hasOwn(change, 'prior_evidence_beat_id') ? { prior_evidence_beat_id: beatRef(change.prior_evidence_beat_id) } : {}) } : change)));
         for (const asset of staged) db.prepare('INSERT INTO fiction_assets (id, game_id, media_type, sha256, byte_size, width, height, storage_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
           .run(asset.id, gameId, asset.media_type, asset.sha256, asset.byte_size, asset.width, asset.height, asset.storage_key);
+        for(const item of value.inventory?.assets||[])db.prepare('UPDATE fiction_inventory SET alt_text=?,provenance=? WHERE asset_id=?').run(item.alt_text,item.provenance,assetIds.get(item.asset_id));
         for(const e of value.evidence||[]) db.prepare('INSERT INTO fiction_effect_evidence(game_id,beat_id,change_index,source_kind,source_beat_id,source_field,quote,sha256,visibility) VALUES(?,?,?,?,?,?,?,?,?)').run(gameId,beatRef(e.beat_id),e.change_index,e.source_kind,beatRef(e.source_beat_id),e.source_field,e.quote,e.sha256,e.visibility);
         for(const row of value.creative?.configurations||[])db.prepare('INSERT INTO fiction_config_revisions(id,game_id,parent_id,beat_id,value_json,public_change) VALUES(?,?,?,?,?,?)').run(configIds.get(row.id),gameId,row.parent_id===null?null:configIds.get(row.parent_id),beatRef(row.beat_id),JSON.stringify(remapConfig(row.value)),row.public_change);
         for(const row of value.creative?.references||[])db.prepare('INSERT INTO fiction_reference_revisions(id,game_id,subject_kind,subject_id,parent_id,beat_id,value_json,source_json,bindings_json,public_change) VALUES(?,?,?,?,?,?,?,?,?,?)').run(referenceIds.get(row.id),gameId,row.kind,row.subject_id,row.parent_id===null?null:referenceIds.get(row.parent_id),beatRef(row.beat_id),JSON.stringify(row.value),row.source?JSON.stringify(row.source):null,JSON.stringify(row.binding_fact_ids),row.public_change);

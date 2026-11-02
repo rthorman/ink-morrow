@@ -734,7 +734,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
 
 
   function clearPrivate() {
-    workspace.position(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
+    workspace.position(); mediaDialogs.clear(); creativeStudio?.clear();campaignStudio?.clear();editorialStudio?.clear();inspection.clear(); for(const controller of durableDrafts.values())controller.close();durableDrafts.clear();activeDurable=null; workspace.clear();
     unlocked = false; epoch++; busy = false; earlierBusy = false; current = null; shownBeatId = null; clearTimeout(poll); drafts.clear(); scopes.clear(); shelfOffset = 0; nextShelfOffset = null;shelfQuery='';shelfGenre='';$('fictionShelfQuery').value='';$('fictionShelfGenre').value=''; scenario = null; castRows.length = 0;
     if (dialogs.cancel) dialogs.cancel(); else dialogs.close(true);
     document.querySelector('.dialog-manager__body')?.replaceChildren();
@@ -764,7 +764,7 @@ export function createFictionApp({ api, dialogs, providerPanel = null }) {
   creativeStudio=createCreativeStudio({api,dialogs,getCurrent:()=>current,getLive:()=>{const token=epoch;return()=>alive(token);},runAction:runMediaAction});
   const library = createVisualLibrary({ api, dialogs,onUseInSetup:useInSetup });
   const saveDialogs = createSaveDialogs({ dialogs, getCurrent: () => current, getLive: () => { const token = epoch; return () => alive(token); }, runAction: runMediaAction });
-  workspace = createFictionWorkspace({ getCurrent: () => current, getShown: () => shownBeatId,
+  workspace = createFictionWorkspace({ api, dialogs, localAction, getCurrent: () => current, getShown: () => shownBeatId,
     readBeat: (id) => { const index = readingPages().findIndex(beat => beat.id === id); if (index >= 0) showPage(index); },
     sourceButton: influence.sourceButton, illustrate: mediaDialogs.illustrate, contributionChanged: selectDraft,
   });

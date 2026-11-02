@@ -1,11 +1,11 @@
+import { createGallery } from './gallery.js';
 import { el, button } from './dom.js';
 import { wireModal } from '../core/dialogs.js';
 import { ROOMS, workspaceUrl, putBookmark, readingPreferences, saveReadingPreferences, DEFAULT_READING } from './workspace-state.js';
-import { storyImage } from './library.js';
 
 const labels = { desk: 'Desk', chronicle: 'Chronicle', codex: 'Codex', gallery: 'Gallery', gate: 'Gate' };
 const roomIds = { desk: 'workspaceDesk', chronicle: 'workspaceChronicle', codex: 'fictionDetails', gallery: 'workspaceGallery', gate: 'workspaceGate' };
-export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceButton, illustrate, contributionChanged }) {
+export function createFictionWorkspace({ api, dialogs, localAction, getCurrent, getShown, readBeat, sourceButton, illustrate, contributionChanged }) {
   const $ = id => document.getElementById(id);
   let room = 'desk'; let lastUrl = null; let scrollTimer = null; let restoreFrame = null; let restoring = false;
   let taskOpen = false; let lastPosition = null;
@@ -69,6 +69,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
   function showRoom(next = 'desk', focus = false) {
     if (!ROOMS.includes(next)) next = 'desk';
     room = next;
+    if(room==='gallery'&&getCurrent())renderGallery(getCurrent());else gallery.clear();
     for (const name of ROOMS) $(roomIds[name]).hidden = name !== room;
     $('readerScreen').dataset.room = room;
     for (const link of $('workspaceRooms').querySelectorAll('a')) {
@@ -96,18 +97,8 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
     }
     if (!window.length) root.append(el('p', 'The situation is set. There are no recorded passages yet.', 'fiction-empty'));
   }
-  function renderGallery(story) {
-    const root = $('workspaceImages'); root.replaceChildren();
-    const loaded = new Set(story.beats.map(beat => beat.id));
-    const entries = [...(story.state.visuals || []).filter(item => item.kind !== 'cover'), ...(story.state.illustrations || []).filter(item => loaded.has(item.beat_id))];
-    for (const image of entries) {
-      const card = el('article', '', 'fiction-card');
-      card.append(storyImage(story.id, image), el('h3', image.alt_text || 'Story image'), el('p', image.kind ? `${image.kind} reference · private save material, not book content` : 'Placed in the loaded active path'));
-      const control = button('Upload, paint or edit description', () => illustrate(image.kind ? { kind: image.kind, subject_id: image.subject_id } : { beat_id: image.beat_id }));
-      control.dataset.workspaceMutation = 'true'; card.append(control); root.append(card);
-    }
-    if (!entries.length) root.append(el('p', 'No reference or passage images in this loaded window. Upload an image or review a painting request above.', 'fiction-empty'));
-  }
+  const gallery=createGallery({api,dialogs,getCurrent,localAction,illustrate});
+  function renderGallery(story){gallery.render(story,$('workspaceImages'));}
   function render(story) {
     const nav = $('workspaceRooms');
     if (nav.dataset.story !== story.id) {
@@ -115,7 +106,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
       for (const name of ROOMS) { const link = el('a', labels[name]); const query=new URLSearchParams(location.hash.split('?')[1]||'');query.delete('task');if(name!=='codex')query.delete('planning');link.href = workspaceUrl(story.id, name)+(query.size?'?'+query:''); link.dataset.room = name; nav.append(link); }
     }
     for(const link of nav.querySelectorAll('a')){const query=new URLSearchParams(location.hash.split('?')[1]||'');query.delete('task');if(link.dataset.room!=='codex')query.delete('planning');link.href=workspaceUrl(story.id,link.dataset.room)+(query.size?'?'+query:'');}
-    renderHistory(story); renderGallery(story); showRoom(room);
+    renderHistory(story); showRoom(room);
     const branch = story.branches.find(item => item.id === story.active_branch_id);
     const owned = story.state.cast.find(person => person.id === story.state.control.character_id);
     $('workspaceActionTarget').textContent = `Action destination: ${branch?.name || 'Active path'} · latest story moment · ${owned ? `Inhabit: ${owned.name}` : 'Reader-director'}`;
@@ -138,6 +129,7 @@ export function createFictionWorkspace({ getCurrent, getShown, readBeat, sourceB
   applyPreferences();
   function leave() { position(); modal.close(); taskOpen = false; inert(false); document.body.classList.remove('fiction-in-workspace'); }
   function clear() {
+    gallery.clear();
     clearTimeout(scrollTimer); cancelAnimationFrame(restoreFrame); restoring = false; modal.close(); taskOpen = false; inert(false);
     for (const id of ['workspaceHistory', 'workspaceImages', 'workspaceRooms', 'workspaceTaskTarget', 'workspaceActionTarget', 'workspaceHistoryStatus', 'workspaceConsentStatus', 'workspacePositionStatus', 'workspaceReadingStatus']) $(id).replaceChildren();
     delete $('workspaceRooms').dataset.story; $('workspaceReturn').hidden = true; $('workspaceReturn').href = '#/stories'; lastUrl = null; lastPosition = null; room = 'desk';

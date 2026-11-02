@@ -1,5 +1,12 @@
 # Changelog
 
+## Recovery B5 — in verification
+
+- Retained Gallery inventory, local image reuse and independent reviewed painting with late-result preservation.
+- Private reference bundles with preview and replay-safe new-copy imports.
+- Schema 27 and private-save inventory metadata; no deployment or paid testing.
+- Dependency audit fixes retain the existing ESLint and Jest majors.
+
 All notable release changes are recorded here. Ink Morrow uses semantic
 versioning; prerelease identifiers mark builds that still require beta field
 validation.
