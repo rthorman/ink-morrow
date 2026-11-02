@@ -1,8 +1,8 @@
 # B7 — frozen books, Bookshelf and current-fiction reading copies
 
-Implemented on `recovery/b7-finishing`, based on B6 main `5842623`. Application
-remains 5.0.0, with append-only schema 29. Delivery remains pending exact-head CI
-and actual main integration. PDFs remain deferred through the final recovery
+Delivered through PR #115, merged as `7ec3fa9985511431e0de8c76326ba61fb302b3e5`
+after all five checks passed on exact head `6a488a2b6dd51ce67ddb3647120d542abc57c1bc`.
+Application remains 5.0.0, with append-only schema 29. PDFs remain deferred through the final recovery
 checkpoint, as requested; all six source manuals include this feature.
 
 ## Behavior and authority
@@ -79,6 +79,6 @@ storage. Playable saves exclude rendered editions, audio, jobs and share authori
 
 ## Remaining integration
 
-Record the final exact head/five CI results and actual merge before marking B7
-complete. Then start N1–N6 from updated main. Final B8/PDF qualification follows.
+B7 is complete through the verified main merge above. N1–N6 starts from that
+updated main. Final B8/PDF qualification follows.
 D1/D2/D3, optional B9, paid evaluation and production startup remain outside scope.

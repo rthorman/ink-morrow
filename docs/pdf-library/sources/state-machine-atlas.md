@@ -6,6 +6,28 @@ Read each entry as trigger, guard, transition, persistence and failure consequen
 
 </div>
 
+## Narration guidance and the existing commit boundary
+
+Current context adds source-linked continuity and a post-history next-move gate
+before the existing reviewed narration request. This is guidance, not a second
+state engine. Follow/Steer and explicit Act/Say retain their ownership; Ask remains
+clarification without advancement or effects. One request in default quality Off,
+up to four with one reviewer or six with both, remains the declared ceiling.
+
+Truth, current attention, knowledge, presence and possession remain distinct.
+Previous refusal/acceptance and relationship milestones inform the next choice;
+a purposeful repeated tactic is possible, while a rephrased rejected remedy is
+not inherently progress. A quiet beat may have no durable effect. An achieved
+practical goal may finish and an accepted relationship may continue. The narrator
+can retain meaningful consequences through existing evidenced fact/relationship
+effects; no new effect opcode or automatic semantic extractor is introduced.
+
+An editorial boundary supplies a source-grounded handoff, never a transition event.
+Proposals, intentions and attempts stay distinct from performed events and achieved
+goals. Existing response validation, exact evidence, transactional stale checks,
+optional review and player-controlled episode ending still govern commits. Passing
+context tests does not establish that arbitrary model prose obeys these rules.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book

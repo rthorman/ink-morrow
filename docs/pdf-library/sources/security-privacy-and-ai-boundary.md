@@ -6,6 +6,29 @@ InkMorrow is private-by-default self-hosted software for one owner. This book di
 
 </div>
 
+## Narrative memory and provider exposure
+
+The narrative compiler reads only the selected ancestry and applicable character/
+editorial revisions. A bounded fact-source projection can include exact original
+narration, submitted input or owner assertions, with source kind, field and hash;
+initial facts and missing exact evidence do not acquire fabricated precision.
+These private context records go only through the explicitly reviewed existing
+narration/quality roles. Consent fingerprints and conservative input bounds include
+the new exposure. They are never added to public recall, reader APIs, books or
+reading-copy documents. Complete cast/private motives remain narrator input, not
+character knowledge or permission to reveal secrets.
+
+Physical presence, ownership/possession, significance, knowledge, claims and
+performed events remain separately qualified. A chapter handoff cannot promote a
+proposal or intention into a completed event, grant a challenge, move a character
+or take over an inhabited player's speech/choices/feelings. New guidance is not a
+semantic proof; existing validation/review and immutable evidence still apply.
+
+No extra planner/critic endpoint, background inference, credential export or new
+share authority is introduced. An optional future literary evaluation requires
+its own explicit scope and paid ceiling. Deterministic fixtures use synthetic
+stores/transports, preserve failures and make no paid provider call.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book

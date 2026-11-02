@@ -34,6 +34,8 @@ function direction(kind) {
   ];
   if (kind === 'character') return [
     'Design a psychologically credible playable-fiction character, not a trope list. Give them motives, contradictions, coping habits, social texture, concrete appearance and a past that can shape choices without predetermining them.',
+    'Use the existing fields to make a whole person: a recognizable voice, competing values, limits, loyalties and concrete willingness or unwillingness to bear costs. Preserve the supplied degree of caution, impulsiveness, fixation or appetite for risk; do not replace authored priorities with compulsory balance or agreeable behavior.',
+    'Give established interests independent uses after the opening problem is solved or an offer is refused. Suggest a plausible repertoire after acceptance, rejection and success without scripting outcomes: a continuing relationship can grow, a practical goal can finish, and ordinary enjoyment or another compatible purpose can sustain activity. Not every interest must be a remedy for the same opening difficulty; novelty and adaptability are not obligations.',
     'The visible description should tell a player who they seem to be. Motive and background may contain private setup truth. Avoid chosen-one, amnesiac, brooding-loner and manic-pixie defaults unless decisively transformed.',
   ];
   return [

@@ -30,8 +30,14 @@ status live in `docs/recovery/DEVELOPMENT-TASKS.md` and `CONTINUATION.md`.
 - Latest direction (2 November, resumed): add the six Character Forge-derived
   narrative/consistency ideas as tasks and continue development. The checklist is
   `docs/recovery/DEVELOPMENT-TASKS.md`: B5 is merged (PR #113 / `9395fcf`), B6 is
-  merged (PR #114 / `5842623`), B7 is active, then N1–N6 before final qualification/manuals. Start narrative work
+  merged (PR #114 / `5842623`), B7 is merged (PR #115 / `7ec3fa9`), N1–N6 is active before final qualification/manuals. Start narrative work
   with existing calls/context; no new planner/critic calls or paid benchmark.
+
+- N1–N6 implementation uses read-only narrative source/outcome/editorial projections
+  and existing calls. See `docs/recovery/NARRATIVE-DELIVERY.md` and the opt-in
+  `NARRATIVE-EVALUATION-PROTOCOL.md`. No new schema, planner/critic call or accepted
+  fiction rewrite. Exact evidence can include private assertions/submitted input;
+  consent/exposure and byte bounds include it. No paid literary trial is authorized.
 
 ## 5.0.0 product programme (approved 2026-09-04)
 

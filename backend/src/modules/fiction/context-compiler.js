@@ -1,10 +1,15 @@
-'use strict';
-const { configuration, defaults } = require('./creative-model');
-const { createHash } = require('node:crypto');
+"use strict";
+const {
+  narrativeDrive,
+  NEXT_MOVE_GATE,
+  CONTINUITY_RULES,
+} = require("./narrative-drive");
+const { configuration, defaults } = require("./creative-model");
+const { createHash } = require("node:crypto");
 // This is a conservative serialized UTF-8 bound, not a tokenizer estimate. It
 // counts one token per byte plus protocol overhead and never drops authority.
 const inputBound = (messages) =>
-  Buffer.byteLength(JSON.stringify(messages), 'utf8') +
+  Buffer.byteLength(JSON.stringify(messages), "utf8") +
   messages.length * 32 +
   256;
 function compileContext({ store, context, intent, plan, decision, messages }) {
@@ -24,8 +29,11 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
         state.control.character_id === person.id,
     )
     .map((person) => person.id);
+  const attentionActors = [
+    ...new Set([...mentioned, ...(state.scene_frame?.present_ids || [])]),
+  ].filter((id) => state.cast.some((person) => person.id === id));
   const foundationIds = JSON.parse(context.game.initial_state_json)
-    .facts.filter((fact) => fact.visibility === 'secret')
+    .facts.filter((fact) => fact.visibility === "secret")
     .map((fact) => fact.id);
   const foundation = foundationIds.length
     ? store.memory.facts(context.game.id, head, {
@@ -41,8 +49,8 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
     ) || []),
     ...foundation,
     ...store.memory.facts(context.game.id, head, {
-      visibility: 'secret',
-      actorIds: mentioned,
+      visibility: "secret",
+      actorIds: attentionActors,
       limit: 32,
     }),
   ];
@@ -51,24 +59,35 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
     .filter(Boolean);
   const relevant = store.memory.facts(context.game.id, head, {
     query: `${intent.text} ${state.focus}`,
-    actorIds: mentioned,
+    actorIds: attentionActors,
     limit: 32,
   });
   const obligations = store.memory.facts(context.game.id, head, {
-    kind: 'commitment',
-    status: 'active',
-    actorIds: mentioned,
+    kind: "commitment",
+    status: "active",
+    actorIds: attentionActors,
     limit: 16,
   });
   const resources = store.memory.facts(context.game.id, head, {
-    kind: 'resource',
-    actorIds: mentioned,
+    kind: "resource",
+    actorIds: attentionActors,
     limit: 8,
   });
   const consequences = store.memory.facts(context.game.id, head, {
-    status: 'resolved',
-    actorIds: mentioned,
+    status: "resolved",
+    actorIds: attentionActors,
     limit: 12,
+  });
+  const relationships = store.memory.facts(context.game.id, head, {
+    kind: "relationship",
+    actorIds: attentionActors,
+    limit: 16,
+  });
+  const goals = store.memory.facts(context.game.id, head, {
+    kind: "goal",
+    status: "active",
+    actorIds: attentionActors,
+    limit: 8,
   });
   const facts = [
     ...new Map(
@@ -76,6 +95,8 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
         ...binding,
         ...exact,
         ...obligations,
+        ...relationships,
+        ...goals,
         ...resources,
         ...consequences,
         ...relevant,
@@ -90,13 +111,13 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
   payload.scene_circumstances = state.scene_frame || null;
   payload.next_scene_proposal = state.creative_scene_plan || null;
   payload.authority_order = [
-    'application rules and ownership',
-    'recorded branch truth and knowledge',
-    'current contribution and scope',
-    'established scene and cast',
-    'explicit creative settings',
-    'frozen or locally revised Scribe craft',
-    'provisional opportunity',
+    "application rules and ownership",
+    "recorded branch truth and knowledge",
+    "current contribution and scope",
+    "established scene and cast",
+    "explicit creative settings",
+    "frozen or locally revised Scribe craft",
+    "provisional opportunity",
   ];
   payload.scene_plan = plan;
   payload.adjudication = decision;
@@ -108,17 +129,45 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
       prose: row.prose,
       summary: row.summary,
     }));
+  payload.narrative_continuity = narrativeDrive({
+    state,
+    head,
+    facts,
+    recent: payload.recent,
+    actorIds: attentionActors,
+    plan,
+    sources: store.narrativeMemory.sources(
+      context.game.id,
+      head,
+      facts.map((fact) => fact.id),
+    ),
+    outcomes: store.narrativeMemory.outcomes(
+      context.game.id,
+      head,
+      intent.challenge_id || null,
+    ),
+    chapter: store.narrativeMemory.chapter(context.game.id, head, state),
+  });
+  // Kept after history/handoff without changing the two-message JSON protocol
+  // used by purchase planning and optional review. Capacity counts every byte.
+  payload.next_move_gate =
+    intent.kind === "ask"
+      ? [
+          "Answer reader-known clarification only. Do not enact a next move, advance time, disclose hidden truth or make effects.",
+        ]
+      : NEXT_MOVE_GATE;
   const system = [
     messages[0].content,
-    'Creative settings control the telling, not recorded events. Perspective does not assign the reader a character. A Scribe is a narration preference, never an automatically introduced person. Explicit settings outrank Scribe craft; both remain below ownership, boundaries and recorded truth.',
-    'Reference descriptions, motives, background, world lore and a proposed next scene are reference intent/data. They never silently correct recorded facts. A proposed location/time/presence is not an already completed transition.',
-    'Narrate in creative_settings.language and creative_settings.tense. Respect the explicit speaker or focal identity. Flexible perspective changes intentionally at scene boundaries; omniscience still respects knowledge disclosure and inhabited interiority.',
+    ...CONTINUITY_RULES,
+    "Creative settings control the telling, not recorded events. Perspective does not assign the reader a character. A Scribe is a narration preference, never an automatically introduced person. Explicit settings outrank Scribe craft; both remain below ownership, boundaries and recorded truth.",
+    "Reference descriptions, motives, background, world lore and a proposed next scene are reference intent/data. They never silently correct recorded facts. A proposed location/time/presence is not an already completed transition.",
+    "Narrate in creative_settings.language and creative_settings.tense. Respect the explicit speaker or focal identity. Flexible perspective changes intentionally at scene boundaries; omniscience still respects knowledge disclosure and inhabited interiority.",
     `Target approximately ${creative.length.target} ${creative.length.unit} (${creative.length.preset}; definition ${creative.length.definition_version}), independently of pacing. This is a creative target, not a minimum. Stop early at an owned decision. Do not pad or force crisis. Language-specific units are approximate; preserve complete JSON.`,
-    'Completed, failed, abandoned and superseded goals have distinct meanings. Plans, attempts, reported claims and narrated occurred events are not interchangeable. A quiet or goal-free scene can be complete.',
-  ].join('\n');
+    "Completed, failed, abandoned and superseded goals have distinct meanings. Plans, attempts, reported claims and narrated occurred events are not interchangeable. A quiet or goal-free scene can be complete.",
+  ].join("\n");
   const compiled = [
-    { role: 'system', content: system },
-    { role: 'user', content: JSON.stringify(payload) },
+    { role: "system", content: system },
+    { role: "user", content: JSON.stringify(payload) },
   ];
   const manifest = {
     version: 1,
@@ -132,15 +181,15 @@ function compileContext({ store, context, intent, plan, decision, messages }) {
     categories: Object.fromEntries(
       Object.entries(payload).map(([key, value]) => [
         key,
-        Buffer.byteLength(JSON.stringify(value), 'utf8'),
+        Buffer.byteLength(JSON.stringify(value), "utf8"),
       ]),
     ),
     input_bound: inputBound(compiled),
-    contract_sha256: createHash('sha256')
+    contract_sha256: createHash("sha256")
       .update(JSON.stringify(compiled))
-      .digest('hex'),
+      .digest("hex"),
     counter:
-      'serialized UTF-8 bytes plus protocol overhead; conservative one-token-per-byte bound',
+      "serialized UTF-8 bytes plus protocol overhead; conservative one-token-per-byte bound",
   };
   return { messages: compiled, manifest, creative, payload };
 }

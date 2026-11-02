@@ -24,8 +24,9 @@ conversion, D3 image conditioning and optional B9 solo tools remain separate.
   `9395fcf09f5fb9a55467c545ca5f2d72765b79ba`; five checks green at `c9801c6`.
 - [x] B6 listening — PR #114, merged as `5842623e5e6ac4735a3b370559891e0922d211b8`;
   five checks green at `61e97b1d310a125a391616c4845dfe36c656dc30`.
-- [ ] B7 finishing — frozen book previews/jobs, nine formats, retained Bookshelf
-  and functional current-fiction sharing, with independent private export.
+- [x] B7 finishing — PR #115, merged as `7ec3fa9985511431e0de8c76326ba61fb302b3e5`;
+  five checks green at `6a488a2b6dd51ce67ddb3647120d542abc57c1bc`. Frozen books,
+  nine formats, retained Bookshelf and functional current-fiction reading copies.
 
 ## Narrative drive and character consistency
 

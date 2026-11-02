@@ -6,6 +6,32 @@ InkMorrow 5.0 is a single-owner playable-fiction system. This book explains the 
 
 </div>
 
+## Source-grounded narrative context
+
+The current fiction compiler retains complete effective cast/reference fields and
+separates persistent ledger truth from a bounded attention selection. It explicitly
+retrieves relationships, active goals, commitments, resources and resolved records;
+actor relevance includes both sides of a relationship and established scene actors.
+A read-only narrative-memory projection joins selected fact events to their exact
+original evidence on the chosen ancestry. Initial facts and records without exact
+quotes are labelled accordingly; owner assertions, submitted input and narration
+remain distinct sources. No derived claim becomes a new canonical event.
+
+Past structured attempts are recovered from their producing beats, including a
+refusal superseded by later sufficient grounds. At most twelve relevant attempts
+are projected; only those selected states are expanded as JSON. Chapter context
+reads the applicable editorial revision and indexed anchor ordinals, including an
+empty next chapter, without reconstructing the entire manuscript. Handoff points
+to changed records, scene source, intentions, unresolved commitments and recorded
+milestones. Plans do not become completed payoffs.
+
+The final next-move gate follows history/handoff inside the existing two-message
+JSON request contract. It guides causal NPC activity without crisis/novelty quotas
+or player authorship. Existing capacity accounting counts every added byte; protected
+truth/ownership/character anchors are retained or the call is refused. No schema,
+planner/critic call, autonomous scheduler, accepted-prose rewrite or new save
+collection is added. Derived context is rebuilt locally from current records.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book

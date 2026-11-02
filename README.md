@@ -45,7 +45,10 @@ current-fiction workspace, screenshots, scope and verification limits.
 - Two curated openings, or your own situation and cast; starting is local and free.
 - Follow, moment/ongoing Steer, outside-story Ask and optional character control.
 - Durable facts, knowledge, commitments and qualitative relationships, with
-  evidence, correction, older recall and exact alternate-path history.
+  exact evidence, correction, older recall and alternate-path history. Source-linked
+  attention and chapter handoff preserve prior outcomes and complete character
+  references within the existing narration calls; live literary quality remains
+  unevaluated.
 - Structured challenges that reuse unchanged rulings without another AI purchase.
   Repeated pleading is not new authority; genuinely sufficient grounds can matter.
 - Player-ended episodes, questions, recorded payoff, aftermath and local return recaps.
