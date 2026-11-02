@@ -445,6 +445,8 @@ test.describe('5.0 playable fiction', () => {
     await page.locator('#fictionDirection').fill('Let them speak privately.');
     await page.getByRole('button', { name: 'Send direction' }).click();
     await expect(page.getByRole('dialog')).toContainText('hidden world truth');
+    await expect(page.getByRole('dialog')).toContainText('source evidence');
+    await expect(page.getByRole('dialog')).toContainText('chapter handoff');
     await page.keyboard.press('Escape');
     await expect(page.locator('#fictionDirection')).toHaveValue('Let them speak privately.');
     await expect(page.locator('#fictionContinue')).toBeEnabled();
@@ -600,6 +602,8 @@ test.describe('5.0 playable fiction', () => {
     await openContribution(page); await page.locator('#fictionDirection').fill('Let the reunion remain awkward.');
     await page.getByRole('button', { name: 'Send direction', exact: true }).click();
     await expect(page.getByRole('dialog')).toContainText('hidden world truth');
+    await expect(page.getByRole('dialog')).toContainText('source evidence');
+    await expect(page.getByRole('dialog')).toContainText('chapter handoff');
     await page.goBack(); await expect(page.locator('#workspaceTask')).toBeHidden();
     await expect(page.locator('.dialog-manager')).toBeHidden();
     await expect(page.locator('#workspaceSteer')).toBeEnabled();
