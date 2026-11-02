@@ -10,12 +10,12 @@ not authorize deleting owner files/data or rewriting integrated migration histor
 retain safe storage boundaries and historical records. Existing compatibility
 checks may remain historical tests, not a mandate for new product behavior.
 
-Canonical main is `5842623e5e6ac4735a3b370559891e0922d211b8`: B6 listening
-merged through PR #114 after all five checks passed on exact head `61e97b1`.
-B7 finishing is active on `recovery/b7-finishing`. It adds schema 29 frozen book
-sources, asynchronous local rendering, Bookshelf and current-fiction reading copies.
-Do not call B7 delivered until its own final checks and actual merge are recorded.
-Next are N1–N6, then B8 qualification and all six regenerated PDFs. No production
+Canonical main is `7ec3fa9985511431e0de8c76326ba61fb302b3e5`: B7 finishing
+merged through PR #115 after all five checks passed on exact head `6a488a2`.
+It adds schema 29 frozen books, local render jobs, Bookshelf and reading copies.
+N1–N6 is active on `recovery/narrative-drive`, using existing calls and derived
+branch records. It is not delivered until its own exact-head checks and main merge.
+B8 qualification and all six regenerated PDFs follow. No production
 startup/deployment or paid model evaluation is authorized.
 
 The saved pause record below remains historical context; it no longer pauses work.

@@ -8,6 +8,37 @@
 
 </div>
 
+## Narrative drive and character continuity
+
+Future narration now receives a source-linked attention aid alongside complete
+effective cast/reference fields, selected facts and recent prose. Relationships,
+active goals, commitments, prior structured outcomes and chapter handoff remain
+available without requiring every quiet scene to revisit the opening problem.
+A remembered object has not moved or changed owner; significance, possession,
+presence and each person's knowledge remain distinct. Intentions and proposals
+are not completed events. Current attention never erases offscreen truth.
+
+Use personality, motive and background fields to describe a whole character:
+recognizable voice, competing values, limits, willingness to bear costs and
+interests that can matter after success or rejection. New AI reference drafts
+receive this guidance in their existing call and remain unsaved until you adopt
+them. Existing references and accepted prose are not rewritten. A relationship
+can develop after acceptance, a practical goal can finish, and quiet enjoyment
+can carry a scene. Authored fixation and deliberate persistence remain possible.
+
+The final narration guidance connects present purpose, feasible method, observable
+choice and consequence while preserving an inhabited character's decisions.
+Chapter handoff follows recorded sources and grouping; it does not advance time,
+move people or manufacture payoff. No extra planner/critic calls are added. The
+reviewed plan includes selected exact evidence, which may include private owner
+assertions or submitted input, plus prior outcomes and handoff. This can increase
+input size/cost within the existing bounded plan. Reading remains free.
+
+These changes improve supplied context and guidance, not a guarantee of better
+prose or semantic consistency. **Live narrative quality has not been evaluated.**
+No paid comparison was run. Existing optional review remains Off by default and
+keeps its one/four/six-call ceilings. Check important output against its evidence.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book

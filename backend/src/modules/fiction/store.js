@@ -16,6 +16,7 @@ const { createEvidence } = require('./evidence');
 
 function createFictionStore(db) {
   const memory = createMemory(db);
+  const narrativeMemory=require('./narrative-memory').createNarrativeMemory(db);
   const hasEditorial=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_editorial_revisions'").get());
   const hasCreative=Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_config_revisions'").get());
   const hasEvidence = Boolean(db.prepare("SELECT name FROM sqlite_master WHERE name='fiction_effect_evidence'").get());
@@ -401,7 +402,7 @@ function createFictionStore(db) {
     ...(calls.usage(request.id).calls ? { known_cost_usd: calls.usage(request.id).knownCostUsd, unknown_attempts: calls.usage(request.id).unknownAttempts, calls: calls.rows(request.id) } : {}) });
   const creativeRecords=hasCreative?createCreativeCollections({db,current,transaction,assertRevision,assertIdle,append,isAncestor,memory,view}):null;
   function effectiveState(id,state){return creativeRecords?creativeRecords.effective(id,state):state;}
-  return { hasEditorial, editorialValue, creativeRecords,upgradeState:(id,state,newStory=false)=>creativeRecords?creativeRecords.upgrade(id,state,newStory):state,effectiveState,narrativeRows,create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
+  return { narrativeMemory,hasEditorial, editorialValue, creativeRecords,upgradeState:(id,state,newStory=false)=>creativeRecords?creativeRecords.upgrade(id,state,newStory):state,effectiveState,narrativeRows,create, list, recall, evidence, recap, view, current, stateAt, memory, evidenceRecords, calls, assertRequestCurrent, historyRows, publicationRows, fork, selectBranch, control, correct, episode, preferences, addCast, beginRequest, dispatchRequest, completeRequest, failRequest, reconcile, requestResult, publicBeat, illustrate, illustrationTarget, removeIllustration, describeIllustration, referenceTarget, visualize, editVisual };
 }
 
 module.exports = { createFictionStore };

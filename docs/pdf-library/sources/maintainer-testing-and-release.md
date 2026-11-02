@@ -6,6 +6,28 @@ Change the playable-fiction product without losing causal history, paid authorit
 
 </div>
 
+## Narrative qualification and its limits
+
+N1–N6 adds read-only source/context projections, complete-character and next-move
+guidance, existing-call reference authoring guidance, and a bounded opt-in rolling
+evaluation protocol. No schema or accepted-fiction rewrite is involved. Current
+runtime/formats are the target; the owner waived backwards compatibility.
+
+Deterministic tests cover exact old evidence beyond the recent window, complete
+reference fields, ownership/knowledge separation, local assertion versus intention,
+relationship-target relevance, alternate-path/future isolation, prior refusal then
+new sufficient grounds, empty-next-chapter handoff, quiet Follow with three promises,
+current-format source remapping and capacity rejection before purchase. Reference
+creation checks seed preservation, one-call replay and no automatic template/story
+adoption. Existing narration/speech/ownership/quality contracts remain covered.
+
+The separate NARRATIVE-EVALUATION-PROTOCOL.md fixes cases, source/fixture/model
+settings, rolling chapters, budgets, retained failures, contradiction/repeated-remedy/
+initiative/payoff criteria and evaluator disagreement before observation. It is a
+proposal, not authorization or a completed benchmark. No paid trial was run. Report
+**Live narrative quality not evaluated** beside mechanical CI results; mocked
+replies and instruction-presence checks do not prove model behavior or superiority.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book

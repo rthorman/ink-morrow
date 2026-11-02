@@ -39,7 +39,7 @@ function createMemory(db) {
     const words = [...new Set(query.toLowerCase().match(/[\p{L}]{3,}/gu) || [])].slice(0, 12);
     const match = words.length ? words.map(() => "CASE WHEN instr(lower(json_extract(fact, '$.text')), ?) > 0 THEN 3 ELSE 0 END").join(' + ') : '0';
     const actors=[...new Set(actorIds)].slice(0,24);
-    const actorRank=actors.length?`CASE WHEN json_extract(fact, '$.actor_id') IN (${actors.map(()=>'?').join(',')}) THEN 12 ELSE 0 END`:'0';
+    const actorRank=actors.length?`CASE WHEN json_extract(fact, '$.actor_id') IN (${actors.map(()=>'?').join(',')}) OR json_extract(fact, '$.toward_id') IN (${actors.map(()=>'?').join(',')}) THEN 12 ELSE 0 END`:'0';
     const rows = db.prepare(`${cte} SELECT fact, op FROM ranked WHERE n = 1
       AND (? IS NULL OR json_extract(fact, '$.id') = ?) AND (? OR op != 'remove')
       AND (? = 0 OR json_extract(fact, '$.visibility') = 'public')
@@ -52,7 +52,7 @@ function createMemory(db) {
       ORDER BY (${actorRank}) + (${match}) + CASE WHEN json_extract(fact, '$.visibility') = 'secret' THEN 2 ELSE 0 END
         + CASE WHEN json_extract(fact, '$.status') = 'active' THEN 4 ELSE 0 END
         + CASE WHEN json_extract(fact, '$.kind') IN ('commitment', 'goal') THEN 3 ELSE 0 END DESC, depth, ordinal DESC LIMIT ? OFFSET ?`)
-      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), kind, kind, status, status, visibility, visibility,campaignSection,campaignSection,campaignSection, Number(ids.length>0), JSON.stringify(ids.slice(0,128)), Number(publicOnly && words.length > 0), ...words, ...actors, ...words, Math.max(1, Math.min(128, limit)), Math.max(0, Math.min(1000000, offset)));
+      .all(gameId, headId, gameId, gameId, id, id, Number(includeRemoved), Number(publicOnly), kind, kind, status, status, visibility, visibility,campaignSection,campaignSection,campaignSection, Number(ids.length>0), JSON.stringify(ids.slice(0,128)), Number(publicOnly && words.length > 0), ...words, ...actors, ...actors, ...words, Math.max(1, Math.min(128, limit)), Math.max(0, Math.min(1000000, offset)));
     return rows.map((row) => ({ ...JSON.parse(row.fact), ...(row.op === 'remove' ? { retired: true } : {}) }));
   }
   return { facts, get: (gameId, headId, id, includeRemoved = false) => facts(gameId, headId, { id, includeRemoved, limit: 1 })[0] || null };

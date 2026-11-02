@@ -159,7 +159,7 @@ function createGenerationPlans({ db, providers }) {
       length: creative.length,
       reasoning: reasoningEffort || null,
       exposure:
-        'private branch truth, selected references, cast, boundaries, relevant history and current contribution',
+        'private branch truth, complete effective cast and references, selected exact evidence including owner assertions or submitted input, prior outcomes, chapter handoff, boundaries, relevant history and current contribution',
     });
     return bounded(
       {

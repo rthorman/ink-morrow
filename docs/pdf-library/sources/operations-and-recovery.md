@@ -6,6 +6,28 @@ Operate a private, single-owner InkMorrow 5.0 installation. Protect data first, 
 
 </div>
 
+## Narrative context operations
+
+Continuity/handoff projections are read-only and derived from current branch
+records, source evidence, character references and editorial anchors. There is no
+new worker, model service, scheduler, migration, background purchase or recovery
+queue. Restart does not replay narration. Current stories receive the guidance on
+future explicit requests; existing accepted prose/references remain intact.
+
+Model review includes selected exact evidence (potentially private owner assertions
+or submitted input), earlier outcomes and chapter handoff. Input size/cost may grow
+inside the reviewed bound without changing the one/four/six-call ceilings. If the
+protected context cannot fit the configured model, choose a suitable capacity or
+shorter supported plan; no paid call is dispatched by that preflight rejection.
+Current-format save copies preserve original ledger/evidence and remap source IDs;
+the projections are rebuilt rather than imported as authority.
+
+The owner has waived backward compatibility as an acceptance requirement. Keep
+current runtime/formats as the target and protect owner files; this waiver does
+not authorize destructive storage changes. No paid narrative evaluation or
+production startup/deployment has occurred. See the opt-in evaluation protocol
+for what a separately approved rolling comparison would require.
+
 ## B7 readable books, Bookshelf and reading copies
 
 Gate separates **Make a readable book** from **Keep playing elsewhere**. A book
