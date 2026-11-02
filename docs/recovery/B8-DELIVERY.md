@@ -1,9 +1,10 @@
 # B8 — final engineering and manual qualification
 
-Final candidate on `recovery/b8-qualification`, based on delivered N1–N6 main
-`0d23a704a901c5d7d15188062f9f8842563ef1df`. Application remains **5.0.0**, family
-`ink-morrow-5`, schema **29**. Its exact-head five-check CI and actual main merge
-remain the integration boundary. This is not a new release number or deployment.
+Delivered through PR #117, merged as `48682837b0bf6fc77d447b728899873e619170c0`
+after all five checks passed on exact head `28b2c5a4eb584f9801a8ea93e4b92e058dea5142`.
+Application remains **5.0.0**, family `ink-morrow-5`, schema **29**. All authorized
+engineering/qualification/manual work is complete and consolidated on main.
+This is not a new release number or deployment.
 
 The owner explicitly waived backwards compatibility. Current runtime/formats are
 the target; no old-series converter or compatibility layer is required. Historical
@@ -92,8 +93,8 @@ canonical artwork; covers/headers remained legible and text/bounds checks passed
 | Evidence class | Actual result |
 |---|---|
 | Source features | B5–B7 and N1–N6 main merges verified after all five exact-head checks. |
-| Local regressions | N1–N6 backend 593/593, frontend 344/344; B8 storage-boundary focused suite 12/12. Final B8 CI runs the complete suites. |
-| Browser journeys | Desktop/Mobile Chrome deterministic fixtures; all N1–N6 exact-head browser CI green. B8 requires its own final browser check. |
+| Local regressions | N1–N6 backend 593/593, frontend 344/344; B8 storage-boundary focused suite 12/12. Final B8 CI passed 594 backend (593 correctness + 1 isolated scale) and 344 frontend cases. |
+| Browser journeys | Desktop/Mobile Chrome deterministic fixtures; all N1–N6 exact-head browser CI green. Final B8 browser CI passed 60 desktop and 60 Mobile Chrome cases. |
 | Populated visual review | Synthetic workspace/browser captures and all six PDF contact sheets/selected full pages inspected. |
 | Capacity | Synthetic host measurements above; complete smaller saves, explicit dense-limit rejection, zero provider calls. |
 | Real Android touch/IME/rotation | Not observed; browser emulation is not that evidence. |
@@ -103,5 +104,5 @@ canonical artwork; covers/headers remained legible and text/bounds checks passed
 Release-scale performance remains isolated from parallel correctness suites in CI;
 its original build/export/import 60-second assertions are unchanged. Preserve
 failures and exact source evidence; do not reclassify missing external acceptance
-as a passing automated check. Final main/checkouts and task completion are recorded
-only after the B8 PR actually merges with all five checks green.
+as a passing automated check. B8 main integration and task completion are recorded after the verified merge
+above; see evidence/B8-CI.json. The canonical checkout is consolidated on main.

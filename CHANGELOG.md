@@ -1,6 +1,22 @@
 # Changelog
 
-## Recovery B5 — in verification
+## Recovery checkpoint — 2 November 2026 (5.0.0 / schema 29)
+
+- Delivered retained Gallery/reference bundles, reviewed saved-text MP3 listening,
+  frozen nine-format books, Bookshelf and configured revocable reading copies.
+- Added source-grounded narrative memory/outcomes, whole-character guidance and
+  chapter handoff within existing calls; accepted fiction remains unchanged.
+- Qualified current-format capacity and preserved original SQLite storage errors.
+- Regenerated/inspected all six manuals: 143 pages, including the 35-page User Guide.
+- B8 merged through PR #117 at `4868283` after all five checks passed on `28b2c5a`.
+  Current runtime/formats are the target; backwards compatibility is not required.
+- No production startup/deployment or paid literary/voice evaluation. Real Android
+  touch/IME/rotation remains distinct from automated browser coverage.
+
+Historical batch notes below preserve earlier implementation status; this completed
+checkpoint and docs/recovery/CONTINUATION.md supersede their old pending wording.
+
+## Historical recovery B5 implementation checkpoint
 
 - Retained Gallery inventory, local image reuse and independent reviewed painting with late-result preservation.
 - Private reference bundles with preview and replay-safe new-copy imports.

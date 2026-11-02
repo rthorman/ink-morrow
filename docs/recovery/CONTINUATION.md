@@ -1,10 +1,12 @@
 # InkMorrow continuation — 2 November 2026
 
-GitHub main is canonical. Current feature main is
-`0d23a704a901c5d7d15188062f9f8842563ef1df` (N1–N6, PR #116). B8 is the final
-qualification/manual candidate on `recovery/b8-qualification`; finish its exact-head
-five-check PR/main integration, record the final state, and leave local checkouts
-clean/current. Do not start another feature batch from an unmerged candidate.
+GitHub main is canonical. **All authorized recovery/narrative engineering and
+final qualification/manual tasks are complete.** B8 delivered through PR #117,
+merged as `48682837b0bf6fc77d447b728899873e619170c0`, after all five checks passed at
+`28b2c5a4eb584f9801a8ea93e4b92e058dea5142`. Later documentation-only closeout commits
+may follow that feature checkpoint; fetch/inspect `origin/main` for the exact tip.
+The owner explicitly requested consolidation on main. No further development is
+queued under this request; resume only with a new objective.
 
 ## Current owner decisions
 
@@ -27,6 +29,7 @@ clean/current. Do not start another feature batch from an unmerged candidate.
 | B6 listening/shared player | #114 / `5842623e5e6ac4735a3b370559891e0922d211b8` | `61e97b1d310a125a391616c4845dfe36c656dc30` |
 | B7 frozen editions/Bookshelf/reading copies | #115 / `7ec3fa9985511431e0de8c76326ba61fb302b3e5` | `6a488a2b6dd51ce67ddb3647120d542abc57c1bc` |
 | N1–N6 narrative context/guidance/protocol | #116 / `0d23a704a901c5d7d15188062f9f8842563ef1df` | `d958de19737032d60015ad1f867ff2f86f90f69d` |
+| B8 qualification/manuals | #117 / `48682837b0bf6fc77d447b728899873e619170c0` | `28b2c5a4eb584f9801a8ea93e4b92e058dea5142` |
 
 B1–B4 delivery records retain earlier contracts/evidence. Read DEVELOPMENT-TASKS.md,
 CAPABILITY-LEDGER.md, B7-DELIVERY.md, NARRATIVE-DELIVERY.md and B8-DELIVERY.md for current
@@ -62,8 +65,8 @@ or submitted input. One/four/six call ceilings and quality Off default are uncha
 
 ## Verification and honest limits
 
-N1–N6 full local backend: 593/593; frontend: 344/344. Its exact-head CI has all five
-green. Two old browser text assertions were corrected by preserving clear hidden-world
+Final B8 exact-head CI has all five green: 594 backend (593 correctness plus one
+isolated scale), 344 frontend, 60 desktop and 60 Mobile Chrome cases. Two old browser text assertions were corrected by preserving clear hidden-world
 truth disclosure and qualifying source-evidence/handoff disclosure; both cancellation
 journeys passed on desktop/mobile. B8 adds a regression preserving original errors
 when SQLite has already rolled back a storage failure.
@@ -73,8 +76,7 @@ sixteen reference revisions and dense facts at 500/3,000/10,000 moments. Complet
 smaller saves round-trip; oversized 10,000-moment export fails explicit preflight.
 The current User Guide keeps 33 task/journey chapters and 35 A4 pages at the existing
 type size. All six source manuals/PDFs and their freshness manifest are regenerated
-at B8; the temporary deferral is removed. Final exact QA/CI/main evidence belongs in
-B8-DELIVERY.md before integration is marked complete.
+at B8; the temporary deferral is removed. Final QA/CI/main evidence is recorded in B8-DELIVERY.md and evidence/B8-CI.json.
 
 No real Android touch/IME/rotation acceptance, live paid literary evaluation or
 production deployment is claimed. NARRATIVE-EVALUATION-PROTOCOL.md is an opt-in
@@ -82,8 +84,10 @@ proposal requiring separate paid scope, not permission to run it.
 
 ## Workspace and safe continuation
 
-Use `/home/rthorman/src/ink-morrow-5`; shared Git metadata/main checkout is
-`/home/rthorman/src/ink-morrow`. Do not create another Windows checkout. Start later
+Use `/home/rthorman/src/ink-morrow-5` on **main**. Shared Git metadata is in
+`/home/rthorman/src/ink-morrow/.git`; that sibling checkout can stay detached at
+the same verified main tip. The separate `/home/rthorman/ink-morrow` copy is also
+synchronized. Do not create another Windows checkout. Start later
 work from verified GitHub main and inspect local status before changing it. Use
 isolated stores and port 3100 for browser tests; do not start/touch the owner server.
 Never recover abandoned pre-5.0 WIP or mutate published migration source bytes.

@@ -15,10 +15,13 @@ checks may remain historical tests, not a mandate for new product behavior.
 The owner explicitly resumed after the historical B6 pause. B5 Gallery (#113),
 B6 listening (#114), B7 books/Bookshelf/reading copies (#115), and N1–N6 narrative
 context/guidance (#116) are merged on main after five exact-head green checks.
-Current feature main is `0d23a70`, application 5.0.0/schema 29. B8 is the final
-qualification/manual candidate; finish its five-check PR/main boundary, record
-final state, and consolidate on main with checkouts clean/current. The canonical
-InkMorrow checkout must end on main, per the owner’s latest direction. Do not restart completed batches.
+B8 qualification/manuals (#117) is merged at `4868283` after five exact-head green
+checks at `28b2c5a`, application 5.0.0/schema 29. All authorized development tasks
+are complete. The canonical InkMorrow checkout ends on **main** with other copies
+clean/current, per the owner's latest direction. No further feature is queued;
+resume only with a new objective. Later documentation-only closeout commits may
+follow the feature checkpoint: fetch actual origin/main rather than pinning an
+old handoff hash. Do not restart completed batches.
 
 Read `docs/recovery/CONTINUATION.md`, `DEVELOPMENT-TASKS.md`, `CAPABILITY-LEDGER.md`
 and the delivery records. The historical 4.1 comparator, roundtables and B6 pause
