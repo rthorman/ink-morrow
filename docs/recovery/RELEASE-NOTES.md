@@ -1,8 +1,8 @@
 # Recovery checkpoint on InkMorrow 5.0.0
 
 This checkpoint retains application 5.0.0 and schema 29. It completes the authorized
-workspace/media/publication/narrative engineering scope, subject to the B8 exact-head
-CI/main boundary recorded in B8-DELIVERY.md. It is not a new public release number
+workspace/media/publication/narrative engineering scope. B8 merged through PR #117
+as `4868283` after five exact-head green checks, recorded in B8-DELIVERY.md. It is not a new public release number
 or a deployed installation. Current runtime/formats are the target; backwards
 compatibility and old-series conversion are not required.
 

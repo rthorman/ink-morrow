@@ -1,0 +1,50 @@
+{
+  "recorded_at": "2026-11-02 12:57:26 UTC",
+  "repository": "https://github.com/rthorman/ink-morrow",
+  "pull_request": 117,
+  "head_sha": "28b2c5a4eb584f9801a8ea93e4b92e058dea5142",
+  "merged_main_sha": "48682837b0bf6fc77d447b728899873e619170c0",
+  "workflow_run_id": 41447756106,
+  "workflow_url": "https://github.com/rthorman/ink-morrow/actions/runs/41447756106",
+  "jobs": [
+    {
+      "id": 125284998120,
+      "name": "Brand residue",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 125284998340,
+      "name": "Lint (ESLint)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 125285112496,
+      "name": "Production dependency audit",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 125285112578,
+      "name": "Jest (backend + frontend)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 125285767703,
+      "name": "Playwright e2e",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "tests": {
+    "backend_correctness": 593,
+    "backend_isolated_release_scale": 1,
+    "backend_total": 594,
+    "frontend": 344,
+    "chromium": 60,
+    "mobile_chrome": 60
+  },
+  "scope": "Synthetic/current-format CI. No real Android acceptance, paid literary/voice evaluation, owner migration or deployment."
+}

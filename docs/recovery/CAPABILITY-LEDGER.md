@@ -21,7 +21,7 @@ migration history remain protected.
 | Current all-path playable saves | Implemented current v2 | New-copy import, source/art/reference/layout closure; credentials, consent, jobs, prepared audio/books and reading-link authority excluded. |
 | Source-grounded narrative context and whole-character guidance | Delivered N1–N6, PR #116 | `0d23a70`; existing calls, exact source types, prior outcomes, chapter handoff and final next-move gate; no rewrite of accepted fiction. |
 | Sustained literary evaluation | Protocol supplied; not run | Deterministic coverage is mechanical. No paid trial authorized; live narrative quality not evaluated. |
-| B8 code/fixture/browser/manual qualification | Final candidate | Capacity evidence, six current PDFs and exact-head CI/main integration recorded in B8-DELIVERY.md. |
+| B8 code/fixture/browser/manual qualification | Delivered, PR #117 | Capacity evidence, six current PDFs and exact-head CI/main integration recorded in B8-DELIVERY.md. |
 | D1 prose wording editor | Outside authorized scope | No manuscript/prose editor added. |
 | D2 old-series conversion / backwards compatibility | Not required | Explicit owner decision, 2 November 2026; no conversion feature promised. |
 | D3 reference-image conditioning | Separately gated | No uploaded reference images sent as generation conditioning. |

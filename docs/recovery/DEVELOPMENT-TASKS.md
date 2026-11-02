@@ -1,4 +1,4 @@
-# Active development tasks — 2 November 2026
+# Completed development checkpoint — 2 November 2026
 
 ## Current scope — no backward compatibility (2 November 2026)
 
@@ -11,7 +11,7 @@ retain safe storage boundaries and historical records. Existing compatibility
 checks may remain historical tests, not a mandate for new product behavior.
 
 The owner explicitly resumed development on 2 November. The pause record remains
-historical evidence; this checklist and CONTINUATION.md describe active work.
+historical evidence; this checklist and CONTINUATION.md describe the completed checkpoint.
 
 GitHub main is canonical. Complete coherent batches through PRs with all five
 checks green on the exact head. Preserve owner data and the single fiction graph.
@@ -75,14 +75,20 @@ possession counterexamples; those limits inform N6 rather than proving transfer.
 
 ## Final qualification and manuals
 
-- [ ] B8 code/fixture/browser qualification, final capability ledger and release
+- [x] B8 code/fixture/browser qualification, final capability ledger and release
   notes for the implemented scope. Record real Android and live literary evidence
   separately; do not claim observations that were not made.
 - [x] Remove the temporary PDF deferral and regenerate/inspect all six manuals at
   the final recovery checkpoint, updating their source/output manifest together.
-- [ ] Verify final exact-head CI and merged main; leave local checkouts current
+- [x] Verify final exact-head CI and merged main; leave local checkouts current
   and clean. Do not start or deploy the production server.
 
 The owner additionally directed consolidation on **main** after completion. Final
 verification must leave the canonical InkMorrow checkout on main and other local
 checkouts clean/current, with only integrated recovery branches removed.
+
+B8 delivered through PR #117, merged as `48682837b0bf6fc77d447b728899873e619170c0`,
+after all five checks passed at `28b2c5a4eb584f9801a8ea93e4b92e058dea5142`.
+CI: 594 backend, 344 frontend, 60 desktop and 60 Mobile Chrome cases. Six fresh
+manuals contain 143 pages; User Guide remains 35. No authorized feature task remains.
+Optional/gated work and real-device/live-literary/deployment evidence remain separate.

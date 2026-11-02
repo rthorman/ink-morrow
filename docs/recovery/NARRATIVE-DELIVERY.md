@@ -59,9 +59,10 @@ The combined focused run with catalogue and B3 contracts passed 54/54. An initia
 new test assumed byte-identical seed JSON despite existing normalization; its
 assertion now compares parsed seed choices, and all focused checks pass. The final full local backend run passed 593/593 across 55 suites; frontend
 passed 344/344 across 39 suites. Lint, brand, release identities and deferred-PDF
-integrity checks passed. Exact-head CI/main integration still precede delivery.
+integrity checks passed. Exact-head CI/main integration was verified at the delivered head above.
 
-All six source manuals are updated. Final PDFs remain deferred to B8, as requested.
+All six source manuals were updated in this batch; B8 subsequently regenerated
+and inspected the complete six-PDF library (see B8-DELIVERY.md).
 **Live narrative quality not evaluated.** No actual Android/paid trial/deployment
 acceptance is claimed. Character Forge source ideas were adapted from the earlier
 read-only review at `36dd2db`; its counterexamples informed the evaluation criteria,

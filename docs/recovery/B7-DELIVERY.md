@@ -80,5 +80,6 @@ storage. Playable saves exclude rendered editions, audio, jobs and share authori
 ## Remaining integration
 
 B7 is complete through the verified main merge above. N1–N6 starts from that
-updated main. Final B8/PDF qualification follows.
+updated main and subsequently delivered through #116. Final B8/PDF qualification
+subsequently delivered through #117; see B8-DELIVERY.md.
 D1/D2/D3, optional B9, paid evaluation and production startup remain outside scope.
