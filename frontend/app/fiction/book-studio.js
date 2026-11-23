@@ -41,11 +41,13 @@ export function createBookStudio({ api, dialogs, getCurrent, playAudio }) {
       ["front_text", "Front matter", "textarea", "", 8000],
       ["back_title", "Back matter heading", "input", "Afterword", 200],
       ["back_text", "Back matter", "textarea", "", 8000],
-    ])
+    ]) {
       fields[key] = field(label, type, value, { maxLength: max });
+      fields[key].control.disabled = true;
+    }
     const error = el("p");
     error.setAttribute("role", "alert");
-    const draftStatus = el("p");
+    const draftStatus = el("p", "Opening private draft…");
     const previewRoot = el("section"),
       retained = el("section");
     let edition = null,
@@ -401,6 +403,7 @@ export function createBookStudio({ api, dialogs, getCurrent, playAudio }) {
         }, error),
       "btn btn-primary",
     );
+    freeze.disabled = true;
     dialogs.openDialog({
       title: "Make a readable book",
       body: [
@@ -442,7 +445,10 @@ export function createBookStudio({ api, dialogs, getCurrent, playAudio }) {
         },
         { form: form() },
       );
-      if (live() && content && !draft.state?.dirty) fill(content.form);
+      if (!live()) return;
+      if (content && !draft.state?.dirty) fill(content.form);
+      for (const { control } of Object.values(fields)) control.disabled = false;
+      freeze.disabled = false;
       const data = await api(`/fiction/${story.id}/editions`);
       if (!live()) return;
       retained.append(

@@ -15,9 +15,21 @@ test.describe("B7 frozen books and retained collection", () => {
       await route.abort();
     });
     await page.goto(`/#/story/${story.id}/gate`);
-    await page
-      .getByRole("button", { name: "Make a readable book", exact: true })
-      .click();
+    const makeBook = page.getByRole("button", { name: "Make a readable book", exact: true });
+    await expect(makeBook).toBeVisible();
+    const openDraft = Promise.withResolvers();
+    const workspace = `**/api/fiction/${story.id}/workspace?*`;
+    await page.route(workspace, async (route) => {
+      await openDraft.promise;
+      await route.continue();
+    }, { times: 1 });
+    try {
+      await makeBook.click();
+      await expect(page.getByLabel("Author credit", { exact: true })).toBeDisabled();
+      await expect(page.getByRole("button", { name: "Preview readable book", exact: true })).toBeDisabled();
+    } finally {
+      openDraft.resolve();
+    }
     await page
       .getByLabel("Author credit", { exact: true })
       .fill("The fixture gardener");
