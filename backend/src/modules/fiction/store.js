@@ -191,7 +191,7 @@ function createFictionStore(db) {
     if (Boolean(input.fact) === Boolean(input.remove_id)) fail('Correct one fact or remove one fact.');
     return mutate(id, expected, (context) => {
       const state = structuredClone(context.state); const beatId = randomUUID();
-      let fact; let priorEvidence = null;
+      let fact; let priorEvidence;
       if (input.remove_id) {
         fact = state.facts.find((entry) => entry.id === input.remove_id) || memory.get(id, context.branch.head_beat_id, input.remove_id);
         if (!fact) fail('Fact not found.', 'FACT_NOT_FOUND', 404);

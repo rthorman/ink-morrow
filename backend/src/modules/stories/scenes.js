@@ -129,7 +129,7 @@ function createSceneStore(db, { hierarchy }) {
   function assertViewpointInCast(storyId, characterId) {
     if (!characterId) return;
     const row = db.prepare('SELECT characters FROM stories WHERE id = ?').get(storyId);
-    let cast = [];
+    let cast;
     try { cast = JSON.parse(row?.characters || '[]'); } catch { cast = []; }
     if (!cast.some((entry) => (typeof entry === 'string' ? entry : entry?.id) === characterId)) {
       throw conflict('The scene viewpoint must be a member of this manuscript cast.');

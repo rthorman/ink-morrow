@@ -1,6 +1,6 @@
 'use strict';
 
-require('dotenv').config({ path: require('node:path').join(__dirname, '.env') });
+require('dotenv').config({ path: require('node:path').join(__dirname, '.env'), quiet: true });
 
 const fs = require('node:fs');
 const { createDb } = require('./src/db');

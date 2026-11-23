@@ -473,7 +473,7 @@ function createListening({ db, store, queries, providers, ai, rootDir }) {
     const destination = file(storage);
     const staging = destination + ".tmp";
     const digest = createHash("sha256");
-    let fd = null;
+    let fd;
     let published = false;
     try {
       fd = fs.openSync(staging, "wx", 0o600);

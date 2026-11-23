@@ -26,7 +26,6 @@ function validateMp3(buffer) {
       buffer.length - offset === 128 &&
       buffer.subarray(offset, offset + 3).toString() === "TAG"
     ) {
-      offset += 128;
       break;
     }
     if (

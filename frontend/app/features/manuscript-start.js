@@ -77,7 +77,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       panel.hidden = panel.dataset.startPanel !== path;
     }
     if (el('manuscriptStartHint')) el('manuscriptStartHint').textContent = PATH_HINT[path];
-    let dismissed = [];
+    let dismissed;
     try { dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_HINTS_KEY) || '[]'); } catch { dismissed = []; }
     if (el('manuscriptStartHintWrap')) el('manuscriptStartHintWrap').hidden = dismissed.includes(path);
     if (el('manuscriptStartSubmit')) {
@@ -516,7 +516,7 @@ export function createManuscriptStart({ api, state, notify, features, dialogs })
       button.addEventListener('click', () => setStage(button.dataset.startStageTarget || button.dataset.startNext, { focus: true }));
     }
     el('manuscriptStartHintDismiss').addEventListener('click', () => {
-      let dismissed = [];
+      let dismissed;
       try { dismissed = JSON.parse(sessionStorage.getItem(DISMISSED_HINTS_KEY) || '[]'); } catch { dismissed = []; }
       dismissed = [...new Set([...dismissed, path])].slice(0, 3);
       try { sessionStorage.setItem(DISMISSED_HINTS_KEY, JSON.stringify(dismissed)); } catch { /* memory-only browser */ }
