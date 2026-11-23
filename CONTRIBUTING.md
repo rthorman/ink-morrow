@@ -18,7 +18,9 @@ unredacted logs or real story material to public issues.
 ## Local development
 
 The active project is consolidated under WSL. Windows tooling can use that same
-tree; do not create another source copy. Node 22.5+ with node:sqlite is required.
+tree; do not create another source copy. Use Node 22.13+ within the Node 22
+release line for contributor tooling, or Node 24 or later. `nvm install`
+selects the Node 22 release line used by CI.
 
 ```bash
 bash setup.sh --dev

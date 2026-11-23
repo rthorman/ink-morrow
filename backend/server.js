@@ -3,7 +3,7 @@
 // Entry point: loads config, wires up the database, serves the app.
 // The app itself lives in src/app.js so tests can create isolated instances.
 
-require('dotenv').config({ path: require('path').join(__dirname, '.env') });
+require('dotenv').config({ path: require('path').join(__dirname, '.env'), quiet: true });
 
 const fs = require('fs');
 const path = require('path');

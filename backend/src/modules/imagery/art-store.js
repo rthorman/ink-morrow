@@ -568,7 +568,7 @@ function createArtStore({ db, rootDir, legacyImageStore = null, logger = console
     if (!legacyImageStore) return;
     const rows = db.prepare('SELECT * FROM legacy_art_pages ORDER BY story_id, ordinal, page_id').all();
     for (const row of rows) {
-      let image = null;
+      let image;
       try { image = legacyImageStore.readImage('page', row.page_id); } catch { image = null; }
       if (!image) {
         db.prepare(`

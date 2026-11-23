@@ -549,7 +549,7 @@ function createContinuityStore(db) {
          SELECT canonical_revision_id FROM pages WHERE canonical_revision_id IS NOT NULL
        )
     `).run(storyId);
-    let prior = start > 1 ? db.prepare(`
+    const prior = start > 1 ? db.prepare(`
       SELECT checkpoint.* FROM continuity_projection_checkpoints checkpoint
       JOIN pages page ON page.canonical_revision_id = checkpoint.revision_id
       WHERE checkpoint.story_id = ? AND checkpoint.page_number < ?
@@ -565,7 +565,7 @@ function createContinuityStore(db) {
       `).get(storyId, start).count;
       if (Number(prior.delta_count) !== Number(expectedPrior)) ledger = null;
     }
-    if (!ledger) { start = 1; prior = null; ledger = emptyLedger(); }
+    if (!ledger) { start = 1; ledger = emptyLedger(); }
     db.prepare('DELETE FROM continuity_projection_checkpoints WHERE story_id = ? AND page_number >= ?').run(storyId, start);
     const insert = db.prepare(`
       INSERT OR REPLACE INTO continuity_projection_checkpoints
@@ -1266,7 +1266,7 @@ function createContinuityStore(db) {
     if (!tokens.length) return [];
     const excluded = new Set(excludePageIds || []);
     const boundedLimit = Math.min(Math.max(Number(limit) || 6, 1), 20);
-    let rows = [];
+    let rows;
     try {
       const match = tokens.map((token) => `${token.replace(/[^a-z0-9]/g, '')}*`).filter(Boolean).join(' OR ');
       rows = db.prepare(`

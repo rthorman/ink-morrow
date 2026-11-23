@@ -595,7 +595,7 @@ function createContinuityService({ db, stories, store, chatCompletion, autoEnabl
 
     let firstResult = null;
     let firstMode = 'schema';
-    let firstFailure = null;
+    let firstFailure;
     try {
       const first = await call('schema');
       firstResult = first.result;

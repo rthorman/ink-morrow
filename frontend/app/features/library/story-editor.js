@@ -772,7 +772,7 @@ export function createStoryEditor({ api, state, notify, features, dialogs }) {
     if (toneSelect) {
       toneSelect.addEventListener('change', () => {
         if (toneSelect.value !== 'explicit') return;
-        let acked = false;
+        let acked;
         try {
           acked = localStorage.getItem('im-tone-explicit-ok') === '1';
         } catch {

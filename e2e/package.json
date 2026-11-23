@@ -9,8 +9,8 @@
     "install-browsers": "node run-playwright.cjs install chromium"
   },
   "devDependencies": {
-    "@axe-core/playwright": "4.13.0",
-    "@playwright/test": "^1.40.0"
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "^1.65.1"
   },
   "license": "AGPL-3.0-only"
 }

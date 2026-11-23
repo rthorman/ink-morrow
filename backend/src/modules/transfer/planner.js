@@ -113,7 +113,7 @@ function createExportPlanner({ db, imageStore, artStore, audioDir, appVersion = 
     const characters = new Set();
     const scribes = new Set();
     const stories = new Set();
-    let rootName = null;
+    let rootName;
 
     if (options.scope === 'full') {
       for (const row of db.prepare('SELECT id FROM worlds').all()) worlds.add(row.id);
