@@ -497,11 +497,26 @@ test.describe('5.0 playable fiction', () => {
 
   test('locking clears prose and requires authentication again', async ({ page }) => {
     await startFixture(page);
-    await page.locator('#lockBtn').click();
+    const deliverLogout = Promise.withResolvers();
+    let revoked = false;
+    await page.route('**/api/auth/logout', async (route) => {
+      const response = await route.fetch();
+      revoked = response.ok();
+      await deliverLogout.promise;
+      await route.fulfill({ response });
+    });
+    try {
+      await page.locator('#lockBtn').click();
+      await expect(page.locator('.container')).toBeHidden();
+      await expect(page.locator('#fictionProse')).toBeEmpty();
+      await expect.poll(() => revoked).toBe(true);
+      expect((await page.request.get('/api/fiction')).status()).toBe(401);
+      await expect(page.locator('#authPassword')).toBeDisabled();
+      await expect(page.locator('#authLoginForm button[type="submit"]')).toBeDisabled();
+    } finally {
+      deliverLogout.resolve();
+    }
     await expect(page.locator('#authLoginForm')).toBeVisible();
-    await expect(page.locator('.container')).toBeHidden();
-    await expect(page.locator('#fictionProse')).toBeEmpty();
-    expect((await page.request.get('/api/fiction')).status()).toBe(401);
     await page.locator('#authPassword').fill(E2E_PASSWORD);
     await page.locator('#authLoginForm button[type="submit"]').click();
     await expect(page.locator('#fictionProse')).toContainText('Mara waited');

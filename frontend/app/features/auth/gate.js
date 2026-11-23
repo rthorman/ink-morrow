@@ -60,6 +60,7 @@ export function createAuthGate({ auth }) {
   let onLock = () => {};
   let lastState = null;
   let busy = false;
+  let locking = false;
 
   function setGated(gated) {
     document.body.classList.toggle('im-gated', gated);
@@ -203,7 +204,7 @@ export function createAuthGate({ auth }) {
     queueMicrotask(() => code.focus());
   }
 
-  function renderLocked() {
+  function renderLocked({ pending = false } = {}) {
     const { surface, formSide } = panelBase(
       'Unlock Ink Morrow',
       'The manuscript remembers you. Speak the phrase that opens the desk.'
@@ -214,8 +215,11 @@ export function createAuthGate({ auth }) {
     const password = passwordInput('authPassword', 'current-password');
     const remember = rememberRow();
     const error = errorLine();
-    const submit = submitButton('Unlock');
+    const submit = submitButton(pending ? 'Locking…' : 'Unlock');
     form.append(passwordRow('Password', password), remember, error, submit);
+    if (pending) {
+      for (const control of form.elements) control.disabled = true;
+    }
     form.addEventListener('submit', async (event) => {
       event.preventDefault();
       if (busy) return;
@@ -237,7 +241,7 @@ export function createAuthGate({ auth }) {
     });
     formSide.append(form, manualLink());
     root.replaceChildren(surface);
-    queueMicrotask(() => password.focus());
+    if (!pending) queueMicrotask(() => password.focus());
   }
 
   function renderUnavailable(message) {
@@ -253,13 +257,15 @@ export function createAuthGate({ auth }) {
   }
 
   function render(status) {
-    const state = status?.state || 'error';
+    const state = locking ? 'locking' : status?.state || 'error';
     if (state === 'unlocked' || state === 'disabled') {
       setGated(false);
       root.replaceChildren();
     } else {
       setGated(true);
-      if (state === 'setup-required') renderSetup();
+      if (state === 'locking') {
+        if (lastState !== state) renderLocked({ pending: true });
+      } else if (state === 'setup-required') renderSetup();
       else if (state === 'locked') renderLocked();
       else renderUnavailable(status?.message);
     }
@@ -290,7 +296,7 @@ export function createAuthGate({ auth }) {
     try {
       const current = await auth.status();
       render(current);
-      return current.state === 'unlocked' || current.state === 'disabled';
+      return !locking && (current.state === 'unlocked' || current.state === 'disabled');
     } catch (error) {
       render({ state: 'error', message: error.message });
       return false;
@@ -314,15 +320,19 @@ export function createAuthGate({ auth }) {
       lock.addEventListener('click', async () => {
         if (busy) return;
         busy = true;
+        locking = true;
         lock.disabled = true;
-        render({ state: 'locked' }); // Hide private content before awaiting revocation.
+        render(); // Hide private content while the server revokes the session.
+        let status;
         try {
-          await auth.logout();
+          status = await auth.logout();
         } catch (error) {
-          render({ state: 'error', message: error.message });
+          status = { state: 'error', message: error.message };
         } finally {
+          locking = false;
           busy = false;
           lock.disabled = false;
+          render(status);
         }
       });
     }
